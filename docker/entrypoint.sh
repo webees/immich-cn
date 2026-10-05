@@ -7,7 +7,12 @@ target="${build_root%/}/geodata"
 source_dir="${IMMICH_CN_GEODATA_DIR:-/opt/immich-cn/geodata}"
 langs_dir="${IMMICH_CN_LANGS_DIR:-/opt/immich-cn/i18n-iso-countries/langs}"
 patterns_table="${IMMICH_CN_PATTERNS_TABLE:-/opt/immich-cn/patterns.tsv.gz}"
-pattern="${IMMICH_CN_PATTERN:-{admin_2}}"
+# 注意：默认值里不要直接写 {admin_2}，bash 会在第一个 } 处结束参数展开，
+# 导致显式设置 IMMICH_CN_PATTERN 时多出一个右花括号。
+pattern="${IMMICH_CN_PATTERN:-}"
+if [ -z "$pattern" ]; then
+  pattern='{admin_2}'
+fi
 
 mkdir -p "$target"
 if ! cp -a "$source_dir/." "$target/" 2>/dev/null; then
