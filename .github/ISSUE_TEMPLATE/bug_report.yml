@@ -1,0 +1,54 @@
+name: 问题反馈
+description: 反馈使用中遇到的问题
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > [!IMPORTANT]
+        > 边界处识别不准属于 Immich 反向地理编码的固有限制：可以尝试 `geodata_full.zip`，
+        > 或到 [GeoNames](https://www.geonames.org/) 补充缺失地点。
+  - type: input
+    id: artifact
+    attributes:
+      label: 使用的制品
+      description: 例如 geodata_admin_2.zip、ghcr.io/webees/immich-cn-server:release-2026-10-06
+      placeholder: ex. geodata.zip
+    validations:
+      required: true
+  - type: input
+    id: data-date
+    attributes:
+      label: 数据日期
+      description: 见 Release 标题或 geodata-date.txt
+      placeholder: ex. 2026-10-06
+    validations:
+      required: true
+  - type: input
+    id: immich-version
+    attributes:
+      label: Immich 版本与镜像
+      placeholder: ex. 1.140.0 / immich-app/immich-server
+    validations:
+      required: true
+  - type: checkboxes
+    id: imported
+    attributes:
+      label: 数据已成功导入
+      options:
+        - label: 我在 Immich 启动日志中看到 `geodata records imported`
+        - label: 我确认执行过「提取元数据 → 全部」
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 问题描述
+      description: 请给出坐标、期望地名与实际地名，便于定位
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志
+      render: shell
+    validations:
+      required: false

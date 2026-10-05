@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+title: immich-cn
+message: "如果本项目对你的工作有帮助，请引用或链接本仓库。"
+type: software
+license: MIT
+repository-code: "https://github.com/webees/immich-cn"
+abstract: >-
+  为 Immich 提供中文反向地理编码数据的自动化构建流水线，
+  包含 GeoNames 数据解析、四级行政区中文化、可选 API 增强、
+  GitHub Release 与容器镜像发布。
+keywords:
+  - immich
+  - geodata
+  - geocoding
+  - geonames
+  - chinese
+  - docker
+authors:
+  - name: webees
+version: 1.0.0
+date-released: 2026-10-06
+references:
+  - type: software
+    title: immich-geodata-cn
+    repository-code: "https://github.com/ZingLix/immich-geodata-cn"
+    notes: 思路与数据格式参考
+  - type: data
+    title: GeoNames
+    website: "https://www.geonames.org/"
+  - type: data
+    title: Natural Earth
+    website: "https://www.naturalearthdata.com/"

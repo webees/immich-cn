@@ -1,0 +1,6 @@
+# 默认由维护者审核
+* @webees
+
+# 流水线与镜像改动需要额外关注
+/.github/workflows/ @webees
+/docker/ @webees

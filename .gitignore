@@ -1,0 +1,37 @@
+# 构建产物
+/build/
+/build-*/
+/dist/
+/dist-*/
+/output/
+*.zip
+*.tar.gz
+*.sha256
+
+# 工作目录（本地临时数据）
+/work/
+/outputs/
+/.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# 编辑器 / 系统
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Docker
+docker-compose.override.yml

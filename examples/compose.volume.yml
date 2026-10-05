@@ -1,0 +1,21 @@
+# 官方镜像 + 数据目录挂载：先用数据镜像把文件释放到宿主机。
+#
+#   docker run --rm -v "$PWD/immich-cn:/out" ghcr.io/webees/immich-cn:latest \
+#     --target /out --pattern '{admin_2}'
+#
+name: immich
+
+services:
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:release
+    container_name: immich_server
+    env_file:
+      - .env
+    volumes:
+      - ${UPLOAD_LOCATION}:/usr/src/app/upload
+      - ./immich-cn/geodata:/build/geodata:ro
+      # Immich < 1.136.0 需要下面这一行
+      - ./immich-cn/i18n-iso-countries/langs:/usr/src/app/server/node_modules/i18n-iso-countries/langs:ro
+    ports:
+      - 2283:2283
+    restart: always

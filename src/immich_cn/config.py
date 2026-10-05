@@ -1,0 +1,198 @@
+"""构建配置与上游数据源清单。"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Literal
+
+from immich_cn import __version__
+from immich_cn.errors import ConfigError
+
+GEONAMES_BASE = "https://download.geonames.org/export/dump"
+NATURAL_EARTH_VERSION = "v5.1.2"
+NATURAL_EARTH_URL = (
+    f"https://raw.githubusercontent.com/nvkelso/natural-earth-vector/{NATURAL_EARTH_VERSION}"
+    "/geojson/ne_10m_admin_0_countries.geojson"
+)
+I18N_ISO_COUNTRIES_VERSION = "7.0.0"
+I18N_ISO_COUNTRIES_URL = (
+    f"https://registry.npmjs.org/i18n-iso-countries/-/i18n-iso-countries-{I18N_ISO_COUNTRIES_VERSION}.tgz"
+)
+
+USER_AGENT = f"immich-cn/{__version__} (+https://github.com/webees/immich-cn)"
+
+#: 默认需要附带国家全量 dump 的地区；`cities500` 只有人口 > 500 的记录，国内数据在人口维度并不可靠。
+DEFAULT_EXTRA_COUNTRIES: tuple[str, ...] = ("CN", "HK", "TW", "MO", "JP")
+
+#: 需要"直辖市细化到区"的特殊二级行政代码，非 full 模式下也会保留。
+FINE_GRAINED_ADMIN2: frozenset[str] = frozenset(
+    {
+        "CN.22.11876380",  # 北京市
+        "CN.23.12324204",  # 上海市
+        "CN.28.12324202",  # 天津市
+        "CN.33.8739734",  # 重庆市
+    }
+)
+
+#: 展示粒度变体，顺序即发布顺序。
+DEFAULT_PATTERNS: tuple[str, ...] = (
+    "{admin_2}",
+    "{admin_3}",
+    "{admin_4}",
+    "{admin_2} {admin_3}",
+    "{admin_2} {admin_4}",
+    "{admin_3} {admin_4}",
+    "{admin_2} {admin_3} {admin_4}",
+)
+
+#: 默认发布变体的 slug（geodata.zip 指向它）。
+DEFAULT_PATTERN = "{admin_2}"
+
+ProviderName = Literal["offline", "amap", "nominatim", "auto"]
+ChineseVariant = Literal["hans", "hant"]
+
+
+@dataclass(frozen=True, slots=True)
+class SourceSpec:
+    """一个上游数据源文件。"""
+
+    name: str
+    url: str
+    filename: str
+    #: 下载后在缓存目录中使用的文件名；默认与 filename 相同。
+    download_name: str = ""
+    #: 下载后需要从归档中解出的成员（zip/tar）；为空表示文件本身即最终产物。
+    members: tuple[str, ...] = ()
+    optional: bool = False
+
+    @property
+    def is_archive(self) -> bool:
+        return bool(self.members)
+
+    @property
+    def cache_filename(self) -> str:
+        return self.download_name or self.filename
+
+
+def geonames_sources(extra_countries: tuple[str, ...] = DEFAULT_EXTRA_COUNTRIES) -> list[SourceSpec]:
+    """返回一次完整构建需要的 GeoNames 数据源。"""
+    sources = [
+        SourceSpec(
+            name="cities500",
+            url=f"{GEONAMES_BASE}/cities500.zip",
+            filename="cities500.txt",
+            download_name="cities500.zip",
+            members=("cities500.txt",),
+        ),
+        SourceSpec(
+            name="admin1CodesASCII",
+            url=f"{GEONAMES_BASE}/admin1CodesASCII.txt",
+            filename="admin1CodesASCII.txt",
+        ),
+        SourceSpec(
+            name="admin2Codes",
+            url=f"{GEONAMES_BASE}/admin2Codes.txt",
+            filename="admin2Codes.txt",
+        ),
+        SourceSpec(
+            name="countryInfo",
+            url=f"{GEONAMES_BASE}/countryInfo.txt",
+            filename="countryInfo.txt",
+        ),
+        SourceSpec(
+            name="alternateNamesV2",
+            url=f"{GEONAMES_BASE}/alternateNamesV2.zip",
+            filename="alternateNamesV2.txt",
+            download_name="alternateNamesV2.zip",
+            members=("alternateNamesV2.txt",),
+        ),
+    ]
+    for country in extra_countries:
+        sources.append(
+            SourceSpec(
+                name=f"country_dump_{country}",
+                url=f"{GEONAMES_BASE}/{country}.zip",
+                filename=f"{country}.txt",
+                download_name=f"{country}.zip",
+                members=(f"{country}.txt", "readme.txt"),
+                optional=True,
+            )
+        )
+    return sources
+
+
+def natural_earth_source() -> SourceSpec:
+    return SourceSpec(
+        name="naturalEarthCountries",
+        url=NATURAL_EARTH_URL,
+        filename="ne_10m_admin_0_countries.geojson",
+    )
+
+
+def i18n_sources() -> list[SourceSpec]:
+    return [
+        SourceSpec(
+            name="i18nIsoCountries",
+            url=I18N_ISO_COUNTRIES_URL,
+            filename="i18n-iso-countries.tgz",
+            members=("package/langs/",),
+        )
+    ]
+
+
+@dataclass(slots=True)
+class BuildOptions:
+    """来自 CLI 的构建设置，以及据此推导的路径。"""
+
+    work_dir: Path = Path("build")
+    dist_dir: Path = Path("dist")
+    cache_dir: Path = Path(".cache/immich-cn")
+    config_dir: Path = Path("config")
+    extra_countries: tuple[str, ...] = DEFAULT_EXTRA_COUNTRIES
+    patterns: tuple[str, ...] = DEFAULT_PATTERNS
+    min_population: int = 100
+    provider: ProviderName = "offline"
+    chinese_variant: ChineseVariant = "hans"
+    full: bool = True
+    force_refresh: bool = False
+    keep_raw: bool = False
+    skip_fetch: bool = False
+    jobs: int = field(default_factory=lambda: max(1, min(8, (os.cpu_count() or 2))))
+
+    def __post_init__(self) -> None:
+        if self.min_population < 0:
+            raise ConfigError("min_population 不能为负数")
+        if not self.patterns:
+            raise ConfigError("至少需要一个展示粒度变体")
+        for pattern in self.patterns:
+            if "{admin_" not in pattern:
+                raise ConfigError(f"非法的展示粒度 {pattern!r}：需要包含 {{admin_N}} 占位符")
+
+    @property
+    def sources_dir(self) -> Path:
+        return self.work_dir / "sources"
+
+    @property
+    def geodata_dir(self) -> Path:
+        return self.work_dir / "geodata"
+
+    @property
+    def variants_dir(self) -> Path:
+        return self.work_dir / "variants"
+
+    def ensure_dirs(self) -> None:
+        for path in (self.work_dir, self.dist_dir, self.cache_dir, self.sources_dir):
+            path.mkdir(parents=True, exist_ok=True)
+
+    @property
+    def amap_api_key(self) -> str | None:
+        key = os.environ.get("AMAP_API_KEY", "").strip()
+        return key or None
+
+    def resolve_provider(self) -> ProviderName:
+        """把 ``auto`` 解析为实际 provider。"""
+        if self.provider != "auto":
+            return self.provider
+        return "amap" if self.amap_api_key else "offline"

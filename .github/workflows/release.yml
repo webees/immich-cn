@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 版本号，例如 1.1.0（会创建 v1.1.0 标签）
+        type: string
+        required: true
+      provider:
+        description: 反向地理编码 provider
+        type: choice
+        default: offline
+        options: [offline, auto, amap, nominatim]
+      immich-version:
+        description: 覆盖镜像使用的 Immich 镜像标签
+        type: string
+        default: release
+      push-images:
+        description: 是否推送镜像到 GHCR
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build-data.yml
+    secrets: inherit
+    with:
+      provider: ${{ inputs.provider }}
+      immich-version: ${{ inputs.immich-version }}
+      push-images: ${{ inputs.push-images }}
+
+  publish:
+    name: 创建版本化 Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact }}
+          path: dist
+
+      - name: 创建 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          tag="v${VERSION}"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::$tag 已存在"
+            exit 1
+          fi
+          gh release create "$tag" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$tag" \
+            --generate-notes

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用帮助与功能建议
+    url: https://github.com/webees/immich-cn/discussions
+    about: 配置、部署、数据选型等问题请使用 Discussions
+  - name: Immich 自身的问题
+    url: https://github.com/immich-app/immich/issues
+    about: 与 Immich 本身有关的 bug 请反馈到上游仓库

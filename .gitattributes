@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+# 生成的数据制品永不进入 Git 历史，避免仓库膨胀（数据只通过 Release / 镜像分发）
+*.zip binary
+*.geojson -text
+*.pkl binary
+
+# GitHub 语言统计：把生成目录标记为文档/数据
+dist/** linguist-generated=true
+docs/** linguist-documentation

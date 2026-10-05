@@ -1,0 +1,78 @@
+name: Update Data
+
+on:
+  schedule:
+    # 每周六 03:17 UTC（北京时间 11:17）自动更新
+    - cron: "17 3 * * 6"
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: 反向地理编码 provider（offline 无需任何密钥）
+        type: choice
+        default: offline
+        options: [offline, auto, amap, nominatim]
+      immich-version:
+        description: 覆盖镜像使用的 Immich 镜像标签
+        type: string
+        default: release
+      push-images:
+        description: 是否推送镜像到 GHCR
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build-data.yml
+    secrets: inherit
+    with:
+      provider: ${{ inputs.provider || 'offline' }}
+      immich-version: ${{ inputs.immich-version || 'release' }}
+      push-images: ${{ github.event_name == 'schedule' || inputs.push-images }}
+
+  release:
+    name: 发布滚动 Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact }}
+          path: dist
+
+      - name: 更新 auto-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATE: ${{ needs.build.outputs.date }}
+        run: |
+          gh release delete auto-release --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create auto-release dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "自动更新数据 ${DATE}" \
+            --notes-file .github/auto_release_note.md
+
+      - name: 归档为不可变日期标签
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATE: ${{ needs.build.outputs.date }}
+        run: |
+          if gh release view "data-${DATE}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "data-${DATE} 已存在，跳过"
+            exit 0
+          fi
+          gh release create "data-${DATE}" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "数据快照 ${DATE}" \
+            --notes "该 Release 为不可变的数据快照，内容与当周 auto-release 一致。"

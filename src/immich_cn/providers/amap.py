@@ -1,0 +1,206 @@
+"""高德地图（Amap）反向地理编码 provider。"""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import httpx
+
+from immich_cn.config import USER_AGENT, BuildOptions
+from immich_cn.errors import ConfigError
+from immich_cn.logging_setup import get_logger
+from immich_cn.models import Place, PlaceNames
+from immich_cn.providers.cache import JsonlCache
+from immich_cn.providers.geo import wgs84_to_gcj02
+from immich_cn.ratelimit import RateLimiter
+
+logger = get_logger("amap")
+
+AMAP_ENDPOINT = "https://restapi.amap.com/v3/geocode/regeo"
+#: 高德对中国大陆以外区域支持有限，默认只处理这些国家码。
+DEFAULT_COUNTRIES = ("CN", "HK", "MO")
+
+
+@dataclass(slots=True)
+class AmapOptions:
+    api_key: str
+    countries: tuple[str, ...] = DEFAULT_COUNTRIES
+    qps: int = 3
+    batch_size: int = 20
+    radius: int = 1000
+    retries: int = 3
+
+
+class AmapEnricher:
+    """调用高德批量逆地理编码接口，补充区县与乡镇粒度。"""
+
+    name = "amap"
+
+    def __init__(
+        self,
+        options: AmapOptions,
+        cache_path: Path,
+        *,
+        client: httpx.Client | None = None,
+    ) -> None:
+        if not options.api_key:
+            raise ConfigError("启用 amap provider 需要 AMAP_API_KEY")
+        self._options = options
+        self._cache = JsonlCache(cache_path)
+        self._limiter = RateLimiter(options.qps)
+        self._owns_client = client is None
+        self._client = client or httpx.Client(
+            timeout=httpx.Timeout(30.0, connect=10.0),
+            headers={"User-Agent": USER_AGENT},
+        )
+
+    @classmethod
+    def from_options(cls, options: BuildOptions) -> AmapEnricher:
+        api_key = options.amap_api_key
+        if not api_key:
+            raise ConfigError("启用 amap provider 需要设置环境变量 AMAP_API_KEY")
+        countries = _split_env("IMMICH_CN_AMAP_COUNTRIES", DEFAULT_COUNTRIES)
+        return cls(
+            AmapOptions(
+                api_key=api_key,
+                countries=countries,
+                qps=int(os.environ.get("IMMICH_CN_AMAP_QPS", "3")),
+                batch_size=int(os.environ.get("IMMICH_CN_AMAP_BATCH_SIZE", "20")),
+            ),
+            options.cache_dir / "amap-regeo.jsonl",
+        )
+
+    def close(self) -> None:
+        if self._owns_client:
+            self._client.close()
+
+    # ---- prefetch -----------------------------------------------------
+
+    def prefetch(self, places: Iterable[Place]) -> None:
+        pending: list[Place] = []
+        for place in places:
+            if place.country_code not in self._options.countries:
+                continue
+            if self._cache.get(_key(place)) is not None:
+                continue
+            pending.append(place)
+            if len(pending) >= self._options.batch_size:
+                self._query_batch(pending)
+                pending = []
+        if pending:
+            self._query_batch(pending)
+        logger.info("高德预取完成，缓存共 %d 条", len(self._cache))
+
+    def _query_batch(self, batch: Sequence[Place]) -> None:
+        coordinates: list[tuple[float, float]] = []
+        for place in batch:
+            longitude = float(place.columns[5])
+            latitude = float(place.columns[4])
+            coordinates.append(wgs84_to_gcj02(longitude, latitude))
+
+        location = "|".join(f"{lon:.6f},{lat:.6f}" for lon, lat in coordinates)
+        params = {
+            "output": "json",
+            "location": location,
+            "key": self._options.api_key,
+            "radius": str(self._options.radius),
+            "extensions": "all",
+            "batch": "true",
+        }
+
+        payload: dict[str, Any] | None = None
+        for attempt in range(1, self._options.retries + 1):
+            self._limiter.acquire()
+            try:
+                response = self._client.get(AMAP_ENDPOINT, params=params)
+                response.raise_for_status()
+                payload = response.json()
+            except (httpx.HTTPError, ValueError) as error:
+                logger.warning("高德请求失败（第 %d/%d 次）：%s", attempt, self._options.retries, error)
+                continue
+            if isinstance(payload, dict) and payload.get("status") == "1":
+                break
+            logger.warning("高德返回异常状态：%s", payload)
+            payload = None
+
+        if payload is None:
+            for place in batch:
+                self._cache.put(_key(place), {"_error": "request-failed"})
+            return
+
+        regeocodes = payload.get("regeocodes")
+        if not isinstance(regeocodes, list) or len(regeocodes) != len(batch):
+            if not isinstance(regeocodes, list):
+                regeocodes = []
+            logger.warning("高德返回数量与请求不一致：请求 %d，返回 %d", len(batch), len(regeocodes))
+
+        for index, place in enumerate(batch):
+            record = regeocodes[index] if index < len(regeocodes) else None
+            levels = _parse_regeocode(record)
+            if levels is None:
+                self._cache.put(_key(place), {"_error": "empty"})
+            else:
+                self._cache.put(_key(place), levels)
+
+    # ---- enrich -------------------------------------------------------
+
+    def enrich(self, place: Place, names: PlaceNames) -> PlaceNames:
+        if place.country_code not in self._options.countries:
+            return names
+        cached = self._cache.get(_key(place))
+        if not cached or "_error" in cached:
+            return names
+        for level in range(1, 5):
+            value = cached.get(f"admin_{level}")
+            if value:
+                setattr(names, f"admin_{level}", value)
+        if cached.get("country"):
+            names.country = cached["country"]
+        return names
+
+
+def _parse_regeocode(record: object) -> dict[str, str] | None:
+    if not isinstance(record, dict):
+        return None
+    address = record.get("addressComponent")
+    if not isinstance(address, dict):
+        return None
+
+    def field(name: str) -> str:
+        value = address.get(name)
+        if isinstance(value, list):
+            return ""
+        return str(value) if value else ""
+
+    province = field("province")
+    city = field("city") or province
+    district = field("district") or city
+    township = field("township")
+    parsed = {
+        "country": field("country"),
+        "admin_1": province,
+        "admin_2": city,
+        "admin_3": district,
+        "admin_4": township,
+    }
+    if not any(parsed[f"admin_{level}"] for level in range(1, 5)):
+        return None
+    return parsed
+
+
+def _key(place: Place) -> str:
+    return f"{place.columns[5]},{place.columns[4]}"
+
+
+def _split_env(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    return tuple(item.strip().upper() for item in raw.split(",") if item.strip()) or default
+
+
+__all__ = ["AMAP_ENDPOINT", "AmapEnricher", "AmapOptions"]

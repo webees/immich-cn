@@ -1,0 +1,105 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "immich-cn"
+version = "1.0.0"
+description = "为 Immich 提供中文反向地理编码数据的自动化构建流水线"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "webees" }]
+maintainers = [{ name = "webees" }]
+keywords = ["immich", "geodata", "geocoding", "geonames", "chinese", "i18n"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: GIS",
+  "Topic :: System :: Systems Administration",
+]
+dependencies = [
+  "httpx>=0.27,<1",
+  "zhconv>=1.4.3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.13",
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "ruff>=0.9",
+]
+
+[project.urls]
+Homepage = "https://github.com/webees/immich-cn"
+Documentation = "https://github.com/webees/immich-cn/tree/main/docs"
+Changelog = "https://github.com/webees/immich-cn/releases"
+"Source Code" = "https://github.com/webees/immich-cn"
+"Container Image" = "https://github.com/webees/immich-cn/pkgs/container/immich-cn%2Fgeodata"
+
+[project.scripts]
+immich-cn = "immich_cn.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/immich_cn"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "docs", "config", "pyproject.toml", "README.md", "LICENSE", "NOTICE"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+extend-exclude = ["work", "outputs", ".venv", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF", "PTH", "RET", "ARG", "S"]
+ignore = [
+  "E501",    # 由 formatter 与 line-length 共同约束
+  "S311",    # 无需密码学安全随机数
+  "RUF012",  # 数据类常量可变性由类型标注控制
+  # 项目面向中文用户，注释与日志刻意使用中文标点
+  "RUF001",
+  "RUF002",
+  "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S603", "S607", "ARG001", "ARG002"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+disallow_any_generics = true
+no_implicit_reexport = true
+files = ["src/immich_cn"]
+
+[[tool.mypy.overrides]]
+module = ["zhconv.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+branch = true
+source = ["immich_cn"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = ["if TYPE_CHECKING:", "raise NotImplementedError"]

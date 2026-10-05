@@ -1,0 +1,23 @@
+.git
+.github
+.venv
+work
+outputs
+tests
+docs
+scripts
+
+# 只把镜像需要的构建产物放进上下文，其他中间文件（源码解压、缓存）一律排除
+build/*
+!build/geodata
+!build/langs
+dist/*
+!dist/patterns.tsv.gz
+
+**/__pycache__
+*.pyc
+*.zip
+*.tar.gz
+.mypy_cache
+.ruff_cache
+.pytest_cache

@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      python-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: weekly
+    ignore:
+      # Immich 版本由 release 工作流显式指定，不自动跟随
+      - dependency-name: "ghcr.io/immich-app/immich-server"
