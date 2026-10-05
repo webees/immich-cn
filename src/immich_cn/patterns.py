@@ -10,6 +10,39 @@ _PLACEHOLDER = re.compile(r"\{([a-z0-9_]+)\}")
 
 ALLOWED_KEYS = frozenset({"country", "admin_1", "admin_2", "admin_3", "admin_4"})
 
+_CJK_RANGES = (
+    ("\u3400", "\u4dbf"),
+    ("\u4e00", "\u9fff"),
+    ("\uf900", "\ufaff"),
+)
+
+
+def _is_cjk(char: str) -> bool:
+    return any(low <= char <= high for low, high in _CJK_RANGES)
+
+
+def normalize_level(value: str) -> str:
+    """规范化单个层级名称。
+
+    - 全角空格与连续空白折叠为单个半角空格；
+    - 去掉中日韩字符之间的空格（GeoNames 中存在 ``株洲 市`` 这类写法）。
+    """
+    collapsed = " ".join(value.replace("\u3000", " ").split())
+    if " " not in collapsed:
+        return collapsed
+
+    result: list[str] = []
+    for index, char in enumerate(collapsed):
+        if (
+            char == " "
+            and 0 < index < len(collapsed) - 1
+            and _is_cjk(collapsed[index - 1])
+            and _is_cjk(collapsed[index + 1])
+        ):
+            continue
+        result.append(char)
+    return "".join(result)
+
 
 def pattern_keys(pattern: str) -> tuple[str, ...]:
     """返回 pattern 中出现的占位符，保持出现顺序。"""
@@ -38,15 +71,28 @@ def slugify(pattern: str) -> str:
 def compose(pattern: str, levels: dict[str, str]) -> str:
     """按 pattern 组合展示名，并去掉相邻重复与多余空白。"""
     validate_pattern(pattern)
+    normalized = {key: normalize_level(levels.get(key, "")) for key in ALLOWED_KEYS}
+
+    # 层级相同（例如苏州市的 admin_2 与 admin_3）时只保留一次。
+    level_values: dict[str, str] = {}
+    previous = ""
+    for key in pattern_keys(pattern):
+        value = normalized.get(key, "")
+        if value and value == previous:
+            value = ""
+        level_values[key] = value
+        if value:
+            previous = value
+
     try:
-        rendered = pattern.format(**{key: levels.get(key, "") for key in ALLOWED_KEYS})
+        rendered = pattern.format(**{**normalized, **level_values})
     except (KeyError, IndexError) as error:  # pragma: no cover - validate_pattern 已挡住
         raise ConfigError(f"无法渲染展示粒度 {pattern!r}：{error}") from error
 
-    tokens = [token for token in rendered.replace("\u3000", " ").split(" ") if token]
-    deduped: list[str] = []
+    tokens = rendered.split()
+    unique_tokens: list[str] = []
     for token in tokens:
-        if deduped and deduped[-1] == token:
+        if unique_tokens and unique_tokens[-1] == token:
             continue
-        deduped.append(token)
-    return " ".join(deduped)
+        unique_tokens.append(token)
+    return " ".join(unique_tokens)
