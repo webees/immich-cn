@@ -18,6 +18,21 @@ make smoke       # 合成数据端到端冒烟
 4. 变更数据格式或发布流程需要在 `docs/architecture.md` 与 `CHANGELOG.md` 记录；
 5. 不要提交 `build/`、`dist/`、`.cache/` 中的产物（已在 `.gitignore` 中忽略）。
 
+## 分支保护
+
+`main` 已启用 Repository Ruleset「保护 main 分支」：
+
+- 禁止删除分支、禁止 force push（non-fast-forward）；
+- 必须通过 Pull Request 合并；
+- 必须通过以下状态检查：
+  - `静态检查与单元测试 (Python 3.11)`
+  - `静态检查与单元测试 (Python 3.12)`
+  - `静态检查与单元测试 (Python 3.13)`
+  - `Docker 冒烟构建`
+
+因此所有改动都需要先推到功能分支再开 PR。维护者如需保留直推能力，
+可在 Settings → Rules → Rulesets 中为「Repository admin」添加 bypass actor。
+
 ## 新增中文地名纠正
 
 优先改 `config/overrides.toml`，并在 PR 描述中给出依据（GeoNames ID 或公开行政资料），
