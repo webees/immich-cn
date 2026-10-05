@@ -31,6 +31,10 @@ on:
         description: 是否推送镜像到 GHCR
         type: boolean
         default: false
+      force-publish:
+        description: 即使上游数据与构建配置均未变化也强制发布
+        type: boolean
+        default: false
     outputs:
       date:
         description: 构建日期（UTC）
@@ -41,6 +45,9 @@ on:
       artifact:
         description: 制品名称
         value: ${{ jobs.build.outputs.artifact }}
+      changed:
+        description: 上游数据或构建配置是否发生变化（true/false）
+        value: ${{ jobs.build.outputs.changed }}
 
 permissions:
   contents: read
@@ -54,6 +61,7 @@ jobs:
       date: ${{ steps.meta.outputs.date }}
       digest: ${{ steps.data-image.outputs.digest }}
       artifact: ${{ steps.meta.outputs.artifact }}
+      changed: ${{ steps.change.outputs.changed }}
     steps:
       - uses: actions/checkout@v7
 
@@ -90,7 +98,35 @@ jobs:
           immich-cn all \
             --provider "${{ inputs.provider }}" \
             --patterns "${{ inputs.patterns }}" \
-            --extra-countries "${{ inputs.extra-countries }}"
+            --extra-countries "${{ inputs.extra-countries }}" \
+            --revalidate
+
+      - name: 判断上游数据是否有变化
+        id: change
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          digest="$(immich-cn fingerprint dist/manifest.json)"
+          echo "本次数据指纹：${digest}"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+          previous=""
+          work="$(mktemp -d)"
+          if gh release download auto-release --repo "$GITHUB_REPOSITORY" \
+               --pattern manifest.json --dir "$work" >/dev/null 2>&1; then
+            previous="$(immich-cn fingerprint "${work}/manifest.json" 2>/dev/null || true)"
+            echo "上次数据指纹：${previous:-未知}"
+          else
+            echo "未找到历史 manifest，视为首次构建"
+          fi
+
+          if [ -n "$previous" ] && [ "$previous" = "$digest" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "上游数据与构建配置均无变化，跳过镜像推送"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: 汇总构建元信息
         id: meta
@@ -133,15 +169,15 @@ jobs:
         run: cat build-summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: 准备 QEMU
-        if: inputs.push-images
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
         uses: docker/setup-qemu-action@v4
 
       - name: 准备 Buildx
-        if: inputs.push-images
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
         uses: docker/setup-buildx-action@v4
 
       - name: 登录 GHCR
-        if: inputs.push-images
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -150,7 +186,7 @@ jobs:
 
       - name: 推送数据镜像
         id: data-image
-        if: inputs.push-images
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -168,7 +204,7 @@ jobs:
             org.opencontainers.image.version=${{ steps.meta.outputs.date }}
 
       - name: 推送 Immich 覆盖镜像
-        if: inputs.push-images
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
         # 基础镜像来自 GHCR 的另一个命名空间，偶发 429 限流，
         # 因此这里用 buildx 直接构建并做 3 次退避重试。
         env:

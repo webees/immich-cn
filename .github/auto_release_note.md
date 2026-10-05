@@ -1,4 +1,8 @@
-本 Release 由 GitHub Actions 每周自动更新，代表**最新的数据集**。
+本 Release 由 GitHub Actions **每天全自动更新**，代表**最新的数据集**。
+
+更新机制：每天用 ETag/Last-Modified 条件校验 GeoNames、Natural Earth 与 i18n-iso-countries；
+检测到数据或构建配置变化后会自动重新翻译、打包、校验并推送新镜像。
+如果上游没有变化，本次运行会跳过发布，因此 Release 内容保持稳定。
 
 ## 选择文件
 

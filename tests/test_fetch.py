@@ -49,6 +49,72 @@ def test_fetcher_force_refreshes(tmp_path: Path) -> None:
     assert len(calls) == 2
 
 
+def test_fetcher_revalidate_keeps_cached_content_on_304(tmp_path: Path) -> None:
+    calls: list[str | None] = []
+    state = {"body": b"v1", "etag": '"e1"'}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.headers.get("if-none-match"))
+        if request.headers.get("if-none-match") == state["etag"]:
+            return httpx.Response(304)
+        return httpx.Response(200, content=state["body"], headers={"etag": state["etag"]})
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.txt", filename="demo.txt")
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with Fetcher(tmp_path / "cache", client=client) as fetcher:
+        first = fetcher.fetch(spec)
+    with Fetcher(tmp_path / "cache", revalidate=True, client=client) as fetcher:
+        second = fetcher.fetch(spec)
+
+    assert calls == [None, '"e1"']
+    assert second.record.sha256 == first.record.sha256
+    assert (tmp_path / "cache" / "demo.txt").read_bytes() == b"v1"
+
+
+def test_fetcher_revalidate_downloads_when_upstream_changed(tmp_path: Path) -> None:
+    state = {"body": b"v1", "etag": '"e1"'}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.headers.get("if-none-match") == state["etag"]:
+            return httpx.Response(304)
+        return httpx.Response(200, content=state["body"], headers={"etag": state["etag"]})
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.txt", filename="demo.txt")
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with Fetcher(tmp_path / "cache", client=client) as fetcher:
+        first = fetcher.fetch(spec)
+
+    state["body"] = b"v2-updated"
+    state["etag"] = '"e2"'
+    with Fetcher(tmp_path / "cache", revalidate=True, client=client) as fetcher:
+        second = fetcher.fetch(spec)
+
+    assert second.record.sha256 != first.record.sha256
+    assert second.record.etag == '"e2"'
+    assert (tmp_path / "cache" / "demo.txt").read_bytes() == b"v2-updated"
+
+
+def test_fetcher_revalidate_falls_back_to_cache_on_error(tmp_path: Path) -> None:
+    def ok(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"v1", headers={"etag": '"e1"'})
+
+    def broken(_request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("network down")
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.txt", filename="demo.txt")
+    with Fetcher(tmp_path / "cache", client=httpx.Client(transport=httpx.MockTransport(ok))) as fetcher:
+        cached = fetcher.fetch(spec)
+    with Fetcher(
+        tmp_path / "cache",
+        revalidate=True,
+        client=httpx.Client(transport=httpx.MockTransport(broken)),
+    ) as fetcher:
+        fallback = fetcher.fetch(spec)
+
+    assert fallback.record.sha256 == cached.record.sha256
+    assert (tmp_path / "cache" / "demo.txt").read_bytes() == b"v1"
+
+
 class _StubFetched:
     """最小的 FetchedSource 替身，避免为测试构造完整下载流程。"""
 

@@ -38,6 +38,8 @@ jobs:
       provider: ${{ inputs.provider }}
       immich-version: ${{ inputs.immich-version }}
       push-images: ${{ inputs.push-images }}
+      # 版本化发布总是重新构建并推送，不受"数据未变化"跳过逻辑影响
+      force-publish: true
 
   publish:
     name: 创建版本化 Release

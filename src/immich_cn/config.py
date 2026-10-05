@@ -157,6 +157,8 @@ class BuildOptions:
     chinese_variant: ChineseVariant = "hans"
     full: bool = True
     force_refresh: bool = False
+    #: 使用 ETag/Last-Modified 校验上游是否更新；每日自动更新时应开启。
+    revalidate: bool = False
     keep_raw: bool = False
     skip_fetch: bool = False
     jobs: int = field(default_factory=lambda: max(1, min(8, (os.cpu_count() or 2))))

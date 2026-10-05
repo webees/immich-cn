@@ -25,9 +25,13 @@ GeoNames 为滚动数据，其指纹会记录在每次构建的 `manifest.json` 
 - 下载到 `.cache/immich-cn/`，支持断点续传（`Range`）；
 - 指数退避重试（默认 4 次，覆盖 408/425/429/5xx）；
 - 把 ETag、Last-Modified、SHA256、大小写入 `.cache/immich-cn/.meta/<name>.json`，命中缓存时跳过重复下载；
+- 在 `--revalidate` 模式下用 `If-None-Match` / `If-Modified-Since` 校验上游：
+  GeoNames 支持强 ETag，未更新时返回 **304 且不传输正文**，更新时才重新下载；
+  校验过程出错会自动回退到本地缓存，不阻断流水线；
 - 解压 `cities500.zip`、`alternateNamesV2.zip`、国家 dump 与 npm tarball。
 
-CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，命中后每周构建可以省去约 300 MiB 的下载。
+CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，
+每日构建通常只需传输真正发生变化的少数文件。
 
 ### 2. 确定地点集合
 

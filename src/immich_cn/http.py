@@ -50,12 +50,14 @@ class Fetcher:
         cache_dir: Path,
         *,
         force: bool = False,
+        revalidate: bool = False,
         timeout: float = 60.0,
         retries: int = 4,
         client: httpx.Client | None = None,
     ) -> None:
         self._cache_dir = cache_dir
         self._force = force
+        self._revalidate = revalidate
         self._retries = retries
         self._meta_dir = cache_dir / ".meta"
         self._meta_dir.mkdir(parents=True, exist_ok=True)
@@ -106,11 +108,57 @@ class Fetcher:
                 last_modified=_opt_str(meta.get("lastModified")),
             )
             if target.stat().st_size == record.size_bytes:
+                if self._revalidate and (record.etag or record.last_modified):
+                    return self._revalidate_cached(spec, target, record)
                 logger.debug("命中缓存 %s (%s)", spec.name, record.sha256[:12])
                 return FetchedSource(spec=spec, path=target, record=record)
             logger.warning("缓存文件 %s 大小不符，重新下载", target)
 
         return self._download(spec, target)
+
+    def _revalidate_cached(self, spec: SourceSpec, target: Path, cached: SourceRecord) -> FetchedSource:
+        """用 If-None-Match / If-Modified-Since 校验上游是否变化。
+
+        GeoNames 等数据源支持强 ETag：未更新时返回 304 且不传输正文，
+        因此每日自动更新几乎不消耗带宽；一旦上游更新则立即重新下载。
+        """
+        headers: dict[str, str] = {}
+        if cached.etag:
+            headers["If-None-Match"] = cached.etag
+        if cached.last_modified:
+            headers["If-Modified-Since"] = cached.last_modified
+
+        part = target.with_suffix(target.suffix + ".part")
+        try:
+            with self._client.stream("GET", spec.url, headers=headers) as response:
+                if response.status_code == 304:
+                    logger.info("上游未更新 %s", spec.name)
+                    self._write_meta(spec, cached)
+                    return FetchedSource(spec=spec, path=target, record=cached)
+                response.raise_for_status()
+                digest = hashlib.sha256()
+                with part.open("wb") as handle:
+                    for chunk in response.iter_bytes(_CHUNK):
+                        digest.update(chunk)
+                        handle.write(chunk)
+                etag = response.headers.get("etag")
+                last_modified = response.headers.get("last-modified")
+        except (httpx.HTTPError, OSError) as error:
+            logger.warning("校验 %s 失败，继续使用本地缓存：%s", spec.name, error)
+            return FetchedSource(spec=spec, path=target, record=cached)
+
+        part.replace(target)
+        record = SourceRecord(
+            name=spec.name,
+            url=spec.url,
+            sha256=digest.hexdigest(),
+            size_bytes=target.stat().st_size,
+            etag=etag,
+            last_modified=last_modified,
+        )
+        self._write_meta(spec, record)
+        logger.info("上游已更新 %s（%.1f MiB）", spec.name, record.size_bytes / 1048576)
+        return FetchedSource(spec=spec, path=target, record=record)
 
     def _download(self, spec: SourceSpec, target: Path) -> FetchedSource:
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -174,12 +222,15 @@ class Fetcher:
             etag=etag,
             last_modified=last_modified,
         )
+        self._write_meta(spec, record)
+        logger.info("完成 %s（%.1f MiB）", spec.name, record.size_bytes / 1048576)
+        return FetchedSource(spec=spec, path=target, record=record)
+
+    def _write_meta(self, spec: SourceSpec, record: SourceRecord) -> None:
         self._meta_path(spec).write_text(
             json.dumps(record.as_dict(), ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
-        logger.info("完成 %s（%.1f MiB）", spec.name, record.size_bytes / 1048576)
-        return FetchedSource(spec=spec, path=target, record=record)
 
 
 def _opt_str(value: object) -> str | None:

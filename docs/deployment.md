@@ -102,6 +102,29 @@ date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./immich-cn/geodata/geodata-date.txt
 - **挂载方案**：重新执行方案 B 的第一步，然后 `docker compose restart immich-server`；
 - **自动更新**：沿用自己的定时任务，例如每周执行一次上面的命令。
 
+### 数据更新频率
+
+上游数据由 GitHub Actions **每天自动更新**（UTC 05:23 / 北京时间 13:23）：
+
+- 每天用 ETag 条件请求检查 GeoNames、Natural Earth、i18n-iso-countries；
+- 只有数据或构建配置真正变化时才重新构建、发布 Release 与推送镜像；
+- 因此每周甚至每月拉取一次镜像，也能一次拿到累积的全部更新。
+
+判断当前数据版本：查看 Release 标题日期，或容器内 `/build/geodata/geodata-date.txt`。
+
+### 让镜像自动跟随更新
+
+如果希望主机自动跟随每日数据：
+
+```bash
+# 例如每天凌晨拉取并重建容器
+0 5 * * * cd /opt/immich && docker compose pull immich-server && docker compose up -d immich-server
+```
+
+也可以使用 Watchtower 等工具监听 `ghcr.io/webees/immich-cn-server:latest`。
+注意：数据变化后 `geodata-date.txt` 会更新，Immich 会在启动时重新导入 geodata；
+若显式设置 `IMMICH_CN_FORCE_RELOAD=1`，则每次启动都会强制重新导入。
+
 ## 非官方 Immich 镜像
 
 `imagegenius/immich` 等第三方镜像的目录结构不同，请把 `geodata` 挂载到它实际使用的 geodata 路径，
