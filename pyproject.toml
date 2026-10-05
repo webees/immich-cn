@@ -93,7 +93,13 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --strict-markers --strict-config"
-filterwarnings = ["error"]
+# 依赖（zhconv）在导入时通过 pkg_resources 触发 setuptools 弃用警告，
+# 与项目代码无关，这里精确放行；其余警告仍然视为错误。
+filterwarnings = [
+  "error",
+  "ignore:pkg_resources is deprecated as an API.*:DeprecationWarning",
+  "ignore::DeprecationWarning:zhconv.*",
+]
 
 [tool.coverage.run]
 branch = true
