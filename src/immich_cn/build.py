@@ -92,6 +92,7 @@ class BuildResult:
     provider_names: list[str] = field(default_factory=list)
     index_stats: dict[str, int] = field(default_factory=dict)
     admin_entries: dict[str, int] = field(default_factory=dict)
+    build_config: dict[str, object] = field(default_factory=dict)
 
     def as_manifest(self) -> dict[str, object]:
         return {
@@ -102,6 +103,7 @@ class BuildResult:
             "stats": self.stats.as_dict(),
             "index": self.index_stats,
             "adminEntries": self.admin_entries,
+            "config": self.build_config,
             "sources": [record.as_dict() for record in self.sources],
         }
 
@@ -204,6 +206,13 @@ def run_build(options: BuildOptions) -> BuildResult:
         provider_names=chain.names,
         index_stats=index.stats(),
         admin_entries=hierarchy.as_stats(),
+        build_config={
+            "provider": options.resolve_provider(),
+            "patterns": list(options.patterns),
+            "extraCountries": list(options.extra_countries),
+            "minPopulation": options.min_population,
+            "chineseVariant": options.chinese_variant,
+        },
         removable_paths=[paths.alternate_names, *paths.country_dumps],
     )
 
@@ -222,7 +231,11 @@ def fetch_sources(options: BuildOptions) -> list[SourceRecord]:
     ]
     fetched: list[FetchedSource] = []
     records: list[SourceRecord] = []
-    with Fetcher(options.cache_dir, force=options.force_refresh) as fetcher:
+    with Fetcher(
+        options.cache_dir,
+        force=options.force_refresh,
+        revalidate=options.revalidate,
+    ) as fetcher:
         for spec in specs:
             try:
                 result = fetcher.fetch(spec)

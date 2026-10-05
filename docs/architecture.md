@@ -104,6 +104,37 @@ Immich 的反向地理编码需要一组固定格式的文本文件（见 `serve
 
 任何一项失败都会让 GitHub Actions 中断，不会发布坏数据。
 
+## 全自动更新机制
+
+数据更新是全自动的，不需要任何人工介入：
+
+```
+每天 UTC 05:23（cron）
+   │
+   ├─ 1. 条件校验上游：ETag / Last-Modified → 未变化返回 304，0 字节正文
+   ├─ 2. 计算数据指纹：sha256(上游文件 SHA256 + 构建配置)
+   ├─ 3. 与上一次发布的 manifest.json 对比
+   │      ├─ 相同 → 跳过发布与镜像推送（no-change job 记录摘要）
+   │      └─ 不同 → 继续
+   ├─ 4. 构建 7 种粒度 × full/非 full，并执行发布前校验
+   ├─ 5. 推送多架构镜像并更新 Release
+   └─ 6. 清理超出保留数量的旧日期快照
+```
+
+三个关键点：
+
+1. **增量校验而不是全量下载**：`immich_cn.http.Fetcher` 在 `--revalidate` 下带
+   `If-None-Match` / `If-Modified-Since` 请求上游；数据源支持强 ETag，未更新时直接返回 304，
+   因此每日运行的额外带宽几乎为零。校验失败时自动回退到本地缓存，保证流水线不会被网络抖动打断。
+2. **内容指纹而不是时间戳**：`immich_cn.fingerprint` 只对"上游文件内容摘要 + 构建配置"求哈希，
+   不含构建时间。这样只要数据与配置没变，无论跑多少次都会得到相同指纹，可以安全地跳过发布，
+   也不会让用户被迫重新导入百万级 geodata 记录。
+3. **失败可见**：任一环节失败会自动创建或更新带 `automation` 标签的 issue，附带运行链接，
+   修复后可用 `workflow_dispatch` 立即重跑（`force-publish` 可强制发布）。
+
+可通过 `workflow_dispatch` 覆盖的参数：`provider`、`immich-version`、`push-images`、
+`force-publish`、`snapshot-retention`（默认保留最近 14 个日期快照）。
+
 ## 地名组合规则
 
 `{admin_1}` ~ `{admin_4}` 为占位符，组合时：

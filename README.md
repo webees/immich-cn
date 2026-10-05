@@ -3,7 +3,7 @@
 > 为 [Immich](https://immich.app/) 提供**中文反向地理编码数据**的全自动构建流水线：中文地名、标准四级行政区、周更数据、开箱即用的容器镜像。
 
 [![CI](https://github.com/webees/immich-cn/actions/workflows/ci.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/ci.yml)
-[![Update Data](https://github.com/webees/immich-cn/actions/workflows/update-data.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/update-data.yml)
+[![全自动更新数据](https://github.com/webees/immich-cn/actions/workflows/update-data.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/update-data.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Container](https://img.shields.io/badge/ghcr.io-immich--cn-blue)](https://github.com/webees/immich-cn/pkgs/container/immich-cn)
 
@@ -19,8 +19,26 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 | 行政区粒度 | 四级别依赖 Amap | 从 GeoNames `ADM3`/`ADM4` 自建区县、乡镇表，离线即可覆盖 |
 | 发布方式 | Release zip | **Release zip + GHCR 镜像**（数据镜像 + 开箱即用的 Immich 镜像） |
 | 粒度切换 | 下载不同 zip | 同一镜像内用 `IMMICH_CN_PATTERN` 环境变量切换 |
+| 更新频率 | 每周一次 | **每天自动检查并更新**（含 ETag 增量校验） |
 | 数据来源追踪 | 无 | 每次构建写入源文件 SHA256、ETag、统计到 `manifest.json` |
 | 校验 | 无 | 构建后自动执行结构、覆盖率、去重校验 |
+
+## 全自动更新机制
+
+数据更新**完全无人值守**：GitHub Actions 每天自动检查上游地理数据，发现变化就重新翻译、打包、校验并发布，同时推送新的容器镜像。
+
+| 环节 | 行为 |
+|:--|:--|
+| 触发 | `每天 UTC 05:23`（北京时间 13:23）定时执行，也支持手动 `workflow_dispatch` |
+| 上游检查 | 用 `ETag` / `Last-Modified` 条件请求校验 GeoNames、Natural Earth、i18n-iso-countries；未变化时 **304，不传输正文** |
+| 变化判断 | 用「上游文件 SHA256 + 构建配置」计算数据指纹，与上一次发布对比；无变化则跳过发布，避免无意义的版本和重复导入 |
+| 构建 | 重新生成四级行政层级、汉化 `cities500`、打包 7 种粒度 × full/非 full 共 14 个制品 |
+| 校验 | 文件完整性、GeoNames ID 去重、中国记录中文覆盖率、国家名称覆盖率全部通过才允许发布 |
+| 发布 | 更新滚动 Release `auto-release`、创建当日不可变快照 `data-YYYY-MM-DD`、推送 `ghcr.io/webees/immich-cn` 与 `ghcr.io/webees/immich-cn-server` 多架构镜像 |
+| 保留策略 | 自动清理超过 14 个的旧日期快照，不会无限堆积 |
+| 失败兜底 | 任一环节失败自动创建/更新带 `automation` 标签的 issue，附带运行链接 |
+
+你只需要定期 `docker compose pull`，或使用 Release 的固定地址 `releases/latest/download/geodata.zip`，即可持续获得最新数据。
 
 ## 快速开始
 
@@ -118,23 +136,28 @@ immich-cn all
 
 > 代码采用 MIT，但**生成的数据制品不适用 MIT**，请阅读 [docs/licensing.md](docs/licensing.md)。
 
-## 自动化
+## 自动化工作流
 
 ```
-schedule / workflow_dispatch
+每天 05:23 UTC（cron）
         │
         ▼
-  update-data.yml ──► immich-cn all ──► 校验 ──► GitHub Release
-        │                                      │
-        │                                      ├─► ghcr.io/webees/immich-cn
-        │                                      └─► ghcr.io/webees/immich-cn-server
+  update-data.yml ──► _build-data.yml（可复用）
+        │                    │
+        │                    ├─ ETag 条件校验上游（未变化 → 304）
+        │                    ├─ immich-cn all（翻译 → 打包 → 校验）
+        │                    ├─ 数据指纹对比（无变化 → 跳过发布）
+        │                    └─ 推送多架构镜像
         │
-  ci.yml ──► ruff + mypy + pytest + Docker 冒烟构建
+        └──► Release：auto-release（滚动）+ data-YYYY-MM-DD（快照，保留 14 个）
+
+ci.yml ──► ruff + mypy + pytest + 容器入口脚本校验 + Docker 冒烟构建
+release.yml ──► 手动创建语义化版本 Release
 ```
 
-- `update-data.yml`：每周自动拉取上游数据、构建全部粒度、发布 Release 与镜像，也可手动触发。
+- `update-data.yml`：**每日自动更新数据**，包含增量校验、指纹对比、发布、快照清理与失败通知。
 - `ci.yml`：每次提交执行静态检查、单元测试与镜像构建冒烟测试。
-- `publish-release.yml`：手动创建语义化版本 Release。
+- `release.yml`：手动创建语义化版本 Release（总是强制重新构建与推送）。
 
 ## 文档
 

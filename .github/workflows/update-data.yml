@@ -1,9 +1,14 @@
-name: Update Data
+name: 全自动更新数据
 
+# 每天自动检查上游地理数据（GeoNames / Natural Earth / i18n-iso-countries）：
+#   1. 用 ETag/Last-Modified 条件校验上游，未变化时不传输正文；
+#   2. 有变化时重新翻译、打包、校验，并推送 GHCR 镜像；
+#   3. 更新滚动 Release（auto-release）与当日快照（data-YYYY-MM-DD）；
+#   4. 上游与构建配置都没有变化时跳过发布，避免无意义的版本与重复导入。
 on:
   schedule:
-    # 每周六 03:17 UTC（北京时间 11:17）自动更新
-    - cron: "17 3 * * 6"
+    # 每天 UTC 05:23（北京时间 13:23）执行；GitHub 的定时任务在高负载时可能延后
+    - cron: "23 5 * * *"
   workflow_dispatch:
     inputs:
       provider:
@@ -19,6 +24,14 @@ on:
         description: 是否推送镜像到 GHCR
         type: boolean
         default: true
+      force-publish:
+        description: 即使上游数据没有变化也强制发布
+        type: boolean
+        default: false
+      snapshot-retention:
+        description: 保留最近多少个 data-* 日期快照（其余自动清理）
+        type: number
+        default: 14
 
 permissions:
   contents: write
@@ -26,24 +39,29 @@ permissions:
   id-token: write
 
 concurrency:
-  group: update-data
+  group: auto-update-data
   cancel-in-progress: false
 
 jobs:
   build:
+    name: 检查上游并构建
     uses: ./.github/workflows/_build-data.yml
     secrets: inherit
     with:
       provider: ${{ inputs.provider || 'offline' }}
       immich-version: ${{ inputs.immich-version || 'release' }}
       push-images: ${{ github.event_name == 'schedule' || inputs.push-images }}
+      force-publish: ${{ inputs.force-publish || false }}
 
   release:
-    name: 发布滚动 Release
+    name: 发布数据（Release）
     needs: build
+    if: needs.build.outputs.changed == 'true' || inputs.force-publish
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      SNAPSHOT_RETENTION: ${{ inputs.snapshot-retention || 14 }}
     steps:
       - uses: actions/checkout@v7
 
@@ -52,7 +70,7 @@ jobs:
           name: ${{ needs.build.outputs.artifact }}
           path: dist
 
-      - name: 更新 auto-release
+      - name: 更新滚动 Release（auto-release）
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DATE: ${{ needs.build.outputs.date }}
@@ -63,7 +81,7 @@ jobs:
             --title "自动更新数据 ${DATE}" \
             --notes-file .github/auto_release_note.md
 
-      - name: 归档为不可变日期标签
+      - name: 归档为不可变日期快照
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DATE: ${{ needs.build.outputs.date }}
@@ -75,4 +93,82 @@ jobs:
           gh release create "data-${DATE}" dist/* \
             --repo "$GITHUB_REPOSITORY" \
             --title "数据快照 ${DATE}" \
-            --notes "该 Release 为不可变的数据快照，内容与当周 auto-release 一致。"
+            --notes "该 Release 为不可变的数据快照，内容与当日 auto-release 一致。"
+
+      - name: 清理过期日期快照
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          keep="${SNAPSHOT_RETENTION:-14}"
+          echo "保留最近 ${keep} 个日期快照"
+          mapfile -t old_tags < <(
+            gh release list --repo "$GITHUB_REPOSITORY" --limit 200 \
+              --json tagName,createdAt \
+              --jq "[.[] | select(.tagName | startswith(\"data-\"))] | sort_by(.createdAt) | reverse | .[${keep}:] | .[].tagName"
+          )
+          for tag in "${old_tags[@]:-}"; do
+            [ -n "$tag" ] || continue
+            echo "清理过期快照 ${tag}"
+            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
+          done
+
+      - name: 写入作业摘要
+        env:
+          DATE: ${{ needs.build.outputs.date }}
+          DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          {
+            echo "## 全自动更新数据 ${DATE}"
+            echo ""
+            echo "- 上游数据：**已变化**，已重新构建并发布"
+            echo "- 数据镜像摘要：\`${DIGEST:-未推送}\`"
+            echo "- Immich 覆盖镜像：\`ghcr.io/${GITHUB_REPOSITORY}-server:${DATE}\`"
+            echo "- 日期快照保留：${SNAPSHOT_RETENTION:-14} 个"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  no-change:
+    name: 无变化时跳过发布
+    needs: build
+    if: needs.build.outputs.changed != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 写入作业摘要
+        run: |
+          {
+            echo "## 全自动更新数据检查"
+            echo ""
+            echo "上游数据与构建配置均无变化，已跳过发布与镜像推送。"
+            echo "本次仍完成了上游 ETag 条件校验与完整构建。"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  notify-failure:
+    name: 失败通知
+    needs: [build, release]
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: 创建或更新自动化异常 issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh label create automation --repo "$GITHUB_REPOSITORY" \
+            --color B60205 --description "自动化流水线通知" --force >/dev/null 2>&1 || true
+
+          title="自动更新数据失败（$(date -u +%F)）"
+          body="$(printf '全自动更新数据流程执行失败。\n\n- 运行记录：%s\n- 触发方式：%s\n- 提交：`%s`\n\n修复后可通过 workflow_dispatch 重新执行。\n' \
+            "$RUN_URL" "${{ github.event_name }}" "${{ github.sha }}")"
+
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --label automation --search '自动更新数据失败 in:title' \
+            --json number --jq '.[0].number // empty')"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "$title" --label automation --body "$body"
+          fi

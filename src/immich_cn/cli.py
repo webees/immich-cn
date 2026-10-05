@@ -12,6 +12,7 @@ from immich_cn import __version__
 from immich_cn.build import fetch_sources, run_build
 from immich_cn.config import DEFAULT_EXTRA_COUNTRIES, DEFAULT_PATTERNS, BuildOptions
 from immich_cn.errors import ImmichCnError
+from immich_cn.fingerprint import fingerprint_from_file
 from immich_cn.logging_setup import configure, get_logger
 from immich_cn.package import package_all
 from immich_cn.verify import assert_valid, format_results, verify_geodata
@@ -59,6 +60,12 @@ def _add_common_options(parser: argparse.ArgumentParser, *, with_defaults: bool)
     parser.add_argument("--jobs", type=int, default=default(0), help="打包并发度，0 表示自动")
     parser.add_argument("--force", action="store_true", default=default(False), help="强制重新下载全部数据源")
     parser.add_argument(
+        "--revalidate",
+        action="store_true",
+        default=default(False),
+        help="下载前用 ETag/Last-Modified 校验上游是否更新（每日自动更新建议开启）",
+    )
+    parser.add_argument(
         "--skip-fetch",
         action="store_true",
         default=default(False),
@@ -89,6 +96,9 @@ def build_parser() -> argparse.ArgumentParser:
     verify = sub.add_parser("verify", help="校验 geodata 目录")
     verify.add_argument("path", type=Path, help="待校验的 geodata 目录")
     verify.add_argument("--min-cn-ratio", type=float, default=0.90, help="中国记录的中文名称覆盖率下限")
+
+    fingerprint = sub.add_parser("fingerprint", help="打印 manifest.json 的数据指纹")
+    fingerprint.add_argument("manifest", type=Path, help="manifest.json 路径")
     return parser
 
 
@@ -109,6 +119,7 @@ def _options(args: argparse.Namespace) -> BuildOptions:
         provider=args.provider,
         chinese_variant=args.chinese_variant,
         force_refresh=args.force,
+        revalidate=args.revalidate,
         keep_raw=args.keep_raw,
         skip_fetch=args.skip_fetch,
         jobs=jobs,
@@ -122,6 +133,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "verify":
         return _run_verify(args)
+    if args.command == "fingerprint":
+        try:
+            print(fingerprint_from_file(str(args.manifest)))
+        except (OSError, ValueError) as error:
+            logger.error("%s", error)
+            return EXIT_ERROR
+        return EXIT_OK
 
     options = _options(args)
     try:
