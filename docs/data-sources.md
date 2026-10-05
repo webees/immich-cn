@@ -39,6 +39,10 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，命中后每周构建可�
 > 第 4 步是本项目不依赖付费 API 也能给出区县、乡镇粒度的关键：GeoNames 只发布 admin1/admin2 的代码表，
 > 但各国全量数据里带有完整的 `ADM3`/`ADM4` 记录与代码。
 
+实际覆盖情况（2026-10 数据）：中国大陆 `ADM3`（区县）约 2,900 条，`ADM4`（乡镇）在 GeoNames 中仅 73 条，
+因此**默认的 `{admin_4}` 变体在中国大陆通常会回退到区县**。如果必须精确到乡镇，请配置 `AMAP_API_KEY`
+并使用 `--provider amap`；此时高德会补齐乡镇层级，其余国家/地区仍由 GeoNames 与 Nominatim 负责。
+
 ### 3. 中文名称索引
 
 `alternateNamesV2.txt` 有上千万行，直接全量载入既慢又占内存，因此：
@@ -90,4 +94,5 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，命中后每周构建可�
 3. 直接写进 zip（不在磁盘上落中间文件），zip 内目录结构为 `geodata/`，与上游保持一致；
 4. 追加 `geodata/build-info.json` 说明该变体的 pattern 与 full 状态。
 
-最后生成 `manifest.json`、`SHA256SUMS`、`patterns.tsv(.gz)` 与 `i18n-iso-countries.zip`。
+最后生成 `manifest.json`、`SHA256SUMS`、`patterns.tsv.gz` 与 `i18n-iso-countries.zip`，
+其中 130 MiB 级的明文 `patterns.tsv` 只保留在工作目录，供镜像构建使用。

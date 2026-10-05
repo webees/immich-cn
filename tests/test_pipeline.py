@@ -73,7 +73,7 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
         "geodata_admin_2_admin_3_full.zip",
         "i18n-iso-countries.zip",
         "manifest.json",
-        "patterns.tsv",
+        "patterns.tsv.gz",
         "SHA256SUMS",
     ):
         assert (dist / name).exists(), name

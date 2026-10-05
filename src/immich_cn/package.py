@@ -91,7 +91,8 @@ def package_all(options: BuildOptions, result: BuildResult) -> PackageResult:
     legacy_zip = _write_i18n_archive(options.dist_dir, result)
     package_result.artifacts.append(legacy_zip)
 
-    patterns_table = options.dist_dir / "patterns.tsv"
+    # 明文变体表（130 MiB 级）只用于本地/镜像构建，发布目录仅保留 gzip 版本
+    patterns_table = options.work_dir / "patterns.tsv"
     rows = write_patterns_table(patterns_table, levels=levels, patterns=options.patterns)
     package_result.patterns_table = patterns_table
     compressed = compressed_patterns_table(patterns_table, options.dist_dir / "patterns.tsv.gz")
@@ -209,7 +210,7 @@ def _write_alias(dist_dir: Path, alias: str, target: str) -> None:
 def _write_manifest(options: BuildOptions, result: BuildResult, package_result: PackageResult) -> Path:
     manifest = result.as_manifest()
     manifest["variants"] = sorted(package_result.variants, key=lambda item: str(item["file"]))
-    manifest["patternsTable"] = "patterns.tsv"
+    manifest["patternsTable"] = "patterns.tsv.gz"
     manifest["license"] = {
         "code": "MIT",
         "data": "见 NOTICE 与 docs/licensing.md",

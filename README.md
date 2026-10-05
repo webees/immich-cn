@@ -102,6 +102,10 @@ immich-cn all
 
 缺少对应层级的地区会自动回退到上一级，绝不会输出空地名。完整的组合规则见 [docs/architecture.md](docs/architecture.md)。
 
+> [!NOTE]
+> 默认（离线）数据在中国大陆的 `admin_4` 通常回退到区县，因为 GeoNames 几乎没有乡镇级 `ADM4` 记录。
+> 需要精确到乡镇时，配置 `AMAP_API_KEY` 并加上 `--provider amap`。
+
 ## 数据源
 
 | 数据 | 用途 | 许可 |
