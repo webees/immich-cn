@@ -55,7 +55,7 @@ jobs:
       digest: ${{ steps.data-image.outputs.digest }}
       artifact: ${{ steps.meta.outputs.artifact }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # 数据构建 + 双镜像推送对磁盘压力较大，先释放 runner 上用不到的工具链
       - name: 释放磁盘空间
@@ -64,7 +64,7 @@ jobs:
           sudo docker image prune -af || true
           df -h /
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -76,7 +76,7 @@ jobs:
 
       # 上游 zip（约 300 MiB）缓存一周，命中后可跳过重复下载
       - name: 缓存最近一次下载的上游数据
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .cache/immich-cn
           key: immich-cn-sources-${{ github.run_id }}
@@ -120,7 +120,7 @@ jobs:
           } > build-summary.md
 
       - name: 上传发布制品
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.meta.outputs.artifact }}
           path: |
@@ -131,15 +131,15 @@ jobs:
 
       - name: 准备 QEMU
         if: inputs.push-images
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: 准备 Buildx
         if: inputs.push-images
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: 登录 GHCR
         if: inputs.push-images
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -148,7 +148,7 @@ jobs:
       - name: 推送数据镜像
         id: data-image
         if: inputs.push-images
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/geodata.Dockerfile
@@ -166,7 +166,7 @@ jobs:
 
       - name: 推送 Immich 覆盖镜像
         if: inputs.push-images
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/immich.Dockerfile
