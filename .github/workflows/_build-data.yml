@@ -169,21 +169,35 @@ jobs:
 
       - name: 推送 Immich 覆盖镜像
         if: inputs.push-images
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: docker/immich.Dockerfile
-          platforms: ${{ inputs.server-platforms }}
-          push: true
-          provenance: true
-          sbom: true
-          build-args: |
-            IMMICH_VERSION=${{ inputs.immich-version }}
-            IMMICH_CN_DATA_DATE=${{ steps.meta.outputs.date }}
-          tags: |
-            ghcr.io/${{ github.repository }}-server:latest
-            ghcr.io/${{ github.repository }}-server:${{ inputs.immich-version }}
-            ghcr.io/${{ github.repository }}-server:${{ inputs.immich-version }}-${{ steps.meta.outputs.date }}
-          labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ steps.meta.outputs.date }}
+        # 基础镜像来自 GHCR 的另一个命名空间，偶发 429 限流，
+        # 因此这里用 buildx 直接构建并做 3 次退避重试。
+        env:
+          IMMICH_VERSION: ${{ inputs.immich-version }}
+          SERVER_PLATFORMS: ${{ inputs.server-platforms }}
+          DATA_DATE: ${{ steps.meta.outputs.date }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY}-server"
+          for attempt in 1 2 3; do
+            if docker buildx build \
+              --file docker/immich.Dockerfile \
+              --platform "$SERVER_PLATFORMS" \
+              --provenance=true \
+              --sbom=true \
+              --build-arg "IMMICH_VERSION=${IMMICH_VERSION}" \
+              --build-arg "IMMICH_CN_DATA_DATE=${DATA_DATE}" \
+              --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+              --label "org.opencontainers.image.version=${DATA_DATE}" \
+              --tag "${image}:latest" \
+              --tag "${image}:${IMMICH_VERSION}" \
+              --tag "${image}:${IMMICH_VERSION}-${DATA_DATE}" \
+              --push .; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Immich 覆盖镜像推送失败，已重试 3 次"
+              exit 1
+            fi
+            echo "推送失败，60 秒后重试（第 ${attempt} 次）"
+            sleep 60
+          done
