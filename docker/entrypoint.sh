@@ -10,7 +10,15 @@ patterns_table="${IMMICH_CN_PATTERNS_TABLE:-/opt/immich-cn/patterns.tsv.gz}"
 pattern="${IMMICH_CN_PATTERN:-{admin_2}}"
 
 mkdir -p "$target"
-cp -a "$source_dir/." "$target/"
+if ! cp -a "$source_dir/." "$target/" 2>/dev/null; then
+  # 用户可能把 /build/geodata 以只读方式挂载进来
+  if [ -f "$target/cities500.txt" ]; then
+    echo "immich-cn: $target 不可写，沿用其中已有的 geodata" >&2
+  else
+    echo "immich-cn: 无法写入 $target，且目录中没有可用的 geodata" >&2
+    exit 1
+  fi
+fi
 
 # 旧版 Immich 通过 i18n-iso-countries 读取国家名，存在时才覆盖 en.json。
 for candidate in \
