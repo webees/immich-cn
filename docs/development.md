@@ -19,6 +19,7 @@ make typecheck   # mypy
 make test        # pytest
 make check       # lint + typecheck + test
 make smoke       # 用合成数据跑完整流水线（不访问外网）
+make entrypoint  # 校验容器入口脚本对 IMMICH_CN_PATTERN 的处理
 make build       # 真实构建（会下载约 1.5 GiB 上游数据）
 ```
 
@@ -60,6 +61,8 @@ docs/                 文档
 - `tests/test_pipeline.py` 用它跑完整的 fetch→build→package→verify（跳过下载）；
 - provider 通过 `httpx.MockTransport` 验证请求参数、响应解析与缓存行为；
 - Docker 冒烟在 CI 中验证两个镜像可以构建、数据镜像可以运行并按粒度输出。
+- `scripts/check-entrypoint.sh` 用合成数据验证容器入口脚本：默认粒度、显式粒度、
+  以及 `geodata-date.txt` 强制刷新。
 
 ## 新增一个展示粒度
 
