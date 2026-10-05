@@ -123,11 +123,14 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.meta.outputs.artifact }}
-          path: |
-            dist/
-            build-summary.md
+          # 只上传 dist 内容，artifactId 的根目录就是发布文件本身，
+          # 发布作业下载到 dist/ 后路径即为 dist/<file>。
+          path: dist
           retention-days: 30
           compression-level: 0
+
+      - name: 写入作业摘要
+        run: cat build-summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: 准备 QEMU
         if: inputs.push-images
