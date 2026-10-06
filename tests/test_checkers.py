@@ -136,6 +136,18 @@ def test_check_docs_detects_makefile_download_size_drift(repo_copy: Path) -> Non
     assert "首次下载体积" in result.stdout or "压缩下载约 260 MiB" in result.stdout
 
 
+def test_check_docs_detects_wrong_image_dataset_claim(repo_copy: Path) -> None:
+    faq = repo_copy / "docs" / "faq.md"
+    mutate(
+        faq,
+        "镜像内置的是默认非 full 数据集",
+        "镜像内置的是 full 数据集（点位更多）\n\n镜像内置的是默认非 full 数据集",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "不能声称内置 full 数据集" in result.stdout
+
+
 def test_check_docs_detects_missing_referenced_path(repo_copy: Path) -> None:
     """文档引用的仓库文件写错路径（例如漏掉 src/ 前缀）必须被报出。"""
     contributing = repo_copy / "CONTRIBUTING.md"

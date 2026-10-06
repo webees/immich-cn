@@ -165,6 +165,9 @@ def check_numeric_contracts(errors: list[str]) -> None:
     workflow = Path(".github/workflows/update-data.yml").read_text(encoding="utf-8")
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
+    if "镜像内置的是 full 数据集" in doc_text:
+        errors.append("文档错误：镜像使用非 full 的 build/geodata，不能声称内置 full 数据集")
+
     expected_variants = len(build_variants(DEFAULT_PATTERNS))
     for match in re.finditer(r"(\d+)\s*个制品", doc_text):
         if int(match.group(1)) != expected_variants:

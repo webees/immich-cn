@@ -46,8 +46,9 @@ Immich 使用"最近的点"做反向地理编码，边界处的误差是原理�
 
 ## 为什么镜像里的数据比 Release zip 大？
 
-镜像内置的是 full 数据集（点位更多），并附带用于运行时切换粒度的 `patterns.tsv.gz`。
-zip 则同时提供 full 与非 full 两种规模。
+镜像内置的是默认非 full 数据集，点位口径与 `geodata.zip` 一致；镜像还附带未压缩的 geodata
+文件和用于运行时切换粒度的 `patterns.tsv.gz`，因此不能直接与只下载一个 zip 的体积比较。
+需要 full 点位时请下载 `geodata_full.zip`。
 
 ## 构建耗时多久？
 
