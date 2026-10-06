@@ -14,25 +14,61 @@ pip install -e ".[dev]"
 ## 常用命令
 
 ```bash
+make help        # 列出全部目标
+make install     # 创建 .venv 并安装开发依赖
 make lint        # ruff check + ruff format --check
+make format      # ruff format + ruff check --fix
 make typecheck   # mypy
-make test        # pytest
-make check       # lint + typecheck + test
+make test        # pytest + 覆盖率
+make check       # lint + typecheck + test + docs
 make smoke       # 用合成数据跑完整流水线（不访问外网）
+make artifacts   # 校验 dist/ 制品（zip / manifest / SHA256SUMS）
 make entrypoint  # 校验容器入口脚本对 IMMICH_CN_PATTERN 的处理
 make build       # 真实构建（会下载约 1.5 GiB 上游数据）
+make clean       # 清理 build/ dist/ 与各类缓存
 ```
 
 直接使用 CLI：
 
 ```bash
-immich-cn fetch                  # 只下载数据源
-immich-cn build                  # 下载 + 生成 geodata 目录
-immich-cn all                    # 全流程 + 校验
-immich-cn all --provider amap    # 使用高德增强（需要 AMAP_API_KEY）
-immich-cn all --chinese-variant hant
-immich-cn verify build/geodata   # 校验已有产物
+immich-cn fetch                        # 只下载数据源
+immich-cn build                        # 下载 + 生成 geodata 目录
+immich-cn all                          # 全流程 + 校验
+immich-cn all --provider amap          # 使用高德增强（需要 AMAP_API_KEY）
+immich-cn all --chinese-variant hant   # 输出繁体
+immich-cn verify build/geodata         # 校验已有产物
+immich-cn fingerprint dist/manifest.json  # 打印数据指纹（判断是否需要重新发布）
 ```
+
+### CLI 参数
+
+| 参数 | 默认值 | 说明 |
+|:--|:--|:--|
+| `--provider` | `offline` | `offline` / `amap` / `nominatim` / `auto`（auto = 有 Key 用 amap） |
+| `--chinese-variant` | `hans` | `hans` 简体 / `hant` 繁体 |
+| `--patterns` | 7 种粒度 | 逗号分隔的展示粒度，如 `{admin_2},{admin_2} {admin_3}` |
+| `--extra-countries` | `CN,HK,TW,MO,JP` | 需要附带国家全量 dump 的地区 |
+| `--min-population` | `100` | 非 full 变体的最小人口阈值 |
+| `--work-dir` / `--dist-dir` / `--cache-dir` / `--config-dir` | `build` / `dist` / `.cache/immich-cn` / `config` | 各目录位置 |
+| `--jobs` | CPU 数 | 打包并发度 |
+| `--revalidate` | 关 | 用 ETag/Last-Modified 校验上游，未变化不下载（每日自动更新使用） |
+| `--force` | 关 | 强制重新下载全部数据源 |
+| `--skip-fetch` | 关 | 直接用 `--work-dir/sources` 中已有数据源 |
+| `--keep-raw` | 关 | 保留解压后的原始大文件（默认发布后清理） |
+| `--clean` | 关 | 执行前清空 work/dist |
+| `--quiet` | 关 | 只输出警告与错误 |
+
+### Provider 环境变量
+
+| 变量 | 默认值 | 说明 |
+|:--|:--|:--|
+| `AMAP_API_KEY` | 无 | 高德 Key；未设置时 `--provider amap` 会直接报错 |
+| `IMMICH_CN_AMAP_QPS` | `3` | 高德请求速率上限 |
+| `IMMICH_CN_AMAP_BATCH_SIZE` | `20` | 高德批量逆地理编码的每批坐标数 |
+| `IMMICH_CN_AMAP_COUNTRIES` | `CN,HK,MO` | 使用高德的国家码 |
+| `IMMICH_CN_NOMINATIM_QPS` | `1` | Nominatim 速率上限（服务条款要求 1） |
+| `IMMICH_CN_NOMINATIM_COUNTRIES` | `TW,JP` | 使用 Nominatim 的国家码 |
+| `IMMICH_CN_LOG_LEVEL` | `INFO` | 日志级别 |
 
 ## 目录结构
 
