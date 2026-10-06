@@ -25,7 +25,8 @@
 - 镜像构建与推送全部在 GitHub Actions 中完成，使用最小权限的 `GITHUB_TOKEN`；
 - 所有外部 Action 固定到完整 commit SHA，版本标签仅作为注释保留，Dependabot 负责更新；
 - `docker/build-push-action` 开启 `provenance` 与 `sbom`；
-- 推送后的两个镜像均按最终 digest 执行 Trivy 漏洞与许可证扫描，`HIGH`/`CRITICAL` 会阻断流程；
+- 推送后的两个镜像均按最终 digest 执行 Trivy 漏洞与许可证扫描；漏洞 `HIGH`/`CRITICAL` 阻断，
+  许可证报告仅留证，避免把 Alpine 基础包中的正常 GPL 依赖误判为漏洞；
 - 两个镜像均通过 GitHub OIDC 使用 Cosign keyless 签名；
 - 每次数据构建都会记录上游文件的 SHA256 到 `manifest.json`；
 - 发布制品的 `SHA256SUMS` 可用于校验下载内容。

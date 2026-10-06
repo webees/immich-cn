@@ -34,7 +34,7 @@ GHCR 中有两个容器包，它们不是重复镜像，也不是可互换别名
 每次镜像发布都会：
 
 - 生成 BuildKit provenance 与 SBOM；
-- 执行 Trivy 漏洞和许可证扫描，`HIGH`/`CRITICAL` 退出码为 1；
+- 执行 Trivy 漏洞和许可证扫描；漏洞 `HIGH`/`CRITICAL` 阻断并上传报告，许可证单独留证；
 - 通过 GitHub OIDC 使用 Cosign keyless 签名；
 - 推送后按最终 digest 重新拉取并执行入口 smoke test。
 
