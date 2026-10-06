@@ -15,8 +15,13 @@ import re
 import sys
 from pathlib import Path
 
-#: 仅作为构建参数存在、不需要在运行时文档中出现的变量。
-BUILD_ONLY = {"IMMICH_BASE", "IMMICH_VERSION", "IMMICH_CN_DATA_DATE"}
+#: 仅作为构建参数或外部镜像契约，不需要在本项目运行时文档中出现的变量。
+BUILD_ONLY = {
+    "IMMICH_BASE",
+    "IMMICH_VERSION",
+    "IMMICH_CN_DATA_DATE",
+    "IMMICH_MACHINE_LEARNING_ENABLED",
+}
 
 #: 参与契约检查的文档（含贡献指南与安全策略，它们同样会引用路径与命令）
 DOC_GLOBS = ("README.md", "docs/*.md", "CONTRIBUTING.md", "SECURITY.md")
