@@ -128,7 +128,7 @@ def package_all(options: BuildOptions, result: BuildResult) -> PackageResult:
 
     manifest = _write_manifest(options, result, package_result)
     package_result.manifest = manifest
-    checksums = _write_checksums(options.dist_dir)
+    checksums = _write_checksums(options.dist_dir, [*package_result.artifacts, manifest])
     package_result.checksums = checksums
     if not options.keep_raw:
         cleanup_removable(result, work_dir=options.work_dir)
@@ -272,12 +272,17 @@ def _write_manifest(options: BuildOptions, result: BuildResult, package_result: 
     return path
 
 
-def _write_checksums(dist_dir: Path) -> Path:
+def _write_checksums(dist_dir: Path, files: list[Path]) -> Path:
+    """只登记本次构建产出的文件。
+
+    不能扫描 `dist_dir`：历史残留（旧命名、临时文件）会被一起写进校验和，
+    而发布路径是 `dist/*`，于是残留文件会被签名并上传。
+    """
     path = dist_dir / CHECKSUMS_FILE
     entries: list[tuple[str, str]] = []
-    for item in sorted(dist_dir.iterdir()):
-        if not item.is_file() or item.name in {CHECKSUMS_FILE}:
-            continue
+    for item in sorted({item for item in files if item.name != CHECKSUMS_FILE}, key=lambda item: item.name):
+        if not item.is_file():
+            raise FileNotFoundError(f"待登记制品不存在：{item}")
         entries.append((sha256_file(item), item.name))
     path.write_text("".join(f"{digest}  {name}\n" for digest, name in entries), encoding="utf-8")
     return path

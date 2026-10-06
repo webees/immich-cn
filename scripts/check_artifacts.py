@@ -283,6 +283,38 @@ def check_checksums(dist: Path, errors: list[str]) -> int:
     return verified
 
 
+def check_dist_entries(dist: Path, errors: list[str]) -> None:
+    """dist 只应包含本次构建登记的制品。
+
+    发布路径是 `gh release upload ... dist/*` / `gh release create ... dist/*`，
+    因此任何残留文件都会被一起上传；历史命名或临时文件不能被静默放过。
+    """
+    manifest_path = dist / MANIFEST_FILE
+    if not manifest_path.is_file():
+        return  # 缺少 manifest 已由 check_required_files 报出
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        errors.append(f"{MANIFEST_FILE} 不是合法 JSON：{error}")
+        return
+    if not isinstance(manifest, dict):
+        errors.append(f"{MANIFEST_FILE} 顶层不是对象")
+        return
+
+    allowed = {MANIFEST_FILE, CHECKSUMS_FILE}
+    for key in ("artifacts", "assets"):
+        for entry in manifest.get(key) or []:
+            if isinstance(entry, dict) and isinstance(entry.get("file"), str):
+                allowed.add(entry["file"])
+    unexpected = sorted(path.name for path in dist.iterdir() if path.name not in allowed)
+    if unexpected:
+        errors.append(
+            "dist 含未登记的残留文件（发布会用 dist/* 一起上传）："
+            + "、".join(unexpected)
+            + "；请清理后重跑，或用 `immich-cn all --clean`"
+        )
+
+
 def check_required_files(dist: Path, errors: list[str]) -> None:
     required = (
         "immich-cn-geodata-admin2-default-v1.zip",
@@ -306,6 +338,7 @@ def main(argv: list[str] | None = None) -> int:
     errors: list[str] = []
     check_required_files(args.dist, errors)
     check_manifest(args.dist, errors)
+    check_dist_entries(args.dist, errors)
     zips = check_zips(args.dist, errors)
     check_dataset(args.dist, errors)
     verified = check_checksums(args.dist, errors)
