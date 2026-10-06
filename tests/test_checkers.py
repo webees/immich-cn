@@ -316,6 +316,24 @@ def test_check_docs_detects_citation_punct_space(repo_copy: Path) -> None:
     assert "中文标点后出现空格" in result.stdout
 
 
+def test_check_docs_detects_dataset_member_drift(repo_copy: Path) -> None:
+    """归档成员名写成构建期中间文件名（dataset.sqlite）时必须报错。"""
+    spec = repo_copy / "docs" / "data-format.md"
+    mutate(spec, "| `immich-cn-dataset-v1.sqlite` |", "| `dataset.sqlite` |")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "数据集归档成员" in result.stdout
+
+
+def test_check_docs_detects_sqlite_example_member_drift(repo_copy: Path) -> None:
+    """sqlite3 示例必须使用归档内的真实成员名。"""
+    spec = repo_copy / "docs" / "data-format.md"
+    mutate(spec, "sqlite3 immich-cn-dataset-v1.sqlite \\", "sqlite3 dataset.sqlite \\")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "sqlite3 示例" in result.stdout
+
+
 def test_check_docs_covers_release_notes_and_issue_template(repo_copy: Path) -> None:
     """Release 说明与 Issue 模板同样会被渲染，必须纳入资产名与换行护栏。"""
     note = repo_copy / ".github" / "auto_release_note.md"

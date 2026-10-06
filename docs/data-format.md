@@ -6,7 +6,7 @@
 
 | 成员 | 用途 |
 |:--|:--|
-| `dataset.sqlite` | 规范数据、索引与查询视图 |
+| `immich-cn-dataset-v1.sqlite` | 规范数据、索引与查询视图（归档内的实际成员名） |
 | `schema.json` | 格式版本、表、视图和兼容边界说明 |
 | `NOTICE.txt` | 上游数据来源与再分发署名 |
 | `README.txt` | 最小查询示例与 Immich 适配器边界 |
@@ -35,7 +35,7 @@
 
 ```bash
 unzip immich-cn-dataset-sqlite-v1.zip
-sqlite3 dataset.sqlite \
+sqlite3 immich-cn-dataset-v1.sqlite \
   "SELECT geoname_name, country_name, admin1_name, admin2_name, source
    FROM localized_places WHERE geoname_id = 1816670;"
 ```

@@ -84,7 +84,7 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 
 ### 6. 规范数据集
 
-构建阶段先把全部地点、国家、行政层级、中文名、来源和统计写入 `dataset.sqlite`，再打包为 `immich-cn-dataset-sqlite-v1.zip`。该 SQLite 数据库使用主键、外键、边界约束和索引，并提供 `localized_places` 查询视图；它不依赖 Immich 的制表符列布局。完整结构见 [数据格式](data-format.md)。
+构建阶段先把全部地点、国家、行政层级、中文名、来源和统计写入工作目录中的 `dataset.sqlite`，再以 `immich-cn-dataset-v1.sqlite` 作为成员名打包为 `immich-cn-dataset-sqlite-v1.zip`（两者的区别常被混淆：使用者解压后拿到的是后者）。该 SQLite 数据库使用主键、外键、边界约束和索引，并提供 `localized_places` 查询视图；它不依赖 Immich 的制表符列布局。完整结构见 [数据格式](data-format.md)。
 
 ### 7. Immich 适配器打包
 

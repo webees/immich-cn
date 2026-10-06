@@ -575,6 +575,24 @@ def check_citation_spacing(errors: list[str]) -> None:
             break
 
 
+def check_dataset_member_doc(errors: list[str]) -> None:
+    """docs/data-format.md 的归档成员名必须与实现的 DATASET_MEMBER 一致。
+
+    文档曾写成构建期的中间文件名 `dataset.sqlite`，用户照抄会得到一个空库并报
+    `no such table: localized_places`。
+    """
+    sys.path.insert(0, str(Path("src").resolve()))
+    from immich_cn.artifact_spec import DATASET_MEMBER
+
+    path = Path("docs/data-format.md")
+    doc = path.read_text(encoding="utf-8")
+    if f"`{DATASET_MEMBER}`" not in doc:
+        errors.append(f"{path} 未用反引号记录数据集归档成员 {DATASET_MEMBER!r}（应写归档内文件名，而不是中间产物名）")
+    for name in re.findall(r"sqlite3\s+([^\s\\]+)", doc):
+        if name != DATASET_MEMBER:
+            errors.append(f"{path} 的 sqlite3 示例使用 {name!r}，与归档成员 {DATASET_MEMBER!r} 不一致")
+
+
 def check_asset_names(paths: list[Path], errors: list[str]) -> None:
     """文档中的发布资产名必须符合 v4 规范，且不能回退到 legacy 命名。"""
     sys.path.insert(0, str(Path("src").resolve()))
@@ -638,6 +656,7 @@ def main(argv: list[str] | None = None) -> int:
     render_files = [*doc_files, *_expand(RENDER_EXTRA_GLOBS)]
     check_cjk_soft_breaks(render_files, errors)
     check_citation_spacing(errors)
+    check_dataset_member_doc(errors)
     check_asset_names(render_files, errors)
 
     for error in errors:
