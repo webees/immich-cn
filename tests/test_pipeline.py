@@ -138,6 +138,16 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
     manifest = json.loads((dist / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["tool"]["name"] == "immich-cn"
     assert isinstance(manifest["tool"]["revision"], str)
+    assert manifest["artifactSpecVersion"] == 2
+    assert len(manifest["artifacts"]) == 4
+    assert manifest["aliases"] == {
+        "geodata.zip": "geodata.immich.admin2.default.v1",
+        "geodata_full.zip": "geodata.immich.admin2.full.v1",
+    }
+    first_artifact = manifest["artifacts"][0]
+    assert first_artifact["id"].startswith("geodata.immich.")
+    assert "{" not in first_artifact["profile"] and "_" not in first_artifact["profile"]
+    assert first_artifact["canonicalFile"].startswith("immich-cn-geodata-immich-")
     assert len(manifest["variants"]) == 4
     assert manifest["dataset"]["file"] == "dataset.sqlite.zip"
     assert manifest["dataset"]["format"] == "immich-cn.dataset/1"

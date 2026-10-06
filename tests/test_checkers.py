@@ -509,8 +509,39 @@ def _make_dist(root: Path) -> Path:
             "sha256": hashlib.sha256(dataset.read_bytes()).hexdigest(),
         },
     ]
+    artifact_spec = [
+        {
+            "id": "geodata.immich.admin2.default.v1",
+            "file": artifact.name,
+            "canonicalFile": "immich-cn-geodata-immich-admin2-default-v1.zip",
+            "profile": "admin2",
+            "scope": "default",
+            "sizeBytes": artifact.stat().st_size,
+            "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+        },
+        {
+            "id": "geodata.immich.admin2.full.v1",
+            "file": "geodata_full.zip",
+            "canonicalFile": "immich-cn-geodata-immich-admin2-full-v1.zip",
+            "profile": "admin2",
+            "scope": "full",
+            "sizeBytes": (dist / "geodata_full.zip").stat().st_size,
+            "sha256": hashlib.sha256((dist / "geodata_full.zip").read_bytes()).hexdigest(),
+        },
+    ]
     (dist / "manifest.json").write_text(
-        json.dumps({"variants": variants}, ensure_ascii=False),
+        json.dumps(
+            {
+                "artifactSpecVersion": 2,
+                "artifacts": artifact_spec,
+                "aliases": {
+                    "geodata.zip": "geodata.immich.admin2.default.v1",
+                    "geodata_full.zip": "geodata.immich.admin2.full.v1",
+                },
+                "variants": variants,
+            },
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
     (dist / "SHA256SUMS").write_text(

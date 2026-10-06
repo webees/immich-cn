@@ -51,6 +51,8 @@ Immich 的制表符列位置，也不要求把数据挂载到 Immich 目录。
 `schema.json` 与 `dataset_meta` 中的 `schemaVersion` 是规范结构版本；它与项目版本、
 数据日期标签相互独立。规范字段的破坏性变更必须提升该版本。
 
+发布层的 canonical ID、profile/scope 和兼容文件名规则见 [制品命名规范 v2](artifact-spec.md)。
+
 需要 Immich 时，使用同一 Release 中的 `geodata.zip` 或 `geodata_full.zip`。它们由规范模型
 导出，并通过 `docs/architecture.md` 中的制品契约校验；不能反过来要求规范模型复制 Immich
 的文本列布局。

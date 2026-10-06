@@ -190,6 +190,7 @@ release.yml ──► 手动创建语义化版本 Release
 ## 文档
 
 - [架构设计](docs/architecture.md)
+- [制品命名规范 v2](docs/artifact-spec.md)
 - [规范数据格式](docs/data-format.md)
 - [数据源与处理流程](docs/data-sources.md)
 - [部署指南](docs/deployment.md)
