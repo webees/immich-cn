@@ -98,6 +98,10 @@ def package_all(options: BuildOptions, result: BuildResult) -> PackageResult:
     compressed = compressed_patterns_table(patterns_table, options.dist_dir / "patterns.tsv.gz")
     package_result.artifacts.append(compressed)
     logger.info("变体表写出完成：%d 行", rows)
+    if not options.keep_raw:
+        # 明文变体表（百 MiB 级）只是生成 gz 的中间产物，发布目录只用 gz 版本
+        patterns_table.unlink(missing_ok=True)
+        logger.info("已删除明文变体表 %s（发布只用 %s）", patterns_table.name, compressed.name)
 
     manifest = _write_manifest(options, result, package_result)
     package_result.manifest = manifest

@@ -13,7 +13,7 @@ from immich_cn.config import BuildOptions
 from immich_cn.errors import ParseError
 from immich_cn.package import build_variants, package_all
 from immich_cn.verify import assert_valid, verify_geodata
-from tests.synthetic import geo_row, write_lines
+from tests.synthetic import create_synthetic_sources, geo_row, write_lines
 
 
 def test_end_to_end_build(build_options: BuildOptions) -> None:
@@ -114,6 +114,35 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
 
     checksums = (dist / "SHA256SUMS").read_text(encoding="utf-8")
     assert "geodata.zip" in checksums
+
+
+def test_package_removes_plain_patterns_table(build_options: BuildOptions) -> None:
+    """明文变体表只是生成 gz 的中间产物，默认不保留（百 MiB 级磁盘浪费）。"""
+    result = run_build(build_options)
+    package_all(build_options, result)
+
+    assert not (build_options.work_dir / "patterns.tsv").exists()
+    assert (build_options.dist_dir / "patterns.tsv.gz").exists()
+
+
+def test_package_keeps_plain_patterns_table_with_keep_raw(tmp_path: Path) -> None:
+    """--keep-raw 时应保留明文变体表，便于本地排查。"""
+    keep = BuildOptions(
+        work_dir=tmp_path / "build",
+        dist_dir=tmp_path / "dist",
+        cache_dir=tmp_path / "cache",
+        config_dir=Path(__file__).resolve().parent.parent / "config",
+        extra_countries=("CN",),
+        patterns=("{admin_2}",),
+        provider="offline",
+        skip_fetch=True,
+        keep_raw=True,
+    )
+    create_synthetic_sources(keep.work_dir, keep.work_dir / "i18n-iso-countries" / "langs")
+    result = run_build(keep)
+    package_all(keep, result)
+
+    assert (keep.work_dir / "patterns.tsv").exists()
 
 
 def test_patterns_table_covers_all_levels(build_options: BuildOptions) -> None:
