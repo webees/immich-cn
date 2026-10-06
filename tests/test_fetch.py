@@ -43,6 +43,29 @@ def test_fetcher_caches_downloads(tmp_path: Path) -> None:
     assert (tmp_path / "cache" / "demo.txt").read_bytes() == payload
 
 
+def test_fetcher_detects_same_size_cache_corruption(tmp_path: Path) -> None:
+    calls = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(200, content=b"good" if calls == 1 else b"new!")
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.txt", filename="demo.txt")
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    cache = tmp_path / "cache"
+    with Fetcher(cache, client=client) as fetcher:
+        fetcher.fetch(spec)
+
+    target = cache / "demo.txt"
+    target.write_bytes(b"evil")
+    with Fetcher(cache, client=client) as fetcher:
+        result = fetcher.fetch(spec)
+
+    assert calls == 2
+    assert result.path.read_bytes() == b"new!"
+
+
 def test_fetcher_force_refreshes(tmp_path: Path) -> None:
     calls: list[str] = []
 
