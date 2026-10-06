@@ -168,7 +168,7 @@ PYTHONPYCACHEPREFIX=$(mktemp -d) .venv/bin/python -m pytest -q -x
 ## 发布流程
 
 1. 合并到 `main` 后 CI 自动执行；
-2. 需要发版本时先同步 `pyproject.toml` 与 `src/immich_cn/__init__.py` 的版本号；
+2. 需要发版本时先同步 `pyproject.toml`、`src/immich_cn/__init__.py` 与 `CITATION.cff` 的版本号（`scripts/check_docs.py` 会拒绝三处不一致）；
 3. 手动触发 `Release` 工作流并填写相同版本号，预检查会拒绝版本漂移；
 4. 数据每天由 `全自动更新数据` 工作流自动更新（含 ETag 增量校验与发布指纹对比），产出滚动 Release 与不可变 `data-*` 快照；
 5. 需要立即更新时手动触发 `全自动更新数据`，勾选 `force-publish` 可强制发布。
