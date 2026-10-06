@@ -459,6 +459,18 @@ def check_required_check_names(
             )
 
 
+def check_published_url_verification(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """发布流程必须自检文档承诺的固定下载地址。
+
+    README 与部署文档都写了 `releases/latest/download/<canonical 名>`；一旦 latest
+    指向别的 Release 或资产改名，用户照着文档就会 404，而发布流程本身仍然全绿。
+    """
+    if path.name != "update-data.yml":
+        return
+    if "releases/latest/download/" not in yaml.safe_dump(workflow, allow_unicode=True):
+        errors.append(f"{path} 未在发布后验证文档中的固定下载地址（releases/latest/download/…）")
+
+
 def check_examples_compose_validation(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
     """CI 必须真实解析 examples/ 的 compose 文件。
 
@@ -565,6 +577,7 @@ def main() -> int:
         check_hash_files_paths(path, workflow, errors)
         checkout_total += check_checkout_credentials(path, workflow, errors)
         check_examples_compose_validation(path, workflow, errors)
+        check_published_url_verification(path, workflow, errors)
 
     if checkout_total == 0:
         errors.append("未在任何工作流中找到 actions/checkout 步骤，凭据持久化护栏可能已失效")

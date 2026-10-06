@@ -125,6 +125,27 @@ jobs:
             --title "数据快照 ${DATE}" \
             --notes "该 Release 为当日首次成功发布的不可变数据快照；提交 \`${SHORT_SHA}\`，内容与本次 auto-release 一致。同日后续修订使用 data-${DATE}-sha-<短提交>。"
 
+      # README 与部署文档向用户承诺了 releases/latest/download/<canonical 名> 这个固定地址；
+      # 每次发布后自检它真的可用（带重试，避免刚创建 Release 时的 CDN 传播延迟）。
+      - name: 验证文档中的固定下载地址
+        run: |
+          set -euo pipefail
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/immich-cn-geodata-admin2-default-v1.zip"
+          ok=0
+          for attempt in 1 2 3 4 5; do
+            if code="$(curl -sS -o /dev/null -w '%{http_code}' -L "$url")" && [ "$code" = "200" ]; then
+              ok=1
+              break
+            fi
+            echo "第 ${attempt} 次尝试未返回 200，5 秒后重试"
+            sleep 5
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::error::文档中的固定下载地址未返回 HTTP 200"
+            exit 1
+          fi
+          echo "ok: 文档固定下载地址返回 200"
+
       - name: 清理过期 data-* 快照
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
