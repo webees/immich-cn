@@ -2,7 +2,7 @@
 
 ## 数据没有生效，日志里没有 `geodata records imported`
 
-Immich 只在 `geodata-date.txt` 比上次导入时间更新时才重新导入：
+Immich 只在 `geodata-date.txt` 与上次导入时记录的值**不同**时才重新导入——上游代码（`server/src/repositories/map.repository.ts`）是「相等就 return」，因此换成更新或更旧的不同值都会触发导入：
 
 ```bash
 date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./geodata/geodata-date.txt
