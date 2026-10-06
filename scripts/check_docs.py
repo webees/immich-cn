@@ -582,6 +582,31 @@ COUNTRYINFO_BOUNDARY = "3.3.0 起改读 countryInfo.txt"
 COUNTRYINFO_STALE = re.compile(r"(?<![0-9.])(3\.0 起改读|1\.136\.0 ~ 2\.x)")
 
 
+#: ADM4 覆盖的常见误读写法：把「要素数量」说成「代码数量」，或断言 GeoNames 几乎没有乡镇要素。
+ADM4_MISLEADING = ("几乎没有乡镇级", "ADM4（乡镇）在 GeoNames 中仅 73 条")
+
+
+def check_adm4_coverage_wording(paths: list[Path], errors: list[str]) -> None:
+    """ADM4 的表述必须区分「要素数量」与「带 admin4 代码的数量」。
+
+    实测（2026-10-07，CN.txt sha256 10b1e064…）：中国大陆 dump 有 11,878 条 ADM4 要素，
+    但只有 73 条带 admin4 代码。原表述「在 GeoNames 中仅 73 条」把代码数写成了要素数，
+    会让读者以为上游没有乡镇数据，进而误判离线方案的上限。
+    """
+    claims = 0
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        for phrase in ADM4_MISLEADING:
+            if phrase in text:
+                errors.append(f"{path} 使用会被误读的 ADM4 表述（{phrase}）；应区分要素数与带 admin4 代码的数量")
+        if "73 条" in text and "ADM4" in text:
+            claims += 1
+            if "admin4" not in text:
+                errors.append(f"{path} 提到 ADM4 的 73 条，但未说明这是「带 admin4 代码的数量」")
+    if claims == 0:
+        errors.append("没有文档说明 ADM4 的代码覆盖限制，护栏可能已失效")
+
+
 def check_immich_countryinfo_boundary(paths: list[Path], errors: list[str]) -> None:
     """Immich 国家名来源的版本分界必须写对（上游核对为 3.3.0，而非 3.0）。"""
     claims = 0
@@ -681,6 +706,7 @@ def main(argv: list[str] | None = None) -> int:
     check_citation_spacing(errors)
     check_dataset_member_doc(errors)
     check_immich_countryinfo_boundary(render_files, errors)
+    check_adm4_coverage_wording(render_files, errors)
     check_asset_names(render_files, errors)
 
     for error in errors:
