@@ -52,6 +52,28 @@ def _retry_after_seconds(response: httpx.Response) -> float | None:
     return max(0.0, min(delta, _MAX_RETRY_DELAY))
 
 
+def _part_meta_path(part: Path) -> Path:
+    return part.parent / f"{part.name}.meta"
+
+
+def _load_part_meta(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return {str(k): str(v) for k, v in payload.items()} if isinstance(payload, dict) else {}
+
+
+def _write_part_meta(part: Path, spec: SourceSpec, etag: str | None, last_modified: str | None) -> None:
+    """记录分片对应的上游校验值，避免把不同版本的字节拼在一起。"""
+    _part_meta_path(part).write_text(
+        json.dumps({"url": spec.url, "etag": etag or "", "lastModified": last_modified or ""}) + "\n",
+        encoding="utf-8",
+    )
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -91,7 +113,10 @@ class Fetcher:
         self._revalidate = revalidate
         self._retries = retries
         self._meta_dir = cache_dir / ".meta"
-        self._meta_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self._meta_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as error:
+            raise SourceError(f"无法创建缓存目录 {self._meta_dir}：{error}") from error
         self._owns_client = client is None
         self._client = client or httpx.Client(
             follow_redirects=True,
@@ -201,13 +226,24 @@ class Fetcher:
         target.parent.mkdir(parents=True, exist_ok=True)
         part = target.with_suffix(target.suffix + ".part")
         headers: dict[str, str] = {}
+        expected_etag = ""
         if part.exists() and part.stat().st_size > 0:
-            headers["Range"] = f"bytes={part.stat().st_size}-"
+            meta = _load_part_meta(_part_meta_path(part))
+            if meta.get("url") == spec.url:
+                expected_etag = meta.get("etag", "")
+                headers["Range"] = f"bytes={part.stat().st_size}-"
+                if expected_etag:
+                    # If-Range：校验值变化时服务端会改发完整正文，从协议层避免拼接
+                    headers["If-Range"] = expected_etag
+            else:
+                logger.debug("分片缺少可信校验信息，改为完整重下 %s", spec.name)
+                part.unlink(missing_ok=True)
+                _part_meta_path(part).unlink(missing_ok=True)
 
         last_error: Exception | None = None
         for attempt in range(1, self._retries + 1):
             try:
-                return self._stream_to_file(spec, target, part, headers)
+                return self._stream_to_file(spec, target, part, headers, expected_etag=expected_etag)
             except (httpx.HTTPError, SourceError) as error:
                 last_error = error
                 if isinstance(error, httpx.HTTPStatusError) and error.response.status_code not in _RETRY_STATUS:
@@ -222,6 +258,9 @@ class Fetcher:
                 delay = _retry_delay(attempt, error)
                 logger.warning("下载 %s 失败（第 %d 次）：%s；%.0fs 后重试", spec.name, attempt, error, delay)
                 time.sleep(delay)
+            except OSError as error:
+                # 本地 I/O 故障（权限、磁盘满、路径不存在）重试无益，直接给出可读错误
+                raise SourceError(f"写入缓存失败（{spec.name}）：{error}") from error
         raise SourceError(f"下载 {spec.url} 失败：{last_error}") from last_error
 
     def _stream_to_file(
@@ -230,6 +269,8 @@ class Fetcher:
         target: Path,
         part: Path,
         headers: dict[str, str],
+        *,
+        expected_etag: str = "",
     ) -> FetchedSource:
         logger.info("下载 %s", spec.url)
         digest = hashlib.sha256()
@@ -249,13 +290,28 @@ class Fetcher:
                 logger.debug("服务端不支持断点续传，重新下载 %s", spec.name)
                 resume_from = 0
                 digest = hashlib.sha256()
+
+            response_etag = response.headers.get("etag")
+            response_last_modified = response.headers.get("last-modified")
+            if resume_from and response.status_code == 206:
+                # 206 的校验值必须与本地分片一致，否则会拼出两个版本的混合文件
+                if not expected_etag or response_etag != expected_etag:
+                    part.unlink(missing_ok=True)
+                    _part_meta_path(part).unlink(missing_ok=True)
+                    raise SourceError(
+                        f"{spec.name} 断点续传校验值不匹配（本地 {expected_etag or '未知'} / "
+                        f"上游 {response_etag or '未知'}），已丢弃分片改为完整重下"
+                    )
+            elif not resume_from:
+                _write_part_meta(part, spec, response_etag, response_last_modified)
+
             mode = "ab" if resume_from else "wb"
             with part.open(mode) as handle:
                 for chunk in response.iter_bytes(_CHUNK):
                     digest.update(chunk)
                     handle.write(chunk)
-            etag = response.headers.get("etag")
-            last_modified = response.headers.get("last-modified")
+            etag = response_etag
+            last_modified = response_last_modified
             expected_raw = response.headers.get("content-length")
             encoding = (response.headers.get("content-encoding") or "identity").lower()
             status_code = response.status_code
@@ -269,6 +325,7 @@ class Fetcher:
                 raise SourceError(f"{spec.name} 下载不完整：收到 {actual} 字节，预期 {expected} 字节")
 
         part.replace(target)
+        _part_meta_path(part).unlink(missing_ok=True)
         record = SourceRecord(
             name=spec.name,
             url=spec.url,
