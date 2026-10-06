@@ -52,6 +52,7 @@ def verify_geodata(
             "admin1",
             min_overall_ratio=0.5,
             min_country_ratio=min_cn_admin_ratio,
+            regions=("CN.", "HK.", "MO.", "TW."),
         )
     )
     results.append(
@@ -117,6 +118,7 @@ def _check_admin(
     min_overall_ratio: float,
     min_country_ratio: float,
     country: str = "CN",
+    regions: tuple[str, ...] = (),
 ) -> CheckResult:
     """校验行政层级表。
 
@@ -127,6 +129,7 @@ def _check_admin(
     chinese = 0
     country_total = 0
     country_chinese = 0
+    region_counts: dict[str, list[int]] = {region: [0, 0] for region in regions}
     bad = 0
     prefix = f"{country}."
     with path.open("r", encoding="utf-8") as handle:
@@ -143,6 +146,11 @@ def _check_admin(
                 country_total += 1
                 if is_chinese:
                     country_chinese += 1
+            for region in regions:
+                if fields[0].startswith(region):
+                    region_counts[region][0] += 1
+                    if is_chinese:
+                        region_counts[region][1] += 1
     if bad:
         return CheckResult(label, False, f"{bad} 行字段不足")
     if total == 0:
@@ -157,6 +165,17 @@ def _check_admin(
     detail += f"；{country} 条目 {country_total} 条，中文 {country_chinese} 条（{country_ratio:.1%}）"
     if country_ratio < min_country_ratio:
         return CheckResult(label, False, f"{detail}，低于 {min_country_ratio:.0%}")
+    for region, (count, chinese_count) in region_counts.items():
+        if count == 0:
+            return CheckResult(label, False, f"{detail}，未找到 {region}* 条目")
+        region_ratio = chinese_count / count
+        if region_ratio < min_country_ratio:
+            return CheckResult(
+                label,
+                False,
+                f"{region}* 条目 {count} 条，中文仅 {chinese_count} 条（{region_ratio:.1%}），"
+                f"低于 {min_country_ratio:.0%}",
+            )
     return CheckResult(label, True, detail)
 
 

@@ -20,7 +20,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from immich_cn import SCHEMA_VERSION, __version__
-from immich_cn.chinese import ChineseNameIndex, NameOverrides, build_name_index, to_variant
+from immich_cn.chinese import (
+    SPECIAL_ADMIN_TOP_LEVEL,
+    ChineseNameIndex,
+    NameOverrides,
+    build_name_index,
+    to_variant,
+)
 from immich_cn.config import (
     DEFAULT_PATTERN,
     FINE_GRAINED_ADMIN2,
@@ -598,7 +604,14 @@ def _emit_geodata(
     generated_at: str,
 ) -> None:
     geodata_dir.mkdir(parents=True, exist_ok=True)
-    _write_admin_file(geodata_dir / "admin1CodesASCII.txt", admin1_raw, hierarchy.admin1)
+    # 港澳在 GeoNames 中以区/堂区作为 admin1，但 Immich 会把 admin1Name 当作"省/州"展示，
+    # 因此文件里统一写特别行政区名称（区级信息仍保留在 place 层级的 admin_2/admin_3）。
+    _write_admin_file(
+        geodata_dir / "admin1CodesASCII.txt",
+        admin1_raw,
+        hierarchy.admin1,
+        top_level_countries=tuple(SPECIAL_ADMIN_TOP_LEVEL),
+    )
     _write_admin_file(geodata_dir / "admin2Codes.txt", admin2_raw, hierarchy.admin2)
     _write_country_info(geodata_dir / "countryInfo.txt", country_rows, index, paths.langs_dir)
     shutil.copyfile(paths.geojson, geodata_dir / "ne_10m_admin_0_countries.geojson")
@@ -619,10 +632,20 @@ def _emit_geodata(
             sink.write(place.to_line() + "\n")
 
 
-def _write_admin_file(path: Path, raw: dict[str, AdminEntry], translated: dict[str, str]) -> None:
+def _write_admin_file(
+    path: Path,
+    raw: dict[str, AdminEntry],
+    translated: dict[str, str],
+    *,
+    top_level_countries: tuple[str, ...] = (),
+) -> None:
     with path.open("w", encoding="utf-8") as sink:
         for code, entry in raw.items():
-            name = translated.get(code) or to_variant(entry.name)
+            country = code.split(".")[0]
+            if country in top_level_countries:
+                name = SPECIAL_ADMIN_TOP_LEVEL[country]
+            else:
+                name = translated.get(code) or to_variant(entry.name)
             sink.write("\t".join([code, name, name, str(entry.geoname_id or "")]) + "\n")
 
 
