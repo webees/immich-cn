@@ -148,6 +148,18 @@ def test_check_docs_detects_wrong_image_dataset_claim(repo_copy: Path) -> None:
     assert "不能声称内置 full 数据集" in result.stdout
 
 
+def test_check_docs_detects_stale_plain_patterns_table_claim(repo_copy: Path) -> None:
+    development = repo_copy / "docs" / "development.md"
+    mutate(
+        development,
+        "明文变体表 `patterns.tsv` 默认不会生成",
+        "明文变体表 `patterns.tsv` 默认在打包完成后删除",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "不生成明文 patterns.tsv" in result.stdout
+
+
 def test_check_docs_detects_missing_referenced_path(repo_copy: Path) -> None:
     """文档引用的仓库文件写错路径（例如漏掉 src/ 前缀）必须被报出。"""
     contributing = repo_copy / "CONTRIBUTING.md"
