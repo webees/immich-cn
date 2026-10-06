@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import zipfile
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -173,7 +173,12 @@ class AlternateName:
     historic: bool
 
 
-def iter_alternate_names(path: Path, wanted: set[int] | None = None) -> Iterator[AlternateName]:
+def iter_alternate_names(
+    path: Path,
+    wanted: set[int] | None = None,
+    *,
+    language_filter: Callable[[str], bool] | None = None,
+) -> Iterator[AlternateName]:
     """流式解析 alternateNamesV2.txt。
 
     ``wanted`` 非空时只产出与之相关的记录，避免把 1000 万行全部载入内存。
@@ -193,9 +198,12 @@ def iter_alternate_names(path: Path, wanted: set[int] | None = None) -> Iterator
             geoname_id = int(geoname_raw)
             if wanted is not None and geoname_id not in wanted:
                 continue
+            language = fields[2]
+            if language_filter is not None and not language_filter(language):
+                continue
             yield AlternateName(
                 geoname_id=geoname_id,
-                language=fields[2],
+                language=language,
                 name=fields[3],
                 preferred=len(fields) > 4 and fields[4] == "1",
                 historic=len(fields) > 7 and fields[7] == "1",

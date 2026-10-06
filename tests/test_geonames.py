@@ -78,6 +78,30 @@ def test_iter_alternate_names_filters_by_wanted_ids(synthetic_sources: Path) -> 
     assert len(records) == 3
 
 
+def test_iter_alternate_names_filters_languages_before_yield(tmp_path: Path) -> None:
+    path = tmp_path / "alternateNamesV2.txt"
+    write_lines(
+        path,
+        [
+            "1\t10\ten\tEnglish\t1\t0\t0\t0",
+            "2\t10\tjam\tJamaican\t1\t0\t0\t0",
+            "3\t10\tzh-Hant\t臺北\t0\t0\t0\t0",
+            "4\t10\tja-JP\t東京\t0\t0\t0\t0",
+        ],
+    )
+    records = list(
+        iter_alternate_names(
+            path,
+            {10},
+            language_filter=lambda language: language.startswith("zh") or language.startswith("ja-"),
+        )
+    )
+    assert [(record.geoname_id, record.language) for record in records] == [
+        (10, "zh-Hant"),
+        (10, "ja-JP"),
+    ]
+
+
 def test_extract_archive_member(tmp_path: Path) -> None:
     archive = tmp_path / "data.zip"
     with zipfile.ZipFile(archive, "w") as zf:

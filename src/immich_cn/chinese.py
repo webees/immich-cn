@@ -129,6 +129,12 @@ def language_rank(language: str) -> int | None:
     return len(LANGUAGE_PRIORITY)
 
 
+def is_japanese_language(language: str) -> bool:
+    """是否为日语标签；必须排除 `jam` 等仅前缀相同的语言码。"""
+    normalized = language.strip().lower().replace("_", "-")
+    return normalized == "ja" or normalized.startswith("ja-")
+
+
 def pick_from_alternates(candidates: Iterable[str], variant: ChineseVariant = "hans") -> str | None:
     """从 places 记录的 alternatenames 列中挑一个最合适的中文名。"""
     best: tuple[int, int, str] | None = None
@@ -234,8 +240,7 @@ class ChineseNameIndex:
         日本地名的官方写法就是汉字（如 座間市），比 GeoNames 的罗马字更接近中文用户预期；
         但这不是中文，必须由国家层面显式启用（见 ``KANJI_FALLBACK_COUNTRIES``）。
         """
-        normalized = language.strip().lower().replace("_", "-")
-        if normalized != "ja" and not normalized.startswith("ja-"):
+        if not is_japanese_language(language):
             return
         value = name.strip()
         if not value or not has_cjk(value):

@@ -7,6 +7,7 @@ from immich_cn.chinese import (
     NameOverrides,
     build_name_index,
     has_cjk,
+    is_japanese_language,
     language_rank,
     pick_from_alternates,
     to_variant,
@@ -21,6 +22,12 @@ def test_language_rank_prefers_simplified() -> None:
 
 def test_language_rank_handles_region_suffix() -> None:
     assert language_rank("zh-Hant-HK") is not None
+
+
+def test_japanese_language_rejects_prefix_collisions() -> None:
+    assert is_japanese_language("ja")
+    assert is_japanese_language("ja-JP")
+    assert not is_japanese_language("jam")
 
 
 def test_to_variant_converts_traditional_to_simplified() -> None:
