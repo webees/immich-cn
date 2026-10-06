@@ -31,9 +31,14 @@ if [ ! -f "$cities" ]; then
   echo "未找到 $cities" >&2
   exit 1
 fi
+if [ ! -f "$table" ]; then
+  echo "未找到变体表：$table" >&2
+  exit 1
+fi
 
 work="$(mktemp -d)"
-trap 'rm -rf "$work"' EXIT INT TERM
+# 保留退出码：EXIT trap 的最后一条命令可能覆盖脚本原本的失败状态
+trap 'status=$?; rm -rf "$work"; exit $status' EXIT INT TERM
 
 case "$table" in
   *.gz) gzip -dc "$table" > "$work/patterns.tsv" ;;
@@ -51,7 +56,7 @@ if [ -z "$column" ]; then
   exit 2
 fi
 
-awk -F'\t' -v OFS='\t' -v column="$column" '
+awk -F'\t' -v OFS='\t' -v column="$column" -v countfile="$work/matched" '
   FNR == NR {
     if (FNR > 1) names[$1] = $column
     next
@@ -61,10 +66,21 @@ awk -F'\t' -v OFS='\t' -v column="$column" '
     if (name != "") {
       $2 = name
       $3 = name
+      matched++
     }
     print
   }
+  END { print matched + 0 > countfile }
 ' "$work/patterns.tsv" "$cities" > "$work/cities500.txt"
 
+matched="$(cat "$work/matched")"
+if [ "$matched" -eq 0 ]; then
+  # 静默不改写等于"假成功"：用户会以为粒度已切换，实际仍是默认粒度
+  echo "错误：变体表与 cities500.txt 没有匹配到任何条目，展示粒度未生效" >&2
+  echo "      请确认变体表与 geodata 来自同一次构建" >&2
+  exit 1
+fi
+
 mv "$work/cities500.txt" "$cities"
-echo "已应用展示粒度：$pattern"
+echo "已应用展示粒度：${pattern}（匹配 ${matched} 条）"
+exit 0
