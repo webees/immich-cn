@@ -478,6 +478,20 @@ def check_manifest_field_docs(errors: list[str]) -> None:
             errors.append(f"docs/artifact-spec.md 未记录 manifest 顶层字段：{key}")
 
 
+def check_manifest_stats_scope(errors: list[str]) -> None:
+    """manifest 的 stats 是规范层 full 口径，文档必须写明，否则会被当成某个 zip 的行数。"""
+    path = Path("docs/artifact-spec.md")
+    doc = path.read_text(encoding="utf-8")
+    if "stats" not in doc:
+        return  # 顶层字段护栏已保证 stats 出现，这里只在该前提成立时补充口径要求
+    required = ("sourcePlaces", "extraPlaces", "outputPlaces", "cities500.txt")
+    missing = [token for token in required if token not in doc]
+    if missing:
+        errors.append(
+            f"{path} 未说明 stats 口径，缺少：{'、'.join(missing)}（stats 是规范层 full 口径，不等于某个 zip 的行数）"
+        )
+
+
 def check_asset_names(paths: list[Path], errors: list[str]) -> None:
     """文档中的发布资产名必须符合 v4 规范，且不能回退到 legacy 命名。"""
     sys.path.insert(0, str(Path("src").resolve()))
@@ -537,6 +551,7 @@ def main(argv: list[str] | None = None) -> int:
     check_sla_promises([*doc_files, Path("CITATION.cff")], errors)
     check_markdown_links(doc_files, errors)
     check_manifest_field_docs(errors)
+    check_manifest_stats_scope(errors)
     check_asset_names(doc_files, errors)
 
     for error in errors:
