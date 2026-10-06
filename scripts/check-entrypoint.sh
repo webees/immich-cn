@@ -229,11 +229,23 @@ root_target_case() {
     echo "失败：根目录必须被拒绝" >&2
     exit 1
   fi
-  if ! printf '%s' "$output" | grep -q "不能为空或根目录"; then
+  if ! printf '%s' "$output" | grep -q "不能是根目录"; then
     echo "失败：根目录目标未给出明确错误：${output}" >&2
     exit 1
   fi
-  echo "通过：根目录目标被拒绝"
+
+  if output="$(sh "$repo_root/docker/apply-pattern.sh" \
+      --source / \
+      --table "$repo_root/dist/patterns.tsv.gz" \
+      --pattern '{admin_2}' 2>&1)"; then
+    echo "失败：根目录 source 必须被拒绝" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "不能是根目录"; then
+    echo "失败：根目录 source 未给出明确错误：${output}" >&2
+    exit 1
+  fi
+  echo "通过：根目录 target/source 被拒绝"
 }
 
 missing_option_value_case

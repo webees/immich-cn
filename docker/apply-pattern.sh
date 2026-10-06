@@ -32,6 +32,15 @@ if [ -z "$source_dir" ] || [ -z "$table" ] || [ -z "$pattern" ]; then
   exit 2
 fi
 
+source_dir="$(cd "$source_dir" && pwd -P)" || {
+  echo "无法解析 --source 目录：$source_dir" >&2
+  exit 1
+}
+if [ "$source_dir" = "/" ]; then
+  echo "错误：--source 不能是根目录" >&2
+  exit 2
+fi
+
 cities="$source_dir/cities500.txt"
 if [ ! -f "$cities" ]; then
   echo "未找到 $cities" >&2
