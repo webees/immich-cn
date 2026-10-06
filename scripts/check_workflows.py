@@ -23,6 +23,8 @@ except ModuleNotFoundError:  # pragma: no cover - 依赖已在 dev extra 中声�
 
 INTERPOLATION = re.compile(r"\$\{\{.*?\}\}", re.DOTALL)
 ACTION_SHA = re.compile(r"[0-9a-f]{40}")
+RELEASE_DELETE = re.compile(r"\bgh release delete\s+([A-Za-z0-9._-]+)")
+RELEASE_CREATE = re.compile(r"\bgh release create\s+([A-Za-z0-9._-]+)")
 SCHEDULED = {"schedule"}
 #: 这些函数是运行级聚合判断，已经涵盖全部依赖的结果，因此不受"依赖覆盖"规则约束。
 #: 注意不能把 cancelled() 算进来：它只表示"是否被取消"，并不反映依赖是否失败，
@@ -97,6 +99,24 @@ def check_action_pins(path: Path, workflow: dict[str, Any], errors: list[str]) -
         for index, step in enumerate(job.get("steps") or [], start=1):
             if isinstance(step, dict) and "uses" in step:
                 validate(step["uses"], f"{job_name}/step#{index}")
+
+
+def check_release_replacements(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """同名 Release 不得先删除再创建，否则创建失败会直接造成发布空窗。"""
+    for job_name, job in (workflow.get("jobs") or {}).items():
+        if not isinstance(job, dict):
+            continue
+        for index, step in enumerate(job.get("steps") or [], start=1):
+            if not isinstance(step, dict) or "run" not in step:
+                continue
+            script = str(step["run"])
+            deleted = set(RELEASE_DELETE.findall(script))
+            created = set(RELEASE_CREATE.findall(script))
+            for tag in sorted(deleted & created):
+                errors.append(
+                    f"{path}:{job_name}/step#{index} 对 Release {tag!r} 先删除后重建；"
+                    "创建失败会造成发布空窗，应原地 edit/upload"
+                )
 
 
 def check_concurrency(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
@@ -201,6 +221,7 @@ def main() -> int:
         check_jobs(path, workflow, errors)
         check_permissions(path, workflow, errors)
         check_action_pins(path, workflow, errors)
+        check_release_replacements(path, workflow, errors)
         check_concurrency(path, workflow, errors)
         check_needs_coverage(path, workflow, errors)
         check_references(path, workflow, errors, outputs_by_workflow)
