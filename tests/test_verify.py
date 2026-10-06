@@ -205,6 +205,46 @@ def test_admin_region_english_entry_is_rejected(tmp_path: Path) -> None:
     assert "HK.*" in result.detail
 
 
+def test_admin_overall_ratio_threshold_boundary(tmp_path: Path) -> None:
+    """admin1 的"整体中文覆盖率"阈值（0.5）也必须在边界处翻转。"""
+    chinese_rows = [f"CN.{i:02d}\t浙江省\tZhejiang\t{1000 + i}" for i in range(10)]
+    ascii_rows = [f"US.S{i:02d}\tState{i}\tState{i}\t{2000 + i}" for i in range(10)]
+    path = tmp_path / "admin1-overall.txt"
+    write_lines(path, chinese_rows + ascii_rows)  # 10/20 = 0.50
+
+    at_threshold = _check_admin(path, "admin1", min_overall_ratio=0.5, min_country_ratio=0.95)
+    assert at_threshold.passed is True, at_threshold.detail
+
+    write_lines(path, chinese_rows + ascii_rows + ["US.S10\tState10\tState10\t2010"])  # 10/21
+    below = _check_admin(path, "admin1", min_overall_ratio=0.5, min_country_ratio=0.95)
+    assert below.passed is False, below.detail
+
+
+def test_admin_region_ratio_threshold_boundary(tmp_path: Path) -> None:
+    """港澳台按地区的中文覆盖率阈值（0.95）必须在边界处翻转。"""
+    others = ["CN.01\t浙江省\tZhejiang\t1", "TW.01\t台湾省\tTaiwan\t2", "MO.1\t澳门特别行政区\tMacau\t3"]
+    path = tmp_path / "admin1-region.txt"
+
+    at_threshold = [f"HK.K{i:02d}\t元朗区\tYuen Long\t{100 + i}" for i in range(19)]
+    at_threshold.append("HK.K19\tSouthern District\tSouthern District\t119")  # 19/20 = 0.95
+    write_lines(path, at_threshold + others)
+    result = _check_admin(
+        path, "admin1", min_overall_ratio=0.5, min_country_ratio=0.95, regions=("CN.", "HK.", "MO.", "TW.")
+    )
+    assert result.passed is True, result.detail
+
+    below_threshold = [
+        *at_threshold[:18],
+        "HK.K18\tSouthern District\tSouthern District\t118",  # 18/20 = 0.90
+        "HK.K19\tSouthern District\tSouthern District\t119",
+    ]
+    write_lines(path, below_threshold + others)
+    result = _check_admin(
+        path, "admin1", min_overall_ratio=0.5, min_country_ratio=0.95, regions=("CN.", "HK.", "MO.", "TW.")
+    )
+    assert result.passed is False, result.detail
+
+
 def _cities(rows: int, chinese: int, with_admin2: int) -> list[str]:
     out = []
     for i in range(rows):
