@@ -36,6 +36,7 @@ REPO_SUBSET = (
     "pyproject.toml",
     "README.md",
     "CITATION.cff",
+    "LICENSE",
     "NOTICE",
     "CONTRIBUTING.md",
     "SECURITY.md",
@@ -213,6 +214,15 @@ def test_check_docs_detects_legacy_module_resurrection(repo_copy: Path) -> None:
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "旧模块名" in result.stdout
+
+
+def test_check_docs_detects_broken_markdown_link(repo_copy: Path) -> None:
+    """Markdown 相对链接指向不存在的文件时必须被报出。"""
+    readme = repo_copy / "README.md"
+    mutate(readme, "- [许可与署名](docs/licensing.md)", "- [许可与署名](docs/licensing-x.md)")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "Markdown 链接目标不存在" in result.stdout
 
 
 def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:

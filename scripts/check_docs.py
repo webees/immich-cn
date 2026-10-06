@@ -66,6 +66,10 @@ INDEPENDENCE_SECTION_END = "## 数据模型与使用方式"
 #: 时间承诺（“会在 N 天内回复”）无法保证，必须改为“通常”并注明不是承诺。
 #: 已经带“通常”的句式视为合规，不再重复报警（否则护栏会自相矛盾）。
 SLA_PROMISE = re.compile(r"(?<!通常)会\s*在\s*\d+\s*(?:个)?(?:天|日|小时|周|工作日)内")
+
+#: Markdown 行内链接；只校验相对目标，外部 URL、锚点与 mailto 跳过。
+MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+EXTERNAL_LINK_PREFIXES = ("http://", "https://", "#", "mailto:")
 ASSET_TOKEN = re.compile(r"\bimmich-cn-[A-Za-z0-9._<>-]+")
 CANONICAL_GEODATA = re.compile(r"^immich-cn-geodata-[a-z0-9-]+-(default|full)-v[0-9]+\.zip$")
 INTERNAL_FILES = {"immich-cn-patterns-v1.tsv"}
@@ -379,6 +383,22 @@ def check_sla_promises(paths: list[Path], errors: list[str]) -> None:
                 errors.append(f"{path}:{line_number} 出现时间承诺 {match.group(0)!r}；改为“通常……，不是服务水平承诺”")
 
 
+def check_markdown_links(doc_files: list[Path], errors: list[str]) -> None:
+    """Markdown 相对链接必须指向仓库中真实存在的文件或目录。"""
+    checked = 0
+    for path in doc_files:
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            for raw in MARKDOWN_LINK.findall(line):
+                target = raw.split("#")[0].strip()
+                if not target or target.startswith(EXTERNAL_LINK_PREFIXES):
+                    continue
+                checked += 1
+                if not (path.parent / target).resolve().exists():
+                    errors.append(f"{path}:{line_number} 的 Markdown 链接目标不存在：{raw}")
+    if checked == 0:
+        errors.append("Markdown 链接检查未解析到任何相对链接，护栏可能已失效")
+
+
 def check_asset_names(paths: list[Path], errors: list[str]) -> None:
     """文档中的发布资产名必须符合 v4 规范，且不能回退到 legacy 命名。"""
     sys.path.insert(0, str(Path("src").resolve()))
@@ -435,6 +455,7 @@ def main(argv: list[str] | None = None) -> int:
     check_process_or_legal_claims([*doc_files, Path("CITATION.cff")], errors)
     check_independence_guidance(errors)
     check_sla_promises([*doc_files, Path("CITATION.cff")], errors)
+    check_markdown_links(doc_files, errors)
     check_asset_names(doc_files, errors)
 
     for error in errors:
