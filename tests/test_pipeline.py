@@ -227,9 +227,9 @@ def test_canonical_dataset_is_deterministic(build_options: BuildOptions) -> None
 
 def test_packaging_covers_all_chinese_output_regions() -> None:
     """中文地区都要受打包期校验保护，避免只盯 CN 而漏掉港澳台。"""
-    from immich_cn.packaging import CHINESE_OUTPUT_COUNTRIES
+    from immich_cn.localization import CHINESE_OUTPUT_REGIONS
 
-    assert {"CN", "HK", "TW", "MO"} <= CHINESE_OUTPUT_COUNTRIES
+    assert {"CN", "HK", "TW", "MO"} <= CHINESE_OUTPUT_REGIONS
 
 
 def test_package_rejects_untranslated_chinese_names(

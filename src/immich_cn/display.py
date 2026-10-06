@@ -22,15 +22,6 @@ def _is_cjk(char: str) -> bool:
     return any(low <= char <= high for low, high in _CJK_RANGES)
 
 
-def contains_cjk(text: str) -> bool:
-    """是否至少含一个中日韩表意文字。
-
-    用于判断「有值但不是中文」的情形：上游缺少中文别名时会把英文原名透传，
-    这类值不能当作可用的中文层级名。
-    """
-    return any(_is_cjk(char) for char in text)
-
-
 def normalize_level(value: str) -> str:
     """规范化单个层级名称。
 

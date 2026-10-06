@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+from immich_cn.errors import ConfigError
 from immich_cn.localization import (
     ChineseNameIndex,
     NameOverrides,
@@ -12,6 +15,41 @@ from immich_cn.localization import (
     pick_from_alternates,
     to_variant,
 )
+
+
+def test_overrides_rejects_malformed_admin_code(tmp_path: Path) -> None:
+    """[admins] 键写错会变成永远匹配不到的死条目，必须在加载时报错。"""
+    path = tmp_path / "overrides.toml"
+    path.write_text('[admins]\n"cn.02" = "浙江省"\n', encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="行政区代码"):
+        NameOverrides.load(path)
+
+
+def test_overrides_rejects_non_chinese_value_for_chinese_region(tmp_path: Path) -> None:
+    """中文地区的覆盖值必须是中文名，否则等于把外文名写进发布产物。"""
+    path = tmp_path / "overrides.toml"
+    path.write_text('[admins]\n"CN.02" = "Zhejiang"\n', encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="不含中文"):
+        NameOverrides.load(path)
+
+
+def test_overrides_rejects_malformed_country_code(tmp_path: Path) -> None:
+    path = tmp_path / "overrides.toml"
+    path.write_text('[countries]\n"CHN" = "中国"\n', encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="alpha-2"):
+        NameOverrides.load(path)
+
+
+def test_shipped_overrides_pass_validation() -> None:
+    """仓库自带的覆盖表必须通过新校验，且新补的条目确实生效。"""
+    shipped = Path(__file__).resolve().parent.parent / "config" / "overrides.toml"
+    overrides = NameOverrides.load(shipped)
+
+    assert overrides.admins["MO.11875154"] == "花地玛堂区"
+    assert overrides.admins["CN.23.12324204.1816914.1790964"] == "吴淞区"
 
 
 def test_language_rank_prefers_simplified() -> None:
