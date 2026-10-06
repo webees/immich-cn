@@ -64,7 +64,7 @@ jobs:
       artifact: ${{ steps.meta.outputs.artifact }}
       changed: ${{ steps.change.outputs.changed }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # 数据构建 + 双镜像推送对磁盘压力较大，先释放 runner 上用不到的工具链
       - name: 释放磁盘空间
@@ -73,7 +73,7 @@ jobs:
           sudo docker image prune -af || true
           df -h /
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -85,7 +85,7 @@ jobs:
 
       # 上游 zip（约 300 MiB）缓存一周，命中后可跳过重复下载
       - name: 缓存最近一次下载的上游数据
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: .cache/immich-cn
           key: immich-cn-sources-${{ github.run_id }}
@@ -164,7 +164,7 @@ jobs:
           } > build-summary.md
 
       - name: 上传发布制品
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ steps.meta.outputs.artifact }}
           # 只上传 dist 内容，artifactId 的根目录就是发布文件本身，
@@ -178,15 +178,15 @@ jobs:
 
       - name: 准备 QEMU
         if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
 
       - name: 准备 Buildx
         if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: 登录 GHCR
         if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -195,7 +195,7 @@ jobs:
       - name: 推送数据镜像
         id: data-image
         if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           file: docker/geodata.Dockerfile

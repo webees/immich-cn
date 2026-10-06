@@ -22,7 +22,8 @@
 
 ## 供应链
 
-- 镜像构建与推送全部在 GitHub Actions 中完成，使用 `GITHUB_TOKEN` 与 OIDC；
+- 镜像构建与推送全部在 GitHub Actions 中完成，使用最小权限的 `GITHUB_TOKEN`；
+- 所有外部 Action 固定到完整 commit SHA，版本标签仅作为注释保留，Dependabot 负责更新；
 - `docker/build-push-action` 开启 `provenance` 与 `sbom`；
 - 每次数据构建都会记录上游文件的 SHA256 到 `manifest.json`；
 - 发布制品的 `SHA256SUMS` 可用于校验下载内容。
