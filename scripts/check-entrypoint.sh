@@ -251,4 +251,52 @@ root_target_case() {
 missing_option_value_case
 root_target_case
 
+# 目标目录中的符号链接不能被 cp / cat 跟随，否则会写出目标目录之外。
+symlink_target_case() {
+  local root="$work/symlink-target"
+  mkdir -p "$root/geodata"
+  printf 'sentinel\n' > "$root/outside.txt"
+  ln -s "$root/outside.txt" "$root/geodata/cities500.txt"
+
+  IMMICH_BUILD_DATA="$root" \
+    IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
+    IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
+    IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/patterns.tsv.gz" \
+    bash "$repo_root/docker/entrypoint.sh" true >/dev/null
+
+  if [ "$(cat "$root/outside.txt")" != "sentinel" ]; then
+    echo "失败：入口脚本跟随符号链接写出了目标目录" >&2
+    exit 1
+  fi
+  if [ -L "$root/geodata/cities500.txt" ]; then
+    echo "失败：入口脚本未替换危险的符号链接" >&2
+    exit 1
+  fi
+  echo "通过：入口脚本不会跟随目标目录中的符号链接"
+}
+
+install_readme_symlink_case() {
+  local root="$work/install-readme"
+  mkdir -p "$root/out"
+  printf 'sentinel\n' > "$root/outside.txt"
+  ln -s "$root/outside.txt" "$root/out/README.md"
+
+  IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
+    IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
+    sh "$repo_root/docker/install.sh" --target "$root/out" >/dev/null
+
+  if [ "$(cat "$root/outside.txt")" != "sentinel" ]; then
+    echo "失败：install.sh 跟随符号链接写出了目标目录" >&2
+    exit 1
+  fi
+  if [ -L "$root/out/README.md" ]; then
+    echo "失败：install.sh 未替换危险的符号链接" >&2
+    exit 1
+  fi
+  echo "通过：install.sh 不会跟随目标目录中的符号链接"
+}
+
+symlink_target_case
+install_readme_symlink_case
+
 echo "入口脚本校验通过"

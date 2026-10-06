@@ -75,6 +75,8 @@ if [ -n "$pattern" ] && [ "$pattern" != "{admin_2}" ]; then
     --pattern "$pattern"
 fi
 
+# README 是普通文件：先删除同名符号链接，避免 cat 跟随链接写出目标目录。
+rm -f "$target/README.md"
 cat > "$target/README.md" <<'EOF'
 本目录由 immich-cn 数据镜像生成。
 

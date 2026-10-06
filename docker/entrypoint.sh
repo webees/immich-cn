@@ -30,6 +30,19 @@ if [ -n "$missing_files" ]; then
 fi
 
 mkdir -p "$target"
+
+# 目标目录可能来自宿主机挂载；先移除同名符号链接，避免 cp 跟随链接写出目录。
+for source_path in "$source_dir"/*; do
+  [ -e "$source_path" ] || [ -L "$source_path" ] || continue
+  destination="$target/${source_path##*/}"
+  if [ -L "$destination" ]; then
+    if ! rm -f "$destination"; then
+      echo "immich-cn: 无法安全替换符号链接 ${destination}" >&2
+      exit 1
+    fi
+  fi
+done
+
 if ! cp -a "$source_dir/." "$target/" 2>/dev/null; then
   # 用户可能把 /build/geodata 以只读方式挂载进来
   if [ -f "$target/cities500.txt" ]; then
