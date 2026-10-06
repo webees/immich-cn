@@ -60,8 +60,10 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，
    ```
 
    同一语言内优先 `isPreferredName=1`，并忽略 `isHistoric=1`；
-4. 用 `zhconv` 统一转换为简体（可通过 `--chinese-variant hant` 输出繁体）；
-5. 应用 `config/overrides.toml` 中的人工覆盖。
+4. 日本行政区缺少中文别名时，回退到 `ja`/`ja-*` 中可显示的汉字名称（如 `座間市`）；
+   纯罗马字与 `jam` 等非日语标签不会被当作日文汉字；
+5. 用 `zhconv` 统一转换为简体（可通过 `--chinese-variant hant` 输出繁体）；
+6. 应用 `config/overrides.toml` 中的人工覆盖。
 
 ### 4. 人工覆盖表
 

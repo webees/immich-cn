@@ -98,7 +98,7 @@ Immich 的反向地理编码需要一组固定格式的文本文件（见 `serve
 - 必需文件是否齐全；
 - `geodata-date.txt` 是否为合法 ISO 时间；
 - `cities500.txt` 列数、GeoNames ID 唯一性；
-- 中国记录中文名称覆盖率是否达到阈值；
+- 中国与香港记录的中文名称覆盖率是否达到阈值；
 - `countryInfo.txt` 中文覆盖率；
 - `ne_10m_admin_0_countries.geojson` 是否为合法 FeatureCollection。
 

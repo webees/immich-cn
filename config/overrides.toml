@@ -89,6 +89,26 @@
 "TW.03" = "台湾省"
 "TW.04" = "台湾省"
 
+# 香港 18 区：GeoNames 部分行政区缺少中文别名，显式覆盖避免城市名回退成英文
+"HK.HCW" = "中西区"
+"HK.HWC" = "湾仔区"
+"HK.HEA" = "东区"
+"HK.HSO" = "南区"
+"HK.KYT" = "油尖旺区"
+"HK.KSS" = "深水埗区"
+"HK.KKC" = "九龙城区"
+"HK.KWT" = "黄大仙区"
+"HK.KKT" = "观塘区"
+"HK.NTW" = "荃湾区"
+"HK.NKT" = "葵青区"
+"HK.NTM" = "屯门区"
+"HK.NYL" = "元朗区"
+"HK.NNO" = "北区"
+"HK.NTP" = "大埔区"
+"HK.NST" = "沙田区"
+"HK.NSK" = "西贡区"
+"HK.NIS" = "离岛区"
+
 [countries]
 
 [rules.strip_suffixes]

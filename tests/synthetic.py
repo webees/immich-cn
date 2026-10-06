@@ -146,6 +146,7 @@ def create_synthetic_sources(work_dir: Path, langs_dir: Path) -> Path:
             "HK.NYL\tYuen Long\tYuen Long\t1818224",
             "MO.11875154\tNossa Senhora de Fatima\tNossa Senhora de Fatima\t11875154",
             "TW.03\tTaipei\tTaipei\t7280290",
+            "JP.01\tHokkaido\tHokkaido\t2130656",
             "US.NY\tNew York\tNew York\t5128638",
         ],
     )
@@ -196,6 +197,7 @@ def create_synthetic_sources(work_dir: Path, langs_dir: Path) -> Path:
             alternate_row(19, 6252001, "zh", "美国", preferred=True),
             alternate_row(20, 11876380, "zh", "北京市", preferred=True),
             alternate_row(21, 7280290, "zh", "台湾省", preferred=True),
+            alternate_row(22, 2130656, "zh", "北海道", preferred=True),
         ],
     )
 

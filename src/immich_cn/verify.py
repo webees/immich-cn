@@ -34,6 +34,7 @@ def verify_geodata(
     directory: Path,
     *,
     min_cn_cjk_ratio: float = 0.90,
+    min_hk_cjk_ratio: float = 0.99,
     min_cn_admin_ratio: float = 0.95,
     min_cn_admin2_code_ratio: float = 0.90,
     min_cn_admin2_resolved_ratio: float = 0.99,
@@ -52,7 +53,9 @@ def verify_geodata(
             "admin1",
             min_overall_ratio=0.5,
             min_country_ratio=min_cn_admin_ratio,
-            regions=("CN.", "HK.", "MO.", "TW."),
+            regions=("CN.", "HK.", "MO.", "TW.", "JP."),
+            # 日本有约 4% 的市名官方写法就是假名（如 たつの市），阈值单独放宽
+            region_min_ratios={"JP.": 0.90},
         )
     )
     results.append(
@@ -70,6 +73,7 @@ def verify_geodata(
         _check_cities500(
             directory / "cities500.txt",
             min_cn_cjk_ratio=min_cn_cjk_ratio,
+            min_hk_cjk_ratio=min_hk_cjk_ratio,
             min_cn_admin2_code_ratio=min_cn_admin2_code_ratio,
             min_cn_admin2_resolved_ratio=min_cn_admin2_resolved_ratio,
             admin2_codes=admin2_codes,
@@ -119,6 +123,7 @@ def _check_admin(
     min_country_ratio: float,
     country: str = "CN",
     regions: tuple[str, ...] = (),
+    region_min_ratios: dict[str, float] | None = None,
 ) -> CheckResult:
     """校验行政层级表。
 
@@ -169,12 +174,12 @@ def _check_admin(
         if count == 0:
             return CheckResult(label, False, f"{detail}，未找到 {region}* 条目")
         region_ratio = chinese_count / count
-        if region_ratio < min_country_ratio:
+        threshold = (region_min_ratios or {}).get(region, min_country_ratio)
+        if region_ratio < threshold:
             return CheckResult(
                 label,
                 False,
-                f"{region}* 条目 {count} 条，中文仅 {chinese_count} 条（{region_ratio:.1%}），"
-                f"低于 {min_country_ratio:.0%}",
+                f"{region}* 条目 {count} 条，中文仅 {chinese_count} 条（{region_ratio:.1%}），低于 {threshold:.0%}",
             )
     return CheckResult(label, True, detail)
 
@@ -217,6 +222,7 @@ def _check_cities500(
     path: Path,
     *,
     min_cn_cjk_ratio: float,
+    min_hk_cjk_ratio: float = 0.99,
     min_cn_admin2_code_ratio: float,
     min_cn_admin2_resolved_ratio: float = 0.99,
     admin2_codes: set[str] | None = None,
@@ -227,6 +233,8 @@ def _check_cities500(
     duplicates = 0
     cn_total = 0
     cn_chinese = 0
+    hk_total = 0
+    hk_chinese = 0
     cn_with_admin2 = 0
     cn_admin2_resolved = 0
     with path.open("r", encoding="utf-8") as handle:
@@ -252,6 +260,10 @@ def _check_cities500(
                     cn_with_admin2 += 1
                     if admin2_codes is None or f"CN.{fields[10]}.{fields[11]}" in admin2_codes:
                         cn_admin2_resolved += 1
+            elif fields[8] == "HK":
+                hk_total += 1
+                if has_cjk(fields[1]):
+                    hk_chinese += 1
     results = [
         CheckResult("cities500", bad == 0, f"{total} 条记录，字段异常 {bad} 条"),
         CheckResult("cities500-duplicates", duplicates == 0, f"重复 GeoNames ID {duplicates} 条"),
@@ -282,6 +294,15 @@ def _check_cities500(
                 resolved_ratio >= min_cn_admin2_resolved_ratio,
                 f"带 admin2 代码的中国记录 {cn_with_admin2} 条，可在 admin2Codes 解析 "
                 f"{cn_admin2_resolved} 条（{resolved_ratio:.2%}）",
+            )
+        )
+    if hk_total:
+        hk_ratio = hk_chinese / hk_total
+        results.append(
+            CheckResult(
+                "cities500-hk-cjk",
+                hk_ratio >= min_hk_cjk_ratio,
+                f"香港记录 {hk_total} 条，中文名称 {hk_chinese} 条（{hk_ratio:.1%}）",
             )
         )
     return results

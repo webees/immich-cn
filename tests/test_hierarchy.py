@@ -3,7 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from immich_cn.chinese import ChineseNameIndex, NameOverrides
-from immich_cn.hierarchy import Hierarchy, finalize_place_names, resolve_place_names
+from immich_cn.hierarchy import (
+    Hierarchy,
+    finalize_place_names,
+    resolve_place_names,
+    translate_admin_codes,
+    translate_admin_units,
+)
 from immich_cn.models import AdminEntry, Place
 from tests.synthetic import geo_row
 
@@ -78,3 +84,21 @@ def test_overrides_load_rejects_bad_key(tmp_path: Path) -> None:
 
 def test_admin_entry_is_exported() -> None:
     assert AdminEntry(code="CN.04", name="Jiangsu").geoname_id is None
+
+
+def test_kanji_fallback_is_restricted_to_japan() -> None:
+    entries = {
+        "JP.13": AdminEntry(code="JP.13", name="Tokyo", geoname_id=1),
+        "US.NY": AdminEntry(code="US.NY", name="New York", geoname_id=2),
+    }
+    index = ChineseNameIndex(kanji_names={1: "東京都", 2: "紐約州"})
+    translated = translate_admin_codes(entries, index, fallback_to_ascii=False)
+    assert translated == {"JP.13": "东京都"}
+
+
+def test_kanji_fallback_for_admin_units_is_restricted_to_japan() -> None:
+    units = {"JP.13.01": 1, "US.NY.01": 2}
+    names = {"JP.13.01": (1, "Tokyo", ()), "US.NY.01": (2, "New York", ())}
+    index = ChineseNameIndex(kanji_names={1: "東京都", 2: "紐約州"})
+    translated = translate_admin_units(units, names, index)
+    assert translated == {"JP.13.01": "东京都", "US.NY.01": "New York"}
