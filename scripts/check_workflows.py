@@ -222,6 +222,19 @@ def check_version_release(path: Path, workflow: dict[str, Any], errors: list[str
         errors.append(f"{path}:validate 缺少 checkout，无法读取 pyproject.toml 校验版本")
 
 
+def check_cleanup_workflow(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """定时清理必须默认 apply、支持 prune-all，并具备所需最小权限。"""
+    if path.name != "cleanup.yml":
+        return
+    text = yaml.safe_dump(workflow, allow_unicode=True)
+    if "scripts/cleanup.py" not in text or "--prune-all" not in text:
+        errors.append(f"{path} 缺少清理脚本或稳定前 prune-all 入口")
+    if "APPLY: ${{ github.event_name == 'schedule' || inputs.apply }}" not in text:
+        errors.append(f"{path} 定时任务没有自动切换为 apply")
+    if "actions: write" not in text or "packages: write" not in text or "contents: write" not in text:
+        errors.append(f"{path} 缺少 Actions/Release/Packages 清理所需权限")
+
+
 def check_concurrency(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
     triggers = workflow.get("on")
     scheduled = isinstance(triggers, dict) and any(key in triggers for key in SCHEDULED)
@@ -370,6 +383,7 @@ def main() -> int:
         check_snapshot_immutability(path, workflow, errors)
         check_image_supply_chain(path, workflow, errors)
         check_version_release(path, workflow, errors)
+        check_cleanup_workflow(path, workflow, errors)
         check_concurrency(path, workflow, errors)
         check_needs_coverage(path, workflow, errors)
         check_issue_search_scope(path, workflow, errors)

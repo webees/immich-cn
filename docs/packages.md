@@ -60,6 +60,12 @@ cosign verify \
 `healthcheck` 和运行时数据路径属于 `immich-cn-server` 的基础 Immich 契约；数据镜像只保证
 `--target` 目录中的 geodata 文件结构可被 Immich 挂载使用。
 
+## 自动清理
+
+GHCR 版本、`data-*` Release 和 Actions 运行由 `cleanup.yml` 每周清理。默认保留语义版本、
+`auto-release`、`latest`、`release` 与最近版本；稳定前可手动启用 `prune-all`。完整规则见
+[自动清理与保留策略](maintenance.md)。
+
 ## 不可混用边界
 
 - `immich-cn-server:release-YYYY-MM-DD` 固定的是本项目数据与该次构建使用的 Immich 标签；

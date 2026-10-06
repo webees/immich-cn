@@ -203,7 +203,7 @@ def check_numeric_contracts(errors: list[str]) -> None:
     retention = re.search(r"snapshot-retention:.*?default:\s*(\d+)", workflow, re.DOTALL)
     if retention:
         expected = int(retention.group(1))
-        for match in re.finditer(r"保留最近 (\d+) 个", doc_text):
+        for match in re.finditer(r"保留最近\s*(\d+)\s*个\s*`data-\*`\s*快照", doc_text):
             if int(match.group(1)) != expected:
                 errors.append(f"文档称保留最近 {match.group(1)} 个快照，实际默认 {expected}")
 

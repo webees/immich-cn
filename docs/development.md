@@ -26,6 +26,7 @@ make artifacts   # 校验 dist/ 制品（zip / manifest / SHA256SUMS）
 make entrypoint  # 校验容器入口脚本对 IMMICH_CN_PATTERN 的处理
 make build       # 真实构建（首次下载约 260 MiB 压缩数据）
 make clean       # 清理 build/ dist/ 与各类缓存
+python scripts/cleanup.py --help  # 查看 Release/Actions/GHCR 清理参数（默认 dry-run）
 ```
 
 各阶段实测开销（2026-10-06，1318830 行输出）：

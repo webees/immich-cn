@@ -350,6 +350,18 @@ def test_check_workflows_requires_release_preflight_checkout(repo_copy: Path) ->
     assert "validate 缺少 checkout" in result.stdout
 
 
+def test_check_workflows_requires_cleanup_apply_policy(repo_copy: Path) -> None:
+    workflow = repo_copy / ".github" / "workflows" / "cleanup.yml"
+    mutate(
+        workflow,
+        "          APPLY: ${{ github.event_name == 'schedule' || inputs.apply }}",
+        "          APPLY: false",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "定时任务没有自动切换为 apply" in result.stdout
+
+
 def test_check_workflows_detects_unscoped_automation_issue_search(repo_copy: Path) -> None:
     """自动化告警搜索必须限定 automation 标签，防止误关用户 issue。"""
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
