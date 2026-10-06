@@ -92,7 +92,8 @@ Immich 的反向地理编码需要一组固定格式的文本文件（见 `serve
 - 使用的 provider 列表。
 
 镜像发布还附带 BuildKit provenance 与 SBOM；推送后按最终 digest 重新拉取执行入口 smoke test，
-再用 Trivy 扫描漏洞和许可证，最后通过 GitHub OIDC 使用 Cosign 做 keyless 签名。
+再用 Trivy 扫描漏洞和许可证。数据镜像阻断全部 `HIGH`/`CRITICAL`；Immich 覆盖镜像与官方基础镜像
+做差集，只阻断新增漏洞并把继承项写成例外报告。最后通过 GitHub OIDC 使用 Cosign 做 keyless 签名。
 
 ### 5. 校验前置
 

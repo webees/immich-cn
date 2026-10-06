@@ -183,8 +183,10 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
     text = yaml.safe_dump(workflow, allow_unicode=True)
     if text.count("docker pull") < 2:
         errors.append(f"{path} 缺少数据或 server 镜像的最终 digest 冒烟验证")
-    if text.count("aquasecurity/setup-trivy@") < 1 or text.count("trivy image") < 4:
+    if text.count("aquasecurity/setup-trivy@") < 1 or text.count("trivy image") < 5:
         errors.append(f"{path} 缺少数据或 server 镜像的 Trivy 漏洞/许可证扫描")
+    if text.count("comm -13") < 1 or "trivy-server-base-vuln.tsv" not in text:
+        errors.append(f"{path} 缺少 server 覆盖镜像相对官方基础镜像的漏洞差集检查")
     if text.count("cosign sign --yes") < 2:
         errors.append(f"{path} 缺少数据或 server 镜像的 Cosign keyless 签名")
 

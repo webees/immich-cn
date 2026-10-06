@@ -304,24 +304,62 @@ jobs:
         env:
           DATA_DIGEST: ${{ steps.data-image.outputs.digest }}
           SERVER_DIGEST: ${{ steps.server-image.outputs.digest }}
+          IMMICH_VERSION: ${{ inputs.immich-version }}
         run: |
           set -uo pipefail
           status=0
           data_image="ghcr.io/${GITHUB_REPOSITORY}@${DATA_DIGEST}"
           server_image="ghcr.io/${GITHUB_REPOSITORY}-server@${SERVER_DIGEST}"
+          base_image="ghcr.io/immich-app/immich-server:${IMMICH_VERSION}"
+          base_digest="$(
+            docker buildx imagetools inspect "$base_image" --format '{{json .Manifest}}' \
+              | jq -r '.digest'
+          )"
+          test -n "$base_digest"
+          echo "$base_digest" > trivy-server-base-digest.txt
 
-          # 漏洞结论阻断发布；许可证报告仅留证，避免把 Alpine 正常的 GPL 工具误判成漏洞。
+          # 数据镜像由本项目构建，任何 HIGH/CRITICAL 都阻断。
           if ! trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
-              --exit-code 1 --format table --output trivy-data-vuln.txt "$data_image"; then
+              --format json --output trivy-data-vuln.json "$data_image"; then
             status=1
           fi
+          if ! jq -r '.Results[]?.Vulnerabilities[]? | [.VulnerabilityID, .PkgName, .InstalledVersion, (.FixedVersion // "")] | @tsv' \
+              trivy-data-vuln.json | sort -u > trivy-data-vuln.tsv; then
+            status=1
+          fi
+          test ! -s trivy-data-vuln.tsv || status=1
+
+          # server 覆盖镜像继承官方 Immich 基础镜像的漏洞。只有“新增”的 HIGH/CRITICAL 才阻断；
+          # 继承项保留为显式例外报告，避免上游未修复时永久卡死全自动发布。
+          if ! trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+              --format json --output trivy-server-base-vuln.json "${base_image}@${base_digest}"; then
+            status=1
+          fi
+          if ! trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+              --format json --output trivy-server-vuln.json "$server_image"; then
+            status=1
+          fi
+          if ! jq -r '.Results[]?.Vulnerabilities[]? | [.VulnerabilityID, .PkgName, .InstalledVersion, (.FixedVersion // "")] | @tsv' \
+              trivy-server-base-vuln.json | sort -u > trivy-server-base-vuln.tsv; then
+            status=1
+          fi
+          if ! jq -r '.Results[]?.Vulnerabilities[]? | [.VulnerabilityID, .PkgName, .InstalledVersion, (.FixedVersion // "")] | @tsv' \
+              trivy-server-vuln.json | sort -u > trivy-server-vuln.tsv; then
+            status=1
+          fi
+          comm -13 trivy-server-base-vuln.tsv trivy-server-vuln.tsv > trivy-server-new-vuln.tsv
+          comm -12 trivy-server-base-vuln.tsv trivy-server-vuln.tsv > trivy-server-inherited-vuln.tsv
+          test ! -s trivy-server-new-vuln.tsv || status=1
+          {
+            echo "Immich 基础镜像：${base_image}@${base_digest}"
+            echo "继承的 HIGH/CRITICAL 例外：$(wc -l < trivy-server-inherited-vuln.tsv)"
+            echo ""
+            cat trivy-server-inherited-vuln.tsv
+          } > trivy-server-inherited-vuln.txt
+
+          # 许可证报告仅留证，避免把基础镜像正常的 GPL/AGPL 依赖误判成漏洞。
           trivy image --scanners license --severity HIGH,CRITICAL \
             --format table --output trivy-data-license.txt "$data_image"
-
-          if ! trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
-              --exit-code 1 --format table --output trivy-server-vuln.txt "$server_image"; then
-            status=1
-          fi
           trivy image --scanners license --severity HIGH,CRITICAL \
             --format table --output trivy-server-license.txt "$server_image"
 
@@ -332,7 +370,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: trivy-reports
-          path: trivy-*.txt
+          path: trivy-*
           if-no-files-found: warn
           retention-days: 30
 
@@ -363,6 +401,6 @@ jobs:
             echo "- 数据镜像：\`ghcr.io/${GITHUB_REPOSITORY}@${DATA_DIGEST}\`"
             echo "- Immich 覆盖镜像：\`ghcr.io/${GITHUB_REPOSITORY}-server@${SERVER_DIGEST}\`"
             echo "- SBOM / provenance：已生成"
-            echo "- 漏洞与许可证扫描：Trivy 已执行，HIGH/CRITICAL 会阻断"
+            echo "- 漏洞与许可证扫描：Trivy 已执行；数据镜像遇 HIGH/CRITICAL 阻断，server 只阻断新增项"
             echo "- 签名：Cosign keyless"
           } >> "$GITHUB_STEP_SUMMARY"
