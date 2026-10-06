@@ -22,6 +22,7 @@ except ModuleNotFoundError:  # pragma: no cover - 依赖已在 dev extra 中声�
     sys.exit(2)
 
 INTERPOLATION = re.compile(r"\$\{\{.*?\}\}", re.DOTALL)
+ACTION_SHA = re.compile(r"[0-9a-f]{40}")
 SCHEDULED = {"schedule"}
 #: 这些函数是运行级聚合判断，已经涵盖全部依赖的结果，因此不受"依赖覆盖"规则约束。
 #: 注意不能把 cancelled() 算进来：它只表示"是否被取消"，并不反映依赖是否失败，
@@ -76,6 +77,26 @@ def check_jobs(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
 def check_permissions(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
     if "permissions" not in workflow:
         errors.append(f"{path} 缺少顶层 permissions 声明")
+
+
+def check_action_pins(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """外部 Action 必须固定到完整 commit SHA，不能使用可重定向的标签。"""
+
+    def validate(value: object, location: str) -> None:
+        if not isinstance(value, str) or value.startswith("./") or value.startswith("docker://"):
+            return
+        _, separator, revision = value.rpartition("@")
+        if not separator or not ACTION_SHA.fullmatch(revision):
+            errors.append(f"{path}:{location} 的 Action {value!r} 未固定到 40 位 commit SHA")
+
+    for job_name, job in (workflow.get("jobs") or {}).items():
+        if not isinstance(job, dict):
+            continue
+        if "uses" in job:
+            validate(job["uses"], job_name)
+        for index, step in enumerate(job.get("steps") or [], start=1):
+            if isinstance(step, dict) and "uses" in step:
+                validate(step["uses"], f"{job_name}/step#{index}")
 
 
 def check_concurrency(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
@@ -179,6 +200,7 @@ def main() -> int:
         check_run_blocks(path, workflow, errors)
         check_jobs(path, workflow, errors)
         check_permissions(path, workflow, errors)
+        check_action_pins(path, workflow, errors)
         check_concurrency(path, workflow, errors)
         check_needs_coverage(path, workflow, errors)
         check_references(path, workflow, errors, outputs_by_workflow)
