@@ -23,7 +23,7 @@ references:
   - type: software
     title: immich-geodata-cn
     repository-code: "https://github.com/ZingLix/immich-geodata-cn"
-    notes: 早期思路启发；本仓库为独立实现，当前树中不包含该项目的代码或人工整理数据
+    notes: 早期思路启发；本项目按独立实现组织，当前树未引用或打包该项目的代码与人工整理数据（核查方式见 docs/documentation-policy.md）
   - type: data
     title: GeoNames
     website: "https://www.geonames.org/"

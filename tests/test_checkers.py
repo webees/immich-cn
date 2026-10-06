@@ -177,18 +177,58 @@ def test_check_docs_detects_missing_referenced_path(repo_copy: Path) -> None:
 
 def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
-    mutate(readme, "本仓库为独立实现", "本项目是独立重写版本")
+    mutate(readme, "本项目按独立实现组织", "本项目是独立重写版本")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "错误的项目定位" in result.stdout
+
+
+def test_check_docs_rejects_process_claims(repo_copy: Path) -> None:
+    """历史过程断言（例如“未从同类项目移植”）无法由当前树验证，必须被拒绝。"""
+    readme = repo_copy / "README.md"
+    mutate(readme, "本项目按独立实现组织", "本项目按独立实现组织，也未从同类项目移植实现")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "不可验证或越界声明" in result.stdout
+
+
+def test_check_docs_rejects_legal_conclusions(repo_copy: Path) -> None:
+    """工程文档不能对法律状态下结论，例如“不构成格式继承”。"""
+    licensing = repo_copy / "docs" / "licensing.md"
+    mutate(licensing, "本项目按独立实现组织", "本项目按独立实现组织，不构成任何格式继承")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "不可验证或越界声明" in result.stdout
+
+
+def test_check_docs_requires_independence_guidance(repo_copy: Path) -> None:
+    """独立性声明必须指向可核查的范围与边界，否则读者无法判断声明依据。"""
+    readme = repo_copy / "README.md"
+    mutate(
+        readme,
+        "核查范围、关键词与边界见\n[docs/documentation-policy.md](docs/documentation-policy.md)。",
+        "核查范围、关键词与边界见项目维护记录。",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "核查范围与边界" in result.stdout
+
+
+def test_check_docs_rejects_sla_promise(repo_copy: Path) -> None:
+    """响应时间无法保证，必须写成“通常”并注明不是服务水平承诺。"""
+    security = repo_copy / "SECURITY.md"
+    mutate(security, "我们通常会在 7 天内给出初步回复", "我们会在 7 天内给出初步回复")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "时间承诺" in result.stdout
 
 
 def test_check_docs_requires_upstream_acknowledgement_at_bottom(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     link = (
         "- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)："
-        "早期中文 Immich geodata 思路提供了启发；本仓库为独立实现，"
-        "当前树中不包含来自该项目的代码或人工整理数据。"
+        "早期中文 Immich geodata 思路提供了启发；本项目按独立实现组织，"
+        "当前树未引用或打包该项目的代码与人工整理数据（核查方式见 [文档严谨性规范](docs/documentation-policy.md)）。"
     )
     mutated = readme.read_text(encoding="utf-8").replace(link, "")
     mutated = mutated.replace("## 数据模型与使用方式", f"{link}\n\n## 数据模型与使用方式")
@@ -200,7 +240,7 @@ def test_check_docs_requires_upstream_acknowledgement_at_bottom(repo_copy: Path)
 
 def test_check_docs_rejects_absolute_claims(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
-    mutate(readme, "本仓库为独立实现", "本项目是完全独立的实现")
+    mutate(readme, "本项目按独立实现组织", "本项目是完全独立的实现")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "绝对化表述" in result.stdout

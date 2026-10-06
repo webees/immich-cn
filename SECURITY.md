@@ -3,7 +3,8 @@
 ## 报告漏洞
 
 请通过 GitHub Security Advisory（仓库的 Security 标签页 → Report a vulnerability）私下报告，
-不要在公开 issue 中披露可利用细节。我们会在 7 天内给出初步回复。
+不要在公开 issue 中披露可利用细节。我们通常会在 7 天内给出初步回复；
+实际响应时间取决于维护者可用情况，不是服务水平承诺。
 
 ## 范围
 

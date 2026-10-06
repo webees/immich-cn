@@ -71,6 +71,6 @@ GHCR 版本、`data-*` Release 和 Actions 运行由 `cleanup.yml` 每周清理�
 ## 不可混用边界
 
 - `immich-cn-server:release-YYYY-MM-DD` 固定的是本项目数据与该次构建使用的 Immich 标签；
-- `immich-cn:YYYY-MM-DD` 不包含 Immich 代码，不能直接运行 server；
+- `immich-cn:YYYY-MM-DD` 的镜像内只有数据层文件，没有 Immich server 二进制，不能直接运行 server；
 - 自定义 Immich 版本时使用 `release.yml` 或 `workflow_dispatch` 的 `immich-version` 输入；
 - 回滚镜像前确认 Immich 数据目录与 `i18n-iso-countries` 路径仍匹配目标 Immich 版本。

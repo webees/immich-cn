@@ -1,6 +1,6 @@
 # immich-cn
 
-> 为 [Immich](https://immich.app/) 提供**中文反向地理编码数据**的全自动构建流水线：中文地名、标准四级行政区、**每日自动更新**、开箱即用的容器镜像。
+> 为 [Immich](https://immich.app/) 提供**中文反向地理编码数据**的全自动构建流水线（设计目标：每天自动检查并更新；运行前提见后文）：中文地名、标准四级行政区、开箱即用的容器镜像。
 
 [![CI](https://github.com/webees/immich-cn/actions/workflows/ci.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/ci.yml)
 [![全自动更新数据](https://github.com/webees/immich-cn/actions/workflows/update-data.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/update-data.yml)
@@ -9,9 +9,11 @@
 
 Immich 的反向地理编码默认输出英文地名，本项目的目标是让照片地图显示**熟悉的中文地名**，并且可以直接用中文搜索地点。
 
-本仓库为独立实现：当前代码、配置、流水线和数据构建脚本不依赖或打包任何同类项目的代码或人工整理数据，
-也未从同类项目移植实现。与同类项目之间只保留思路层面的启发关系，该关系仅在文末「致谢」中说明；
-Immich 文本格式兼容属于消费者接口适配，不代表继承同类项目的内部格式。
+本项目按独立实现组织：本仓库当前树中的代码、配置、CI 工作流与数据构建脚本由本项目维护，
+没有引用或打包同类项目的代码文件与人工整理数据文件；核查范围、关键词与边界见
+[docs/documentation-policy.md](docs/documentation-policy.md)。文末「致谢」记录了与本项目相关的
+上游思路来源。Immich 文本格式兼容属于消费者接口适配，不定义本项目的内部数据模型。
+以上描述的是当前仓库状态与项目声明，不是对历史过程或法律状态的结论。
 本仓库的源代码、配置、CI 工作流和文档采用 **MIT** 许可；生成的数据库与地理数据制品不属于 MIT，
 数据来源、署名和再分发要求见 [docs/licensing.md](docs/licensing.md)。
 
@@ -214,6 +216,6 @@ release.yml ──► 手动创建语义化版本 Release
 
 ## 致谢
 
-- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)：早期中文 Immich geodata 思路提供了启发；本仓库为独立实现，当前树中不包含来自该项目的代码或人工整理数据。
+- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)：早期中文 Immich geodata 思路提供了启发；本项目按独立实现组织，当前树未引用或打包该项目的代码与人工整理数据（核查方式见 [文档严谨性规范](docs/documentation-policy.md)）。
 - [Immich](https://github.com/immich-app/immich)：反向地理编码的实现与文档。
 - [GeoNames](https://www.geonames.org/)、[Natural Earth](https://www.naturalearthdata.com/)、[OpenStreetMap](https://www.openstreetmap.org/)：开放地理数据。

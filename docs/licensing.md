@@ -51,8 +51,10 @@ ODbL 对“派生数据库”设有 share-alike 条件。再分发包含 OSM/Nom
 
 ## 项目独立性
 
-本仓库以独立实现为原则；当前树中不包含从其他同类项目复制的源代码或人工整理数据文件。
-项目使用 Immich、GeoNames、Natural Earth、i18n-iso-countries 等公开接口和公开数据格式；
-各部分许可与再分发义务以本文和 [NOTICE](../NOTICE) 为准。
+本项目按独立实现组织：本仓库当前树中的数据处理代码、配置与构建脚本由本项目维护，
+许可与再分发义务以本文和 [NOTICE](../NOTICE) 为准。
+项目使用 Immich、GeoNames、Natural Earth、i18n-iso-countries 等公开接口与公开数据格式。
+核查范围、关键词与为什么本文不对历史过程或法律状态作结论，见
+[文档严谨性规范](documentation-policy.md)。
 
 如果你认为本项目侵犯了你的权利，请提交 issue，我们会尽快处理。

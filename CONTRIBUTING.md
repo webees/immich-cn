@@ -32,7 +32,7 @@ make smoke       # 合成数据端到端冒烟
   - `静态检查与单元测试 (Python 3.13)`
   - `Docker 冒烟构建`
 
-因此所有改动都需要先推到功能分支再开 PR。维护者如需保留直推能力，
+因此在 ruleset 生效范围内，改动需要先推到功能分支再开 PR。维护者如需保留直推能力，
 可在 Settings → Rules → Rulesets 中为「Repository admin」添加 bypass actor。
 
 ## 新增中文地名纠正
