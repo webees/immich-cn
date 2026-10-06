@@ -4,7 +4,7 @@ from __future__ import annotations
 
 __all__ = ["SCHEMA_VERSION", "__version__"]
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 #: geodata 制品清单的结构版本，与项目版本解耦，便于下游按结构解析。
 SCHEMA_VERSION = 1

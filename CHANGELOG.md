@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-10-06
+
+### 修复
+
+- 镜像 OCI 元数据将项目版本与数据日期分开记录：`org.opencontainers.image.version`
+  表示项目版本，`org.immich-cn.data-date` 表示数据批次；
+
 ## [1.0.1] - 2026-10-06
 
 ### 变更

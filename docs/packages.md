@@ -42,6 +42,9 @@ GHCR 中有两个容器包，它们不是重复镜像，也不是可互换别名
 - 通过 GitHub OIDC 使用 Cosign keyless 签名；
 - 推送后按最终 digest 重新拉取并执行入口 smoke test。
 
+OCI 元数据中，`org.opencontainers.image.version` 始终表示项目版本；
+数据日期单独写入 `org.immich-cn.data-date`，避免把软件版本和数据批次混为一谈。
+
 验证签名时以最终 digest 为准：
 
 ```bash

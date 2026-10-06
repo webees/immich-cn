@@ -269,6 +269,14 @@ def test_check_workflows_requires_image_supply_chain(repo_copy: Path) -> None:
     assert "缺少数据或 server 镜像的 Cosign keyless 签名" in result.stdout
 
 
+def test_check_workflows_requires_distinct_oci_version_and_data_date(repo_copy: Path) -> None:
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(workflow, "org.immich-cn.data-date", "org.immich-cn.unlabeled-date")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "OCI version 未使用项目版本" in result.stdout
+
+
 def test_check_workflows_requires_versioned_image_tag(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "release.yml"
     mutate(workflow, "      image-version: ${{ inputs.version }}", '      image-version: ""')
