@@ -17,7 +17,7 @@ date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./geodata/geodata-date.txt
 1. `cities500.txt` 第 1 列是否已经是中文（`head -n 1 cities500.txt`）；
 2. Immich 是否真的导入了新数据（重启并观察日志）；
 3. 是否执行过「提取元数据 → 全部」；
-4. Immich 版本是否低于 1.136.0 而漏掉了 `i18n-iso-countries` 挂载。
+4. Immich 是否属于 1.136.0 ~ 3.2.x（需要 `i18n-iso-countries` 覆盖）或低于 1.136.0（路径不同）而漏掉了挂载。
 
 ## 边界位置识别不准
 

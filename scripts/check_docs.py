@@ -575,6 +575,29 @@ def check_citation_spacing(errors: list[str]) -> None:
             break
 
 
+#: Immich 改读 countryInfo.txt 的分界点，经上游源码核对：v3.0.0 ~ v3.2.4 仍在
+#: `map.repository.ts` 里 `import { getName } from 'i18n-iso-countries'`，v3.3.0 才移除并改读 countryInfo。
+COUNTRYINFO_BOUNDARY = "3.3.0 起改读 countryInfo.txt"
+#: 前置负向断言避免把正确的「3.3.0 起改读」误判为过时的「3.0 起改读」。
+COUNTRYINFO_STALE = re.compile(r"(?<![0-9.])(3\.0 起改读|1\.136\.0 ~ 2\.x)")
+
+
+def check_immich_countryinfo_boundary(paths: list[Path], errors: list[str]) -> None:
+    """Immich 国家名来源的版本分界必须写对（上游核对为 3.3.0，而非 3.0）。"""
+    claims = 0
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        stale = COUNTRYINFO_STALE.search(text)
+        if stale:
+            errors.append(f"{path} 使用过时的 Immich 版本分界（{stale.group(0)}）；核对结果为 {COUNTRYINFO_BOUNDARY}")
+        if "改读 countryInfo.txt" in text:
+            claims += 1
+            if COUNTRYINFO_BOUNDARY not in text:
+                errors.append(f"{path} 提到 countryInfo.txt 但未写明分界；应写 {COUNTRYINFO_BOUNDARY}")
+    if claims == 0:
+        errors.append("没有任何文档声明 Immich 改读 countryInfo.txt 的版本分界，护栏可能已失效")
+
+
 def check_dataset_member_doc(errors: list[str]) -> None:
     """docs/data-format.md 的归档成员名必须与实现的 DATASET_MEMBER 一致。
 
@@ -657,6 +680,7 @@ def main(argv: list[str] | None = None) -> int:
     check_cjk_soft_breaks(render_files, errors)
     check_citation_spacing(errors)
     check_dataset_member_doc(errors)
+    check_immich_countryinfo_boundary(render_files, errors)
     check_asset_names(render_files, errors)
 
     for error in errors:

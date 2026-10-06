@@ -14,7 +14,7 @@ services:
     volumes:
       - ${UPLOAD_LOCATION}:/usr/src/app/upload
       - ./immich-cn/geodata:/build/geodata:ro
-      # 国家名称覆盖：仅 Immich 1.136.0 ~ 2.x 需要（3.0 起改读 countryInfo.txt）
+      # 国家名称覆盖：仅 Immich 1.136.0 ~ 3.2.x 需要（3.3.0 起改读 countryInfo.txt）
       # Immich >= 1.136.0
       - ./immich-cn/i18n-iso-countries/langs:/usr/src/app/server/node_modules/i18n-iso-countries/langs:ro
       # Immich < 1.136.0

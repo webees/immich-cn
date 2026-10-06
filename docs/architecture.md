@@ -172,8 +172,8 @@
 | `cities500.txt` | 反向地理编码点位，第 1 列是展示名 |
 | `admin1CodesASCII.txt` | 一级行政区名称（第 1 列是展示名） |
 | `admin2Codes.txt` | 二级行政区名称 |
-| `countryInfo.txt` | 国家名称（Immich 3.x 起使用） |
+| `countryInfo.txt` | 国家名称（Immich **3.3.0** 起使用） |
 | `geodata-date.txt` | 数据版本，Immich 用它决定是否重新导入 |
 | `ne_10m_admin_0_countries.geojson` | 无城市点时的国家回退 |
 
-旧版 Immich（< 3.0）通过 `i18n-iso-countries/langs/en.json` 获取国家名，镜像中同时提供该覆盖文件。
+分界点经上游源码核对：Immich **3.2.4 及以下**（含 3.0.0 ~ 3.2.4）在 `server/src/repositories/map.repository.ts` 里 `import { getName } from 'i18n-iso-countries'`，需要 `i18n-iso-countries/langs/en.json` 覆盖；**3.3.0 起**该 import 被移除，改为读取 `countryInfo.txt`（`resourcePaths.geodata.countryInfo`）。镜像中同时提供两种覆盖文件，切版本时按上表挂载即可。

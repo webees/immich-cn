@@ -3,7 +3,8 @@
 ## 前置条件
 
 - Immich 1.136.0 及以上使用 `/build/geodata`；
-- 1.136.0 以下额外需要覆盖 `i18n-iso-countries` 的语言文件；
+- Immich 1.136.0 ~ 3.2.x 需要覆盖 `i18n-iso-countries` 的语言文件（路径随版本不同，见下文示例）；3.3.0 起改读 `countryInfo.txt`，不再需要该覆盖；
+- 1.136.0 以下同样需要该覆盖，只是挂载路径不同；
 - 数据文件在容器内需要**可读**，镜像方案会自动复制一份到 `/build/geodata`。
 
 ## 方案 A：开箱即用的 Immich 镜像
@@ -81,7 +82,7 @@ services:
     image: ghcr.io/immich-app/immich-server:release
     volumes:
       - ./immich-cn/geodata:/build/geodata:ro
-      # 国家名称覆盖：仅 Immich 1.136.0 ~ 2.x 需要（3.0 起改读 countryInfo.txt）
+      # 国家名称覆盖：仅 Immich 1.136.0 ~ 3.2.x 需要（3.3.0 起改读 countryInfo.txt）
       # Immich >= 1.136.0
       - ./immich-cn/i18n-iso-countries/langs:/usr/src/app/server/node_modules/i18n-iso-countries/langs:ro
       # Immich < 1.136.0

@@ -94,7 +94,7 @@ docker run --rm -v "$PWD/immich-cn:/out" ghcr.io/webees/immich-cn:latest --targe
 ```yaml
 volumes:
   - ./geodata:/build/geodata
-  # 国家名称覆盖：仅 Immich 1.136.0 ~ 2.x 需要（3.0 起改读 countryInfo.txt）
+  # 国家名称覆盖：仅 Immich 1.136.0 ~ 3.2.x 需要（3.3.0 起改读 countryInfo.txt）
   # Immich >= 1.136.0
   - ./i18n-iso-countries/langs:/usr/src/app/server/node_modules/i18n-iso-countries/langs
   # Immich < 1.136.0
@@ -143,7 +143,7 @@ immich-cn all
 |:--|:--|:--|
 | [GeoNames](https://download.geonames.org/export/dump/) `cities500` / `admin*Codes` / `alternateNamesV2` / 国家 dump | 地点、行政区、中文别名 | CC BY 4.0 |
 | [Natural Earth](https://www.naturalearthdata.com/) `ne_10m_admin_0_countries` | 无城市点的国家边界回退 | Public Domain |
-| [i18n-iso-countries](https://github.com/michaelwittig/node-i18n-iso-countries) | 国家名称中文覆盖（旧版 Immich） | MIT |
+| [i18n-iso-countries](https://github.com/michaelwittig/node-i18n-iso-countries) | 国家名称中文覆盖（Immich 3.2.x 及以下；3.3.0 起改用 `countryInfo.txt`） | MIT |
 | OpenStreetMap / Nominatim（可选） | 补充海外行政区 | ODbL 1.0 |
 | 高德地图（可选） | 补充中国大陆区县与乡镇 | 高德开放平台条款 |
 
