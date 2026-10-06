@@ -185,7 +185,11 @@ def check_issue_search_scope(path: Path, workflow: dict[str, Any], errors: list[
             if not isinstance(step, dict) or "run" not in step:
                 continue
             script = str(step["run"])
-            if "gh issue list" in script and "自动更新数据失败 in:title" in script and "--label automation" not in script:
+            if (
+                "gh issue list" in script
+                and "自动更新数据失败 in:title" in script
+                and "--label automation" not in script
+            ):
                 errors.append(
                     f"{path}:{job_name}/step#{index} 的自动化 issue 标题搜索未限定 automation 标签，"
                     "可能误改或误关用户 issue"
