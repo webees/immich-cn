@@ -61,10 +61,15 @@ def _part_meta_path(part: Path) -> Path:
     return part.parent / f"{part.name}.meta"
 
 
-def _content_range_start(value: str) -> int | None:
-    """从 ``Content-Range: bytes 10-39/40`` 解析起始偏移。"""
-    match = re.match(r"\s*bytes\s+(\d+)-", value)
-    return int(match.group(1)) if match else None
+def _content_range(value: str) -> tuple[int, int, int | None] | None:
+    """解析 ``Content-Range: bytes 10-39/40``；总长度未知时返回 ``None``。"""
+    match = re.match(r"\s*bytes\s+(\d+)-(\d+)/(\d+|\*)\s*$", value)
+    if match is None:
+        return None
+    start = int(match.group(1))
+    end = int(match.group(2))
+    total = None if match.group(3) == "*" else int(match.group(3))
+    return start, end, total
 
 
 def _load_part_meta(path: Path) -> dict[str, str]:
@@ -216,6 +221,8 @@ class Fetcher:
                     self._write_meta(spec, cached)
                     return FetchedSource(spec=spec, path=target, record=cached)
                 response.raise_for_status()
+                if response.status_code != 200:
+                    raise SourceError(f"{spec.name} 校验返回意外状态 HTTP {response.status_code}")
                 digest = hashlib.sha256()
                 with part.open("wb") as handle:
                     for chunk in response.iter_bytes(_CHUNK):
@@ -223,6 +230,13 @@ class Fetcher:
                         handle.write(chunk)
                 etag = response.headers.get("etag")
                 last_modified = response.headers.get("last-modified")
+                expected_raw = response.headers.get("content-length")
+                encoding = (response.headers.get("content-encoding") or "identity").lower()
+            if encoding == "identity" and expected_raw and expected_raw.isdigit():
+                actual = part.stat().st_size
+                expected = int(expected_raw)
+                if actual != expected:
+                    raise SourceError(f"{spec.name} 校验响应不完整：收到 {actual} 字节，预期 {expected} 字节")
         except (httpx.HTTPError, OSError, SourceError) as error:
             logger.warning("校验 %s 失败，继续使用本地缓存：%s", spec.name, error)
             return FetchedSource(spec=spec, path=target, record=cached)
@@ -311,10 +325,17 @@ class Fetcher:
         digest = hashlib.sha256()
         resume_from = 0
         if headers.get("Range"):
-            resume_from = part.stat().st_size
-            with part.open("rb") as existing:
-                for chunk in iter(lambda: existing.read(_CHUNK), b""):
-                    digest.update(chunk)
+            if not part.exists() or part.stat().st_size == 0:
+                # 上一次失败可能已丢弃分片；保留旧 Range 会让重试请求错误偏移。
+                headers.pop("Range", None)
+                headers.pop("If-Range", None)
+                expected_etag = ""
+            else:
+                resume_from = part.stat().st_size
+                headers["Range"] = f"bytes={resume_from}-"
+                with part.open("rb") as existing:
+                    for chunk in iter(lambda: existing.read(_CHUNK), b""):
+                        digest.update(chunk)
 
         with self._client.stream("GET", spec.url, headers=headers) as response:
             if response.status_code == 416:
@@ -334,13 +355,25 @@ class Fetcher:
                 # 否则它可能是服务端/缓存返回的片段，直接保存会得到截断文件。
                 if not resume_from:
                     raise SourceError(f"{spec.name} 未请求断点续传却收到 206 响应，拒绝作为完整内容保存")
-                start = _content_range_start(response.headers.get("content-range", ""))
-                if start is not None and start != resume_from:
+                raw_content_range = response.headers.get("content-range", "")
+                parsed_range = _content_range(raw_content_range)
+                if parsed_range is None:
+                    part.unlink(missing_ok=True)
+                    _part_meta_path(part).unlink(missing_ok=True)
+                    raise SourceError(f"{spec.name} 的 206 响应缺少有效的 Content-Range，已丢弃分片改为完整重下")
+                start, end, total = parsed_range
+                if start != resume_from:
                     part.unlink(missing_ok=True)
                     _part_meta_path(part).unlink(missing_ok=True)
                     raise SourceError(
                         f"{spec.name} 的 Content-Range 起点 {start} 与本地分片 {resume_from} 不符，"
                         "已丢弃分片改为完整重下"
+                    )
+                if end < start or (total is not None and (total <= end or end != total - 1)):
+                    part.unlink(missing_ok=True)
+                    _part_meta_path(part).unlink(missing_ok=True)
+                    raise SourceError(
+                        f"{spec.name} 的 Content-Range {raw_content_range!r} 不是完整尾部，已丢弃分片改为完整重下"
                     )
             if resume_from and response.status_code == 206:
                 # 206 的校验值必须与本地分片一致，否则会拼出两个版本的混合文件
