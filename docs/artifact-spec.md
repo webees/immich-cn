@@ -44,6 +44,7 @@ immich-cn-geodata-admin2-admin3-full-v1.zip
 ## Manifest
 
 `immich-cn-manifest-json-v1.json` 的 `artifactSpecVersion` 为 `4`。
+下面的 JSON 是命名与摘要相关字段的节选，完整 manifest 还包含构建元数据。
 
 `artifacts` 只列 geodata canonical 制品：
 
@@ -74,6 +75,30 @@ immich-cn-geodata-admin2-admin3-full-v1.zip
   }
 }
 ```
+
+### 顶层字段
+
+| 字段 | 内容 |
+|:--|:--|
+| `schemaVersion` | 规范数据集 schema 版本 |
+| `tool` | 生成工具的名称、版本与 CI 修订 |
+| `generatedAt` | 本次构建时间 |
+| `providers` | 本次使用的 provider 列表 |
+| `stats` | 各级记录数、去重与覆盖率统计 |
+| `index` | 中文名称索引规模 |
+| `adminEntries` | 行政层级条目数 |
+| `config` | 构建配置快照 |
+| `sources` | 每个上游文件的 URL、SHA256、大小、ETag 与 Last-Modified |
+| `artifactSpecVersion` | 制品命名规范版本，当前为 `4` |
+| `artifacts` | canonical geodata 制品索引 |
+| `assets` | 完整发布文件索引 |
+| `patternsTable` | 运行时变体表文件名 |
+| `dataset` | 规范数据集的文件名、格式、schema 版本、大小与摘要 |
+| `license` | 代码与数据许可说明 |
+
+`artifacts` 的元素包含 `pattern`、`full`、`file`、`id`、`profile`、`scope`、
+`schemaVersion`、`canonicalFile`、`sizeBytes` 与 `sha256`；`assets` 的元素包含
+`file`、`kind`、`sizeBytes` 与 `sha256`。上面的 JSON 只展示命名与摘要相关字段。
 
 `assets` 是完整发布文件索引；`artifacts` 是 canonical geodata 索引。manifest 与
 checksums 文件自身不列入 `assets`，由 `immich-cn-checksums-sha256-v1.txt` 覆盖。
