@@ -19,10 +19,11 @@ from immich_cn.artifact_spec import (
     canonical_filename,
 )
 from immich_cn.dataset import DATASET_ARCHIVE, DATASET_FORMAT, DATASET_SCHEMA_VERSION, write_canonical_dataset
-from immich_cn.display import contains_cjk, validate_pattern
+from immich_cn.display import validate_pattern
 from immich_cn.domain import Variant
 from immich_cn.errors import ParseError, VerifyError
 from immich_cn.fetching import sha256_file
+from immich_cn.localization import CHINESE_OUTPUT_REGIONS, has_cjk
 from immich_cn.logging_config import get_logger
 from immich_cn.pipeline import (
     BuildResult,
@@ -36,9 +37,6 @@ from immich_cn.pipeline import (
 from immich_cn.settings import BuildOptions
 
 logger = get_logger("package")
-
-#: 这些地区的输出必须是中文名；上游缺中文别名时会把英文/葡文原名透传，需在打包阶段拦下。
-CHINESE_OUTPUT_COUNTRIES = frozenset({"CN", "HK", "TW", "MO"})
 
 ZIP_COMPRESS_LEVEL = 6
 GEODATA_PREFIX = "geodata/"
@@ -169,7 +167,7 @@ def _write_variant(
                     place.columns[2] = name
                 # 上游缺中文别名时会把英文原名透传；这类值会让 {admin_3}/{admin_4} 变体
                 # 显示英文地名（2026-10-07 实测 7~8 行），必须在打包阶段拦下而不是发布。
-                if place.country_code in CHINESE_OUTPUT_COUNTRIES and not contains_cjk(place.columns[1]):
+                if place.country_code in CHINESE_OUTPUT_REGIONS and not has_cjk(place.columns[1]):
                     untranslated += 1
                     if len(untranslated_samples) < 5:
                         untranslated_samples.append(f"{place.country_code}:{place.geoname_id}={place.columns[1]}")

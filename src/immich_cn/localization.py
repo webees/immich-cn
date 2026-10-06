@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import tomllib
 import warnings
 from collections.abc import Iterable, Iterator
@@ -16,6 +17,13 @@ from immich_cn.logging_config import get_logger
 from immich_cn.settings import ChineseVariant
 
 logger = get_logger("chinese")
+
+#: 这些地区的输出必须是中文名：上游缺中文别名时会把外文原名透传，需要覆盖或拦截。
+CHINESE_OUTPUT_REGIONS = frozenset({"CN", "HK", "TW", "MO"})
+#: [admins] 的键形如 CN.02 / HK.KKT / CN.02.3310.1806069。
+ADMIN_CODE_PATTERN = re.compile(r"^[A-Z]{2}\.[A-Za-z0-9]+(?:\.[A-Za-z0-9]+){0,3}$")
+#: [countries] 的键是 ISO 3166-1 alpha-2。
+COUNTRY_CODE_PATTERN = re.compile(r"^[A-Z]{2}$")
 
 #: 港澳在 GeoNames 中使用堂区/区作为一级行政区，这里统一为特别行政区名称。
 SPECIAL_ADMIN_TOP_LEVEL: dict[str, str] = {
@@ -179,9 +187,32 @@ class NameOverrides:
         for key, value in places_raw.items():
             if not str(key).strip().isdigit():
                 raise ConfigError(f"[places] 的键必须是 GeoNames ID：{key!r}")
-            if not isinstance(value, str):
-                raise ConfigError(f"[places].{key} 必须是字符串")
-            places[int(key)] = value
+            if not isinstance(value, str) or not value.strip():
+                raise ConfigError(f"[places].{key} 必须是非空字符串")
+            places[int(key)] = value.strip()
+
+        # 人工覆盖表本身也要校验：键写错会变成永远匹配不到的死条目，
+        # 而中文地区写成外文值会让地名以英文发布（第 175~177 轮修的就是这类问题）。
+        admins: dict[str, str] = {}
+        for key, value in admins_raw.items():
+            code = str(key).strip()
+            if not ADMIN_CODE_PATTERN.match(code):
+                raise ConfigError(f"[admins] 的键必须是行政区代码（如 CN.02 / CN.02.3310.1806069）：{key!r}")
+            if not isinstance(value, str) or not value.strip():
+                raise ConfigError(f"[admins].{code} 必须是非空字符串")
+            name = value.strip()
+            if code[:2] in CHINESE_OUTPUT_REGIONS and not has_cjk(name):
+                raise ConfigError(f"[admins].{code} 用于中文地区，但值不含中文：{name!r}")
+            admins[code] = name
+
+        countries: dict[str, str] = {}
+        for key, value in countries_raw.items():
+            code = str(key).strip().upper()
+            if not COUNTRY_CODE_PATTERN.match(code):
+                raise ConfigError(f"[countries] 的键必须是 ISO 3166-1 alpha-2：{key!r}")
+            if not isinstance(value, str) or not value.strip():
+                raise ConfigError(f"[countries].{code} 必须是非空字符串")
+            countries[code] = value.strip()
 
         strip_suffixes: dict[str, tuple[str, ...]] = dict(DEFAULT_STRIP_SUFFIXES)
         if isinstance(rules_raw, dict):
@@ -199,8 +230,8 @@ class NameOverrides:
 
         return cls(
             places=places,
-            admins={str(k): str(v) for k, v in admins_raw.items()},
-            countries={str(k): str(v) for k, v in countries_raw.items()},
+            admins=admins,
+            countries=countries,
             hk_districts=hk_districts,
             strip_suffixes=strip_suffixes,
         )
