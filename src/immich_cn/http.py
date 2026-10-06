@@ -190,11 +190,10 @@ class Fetcher:
                 last_modified=_opt_str(meta.get("lastModified")),
             )
             if target.stat().st_size == record.size_bytes:
-                if spec.expected_sha256 and (
-                    record.sha256 != spec.expected_sha256 or sha256_file(target) != spec.expected_sha256
-                ):
-                    # 固定版本的缓存必须与预期摘要一致，否则重新下载
-                    logger.warning("缓存 %s 与预期摘要不符，重新下载", spec.name)
+                actual_sha256 = sha256_file(target)
+                if actual_sha256 != record.sha256 or (spec.expected_sha256 and actual_sha256 != spec.expected_sha256):
+                    # 缓存内容与元数据或固定摘要不一致时必须重新下载，不能只看大小。
+                    logger.warning("缓存 %s 摘要不符，重新下载", spec.name)
                     target.unlink(missing_ok=True)
                     self._meta_path(spec).unlink(missing_ok=True)
                     return self._download(spec, target)
