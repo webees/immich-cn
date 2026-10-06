@@ -141,6 +141,26 @@ class BuildResult:
     removable_paths: list[Path] = field(default_factory=list)
 
 
+def _validate_country_dumps(paths: tuple[Path, ...]) -> None:
+    """配置的国家 dump 必须存在且能解析出 GeoNames 记录。
+
+    `--skip-fetch` 直接使用 ``sources/`` 下的文件；文件缺失或名不副实（例如把 zip
+    内容命名为 ``CN.txt``）时 ``build_admin_units`` 会跳过它并静默产出空的
+    admin3/admin4，而其余校验仍会通过——本轮就踩到了这条路径。
+    """
+    for path in paths:
+        if not path.exists():
+            raise ParseError(f"缺少国家 dump：{path}（--skip-fetch 需要 sources/ 下已解压的 <CC>.txt）")
+        found = False
+        with path.open("r", encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                if line.count("\t") >= 18:
+                    found = True
+                    break
+        if not found:
+            raise ParseError(f"国家 dump 无法解析出记录：{path}（可能不是解压后的 GeoNames 文本）")
+
+
 def run_build(options: BuildOptions) -> BuildResult:
     """执行完整构建，返回产物路径与统计。"""
     for pattern in options.patterns:
@@ -149,6 +169,7 @@ def run_build(options: BuildOptions) -> BuildResult:
 
     records = [] if options.skip_fetch else fetch_sources(options)
     paths = _source_paths(options)
+    _validate_country_dumps(paths.country_dumps)
     overrides = NameOverrides.load(options.config_dir / "overrides.toml")
 
     stats = BuildStats()

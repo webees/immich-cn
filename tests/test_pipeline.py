@@ -80,6 +80,26 @@ def test_end_to_end_build(build_options: BuildOptions) -> None:
     assert_valid(results)
 
 
+def test_country_dump_validation_rejects_binary_and_missing(tmp_path: Path) -> None:
+    """--skip-fetch 下坏的国家 dump 必须报错，而不是静默产出空 admin3/admin4。"""
+    from immich_cn.pipeline import _validate_country_dumps
+
+    good = tmp_path / "CN.txt"
+    good.write_text(
+        "1\tname\tascii\t\t1.0\t2.0\tA\tADM3\tCN\t\t01\t02\t03\t\t0\t\t\tUTC\t2026-01-01\n",
+        encoding="utf-8",
+    )
+    _validate_country_dumps((good,))
+
+    bad = tmp_path / "HK.txt"
+    bad.write_bytes(b"PK\x03\x04 not really a text dump")
+    with pytest.raises(ParseError, match="无法解析出记录"):
+        _validate_country_dumps((bad,))
+
+    with pytest.raises(ParseError, match="缺少国家 dump"):
+        _validate_country_dumps((tmp_path / "MO.txt",))
+
+
 def test_alternate_stream_keeps_chinese_and_japanese_languages(tmp_path: Path) -> None:
     path = tmp_path / "alternateNamesV2.txt"
     write_lines(
