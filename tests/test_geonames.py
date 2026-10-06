@@ -16,6 +16,7 @@ from immich_cn.geonames import (
     place_code,
     read_admin_codes,
     read_country_info,
+    safe_join,
 )
 from tests.synthetic import geo_row, write_lines
 
@@ -91,3 +92,13 @@ def test_extract_archive_member_missing(tmp_path: Path) -> None:
         zf.writestr("other.txt", "x")
     with pytest.raises(ParseError):
         extract_archive_member(archive, "hello.txt", tmp_path / "out.txt")
+
+
+def test_safe_join_allows_nested_path(tmp_path: Path) -> None:
+    assert safe_join(tmp_path, "langs/zh.json") == (tmp_path / "langs" / "zh.json").resolve()
+
+
+@pytest.mark.parametrize("relative", ["../escape.txt", "langs/../../../escape.txt", "/etc/passwd"])
+def test_safe_join_rejects_escape(tmp_path: Path, relative: str) -> None:
+    with pytest.raises(ParseError):
+        safe_join(tmp_path, relative)

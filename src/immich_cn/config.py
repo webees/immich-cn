@@ -66,6 +66,8 @@ class SourceSpec:
     #: 下载后需要从归档中解出的成员（zip/tar）；为空表示文件本身即最终产物。
     members: tuple[str, ...] = ()
     optional: bool = False
+    #: 固定版本的产物应给出期望摘要；滚动数据保持为空。
+    expected_sha256: str | None = None
 
     @property
     def is_archive(self) -> bool:
@@ -128,6 +130,8 @@ def natural_earth_source() -> SourceSpec:
         name="naturalEarthCountries",
         url=NATURAL_EARTH_URL,
         filename="ne_10m_admin_0_countries.geojson",
+        # v5.1.2 标签下的文件内容不可变，固定摘要防止上游被替换
+        expected_sha256="239eec57ac17f100a11e2536cffc56752c318b50ae765b0918ff7aab4ce8f255",
     )
 
 
@@ -138,6 +142,8 @@ def i18n_sources() -> list[SourceSpec]:
             url=I18N_ISO_COUNTRIES_URL,
             filename="i18n-iso-countries.tgz",
             members=("package/langs/",),
+            # npm 同一版本不可重新发布，固定摘要可防供应链替换
+            expected_sha256="44c38df798564ade0ee1e0b0b0161a2bfb741cd5cc739ba230184d6e6afd55cb",
         )
     ]
 

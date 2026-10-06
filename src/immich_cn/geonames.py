@@ -221,3 +221,16 @@ def extract_archive_member(archive: Path, member: str, destination: Path) -> Pat
             while chunk := source.read(1024 * 1024):
                 sink.write(chunk)
     return destination
+
+
+def safe_join(root: Path, relative: str) -> Path:
+    """把归档成员名安全地拼接到 ``root`` 之下，拒绝任何越界路径。
+
+    归档内容属于外部输入：即使成员名形如 ``a/../../evil``，写入位置也必须被限制在
+    ``root`` 内，否则解包阶段就变成了可写入任意路径的漏洞（tar-slip）。
+    """
+    root_resolved = root.resolve()
+    candidate = (root_resolved / relative).resolve()
+    if candidate != root_resolved and root_resolved not in candidate.parents:
+        raise ParseError(f"归档成员路径越界，已拒绝：{relative!r}")
+    return candidate

@@ -42,6 +42,7 @@ from immich_cn.geonames import (
     iter_places,
     read_admin_codes,
     read_country_info,
+    safe_join,
 )
 from immich_cn.hierarchy import (
     Hierarchy,
@@ -310,7 +311,7 @@ def _extract_i18n(archive: Path, options: BuildOptions) -> None:
         if not files:
             raise ParseError(f"{archive.name} 中未找到 package/langs/ 目录")
         for member in files:
-            target = destination / member.name.removeprefix("package/")
+            target = safe_join(destination, member.name.removeprefix("package/"))
             target.parent.mkdir(parents=True, exist_ok=True)
             source = tar.extractfile(member)
             if source is None:
