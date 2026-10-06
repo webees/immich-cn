@@ -213,7 +213,7 @@ def _create_schema(connection: sqlite3.Connection) -> None:
         CREATE VIEW localized_places AS
         SELECT
             p.geoname_id,
-            p.name AS source_name,
+            p.name AS geoname_name,
             p.ascii_name,
             p.country_code,
             COALESCE(NULLIF(c.name, ''), n.country) AS country_name,
@@ -230,6 +230,7 @@ def _create_schema(connection: sqlite3.Connection) -> None:
             p.population,
             p.feature_class,
             p.feature_code,
+            p.source,
             p.in_default
         FROM places AS p
         JOIN place_names AS n USING (geoname_id)
@@ -338,7 +339,7 @@ def _readme_payload() -> bytes:
         "===========================\n\n"
         "dataset.sqlite 是可查询的 SQLite 3 数据库，不是 Immich 文本格式。\n"
         "示例：\n"
-        '  sqlite3 dataset.sqlite "SELECT country_name, admin1_name, admin2_name, source_name '
+        '  sqlite3 dataset.sqlite "SELECT geoname_name, country_name, admin1_name, admin2_name, source '
         'FROM localized_places WHERE geoname_id = 1816670;"\n\n'
         "Immich 兼容输出请使用同目录的 geodata*.zip。\n"
     ).encode()
