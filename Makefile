@@ -34,7 +34,7 @@ smoke: ## 用合成数据跑完整流水线（不访问外网）
 	$(BIN)/python -m scripts.smoke_data --work-dir build --dist-dir dist
 
 artifacts: ## 校验发布制品（依赖 dist/ 已生成）
-	$(BIN)/python scripts/check-artifacts.py dist
+	$(BIN)/python scripts/check_artifacts.py dist
 
 entrypoint: smoke ## 校验容器入口脚本
 	bash scripts/check-entrypoint.sh
