@@ -8,11 +8,12 @@ from pathlib import Path
 
 import pytest
 
-from immich_cn.build import _extract_i18n, load_levels, run_build, write_patterns_table
+from immich_cn.build import _extract_i18n, iter_output_places, load_levels, run_build, write_patterns_table
 from immich_cn.config import BuildOptions
 from immich_cn.errors import ParseError
 from immich_cn.package import build_variants, package_all
 from immich_cn.verify import assert_valid, verify_geodata
+from tests.synthetic import geo_row, write_lines
 
 
 def test_end_to_end_build(build_options: BuildOptions) -> None:
@@ -160,3 +161,29 @@ def test_extract_i18n_accepts_normal_tarball(tmp_path: Path) -> None:
     _extract_i18n(good, options)
     extracted = tmp_path / "build" / "i18n-iso-countries" / "langs" / "zh.json"
     assert extracted.read_text() == '{"locale":"zh"}'
+
+
+def test_min_population_threshold_boundary(tmp_path: Path) -> None:
+    """非 full 变体的 100 人口阈值必须在边界处翻转（99 排除、100 保留）。"""
+    cities = tmp_path / "cities500.txt"
+    write_lines(cities, [])
+    extra = tmp_path / "extra.txt"
+    write_lines(
+        extra,
+        [
+            geo_row(1, "P99", country="CN", admin1="04", population=99),
+            geo_row(2, "P100", country="CN", admin1="04", population=100),
+            geo_row(3, "P101", country="CN", admin1="04", population=101),
+        ],
+    )
+
+    kept = {
+        place.geoname_id
+        for place in iter_output_places(cities500=cities, extra_file=extra, min_population=100, full=False)
+    }
+    assert kept == {2, 3}
+    everything = {
+        place.geoname_id
+        for place in iter_output_places(cities500=cities, extra_file=extra, min_population=100, full=True)
+    }
+    assert everything == {1, 2, 3}
