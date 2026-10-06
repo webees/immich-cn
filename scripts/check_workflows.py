@@ -112,22 +112,76 @@ def check_needs_coverage(path: Path, workflow: dict[str, Any], errors: list[str]
             errors.append(f"{path}:{job_name} 的 if 只判断了部分依赖，遗漏 {missing}；被遗漏的依赖失败时该任务仍会运行")
 
 
+def _workflow_call_outputs(workflow: dict[str, Any]) -> set[str]:
+    triggers = workflow.get("on")
+    if not isinstance(triggers, dict):
+        legacy = workflow.get(True)
+        triggers = legacy if isinstance(legacy, dict) else {}
+    call = triggers.get("workflow_call") if isinstance(triggers, dict) else None
+    outputs = (call or {}).get("outputs") if isinstance(call, dict) else None
+    return set(outputs) if isinstance(outputs, dict) else set()
+
+
+def check_references(
+    path: Path,
+    workflow: dict[str, Any],
+    errors: list[str],
+    outputs_by_workflow: dict[str, set[str]],
+) -> None:
+    """检查 output 引用是否悬空。
+
+    引用不存在的 step id、或引用被调用工作流未声明的 output 时，表达式会**静默求值为空**，
+    下游拿到空值却不会报错——典型的静默失败。
+    """
+    dangling: set[str] = set()
+    missing_outputs: set[str] = set()
+    for job_name, job in (workflow.get("jobs") or {}).items():
+        if not isinstance(job, dict):
+            continue
+        text = yaml.safe_dump(job, allow_unicode=True)
+        step_ids = {step.get("id") for step in (job.get("steps") or []) if isinstance(step, dict) and step.get("id")}
+        for step_id in re.findall(r"steps\.([A-Za-z0-9_-]+)\.outputs\.", text):
+            if step_id not in step_ids:
+                dangling.add(f"{job_name} -> steps.{step_id}.outputs")
+        for ref_job, output in set(re.findall(r"needs\.([A-Za-z0-9_-]+)\.outputs\.([A-Za-z0-9_-]+)", text)):
+            target = (workflow.get("jobs", {}).get(ref_job) or {}).get("uses")
+            if not target:
+                continue  # 普通 job 的输出在本文件内声明，另有校验
+            called = str(target).split("/")[-1]
+            if output not in outputs_by_workflow.get(called, set()):
+                missing_outputs.add(f"{job_name} -> needs.{ref_job}.outputs.{output}（{called} 未声明）")
+
+    for item in sorted(dangling):
+        errors.append(f"{path}: 引用了不存在的 step id：{item}")
+    for item in sorted(missing_outputs):
+        errors.append(f"{path}: 引用了被调用工作流未声明的输出：{item}")
+
+
 def main() -> int:
     errors: list[str] = []
     files = sorted(Path(".github/workflows").glob("*.yml"))
     if not files:
         print("[!!] 未找到任何工作流文件")
         return 1
+    loaded: dict[str, dict[str, Any]] = {}
     for path in files:
         workflow = load(path)
         if workflow is None:
             errors.append(f"{path} 无法解析")
+            continue
+        loaded[path.name] = workflow
+    outputs_by_workflow = {name: _workflow_call_outputs(workflow) for name, workflow in loaded.items()}
+
+    for path in files:
+        workflow = loaded.get(path.name)
+        if workflow is None:
             continue
         check_run_blocks(path, workflow, errors)
         check_jobs(path, workflow, errors)
         check_permissions(path, workflow, errors)
         check_concurrency(path, workflow, errors)
         check_needs_coverage(path, workflow, errors)
+        check_references(path, workflow, errors, outputs_by_workflow)
 
     for error in errors:
         print(f"[!!] {error}")

@@ -172,6 +172,24 @@ def test_check_workflows_detects_illegal_key_on_reusable_job(repo_copy: Path) ->
     assert "timeout-minutes" in result.stdout
 
 
+def test_check_workflows_detects_dangling_step_reference(repo_copy: Path) -> None:
+    """引用不存在的 step id 时表达式会静默为空，必须被静态拦下。"""
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(workflow, "steps.meta.outputs.date", "steps.nonexistent.outputs.date")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "不存在的 step id" in result.stdout
+
+
+def test_check_workflows_detects_undeclared_reusable_output(repo_copy: Path) -> None:
+    """引用被调用工作流未声明的 output 同样会静默为空。"""
+    workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
+    mutate(workflow, "needs.build.outputs.changed", "needs.build.outputs.changed_typo")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "未声明的输出" in result.stdout
+
+
 # --------------------------------------------------------------------------
 # check_shell.py
 # --------------------------------------------------------------------------
