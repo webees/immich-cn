@@ -9,9 +9,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import stat
 import sys
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 GEO_COLUMNS = 19
 
@@ -60,6 +61,7 @@ def check_zips(dist: Path, errors: list[str]) -> int:
             bad = archive.testzip()
             if bad is not None:
                 errors.append(f"{path.name} 内 {bad} 校验失败")
+            check_zip_members(path, archive, errors)
             if path.name == "i18n-iso-countries.zip":
                 checked += 1
                 continue
@@ -73,6 +75,21 @@ def check_zips(dist: Path, errors: list[str]) -> int:
                 errors.append(f"{path.name} 的 {entry} 首行列数不足")
             checked += 1
     return checked
+
+
+def check_zip_members(path: Path, archive: zipfile.ZipFile, errors: list[str]) -> None:
+    """拒绝可能造成 Zip Slip 或符号链接逃逸的归档成员。"""
+    for info in archive.infolist():
+        raw = info.filename.replace("\\", "/")
+        member = PurePosixPath(raw)
+        if raw.startswith("/") or member.is_absolute() or ".." in member.parts:
+            errors.append(f"{path.name} 的归档成员 {info.filename!r} 路径越界")
+            continue
+        if len(raw) >= 2 and raw[1] == ":" and raw[0].isalpha():
+            errors.append(f"{path.name} 的归档成员 {info.filename!r} 使用绝对路径")
+            continue
+        if stat.S_ISLNK(info.external_attr >> 16):
+            errors.append(f"{path.name} 的归档成员 {info.filename!r} 是符号链接")
 
 
 def check_checksums(dist: Path, errors: list[str]) -> int:
