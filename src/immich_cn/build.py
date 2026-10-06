@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
+from typing import TextIO
 
 from immich_cn import SCHEMA_VERSION, __version__
 from immich_cn.chinese import (
@@ -754,6 +755,19 @@ def display_name(levels: tuple[str, str, str, str, str] | None, pattern: str) ->
     return _render_levels(levels, pattern)
 
 
+def write_pattern_rows(
+    sink: TextIO,
+    *,
+    levels: dict[int, tuple[str, str, str, str, str]],
+    patterns: tuple[str, ...],
+) -> int:
+    """把变体表写入任意文本流，避免调用方强制落一份明文中间文件。"""
+    sink.write("\t".join(["geoname_id", *patterns]) + "\n")
+    for geoname_id, values in levels.items():
+        sink.write("\t".join([str(geoname_id), *(display_name(values, p) for p in patterns)]) + "\n")
+    return len(levels)
+
+
 def write_patterns_table(
     path: Path,
     *,
@@ -767,10 +781,7 @@ def write_patterns_table(
             raise ParseError("write_patterns_table 需要 levels 或 levels_file")
         levels = load_levels(levels_file)
     with path.open("w", encoding="utf-8") as sink:
-        sink.write("\t".join(["geoname_id", *patterns]) + "\n")
-        for geoname_id, values in levels.items():
-            sink.write("\t".join([str(geoname_id), *(display_name(values, p) for p in patterns)]) + "\n")
-    return len(levels)
+        return write_pattern_rows(sink, levels=levels, patterns=patterns)
 
 
 __all__ = [
@@ -780,5 +791,6 @@ __all__ = [
     "iter_output_places",
     "load_levels",
     "run_build",
+    "write_pattern_rows",
     "write_patterns_table",
 ]

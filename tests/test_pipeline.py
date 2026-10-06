@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import io
 import json
 import tarfile
@@ -159,7 +160,13 @@ def test_package_removes_plain_patterns_table(build_options: BuildOptions) -> No
     package_all(build_options, result)
 
     assert not (build_options.work_dir / "patterns.tsv").exists()
-    assert (build_options.dist_dir / "patterns.tsv.gz").exists()
+    compressed = build_options.dist_dir / "patterns.tsv.gz"
+    assert compressed.exists()
+
+    expected = build_options.work_dir / "expected-patterns.tsv"
+    write_patterns_table(expected, levels=load_levels(result.names_file), patterns=build_options.patterns)
+    with gzip.open(compressed, "rb") as handle:
+        assert handle.read() == expected.read_bytes()
 
 
 def test_package_keeps_plain_patterns_table_with_keep_raw(tmp_path: Path) -> None:
