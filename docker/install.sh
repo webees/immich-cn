@@ -1,7 +1,8 @@
 #!/bin/sh
 # 数据镜像入口：把镜像内的 geodata 释放到目标目录。
 #
-# 用法：immich-cn-install --target ./immich-cn [--pattern '{admin_2}']
+# 用法：immich-cn-install --target ./immich-cn [--pattern '{admin_2}'] [--geodata-only]
+#   --geodata-only  只释放 geodata/，不复制 i18n-iso-countries/ 国家名覆盖（Immich >= 3.3.0 不再需要）
 set -eu
 
 target="${IMMICH_CN_TARGET:-/out}"

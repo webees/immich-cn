@@ -62,6 +62,14 @@ services:
 |:--|:--|:--|
 | `IMMICH_CN_TARGET` | `/out` | `--target` 的等价环境变量，指定释放目录 |
 
+数据镜像入口 `immich-cn-install` 的参数：
+
+| 参数 | 说明 |
+|:--|:--|
+| `--target <目录>` | 释放目标目录（等价 `IMMICH_CN_TARGET`） |
+| `--pattern '<pattern>'` | 覆盖展示粒度，例如 `--pattern '{admin_2} {admin_3}'` |
+| `--geodata-only` | 只释放 `geodata/`，不复制 `i18n-iso-countries/` 国家名覆盖（Immich 3.3.0 起改读 `countryInfo.txt`，不再需要该覆盖） |
+
 > `IMMICH_CN_DATA_DATE` 是构建参数写入的只读元信息（镜像内可见），无需手动设置。
 
 ## 方案 B：官方镜像 + 数据镜像
