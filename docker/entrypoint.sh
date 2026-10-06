@@ -18,9 +18,9 @@ mkdir -p "$target"
 if ! cp -a "$source_dir/." "$target/" 2>/dev/null; then
   # 用户可能把 /build/geodata 以只读方式挂载进来
   if [ -f "$target/cities500.txt" ]; then
-    echo "immich-cn: $target 不可写，沿用其中已有的 geodata" >&2
+    echo "immich-cn: ${target} 不可写，沿用其中已有的 geodata" >&2
   else
-    echo "immich-cn: 无法写入 $target，且目录中没有可用的 geodata" >&2
+    echo "immich-cn: 无法写入 ${target}，且目录中没有可用的 geodata" >&2
     exit 1
   fi
 fi
