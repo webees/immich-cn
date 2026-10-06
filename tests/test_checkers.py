@@ -206,6 +206,22 @@ def test_check_docs_rejects_absolute_claims(repo_copy: Path) -> None:
     assert "绝对化表述" in result.stdout
 
 
+def test_check_docs_rejects_legacy_asset_names(repo_copy: Path) -> None:
+    readme = repo_copy / "README.md"
+    mutate(readme, "## 快速开始", "`immich-cn-geodata-immich-admin2-default-v1.zip`\n\n## 快速开始")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "重复项目命名空间" in result.stdout
+
+
+def test_check_docs_rejects_unregistered_asset_names(repo_copy: Path) -> None:
+    readme = repo_copy / "README.md"
+    mutate(readme, "## 快速开始", "`immich-cn-random-asset-v1.zip`\n\n## 快速开始")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "未登记的发布资产名" in result.stdout
+
+
 # --------------------------------------------------------------------------
 # check_workflows.py
 # --------------------------------------------------------------------------
