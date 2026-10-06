@@ -12,3 +12,10 @@ def test_data_image_base_is_digest_pinned() -> None:
     from_lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.startswith("FROM ")]
     assert from_lines
     assert all(DIGEST_PIN.fullmatch(line) for line in from_lines), from_lines
+
+
+def test_server_image_declares_combined_license() -> None:
+    """server 覆盖镜像包含上游 Immich 代码，不能只声明 MIT。"""
+    path = Path(__file__).resolve().parent.parent / "docker" / "immich.Dockerfile"
+    text = path.read_text(encoding="utf-8")
+    assert 'org.opencontainers.image.licenses="AGPL-3.0-only AND MIT"' in text

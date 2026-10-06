@@ -251,6 +251,7 @@ jobs:
               --build-arg "IMMICH_CN_DATA_DATE=${DATA_DATE}" \
               --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
               --label "org.opencontainers.image.version=${TOOL_VERSION}" \
+              --label "org.opencontainers.image.licenses=AGPL-3.0-only AND MIT" \
               --label "org.immich-cn.data-date=${DATA_DATE}" \
               --tag "${image}:latest" \
               --tag "${image}:${IMMICH_VERSION}" \

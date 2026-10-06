@@ -6,6 +6,10 @@
 
 本项目源码、配置、CI 工作流与文档以 [MIT](../LICENSE) 发布。
 
+`immich-cn-server` 镜像包含上游 Immich server 的 [AGPL-3.0-only](https://github.com/immich-app/immich/blob/main/LICENSE)
+代码，因此该组合镜像的整体许可必须是 `AGPL-3.0-only AND MIT`，不能只按本项目的 MIT 代码声明。
+纯数据镜像 `immich-cn` 不包含 Immich server 代码。
+
 ## 数据制品
 
 **数据制品不适用 MIT。** `dist/*.zip`、镜像中的 `geodata` 目录等产物来自多个上游数据源，

@@ -9,7 +9,7 @@ FROM ${IMMICH_BASE}:${IMMICH_VERSION}
 LABEL org.opencontainers.image.title="immich-cn server" \
       org.opencontainers.image.description="Immich server with bundled Chinese reverse geocoding data" \
       org.opencontainers.image.source="https://github.com/webees/immich-cn" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="AGPL-3.0-only AND MIT"
 
 ARG GEODATA_DIR=build/geodata
 ARG LANGS_DIR=build/langs
