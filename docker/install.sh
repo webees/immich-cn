@@ -71,7 +71,7 @@ fi
 
 if [ -n "$pattern" ] && [ "$pattern" != "{admin_2}" ]; then
   immich-cn-apply-pattern --source "$target/geodata" \
-    --table "${IMMICH_CN_PATTERNS_TABLE:-/opt/immich-cn/patterns.tsv.gz}" \
+    --table "${IMMICH_CN_PATTERNS_TABLE:-/opt/immich-cn/immich-cn-patterns-tsv-v1.gz}" \
     --pattern "$pattern"
 fi
 

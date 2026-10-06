@@ -66,7 +66,7 @@ GHCR 版本、`data-*` Release 和 Actions 运行由 `cleanup.yml` 每周清理�
 `auto-release`、`latest`、`release` 与最近版本；稳定前可手动启用 `prune-all`。完整规则见
 [自动清理与保留策略](maintenance.md)。
 
-发布资产的 canonical ID、v2 文件名和兼容别名规则见 [制品命名规范 v2](artifact-spec.md)。
+发布资产的 canonical ID、v3 文件名和唯一发布规则见 [制品命名规范 v3](artifact-spec.md)。
 
 ## 不可混用边界
 

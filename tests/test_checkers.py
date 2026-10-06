@@ -92,7 +92,7 @@ def test_check_docs_passes_on_repo_copy(repo_copy: Path) -> None:
 
 
 def test_check_docs_detects_undocumented_env_var(repo_copy: Path) -> None:
-    target = repo_copy / "src" / "immich_cn" / "models.py"
+    target = repo_copy / "src" / "immich_cn" / "domain.py"
     mutate(target, "GEO_COLUMNS = 19", 'GEO_COLUMNS = 19\nUNDOCUMENTED = "IMMICH_CN_UNDOCUMENTED_PROBE"')
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
@@ -153,12 +153,12 @@ def test_check_docs_detects_stale_plain_patterns_table_claim(repo_copy: Path) ->
     development = repo_copy / "docs" / "development.md"
     mutate(
         development,
-        "明文变体表 `patterns.tsv` 默认不会生成",
-        "明文变体表 `patterns.tsv` 默认在打包完成后删除",
+        "明文变体表 `immich-cn-patterns-v1.tsv` 默认不会生成",
+        "明文变体表 `immich-cn-patterns-v1.tsv` 默认在打包完成后删除",
     )
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
-    assert "不生成明文 patterns.tsv" in result.stdout
+    assert "不生成明文 immich-cn-patterns-v1.tsv" in result.stdout
 
 
 def test_check_docs_detects_missing_referenced_path(repo_copy: Path) -> None:
@@ -451,12 +451,18 @@ def _make_dist(root: Path) -> Path:
     dist = root / "dist"
     dist.mkdir()
     lines = "\t".join(["1"] + ["x"] * 18) + "\n"
-    for name in ("geodata.zip", "geodata_full.zip"):
+    geodata_default = dist / "immich-cn-geodata-immich-admin2-default-v1.zip"
+    geodata_full = dist / "immich-cn-geodata-immich-admin2-full-v1.zip"
+    for name in (geodata_default.name, geodata_full.name):
         with zipfile.ZipFile(dist / name, "w") as archive:
             archive.writestr("geodata/cities500.txt", lines)
             archive.writestr("geodata/NOTICE.txt", "GeoNames CC BY 4.0\n")
-    with gzip.open(dist / "patterns.tsv.gz", "wt", encoding="utf-8") as handle:
+    patterns = dist / "immich-cn-patterns-tsv-v1.gz"
+    with gzip.open(patterns, "wt", encoding="utf-8") as handle:
         handle.write("geoname_id\t{admin_2}\n1\t测试\n")
+    i18n = dist / "immich-cn-i18n-json-v1.zip"
+    with zipfile.ZipFile(i18n, "w") as archive:
+        archive.writestr("LICENSE", "MIT License\nCopyright\n")
 
     database = dist / "_dataset.sqlite"
     connection = sqlite3.connect(database)
@@ -479,8 +485,9 @@ def _make_dist(root: Path) -> Path:
         connection.commit()
     finally:
         connection.close()
-    with zipfile.ZipFile(dist / "dataset.sqlite.zip", "w") as archive:
-        archive.write(database, "dataset.sqlite")
+    dataset = dist / "immich-cn-dataset-sqlite-v1.zip"
+    with zipfile.ZipFile(dataset, "w") as archive:
+        archive.write(database, "immich-cn-dataset-v1.sqlite")
         archive.writestr(
             "schema.json",
             json.dumps({"format": "immich-cn.dataset/1", "schemaVersion": 1}),
@@ -489,64 +496,58 @@ def _make_dist(root: Path) -> Path:
         archive.writestr("README.txt", "canonical dataset\n")
     database.unlink()
 
-    artifact = dist / "geodata.zip"
-    extra = dist / "patterns.tsv.gz"
-    dataset = dist / "dataset.sqlite.zip"
-    variants = [
-        {
-            "file": artifact.name,
-            "sizeBytes": artifact.stat().st_size,
-            "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
-        },
-        {
-            "file": extra.name,
-            "sizeBytes": extra.stat().st_size,
-            "sha256": hashlib.sha256(extra.read_bytes()).hexdigest(),
-        },
-        {
-            "file": dataset.name,
-            "sizeBytes": dataset.stat().st_size,
-            "sha256": hashlib.sha256(dataset.read_bytes()).hexdigest(),
-        },
-    ]
+    def asset(path: Path, kind: str) -> dict[str, object]:
+        return {
+            "file": path.name,
+            "kind": kind,
+            "sizeBytes": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+
     artifact_spec = [
         {
             "id": "geodata.immich.admin2.default.v1",
-            "file": artifact.name,
+            "file": geodata_default.name,
             "canonicalFile": "immich-cn-geodata-immich-admin2-default-v1.zip",
             "profile": "admin2",
             "scope": "default",
-            "sizeBytes": artifact.stat().st_size,
-            "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+            "sizeBytes": geodata_default.stat().st_size,
+            "sha256": hashlib.sha256(geodata_default.read_bytes()).hexdigest(),
         },
         {
             "id": "geodata.immich.admin2.full.v1",
-            "file": "geodata_full.zip",
+            "file": geodata_full.name,
             "canonicalFile": "immich-cn-geodata-immich-admin2-full-v1.zip",
             "profile": "admin2",
             "scope": "full",
-            "sizeBytes": (dist / "geodata_full.zip").stat().st_size,
-            "sha256": hashlib.sha256((dist / "geodata_full.zip").read_bytes()).hexdigest(),
+            "sizeBytes": geodata_full.stat().st_size,
+            "sha256": hashlib.sha256(geodata_full.read_bytes()).hexdigest(),
         },
     ]
-    (dist / "manifest.json").write_text(
+    manifest_path = dist / "immich-cn-manifest-json-v1.json"
+    assets = [
+        asset(geodata_default, "geodata"),
+        asset(geodata_full, "geodata"),
+        asset(patterns, "patterns"),
+        asset(i18n, "i18n"),
+        asset(dataset, "dataset"),
+    ]
+    manifest_path.write_text(
         json.dumps(
             {
-                "artifactSpecVersion": 2,
+                "artifactSpecVersion": 3,
                 "artifacts": artifact_spec,
-                "aliases": {
-                    "geodata.zip": "geodata.immich.admin2.default.v1",
-                    "geodata_full.zip": "geodata.immich.admin2.full.v1",
-                },
-                "legacyAliases": {},
-                "variants": variants,
+                "assets": assets,
+                "patternsTable": patterns.name,
+                "dataset": {"file": dataset.name},
             },
             ensure_ascii=False,
         ),
         encoding="utf-8",
     )
-    (dist / "SHA256SUMS").write_text(
-        "".join(f"{variant['sha256']}  {variant['file']}\n" for variant in variants),
+    checksums = [*assets, asset(manifest_path, "manifest")]
+    (dist / "immich-cn-checksums-sha256-v1.txt").write_text(
+        "".join(f"{item['sha256']}  {item['file']}\n" for item in checksums),
         encoding="utf-8",
     )
     return dist
@@ -560,7 +561,7 @@ def test_check_artifacts_passes_on_minimal_dist(tmp_path: Path) -> None:
 
 def test_check_artifacts_detects_tampered_zip(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
-    target = dist / "patterns.tsv.gz"  # 非 zip 制品：只有哈希层能发现
+    target = dist / "immich-cn-patterns-tsv-v1.gz"  # 非 zip 制品：只有哈希层能发现
     original = target.read_bytes()
     # 同尺寸篡改：只翻转一个字节，确保"尺寸检查发现不了"
     middle = len(original) // 2
@@ -570,36 +571,36 @@ def test_check_artifacts_detects_tampered_zip(tmp_path: Path) -> None:
     assert target.stat().st_size == len(original)
     result = run_checker(tmp_path, "check_artifacts.py", str(dist))
     assert result.returncode == 1
-    assert "patterns.tsv.gz" in result.stdout
+    assert "immich-cn-patterns-tsv-v1.gz" in result.stdout
 
 
 def test_check_artifacts_manifest_hash_layer(tmp_path: Path) -> None:
     """直接验证 manifest 哈希层：把它削弱后本用例必须失败。"""
     dist = _make_dist(tmp_path)
-    target = dist / "patterns.tsv.gz"
+    target = dist / "immich-cn-patterns-tsv-v1.gz"
     data = bytearray(target.read_bytes())
     data[len(data) // 2] ^= 0xFF
     target.write_bytes(bytes(data))
     errors: list[str] = []
     check_artifacts.check_manifest(dist, errors)
-    assert any("patterns.tsv.gz" in error for error in errors), errors
+    assert any("immich-cn-patterns-tsv-v1.gz" in error for error in errors), errors
 
 
 def test_check_artifacts_checksums_layer(tmp_path: Path) -> None:
-    """直接验证 SHA256SUMS 层：把它削弱后本用例必须失败。"""
+    """直接验证 immich-cn-checksums-sha256-v1.txt 层：把它削弱后本用例必须失败。"""
     dist = _make_dist(tmp_path)
-    target = dist / "patterns.tsv.gz"
+    target = dist / "immich-cn-patterns-tsv-v1.gz"
     data = bytearray(target.read_bytes())
     data[len(data) // 2] ^= 0xFF
     target.write_bytes(bytes(data))
     errors: list[str] = []
     check_artifacts.check_checksums(dist, errors)
-    assert any("patterns.tsv.gz" in error for error in errors), errors
+    assert any("immich-cn-patterns-tsv-v1.gz" in error for error in errors), errors
 
 
 def test_check_artifacts_rejects_zip_path_traversal(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
-    with zipfile.ZipFile(dist / "geodata.zip", "a") as archive:
+    with zipfile.ZipFile(dist / "immich-cn-geodata-immich-admin2-default-v1.zip", "a") as archive:
         archive.writestr("../escape.txt", "escape")
 
     errors: list[str] = []
@@ -609,7 +610,7 @@ def test_check_artifacts_rejects_zip_path_traversal(tmp_path: Path) -> None:
 
 def test_check_artifacts_rejects_zip_symlink(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
-    with zipfile.ZipFile(dist / "geodata.zip", "a") as archive:
+    with zipfile.ZipFile(dist / "immich-cn-geodata-immich-admin2-default-v1.zip", "a") as archive:
         info = zipfile.ZipInfo("geodata/link")
         info.external_attr = 0o120777 << 16
         archive.writestr(info, "../escape.txt")
@@ -621,7 +622,7 @@ def test_check_artifacts_rejects_zip_symlink(tmp_path: Path) -> None:
 
 def test_check_artifacts_rejects_zip_compression_bomb(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
-    with zipfile.ZipFile(dist / "geodata.zip", "a") as archive:
+    with zipfile.ZipFile(dist / "immich-cn-geodata-immich-admin2-default-v1.zip", "a") as archive:
         archive.writestr(
             "geodata/bomb.bin",
             b"\0" * (2 * 1024 * 1024),
@@ -636,7 +637,7 @@ def test_check_artifacts_rejects_zip_compression_bomb(tmp_path: Path) -> None:
 def test_check_artifacts_rejects_archive_uncompressed_budget(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     dist = _make_dist(tmp_path)
     monkeypatch.setattr(check_artifacts, "MAX_ARCHIVE_UNCOMPRESSED_BYTES", 1024)
-    with zipfile.ZipFile(dist / "geodata.zip", "a") as archive:
+    with zipfile.ZipFile(dist / "immich-cn-geodata-immich-admin2-default-v1.zip", "a") as archive:
         archive.writestr("geodata/large.bin", b"\0" * 2048)
 
     errors: list[str] = []
@@ -646,7 +647,7 @@ def test_check_artifacts_rejects_archive_uncompressed_budget(tmp_path: Path, mon
 
 def test_check_artifacts_requires_i18n_license(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
-    with zipfile.ZipFile(dist / "i18n-iso-countries.zip", "w") as archive:
+    with zipfile.ZipFile(dist / "immich-cn-i18n-json-v1.zip", "w") as archive:
         archive.writestr("langs/en.json", "{}")
 
     errors: list[str] = []
@@ -656,7 +657,7 @@ def test_check_artifacts_requires_i18n_license(tmp_path: Path) -> None:
 
 def test_check_artifacts_requires_geodata_attribution(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
-    with zipfile.ZipFile(dist / "geodata.zip", "w") as archive:
+    with zipfile.ZipFile(dist / "immich-cn-geodata-immich-admin2-default-v1.zip", "w") as archive:
         archive.writestr("geodata/cities500.txt", "\t".join(["1"] + ["x"] * 18) + "\n")
 
     errors: list[str] = []
@@ -667,7 +668,7 @@ def test_check_artifacts_requires_geodata_attribution(tmp_path: Path) -> None:
 def test_check_artifacts_reports_corrupt_zip_without_traceback(tmp_path: Path) -> None:
     """损坏的 zip 必须以校验错误呈现，而不是抛栈崩掉。"""
     dist = _make_dist(tmp_path)
-    (dist / "geodata.zip").write_bytes(b"this is not a zip file")
+    (dist / "immich-cn-geodata-immich-admin2-default-v1.zip").write_bytes(b"this is not a zip file")
     result = run_checker(tmp_path, "check_artifacts.py", str(dist))
     assert result.returncode == 1
     assert "无法作为 zip 读取" in result.stdout
@@ -676,7 +677,7 @@ def test_check_artifacts_reports_corrupt_zip_without_traceback(tmp_path: Path) -
 
 def test_check_artifacts_rejects_dataset_schema_drift(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
-    target = dist / "dataset.sqlite.zip"
+    target = dist / "immich-cn-dataset-sqlite-v1.zip"
     with zipfile.ZipFile(target) as source:
         members = {name: source.read(name) for name in source.namelist()}
     members["schema.json"] = json.dumps({"format": "immich-cn.dataset/2", "schemaVersion": 2}).encode()
@@ -690,8 +691,8 @@ def test_check_artifacts_rejects_dataset_schema_drift(tmp_path: Path) -> None:
 
 def test_check_artifacts_rejects_dataset_without_notice(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
-    with zipfile.ZipFile(dist / "dataset.sqlite.zip", "w") as archive:
-        archive.writestr("dataset.sqlite", b"SQLite format 3\x00")
+    with zipfile.ZipFile(dist / "immich-cn-dataset-sqlite-v1.zip", "w") as archive:
+        archive.writestr("immich-cn-dataset-v1.sqlite", b"SQLite format 3\x00")
         archive.writestr("schema.json", json.dumps({"format": "immich-cn.dataset/1", "schemaVersion": 1}))
         archive.writestr("README.txt", "canonical dataset\n")
     errors: list[str] = []

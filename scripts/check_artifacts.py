@@ -1,8 +1,4 @@
-"""校验发布制品：manifest 与实际文件一致、zip 可解、cities500 结构正确、校验和匹配。
-
-CI 中此前只校验 geodata 目录，从未验证过真正对外发布的 zip，
-因此制品损坏或 manifest 与实际文件不一致时会"静默通过"。
-"""
+"""校验 canonical-only 发布制品、manifest、归档安全与校验和。"""
 
 from __future__ import annotations
 
@@ -17,7 +13,16 @@ import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
-from immich_cn.artifacts import validate_artifact_id, validate_canonical_filename
+from immich_cn.artifact_spec import (
+    CHECKSUMS_FILE,
+    DATASET_FILE,
+    DATASET_MEMBER,
+    I18N_FILE,
+    MANIFEST_FILE,
+    PATTERNS_FILE,
+    validate_artifact_id,
+    validate_canonical_filename,
+)
 
 GEO_COLUMNS = 19
 MAX_ARCHIVE_UNCOMPRESSED_BYTES = 2 * 1024**3
@@ -34,89 +39,87 @@ def sha256_file(path: Path) -> str:
 
 
 def check_manifest(dist: Path, errors: list[str]) -> None:
-    manifest_path = dist / "manifest.json"
+    manifest_path = dist / MANIFEST_FILE
     if not manifest_path.exists():
-        errors.append("缺少 manifest.json")
+        errors.append(f"缺少 {MANIFEST_FILE}")
         return
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("artifactSpecVersion") != 2:
-        errors.append("manifest.json 的 artifactSpecVersion 不是 2")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        errors.append(f"{MANIFEST_FILE} 无法解析：{error}")
+        return
+    if manifest.get("artifactSpecVersion") != 3:
+        errors.append(f"{MANIFEST_FILE} 的 artifactSpecVersion 不是 3")
+
     artifacts = manifest.get("artifacts")
     if not isinstance(artifacts, list) or not artifacts:
-        errors.append("manifest.json 没有 canonical artifacts")
+        errors.append(f"{MANIFEST_FILE} 没有 canonical artifacts")
         return
-
-    variants = manifest.get("variants")
-    if not isinstance(variants, list) or not variants:
-        errors.append("manifest.json 没有 legacy variants")
-    else:
-        for variant in variants:
-            if not isinstance(variant, dict):
-                errors.append("manifest.json 的 variants 含非对象条目")
-                continue
-            name = str(variant.get("file", ""))
-            path = dist / name
-            if not path.exists():
-                errors.append(f"manifest 列出但文件不存在：{name}")
-                continue
-            if path.stat().st_size != int(variant.get("sizeBytes", -1)):
-                errors.append(f"{name} 大小与 manifest 不一致")
-            if sha256_file(path) != variant.get("sha256"):
-                errors.append(f"{name} SHA256 与 manifest 不一致")
-
     artifact_ids: set[str] = set()
     for artifact in artifacts:
         if not isinstance(artifact, dict):
-            errors.append("manifest.json 的 artifacts 含非对象条目")
+            errors.append(f"{MANIFEST_FILE} 的 artifacts 含非对象条目")
             continue
         artifact_id = str(artifact.get("id", ""))
         canonical_file = str(artifact.get("canonicalFile", ""))
         profile = str(artifact.get("profile", ""))
         if not validate_artifact_id(artifact_id):
-            errors.append(f"manifest.json 含非法 artifact ID：{artifact_id!r}")
+            errors.append(f"{MANIFEST_FILE} 含非法 artifact ID：{artifact_id!r}")
         if not validate_canonical_filename(canonical_file):
-            errors.append(f"manifest.json 含非法 canonical 文件名：{canonical_file!r}")
+            errors.append(f"{MANIFEST_FILE} 含非法 canonical 文件名：{canonical_file!r}")
         if "{" in profile or "}" in profile or "_" in profile:
-            errors.append(f"manifest.json 的 profile 不稳定：{profile!r}")
+            errors.append(f"{MANIFEST_FILE} 的 profile 不稳定：{profile!r}")
+        if artifact_id in artifact_ids:
+            errors.append(f"{MANIFEST_FILE} 的 artifact ID 重复：{artifact_id}")
         artifact_ids.add(artifact_id)
         name = str(artifact.get("file", ""))
-        path = dist / name
-        if not path.exists():
-            errors.append(f"manifest 列出但文件不存在：{name}")
-            continue
-        if path.stat().st_size != int(artifact.get("sizeBytes", -1)):
-            errors.append(f"{name} 大小与 manifest 不一致")
-        if sha256_file(path) != artifact.get("sha256"):
-            errors.append(f"{name} SHA256 与 manifest 不一致")
+        if name != canonical_file:
+            errors.append(f"{MANIFEST_FILE} 的 file 与 canonicalFile 不一致：{name!r} != {canonical_file!r}")
+        _check_file_entry(dist, artifact, errors)
 
-    aliases = manifest.get("aliases")
-    if not isinstance(aliases, dict):
-        errors.append("manifest.json 没有 aliases 映射")
-        return
-    for alias, target in aliases.items():
-        if not isinstance(alias, str) or target not in artifact_ids:
-            errors.append(f"manifest.json 的 alias 无效：{alias!r} -> {target!r}")
-        if not (dist / str(alias)).exists():
-            errors.append(f"manifest.json 的 alias 文件不存在：{alias}")
+    assets = manifest.get("assets")
+    if not isinstance(assets, list) or not assets:
+        errors.append(f"{MANIFEST_FILE} 没有 assets 清单")
+    else:
+        asset_names: set[str] = set()
+        for asset in assets:
+            if not isinstance(asset, dict):
+                errors.append(f"{MANIFEST_FILE} 的 assets 含非对象条目")
+                continue
+            name = str(asset.get("file", ""))
+            if name in asset_names:
+                errors.append(f"{MANIFEST_FILE} 的 asset 重复：{name}")
+            asset_names.add(name)
+            _check_file_entry(dist, asset, errors)
 
-    legacy_aliases = manifest.get("legacyAliases")
-    if not isinstance(legacy_aliases, dict):
-        errors.append("manifest.json 没有 legacyAliases 映射")
+    if manifest.get("patternsTable") != PATTERNS_FILE:
+        errors.append(f"{MANIFEST_FILE} 的 patternsTable 不是 {PATTERNS_FILE}")
+    dataset = manifest.get("dataset")
+    if not isinstance(dataset, dict) or dataset.get("file") != DATASET_FILE:
+        errors.append(f"{MANIFEST_FILE} 的 dataset.file 不是 {DATASET_FILE}")
+
+
+def _check_file_entry(dist: Path, entry: dict[str, object], errors: list[str]) -> None:
+    name = str(entry.get("file", ""))
+    path = dist / name
+    if not path.exists():
+        errors.append(f"manifest 列出但文件不存在：{name}")
         return
-    for alias, target in legacy_aliases.items():
-        if not isinstance(alias, str) or target not in artifact_ids:
-            errors.append(f"manifest.json 的 legacy alias 无效：{alias!r} -> {target!r}")
-        if not (dist / str(alias)).exists():
-            errors.append(f"manifest.json 的 legacy alias 文件不存在：{alias}")
+    if path.stat().st_size != int(entry.get("sizeBytes", -1)):
+        errors.append(f"{name} 大小与 manifest 不一致")
+    if sha256_file(path) != entry.get("sha256"):
+        errors.append(f"{name} SHA256 与 manifest 不一致")
 
 
 def check_zips(dist: Path, errors: list[str]) -> int:
     checked = 0
-    for path in sorted(dist.glob("geodata*.zip")) + sorted(dist.glob("i18n-iso-countries.zip")):
+    paths = [*sorted(dist.glob("immich-cn-geodata-*.zip")), dist / I18N_FILE]
+    for path in paths:
+        if not path.exists():
+            continue
         try:
             archive = zipfile.ZipFile(path)
         except (zipfile.BadZipFile, OSError) as error:
-            # 损坏的 zip 必须以可读的校验错误呈现，而不是抛栈崩掉整个检查
             errors.append(f"{path.name} 无法作为 zip 读取：{error}")
             continue
         with archive:
@@ -125,7 +128,7 @@ def check_zips(dist: Path, errors: list[str]) -> int:
                 errors.append(f"{path.name} 内 {bad} 校验失败")
             check_zip_members(path, archive, errors)
             check_zip_budget(path, archive, errors)
-            if path.name == "i18n-iso-countries.zip":
+            if path.name == I18N_FILE:
                 try:
                     license_text = archive.read("LICENSE").decode("utf-8")
                 except (KeyError, UnicodeDecodeError):
@@ -155,10 +158,10 @@ def check_zips(dist: Path, errors: list[str]) -> int:
 
 
 def check_dataset(dist: Path, errors: list[str]) -> None:
-    """校验规范数据集归档、SQLite 结构和 Immich 适配器的边界声明。"""
-    path = dist / "dataset.sqlite.zip"
+    """校验 canonical 数据集归档、SQLite 结构和来源署名。"""
+    path = dist / DATASET_FILE
     if not path.exists():
-        errors.append("缺少约定制品：dataset.sqlite.zip")
+        errors.append(f"缺少约定制品：{DATASET_FILE}")
         return
     try:
         archive = zipfile.ZipFile(path)
@@ -171,7 +174,7 @@ def check_dataset(dist: Path, errors: list[str]) -> None:
             errors.append(f"{path.name} 内 {bad} 校验失败")
         check_zip_members(path, archive, errors)
         check_zip_budget(path, archive, errors)
-        required = {"dataset.sqlite", "schema.json", "NOTICE.txt", "README.txt"}
+        required = {DATASET_MEMBER, "schema.json", "NOTICE.txt", "README.txt"}
         missing = sorted(required - set(archive.namelist()))
         if missing:
             errors.append(f"{path.name} 缺少成员：{', '.join(missing)}")
@@ -188,13 +191,13 @@ def check_dataset(dist: Path, errors: list[str]) -> None:
             errors.append(f"{path.name} 的 NOTICE.txt 缺少 GeoNames CC BY 4.0 署名")
 
         with tempfile.TemporaryDirectory(prefix="immich-cn-dataset-") as temporary:
-            sqlite_path = Path(temporary) / "dataset.sqlite"
-            with archive.open("dataset.sqlite") as source, sqlite_path.open("wb") as target:
+            sqlite_path = Path(temporary) / DATASET_MEMBER
+            with archive.open(DATASET_MEMBER) as source, sqlite_path.open("wb") as target:
                 shutil.copyfileobj(source, target)
             try:
                 connection = sqlite3.connect(f"file:{sqlite_path}?mode=ro", uri=True)
             except sqlite3.Error as error:
-                errors.append(f"{path.name} 的 dataset.sqlite 无法打开：{error}")
+                errors.append(f"{path.name} 的 {DATASET_MEMBER} 无法打开：{error}")
                 return
             try:
                 tables = {
@@ -259,30 +262,38 @@ def check_zip_budget(path: Path, archive: zipfile.ZipFile, errors: list[str]) ->
 
 
 def check_checksums(dist: Path, errors: list[str]) -> int:
-    path = dist / "SHA256SUMS"
+    path = dist / CHECKSUMS_FILE
     if not path.exists():
-        errors.append("缺少 SHA256SUMS")
+        errors.append(f"缺少 {CHECKSUMS_FILE}")
         return 0
     lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
     if not lines:
-        errors.append("SHA256SUMS 为空")
+        errors.append(f"{CHECKSUMS_FILE} 为空")
         return 0
     verified = 0
     for line in lines:
         digest, _, name = line.partition("  ")
         target = dist / name
         if not target.exists():
-            errors.append(f"SHA256SUMS 列出的文件不存在：{name}")
+            errors.append(f"{CHECKSUMS_FILE} 列出的文件不存在：{name}")
             continue
-        actual = sha256_file(target)
-        if actual != digest:
-            errors.append(f"SHA256SUMS 与实际文件不符：{name}")
+        if sha256_file(target) != digest:
+            errors.append(f"{CHECKSUMS_FILE} 与实际文件不符：{name}")
         verified += 1
     return verified
 
 
 def check_required_files(dist: Path, errors: list[str]) -> None:
-    for name in ("geodata.zip", "geodata_full.zip", "dataset.sqlite.zip", "patterns.tsv.gz"):
+    required = (
+        "immich-cn-geodata-immich-admin2-default-v1.zip",
+        "immich-cn-geodata-immich-admin2-full-v1.zip",
+        DATASET_FILE,
+        PATTERNS_FILE,
+        I18N_FILE,
+        MANIFEST_FILE,
+        CHECKSUMS_FILE,
+    )
+    for name in required:
         if not (dist / name).exists():
             errors.append(f"缺少约定制品：{name}")
 

@@ -5,9 +5,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from immich_cn.build import run_build
-from immich_cn.config import BuildOptions
-from immich_cn.verify import (
+from immich_cn.pipeline import run_build
+from immich_cn.settings import BuildOptions
+from immich_cn.validation import (
     _check_admin,
     _check_cities500,
     _check_country_info,

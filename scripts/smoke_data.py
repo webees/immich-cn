@@ -11,10 +11,10 @@ from pathlib import Path
 
 from tests.synthetic import create_synthetic_sources
 
-from immich_cn.build import run_build
-from immich_cn.config import DEFAULT_PATTERNS, BuildOptions
-from immich_cn.package import package_all
-from immich_cn.verify import assert_valid, verify_geodata
+from immich_cn.packaging import package_all
+from immich_cn.pipeline import run_build
+from immich_cn.settings import DEFAULT_PATTERNS, BuildOptions
+from immich_cn.validation import assert_valid, verify_geodata
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -126,15 +126,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          digest="$(immich-cn fingerprint dist/manifest.json)"
+          digest="$(immich-cn fingerprint dist/immich-cn-manifest-json-v1.json)"
           echo "本次发布指纹：${digest}"
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
           previous=""
           work="$(mktemp -d)"
           if gh release download auto-release --repo "$GITHUB_REPOSITORY" \
-               --pattern manifest.json --dir "$work" >/dev/null 2>&1; then
-            previous="$(immich-cn fingerprint "${work}/manifest.json" 2>/dev/null || true)"
+               --pattern immich-cn-manifest-json-v1.json --dir "$work" >/dev/null 2>&1; then
+            previous="$(immich-cn fingerprint "${work}/immich-cn-manifest-json-v1.json" 2>/dev/null || true)"
             echo "上次发布指纹：${previous:-未知}"
           else
             echo "未找到历史 manifest，视为首次构建"
@@ -173,7 +173,7 @@ jobs:
             echo ""
             echo "### 构建统计"
             echo '```json'
-            python -c "import json;print(json.dumps(json.load(open('dist/manifest.json'))['stats'],ensure_ascii=False,indent=2))"
+            python -c "import json;print(json.dumps(json.load(open('dist/immich-cn-manifest-json-v1.json'))['stats'],ensure_ascii=False,indent=2))"
             echo '```'
           } > build-summary.md
 

@@ -63,7 +63,7 @@ jobs:
           pip install -e ".[dev]"
       - name: 生成合成数据（不依赖外网）
         run: python -m scripts.smoke_data --work-dir build --dist-dir dist
-      - name: 校验发布制品（zip / manifest / SHA256SUMS）
+      - name: 校验发布制品（zip / manifest / immich-cn-checksums-sha256-v1.txt）
         run: python scripts/check_artifacts.py dist
       - name: 校验容器入口脚本（含 IMMICH_CN_PATTERN 组合）
         run: bash scripts/check-entrypoint.sh

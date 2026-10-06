@@ -10,14 +10,14 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from immich_cn import __version__
-from immich_cn.artifacts import resolve_artifact
-from immich_cn.build import fetch_sources, run_build
-from immich_cn.config import DEFAULT_EXTRA_COUNTRIES, DEFAULT_PATTERNS, BuildOptions
+from immich_cn.artifact_spec import resolve_artifact
 from immich_cn.errors import ImmichCnError
 from immich_cn.fingerprint import fingerprint_from_file
-from immich_cn.logging_setup import configure, get_logger
-from immich_cn.package import package_all
-from immich_cn.verify import assert_valid, format_results, verify_geodata
+from immich_cn.logging_config import configure, get_logger
+from immich_cn.packaging import package_all
+from immich_cn.pipeline import fetch_sources, run_build
+from immich_cn.settings import DEFAULT_EXTRA_COUNTRIES, DEFAULT_PATTERNS, BuildOptions
+from immich_cn.validation import assert_valid, format_results, verify_geodata
 
 logger = get_logger("cli")
 
@@ -99,16 +99,15 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("path", type=Path, help="待校验的 geodata 目录")
     verify.add_argument("--min-cn-ratio", type=float, default=0.90, help="中国记录的中文名称覆盖率下限")
 
-    fingerprint = sub.add_parser("fingerprint", help="打印 manifest.json 的发布指纹")
-    fingerprint.add_argument("manifest", type=Path, help="manifest.json 路径")
+    fingerprint = sub.add_parser("fingerprint", help="打印 immich-cn-manifest-json-v1.json 的发布指纹")
+    fingerprint.add_argument("manifest", type=Path, help="immich-cn-manifest-json-v1.json 路径")
 
-    artifact = sub.add_parser("artifact", help="解析 v2 manifest 中的 canonical 制品")
+    artifact = sub.add_parser("artifact", help="解析 v3 manifest 中的 canonical 制品")
     artifact_sub = artifact.add_subparsers(dest="artifact_command", required=True)
-    resolve = artifact_sub.add_parser("resolve", help="按 ID、alias 或 profile/scope 解析制品")
-    resolve.add_argument("--manifest", type=Path, required=True, help="manifest.json 路径")
+    resolve = artifact_sub.add_parser("resolve", help="按 ID 或 profile/scope 解析制品")
+    resolve.add_argument("--manifest", type=Path, required=True, help="immich-cn-manifest-json-v1.json 路径")
     selector = resolve.add_mutually_exclusive_group()
     selector.add_argument("--id", dest="artifact_id", help="canonical artifact ID")
-    selector.add_argument("--alias", help="稳定下载别名，例如 geodata.zip")
     resolve.add_argument("--profile", help="profile ID，例如 admin2-admin3")
     resolve.add_argument("--scope", choices=("default", "full"), help="数据范围")
     return parser
@@ -158,7 +157,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             artifact = resolve_artifact(
                 manifest,
                 artifact_id=args.artifact_id,
-                alias=args.alias,
                 profile=args.profile,
                 scope=args.scope,
             )

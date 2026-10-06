@@ -172,8 +172,8 @@ def check_discoverable(errors: list[str]) -> None:
 def check_numeric_contracts(errors: list[str]) -> None:
     """文档里的数字必须与实现一致（变体数、定时时刻、快照保留数量）。"""
     sys.path.insert(0, str(Path("src").resolve()))
-    from immich_cn.config import DEFAULT_PATTERNS
-    from immich_cn.package import build_variants
+    from immich_cn.packaging import build_variants
+    from immich_cn.settings import DEFAULT_PATTERNS
 
     doc_text = _read(_expand(DOC_GLOBS))
     workflow = Path(".github/workflows/update-data.yml").read_text(encoding="utf-8")
@@ -182,7 +182,7 @@ def check_numeric_contracts(errors: list[str]) -> None:
     if "镜像内置的是 full 数据集" in doc_text:
         errors.append("文档错误：镜像使用非 full 的 build/geodata，不能声称内置 full 数据集")
     if "默认在打包完成后删除" in doc_text:
-        errors.append("文档错误：默认构建直接流式写 patterns.tsv.gz，不生成明文 patterns.tsv")
+        errors.append("文档错误：默认构建直接流式写 immich-cn-patterns-tsv-v1.gz，不生成明文 immich-cn-patterns-v1.tsv")
 
     expected_variants = len(build_variants(DEFAULT_PATTERNS))
     for match in re.finditer(r"(\d+)\s*个 geodata 变体", doc_text):

@@ -34,8 +34,8 @@
                                         ▼
                     ┌──────────────────────────────────────────────┐
    产出             │ SQLite 规范数据集 + Immich geodata/ 适配器    │
-                    │ + levels.tsv + patterns.tsv.gz                │
-                    │ → 各展示粒度 zip、manifest、SHA256SUMS         │
+                    │ + levels.tsv + immich-cn-patterns-tsv-v1.gz                │
+                    │ → 各展示粒度 zip、manifest、immich-cn-checksums-sha256-v1.txt         │
                     └───────────────────┬──────────────────────────┘
                                         ▼
                     ┌──────────────────────────────────────────────┐
@@ -47,23 +47,23 @@
 
 | 阶段 | 模块 |
 |:--|:--|
-| 下载与缓存 | `immich_cn.http`、`immich_cn.config` |
+| 下载与缓存 | `immich_cn.fetching`、`immich_cn.settings` |
 | 解析 | `immich_cn.geonames` |
-| 中文解析 | `immich_cn.chinese` |
+| 中文解析 | `immich_cn.localization` |
 | 层级表 | `immich_cn.hierarchy` |
 | 可选增强 | `immich_cn.providers.*` |
-| 编排 | `immich_cn.build` |
-| 规范数据集 | `immich_cn.canonical` |
-| 打包 | `immich_cn.package` |
-| 校验 | `immich_cn.verify` |
+| 编排 | `immich_cn.pipeline` |
+| 规范数据集 | `immich_cn.dataset` |
+| 打包 | `immich_cn.packaging` |
+| 校验 | `immich_cn.validation` |
 
 ## 关键设计决策
 
 ### 0. 规范模型优先，外部契约只做适配
 
-`dataset.sqlite.zip` 中的 SQLite 数据集是本项目的规范模型，定义字段语义、schema 版本、
+`immich-cn-dataset-sqlite-v1.zip` 中的 SQLite 数据集是本项目的规范模型，定义字段语义、schema 版本、
 索引和查询视图；`geodata*.zip` 仅把该模型导出为 Immich 当前需要的文件名、列位置和目录结构。
-`levels.tsv`、`patterns.tsv.gz`、`manifest.json` 和 provider 缓存则是构建与兼容层，
+`levels.tsv`、`immich-cn-patterns-tsv-v1.gz`、`immich-cn-manifest-json-v1.json` 和 provider 缓存则是构建与兼容层，
 不会反向约束规范字段。未来新增消费者时应增加适配器或导出器，而不是改变规范模型的数据含义。
 
 规范字段和用法见 [数据格式](data-format.md)，决策见 [ADR 0001](adr/0001-immich-output-contract.md)。
@@ -85,19 +85,19 @@
 的拼接结果。项目再把 7 种粒度 × 2 种数据规模导出为 14 个 Immich zip：
 
 - Python 侧按 `--patterns` 在打包时组合，产出 Immich 适配器 zip；
-- 镜像侧额外附带 `patterns.tsv.gz`，容器启动时用 `awk` 重写 `cities500.txt` 的第 1、2 列，
+- 镜像侧额外附带 `immich-cn-patterns-tsv-v1.gz`，容器启动时用 `awk` 重写 `cities500.txt` 的第 1、2 列，
   因此**同一个镜像可以通过 `IMMICH_CN_PATTERN` 切换粒度**，不需要重新构建或下载。
 
 ### 3. full 与非 full
 
-- 非 full（默认，`geodata.zip`）：`cities500.txt` + 国家 dump 中人口 ≥ 100 的记录 + 四个直辖市下辖全部记录。
-- full（`geodata_full.zip`）：额外包含人口为 0 的行政要素，边界识别更准、导入更慢。
+- 非 full（默认，`immich-cn-geodata-immich-admin2-default-v1.zip`）：`cities500.txt` + 国家 dump 中人口 ≥ 100 的记录 + 四个直辖市下辖全部记录。
+- full（`immich-cn-geodata-immich-admin2-full-v1.zip`）：额外包含人口为 0 的行政要素，边界识别更准、导入更慢。
 
 两者共用同一份 `levels.tsv`，打包时按人口阈值过滤，避免重复解析国家 dump。
 
 ### 4. 可审计
 
-每次构建会在 `manifest.json` 中记录：
+每次构建会在 `immich-cn-manifest-json-v1.json` 中记录：
 
 - 每个上游文件的 URL、SHA256、大小、ETag、Last-Modified；
 - 各级行政表条目数、源记录数、输出记录数、中文覆盖率；
@@ -110,7 +110,7 @@
 
 ### 5. 校验前置
 
-`immich_cn.verify` 在发布前检查：
+`immich_cn.validation` 在发布前检查：
 
 - 必需文件是否齐全；
 - `geodata-date.txt` 是否为合法 ISO 时间；
@@ -130,7 +130,7 @@
    │
    ├─ 1. 条件校验上游：ETag / Last-Modified → 未变化返回 304，0 字节正文
    ├─ 2. 计算发布指纹：sha256(上游文件 SHA256 + 构建配置 + 发布器修订)
-   ├─ 3. 与上一次发布的 manifest.json 对比
+   ├─ 3. 与上一次发布的 immich-cn-manifest-json-v1.json 对比
    │      ├─ 相同 → 跳过发布与镜像推送（no-change job 记录摘要）
    │      └─ 不同 → 继续
    ├─ 4. 构建 7 种粒度 × full/非 full，并执行发布前校验
@@ -140,7 +140,7 @@
 
 三个关键点：
 
-1. **增量校验而不是全量下载**：`immich_cn.http.Fetcher` 在 `--revalidate` 下带
+1. **增量校验而不是全量下载**：`immich_cn.fetching.Fetcher` 在 `--revalidate` 下带
    `If-None-Match` / `If-Modified-Since` 请求上游；数据源支持强 ETag，未更新时直接返回 304，
    因此每日运行的额外带宽几乎为零。校验失败时自动回退到本地缓存，保证流水线不会被网络抖动打断。
 2. **内容指纹而不是时间戳**：`immich_cn.fingerprint` 对"上游文件内容摘要 + 构建配置 +
@@ -154,7 +154,7 @@
 [保留策略](maintenance.md) 处理，语义版本与稳定标签始终受保护。
 
 可通过 `workflow_dispatch` 覆盖的参数：`provider`、`immich-version`、`push-images`、
-`force-publish`、`snapshot-retention`（默认保留最近 14 个 `data-*` 快照）。
+`force-publish`、`snapshot-retention`（默认保留最近 3 个 `data-*` 快照）。
 
 ### 失败路径真值表
 

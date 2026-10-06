@@ -12,7 +12,7 @@ build/*
 !build/geodata
 !build/langs
 dist/*
-!dist/patterns.tsv.gz
+!dist/immich-cn-patterns-tsv-v1.gz
 
 **/__pycache__
 *.pyc

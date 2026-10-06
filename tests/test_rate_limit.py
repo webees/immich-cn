@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from immich_cn.ratelimit import RateLimiter
+from immich_cn.rate_limit import RateLimiter
 
 
 def test_rate_limiter_rejects_invalid_configuration() -> None:
@@ -27,8 +27,8 @@ def test_rate_limiter_releases_slot_at_window_boundary(monkeypatch: pytest.Monke
         # 给零等待变异一个最小推进量，避免测试在无限循环中挂起。
         now += max(seconds, 0.001)
 
-    monkeypatch.setattr("immich_cn.ratelimit.time.monotonic", monotonic)
-    monkeypatch.setattr("immich_cn.ratelimit.time.sleep", sleep)
+    monkeypatch.setattr("immich_cn.rate_limit.time.monotonic", monotonic)
+    monkeypatch.setattr("immich_cn.rate_limit.time.sleep", sleep)
 
     limiter = RateLimiter(2, period=1.0)
     limiter.acquire()

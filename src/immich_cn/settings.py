@@ -60,7 +60,7 @@ DEFAULT_PATTERNS: tuple[str, ...] = (
     "{admin_2} {admin_3} {admin_4}",
 )
 
-#: 默认发布变体的 slug（geodata.zip 指向它）。
+#: 默认发布变体的 slug（immich-cn-geodata-immich-admin2-default-v1.zip 指向它）。
 DEFAULT_PATTERN = "{admin_2}"
 
 ProviderName = Literal["offline", "amap", "nominatim", "auto"]

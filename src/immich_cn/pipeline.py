@@ -23,26 +23,10 @@ from pathlib import Path
 from typing import TextIO
 
 from immich_cn import SCHEMA_VERSION, __version__
-from immich_cn.chinese import (
-    SPECIAL_ADMIN_TOP_LEVEL,
-    ChineseNameIndex,
-    NameOverrides,
-    build_name_index,
-    is_japanese_language,
-    language_rank,
-    to_variant,
-)
-from immich_cn.config import (
-    DEFAULT_PATTERN,
-    FINE_GRAINED_ADMIN2,
-    BuildOptions,
-    ChineseVariant,
-    SourceSpec,
-    geonames_sources,
-    i18n_sources,
-    natural_earth_source,
-)
+from immich_cn.display import compose, validate_pattern
+from immich_cn.domain import AdminEntry, BuildStats, Place, SourceRecord
 from immich_cn.errors import ImmichCnError, ParseError
+from immich_cn.fetching import FetchedSource, Fetcher
 from immich_cn.geonames import (
     AdminUnit,
     CountryInfoRow,
@@ -62,11 +46,27 @@ from immich_cn.hierarchy import (
     translate_admin_codes,
     translate_admin_units,
 )
-from immich_cn.http import FetchedSource, Fetcher
-from immich_cn.logging_setup import get_logger
-from immich_cn.models import AdminEntry, BuildStats, Place, SourceRecord
-from immich_cn.patterns import compose, validate_pattern
+from immich_cn.localization import (
+    SPECIAL_ADMIN_TOP_LEVEL,
+    ChineseNameIndex,
+    NameOverrides,
+    build_name_index,
+    is_japanese_language,
+    language_rank,
+    to_variant,
+)
+from immich_cn.logging_config import get_logger
 from immich_cn.providers import ProviderChain, build_chain
+from immich_cn.settings import (
+    DEFAULT_PATTERN,
+    FINE_GRAINED_ADMIN2,
+    BuildOptions,
+    ChineseVariant,
+    SourceSpec,
+    geonames_sources,
+    i18n_sources,
+    natural_earth_source,
+)
 
 logger = get_logger("build")
 

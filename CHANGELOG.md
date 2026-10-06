@@ -30,7 +30,7 @@
 
 - 数据更新频率由每周提升为**每天全自动检查并更新**；
 - 新增 `--revalidate`：用 ETag/Last-Modified 条件校验上游，未变化时返回 304、不传输正文；
-- 新增 `immich-cn fingerprint` 与 `manifest.json` 的 `config` 字段，
+- 新增 `immich-cn fingerprint` 与 `immich-cn-manifest-json-v1.json` 的 `config` 字段，
   用「上游文件摘要 + 构建配置 + 发布器修订」判断是否需要发布，避免无意义版本与重复导入；
 - 发布指纹纳入 `manifest` schema、构建器版本与 CI 修订；只改构建逻辑时不会被误判为
   “无变化”而跳过新镜像发布；
@@ -55,7 +55,7 @@
 - 从 GeoNames `ADM3`/`ADM4` 自建区县、乡镇层级表；
 - 可选 provider：高德、Nominatim，均带限速与磁盘缓存；
 - 7 种展示粒度 × full/非 full 共 14 个数据制品；
-- `manifest.json` 记录上游 SHA256、统计数据；
+- `immich-cn-manifest-json-v1.json` 记录上游 SHA256、统计数据；
 - 发布前自动校验（文件齐全、去重、中文覆盖率）；
 - GHCR 数据镜像与开箱即用的 Immich 覆盖镜像，支持运行时切换展示粒度；
 - GitHub Actions：CI、自动更新、版本化发布；

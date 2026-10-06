@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from immich_cn.config import BuildOptions
+from immich_cn.settings import BuildOptions
 from tests.synthetic import create_synthetic_sources
 
 

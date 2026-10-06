@@ -12,7 +12,9 @@ from types import SimpleNamespace
 import pytest
 
 from immich_cn import __version__
-from immich_cn.build import (
+from immich_cn.errors import ParseError
+from immich_cn.packaging import build_variants, package_all
+from immich_cn.pipeline import (
     _alternate_stream,
     _extract_i18n,
     cleanup_removable,
@@ -21,10 +23,8 @@ from immich_cn.build import (
     run_build,
     write_patterns_table,
 )
-from immich_cn.config import BuildOptions
-from immich_cn.errors import ParseError
-from immich_cn.package import build_variants, package_all
-from immich_cn.verify import assert_valid, verify_geodata
+from immich_cn.settings import BuildOptions
+from immich_cn.validation import assert_valid, verify_geodata
 from tests.synthetic import create_synthetic_sources, geo_row, write_lines
 
 
@@ -121,37 +121,30 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
 
     dist = build_options.dist_dir
     for name in (
-        "geodata.zip",
-        "geodata_full.zip",
-        "geodata_admin_2.zip",
-        "geodata_admin_2_full.zip",
-        "geodata_admin_2_admin_3.zip",
-        "geodata_admin_2_admin_3_full.zip",
-        "dataset.sqlite.zip",
-        "i18n-iso-countries.zip",
-        "manifest.json",
-        "patterns.tsv.gz",
-        "SHA256SUMS",
+        "immich-cn-geodata-immich-admin2-default-v1.zip",
+        "immich-cn-geodata-immich-admin2-full-v1.zip",
+        "immich-cn-geodata-immich-admin2-admin3-default-v1.zip",
+        "immich-cn-geodata-immich-admin2-admin3-full-v1.zip",
+        "immich-cn-dataset-sqlite-v1.zip",
+        "immich-cn-i18n-json-v1.zip",
+        "immich-cn-manifest-json-v1.json",
+        "immich-cn-patterns-tsv-v1.gz",
+        "immich-cn-checksums-sha256-v1.txt",
     ):
         assert (dist / name).exists(), name
 
-    manifest = json.loads((dist / "manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads((dist / "immich-cn-manifest-json-v1.json").read_text(encoding="utf-8"))
     assert manifest["tool"]["name"] == "immich-cn"
     assert isinstance(manifest["tool"]["revision"], str)
-    assert manifest["artifactSpecVersion"] == 2
+    assert manifest["artifactSpecVersion"] == 3
     assert len(manifest["artifacts"]) == 4
-    assert manifest["aliases"] == {
-        "geodata.zip": "geodata.immich.admin2.default.v1",
-        "geodata_full.zip": "geodata.immich.admin2.full.v1",
-    }
-    assert manifest["legacyAliases"]["geodata_admin_2.zip"] == "geodata.immich.admin2.default.v1"
-    assert manifest["legacyAliases"]["geodata_admin_2_full.zip"] == "geodata.immich.admin2.full.v1"
+    assert len(manifest["assets"]) == 7
+    assert "aliases" not in manifest and "legacyAliases" not in manifest and "variants" not in manifest
     first_artifact = manifest["artifacts"][0]
     assert first_artifact["id"].startswith("geodata.immich.")
     assert "{" not in first_artifact["profile"] and "_" not in first_artifact["profile"]
     assert first_artifact["canonicalFile"].startswith("immich-cn-geodata-immich-")
-    assert len(manifest["variants"]) == 4
-    assert manifest["dataset"]["file"] == "dataset.sqlite.zip"
+    assert manifest["dataset"]["file"] == "immich-cn-dataset-sqlite-v1.zip"
     assert manifest["dataset"]["format"] == "immich-cn.dataset/1"
     assert manifest["dataset"]["schemaVersion"] == 1
     assert manifest["license"]["code"] == "MIT"
@@ -160,7 +153,7 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
     assert stats["perCountry"]["CN"] > 0
     assert sum(stats["perCountry"].values()) == stats["outputPlaces"]
 
-    with zipfile.ZipFile(dist / "geodata_admin_2_admin_3_full.zip") as zf:
+    with zipfile.ZipFile(dist / "immich-cn-geodata-immich-admin2-admin3-full-v1.zip") as zf:
         names = set(zf.namelist())
         assert "geodata/cities500.txt" in names
         assert "geodata/build-info.json" in names
@@ -170,33 +163,38 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
     assert rows["9100"][1] == "苏州市 昆山市"
     assert "9101" in rows, "full 变体应保留人口为 0 的补充点位"
 
-    with zipfile.ZipFile(dist / "geodata_admin_2.zip") as zf:
+    with zipfile.ZipFile(dist / "immich-cn-geodata-immich-admin2-default-v1.zip") as zf:
         payload = zf.read("geodata/cities500.txt").decode("utf-8").splitlines()
     rows = {line.split("\t")[0]: line.split("\t") for line in payload}
     assert rows["1886760"][1] == "苏州市"
     assert "9101" not in rows
 
-    with zipfile.ZipFile(dist / "i18n-iso-countries.zip") as zf:
+    with zipfile.ZipFile(dist / "immich-cn-i18n-json-v1.zip") as zf:
         license_text = zf.read("LICENSE").decode("utf-8")
     assert "MIT License" in license_text
     assert "Copyright" in license_text
 
-    checksums = (dist / "SHA256SUMS").read_text(encoding="utf-8")
-    assert "geodata.zip" in checksums
-    assert "dataset.sqlite.zip" in checksums
+    checksums = (dist / "immich-cn-checksums-sha256-v1.txt").read_text(encoding="utf-8")
+    assert "immich-cn-geodata-immich-admin2-default-v1.zip" in checksums
+    assert "immich-cn-dataset-sqlite-v1.zip" in checksums
 
 
 def test_canonical_dataset_is_queryable_and_preserves_immich_boundary(build_options: BuildOptions) -> None:
     result = run_build(build_options)
     package_all(build_options, result)
 
-    archive_path = build_options.dist_dir / "dataset.sqlite.zip"
+    archive_path = build_options.dist_dir / "immich-cn-dataset-sqlite-v1.zip"
     with zipfile.ZipFile(archive_path) as archive:
-        assert set(archive.namelist()) == {"dataset.sqlite", "schema.json", "NOTICE.txt", "README.txt"}
+        assert set(archive.namelist()) == {
+            "immich-cn-dataset-v1.sqlite",
+            "schema.json",
+            "NOTICE.txt",
+            "README.txt",
+        }
         schema = json.loads(archive.read("schema.json").decode("utf-8"))
         assert schema["compatibility"]["immich"].startswith("通过 geodata*.zip")
         database = build_options.work_dir / "extracted-dataset.sqlite"
-        database.write_bytes(archive.read("dataset.sqlite"))
+        database.write_bytes(archive.read("immich-cn-dataset-v1.sqlite"))
 
     connection = sqlite3.connect(database)
     try:
@@ -218,9 +216,9 @@ def test_canonical_dataset_is_queryable_and_preserves_immich_boundary(build_opti
 def test_canonical_dataset_is_deterministic(build_options: BuildOptions) -> None:
     result = run_build(build_options)
     package_all(build_options, result)
-    first = (build_options.dist_dir / "dataset.sqlite.zip").read_bytes()
+    first = (build_options.dist_dir / "immich-cn-dataset-sqlite-v1.zip").read_bytes()
     package_all(build_options, result)
-    second = (build_options.dist_dir / "dataset.sqlite.zip").read_bytes()
+    second = (build_options.dist_dir / "immich-cn-dataset-sqlite-v1.zip").read_bytes()
     assert first == second
 
 
@@ -229,11 +227,11 @@ def test_package_removes_plain_patterns_table(build_options: BuildOptions) -> No
     result = run_build(build_options)
     package_all(build_options, result)
 
-    assert not (build_options.work_dir / "patterns.tsv").exists()
-    compressed = build_options.dist_dir / "patterns.tsv.gz"
+    assert not (build_options.work_dir / "immich-cn-patterns-v1.tsv").exists()
+    compressed = build_options.dist_dir / "immich-cn-patterns-tsv-v1.gz"
     assert compressed.exists()
 
-    expected = build_options.work_dir / "expected-patterns.tsv"
+    expected = build_options.work_dir / "expected-immich-cn-patterns-v1.tsv"
     write_patterns_table(expected, levels=load_levels(result.names_file), patterns=build_options.patterns)
     with gzip.open(compressed, "rb") as handle:
         assert handle.read() == expected.read_bytes()
@@ -256,7 +254,7 @@ def test_package_keeps_plain_patterns_table_with_keep_raw(tmp_path: Path) -> Non
     result = run_build(keep)
     package_all(keep, result)
 
-    assert (keep.work_dir / "patterns.tsv").exists()
+    assert (keep.work_dir / "immich-cn-patterns-v1.tsv").exists()
 
 
 def test_cleanup_removable_does_not_follow_sources_symlink(tmp_path: Path) -> None:
@@ -291,7 +289,7 @@ def test_cleanup_removable_deletes_only_inside_work_dir(tmp_path: Path) -> None:
 
 def test_patterns_table_covers_all_levels(build_options: BuildOptions) -> None:
     result = run_build(build_options)
-    table = build_options.work_dir / "patterns.tsv"
+    table = build_options.work_dir / "immich-cn-patterns-v1.tsv"
     rows = write_patterns_table(table, levels_file=result.names_file, patterns=build_options.patterns)
     assert rows == result.stats.output_places
     header, *body = table.read_text(encoding="utf-8").splitlines()
@@ -301,11 +299,11 @@ def test_patterns_table_covers_all_levels(build_options: BuildOptions) -> None:
 
 def test_build_variants_covers_full_axis() -> None:
     variants = build_variants(("{admin_2}", "{admin_3}"))
-    assert [(variant.slug, variant.full) for variant in variants] == [
-        ("admin_2", False),
-        ("admin_2", True),
-        ("admin_3", False),
-        ("admin_3", True),
+    assert [(variant.profile, variant.full) for variant in variants] == [
+        ("admin2", False),
+        ("admin2", True),
+        ("admin3", False),
+        ("admin3", True),
     ]
 
 

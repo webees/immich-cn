@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from immich_cn.config import BuildOptions
-from immich_cn.logging_setup import get_logger
+from immich_cn.logging_config import get_logger
 from immich_cn.providers.amap import AmapEnricher
 from immich_cn.providers.base import NameEnricher, ProviderChain
 from immich_cn.providers.nominatim import NominatimEnricher
+from immich_cn.settings import BuildOptions
 
 logger = get_logger("providers")
 

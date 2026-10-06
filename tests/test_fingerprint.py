@@ -72,6 +72,6 @@ def test_fingerprint_changes_with_tool_version() -> None:
 
 
 def test_fingerprint_from_file(tmp_path: Path) -> None:
-    path = tmp_path / "manifest.json"
+    path = tmp_path / "immich-cn-manifest-json-v1.json"
     path.write_text(json.dumps(make_manifest()), encoding="utf-8")
     assert fingerprint_from_file(str(path)) == data_fingerprint(make_manifest())

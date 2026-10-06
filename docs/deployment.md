@@ -52,7 +52,7 @@ services:
 | `IMMICH_CN_FORCE_RELOAD` | `0` | 设为 `1` 时把 `geodata-date.txt` 更新为当前时间，强制 Immich 重新导入 |
 | `IMMICH_CN_GEODATA_DIR` | `/opt/immich-cn/geodata` | 镜像内数据源目录，一般无需修改 |
 | `IMMICH_CN_LANGS_DIR` | `/opt/immich-cn/i18n-iso-countries/langs` | 镜像内国家名称目录（旧版 Immich 用） |
-| `IMMICH_CN_PATTERNS_TABLE` | `/opt/immich-cn/patterns.tsv.gz` | 运行时粒度切换用的变体表，一般无需修改 |
+| `IMMICH_CN_PATTERNS_TABLE` | `/opt/immich-cn/immich-cn-patterns-tsv-v1.gz` | 运行时粒度切换用的变体表，一般无需修改 |
 | `IMMICH_BUILD_DATA` | `/build` | Immich 自身的构建数据目录，跟随官方镜像即可 |
 
 数据镜像（`ghcr.io/webees/immich-cn`）额外支持：
@@ -91,9 +91,9 @@ services:
 ## 方案 C：只用 Release 数据
 
 ```bash
-curl -fsSL -o geodata.zip \
-  https://github.com/webees/immich-cn/releases/latest/download/geodata.zip
-unzip -o geodata.zip -d .
+curl -fsSL -o immich-cn-geodata-immich-admin2-default-v1.zip \
+  https://github.com/webees/immich-cn/releases/latest/download/immich-cn-geodata-immich-admin2-default-v1.zip
+unzip -o immich-cn-geodata-immich-admin2-default-v1.zip -d .
 ```
 
 解压后得到 `geodata/` 目录，按方案 B 的方式挂载即可。
