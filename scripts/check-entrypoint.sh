@@ -199,4 +199,44 @@ install_missing_langs_case() {
 incomplete_source_case
 install_missing_langs_case
 
+# 参数缺少值时必须给出明确错误，不能被 set -u 的裸 $2 报错覆盖。
+missing_option_value_case() {
+  local output
+  if output="$(sh "$repo_root/docker/install.sh" --target 2>&1)"; then
+    echo "失败：install.sh 缺少 --target 参数时不应成功" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "缺少 --target 参数"; then
+    echo "失败：install.sh 未给出明确参数错误：${output}" >&2
+    exit 1
+  fi
+
+  if output="$(sh "$repo_root/docker/apply-pattern.sh" --source 2>&1)"; then
+    echo "失败：apply-pattern.sh 缺少 --source 参数时不应成功" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "缺少 --source 参数"; then
+    echo "失败：apply-pattern.sh 未给出明确参数错误：${output}" >&2
+    exit 1
+  fi
+  echo "通过：缺失参数值给出明确错误"
+}
+
+root_target_case() {
+  local output
+  if output="$(IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
+      sh "$repo_root/docker/install.sh" --target / 2>&1)"; then
+    echo "失败：根目录必须被拒绝" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "不能为空或根目录"; then
+    echo "失败：根目录目标未给出明确错误：${output}" >&2
+    exit 1
+  fi
+  echo "通过：根目录目标被拒绝"
+}
+
+missing_option_value_case
+root_target_case
+
 echo "入口脚本校验通过"

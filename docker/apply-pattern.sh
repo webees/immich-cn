@@ -10,9 +10,15 @@ pattern=""
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --source) source_dir="$2"; shift 2 ;;
-    --table) table="$2"; shift 2 ;;
-    --pattern) pattern="$2"; shift 2 ;;
+    --source)
+      [ "$#" -ge 2 ] || { echo "缺少 --source 参数" >&2; exit 2; }
+      source_dir="$2"; shift 2 ;;
+    --table)
+      [ "$#" -ge 2 ] || { echo "缺少 --table 参数" >&2; exit 2; }
+      table="$2"; shift 2 ;;
+    --pattern)
+      [ "$#" -ge 2 ] || { echo "缺少 --pattern 参数" >&2; exit 2; }
+      pattern="$2"; shift 2 ;;
     -h|--help)
       sed -n '2,6p' "$0"
       exit 0
@@ -38,6 +44,7 @@ fi
 
 work="$(mktemp -d)"
 # 保留退出码：EXIT trap 的最后一条命令可能覆盖脚本原本的失败状态
+status=0
 trap 'status=$?; rm -rf "$work"; exit $status' EXIT INT TERM
 
 case "$table" in
