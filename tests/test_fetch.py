@@ -226,6 +226,82 @@ def test_fetcher_resumes_when_validator_matches(tmp_path: Path) -> None:
     assert result.record.size_bytes == len(total)
 
 
+def test_fetcher_rejects_unsolicited_206(tmp_path: Path) -> None:
+    """没请求 Range 却收到 206，说明这是片段，绝不能当成完整内容保存。"""
+    total = b"A" * 40
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        # 只返回后半段，但用 206 伪装
+        return httpx.Response(
+            206,
+            content=total[10:],
+            headers={"content-length": "30", "etag": '"v1"', "content-range": "bytes 10-39/40"},
+        )
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.bin", filename="demo.bin")
+    with (
+        Fetcher(
+            tmp_path / "cache",
+            retries=1,
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+        ) as fetcher,
+        pytest.raises(SourceError) as excinfo,
+    ):
+        fetcher.fetch(spec)
+    assert "未请求断点续传却收到 206" in str(excinfo.value)
+    assert not (tmp_path / "cache" / "demo.bin").exists()
+
+
+def test_fetcher_rejects_mismatched_content_range(tmp_path: Path) -> None:
+    """206 的 Content-Range 起点必须与本地分片对齐，否则会拼错数据。"""
+    state = {"phase": 1}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if state["phase"] == 1:
+            state["phase"] = 2
+            return httpx.Response(200, content=b"A" * 10, headers={"content-length": "40", "etag": '"v1"'})
+        assert request.headers.get("range") == "bytes=10-"
+        # 起点写错（0 而不是 10）
+        return httpx.Response(
+            206,
+            content=b"B" * 30,
+            headers={"content-length": "30", "etag": '"v1"', "content-range": "bytes 0-29/40"},
+        )
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.bin", filename="demo.bin")
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with Fetcher(tmp_path / "cache", retries=1, client=client) as fetcher, pytest.raises(SourceError):
+        fetcher.fetch(spec)
+    with Fetcher(tmp_path / "cache", retries=1, client=client) as fetcher, pytest.raises(SourceError) as excinfo:
+        fetcher.fetch(spec)
+    assert "Content-Range 起点" in str(excinfo.value)
+    assert not (tmp_path / "cache" / "demo.bin.part").exists(), "起点不符时必须丢弃分片"
+
+
+def test_fetcher_accepts_correct_content_range(tmp_path: Path) -> None:
+    """Content-Range 与分片对齐时正常续传（防止因噎废食）。"""
+    total = b"A" * 20
+    state = {"phase": 1}
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        if state["phase"] == 1:
+            state["phase"] = 2
+            return httpx.Response(200, content=total[:10], headers={"content-length": "20", "etag": '"v1"'})
+        return httpx.Response(
+            206,
+            content=total[10:],
+            headers={"content-length": "10", "etag": '"v1"', "content-range": "bytes 10-19/20"},
+        )
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.bin", filename="demo.bin")
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with Fetcher(tmp_path / "cache", retries=1, client=client) as fetcher, pytest.raises(SourceError):
+        fetcher.fetch(spec)
+    with Fetcher(tmp_path / "cache", retries=1, client=client) as fetcher:
+        result = fetcher.fetch(spec)
+    assert result.path.read_bytes() == total
+
+
 def test_fetcher_does_not_retry_permanent_client_errors(tmp_path: Path) -> None:
     """404 这类永久错误只应请求一次，避免无谓重试与放大上游压力。"""
     calls: list[int] = []

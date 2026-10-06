@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -54,6 +55,12 @@ def _retry_after_seconds(response: httpx.Response) -> float | None:
 
 def _part_meta_path(part: Path) -> Path:
     return part.parent / f"{part.name}.meta"
+
+
+def _content_range_start(value: str) -> int | None:
+    """从 ``Content-Range: bytes 10-39/40`` 解析起始偏移。"""
+    match = re.match(r"\s*bytes\s+(\d+)-", value)
+    return int(match.group(1)) if match else None
 
 
 def _load_part_meta(path: Path) -> dict[str, str]:
@@ -302,6 +309,19 @@ class Fetcher:
 
             response_etag = response.headers.get("etag")
             response_last_modified = response.headers.get("last-modified")
+            if response.status_code == 206:
+                # 206 只能出现在"我们主动请求了 Range"的前提下，
+                # 否则它可能是服务端/缓存返回的片段，直接保存会得到截断文件。
+                if not resume_from:
+                    raise SourceError(f"{spec.name} 未请求断点续传却收到 206 响应，拒绝作为完整内容保存")
+                start = _content_range_start(response.headers.get("content-range", ""))
+                if start is not None and start != resume_from:
+                    part.unlink(missing_ok=True)
+                    _part_meta_path(part).unlink(missing_ok=True)
+                    raise SourceError(
+                        f"{spec.name} 的 Content-Range 起点 {start} 与本地分片 {resume_from} 不符，"
+                        "已丢弃分片改为完整重下"
+                    )
             if resume_from and response.status_code == 206:
                 # 206 的校验值必须与本地分片一致，否则会拼出两个版本的混合文件
                 if not expected_etag or response_etag != expected_etag:
