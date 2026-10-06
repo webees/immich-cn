@@ -25,6 +25,8 @@ from immich_cn.chinese import (
     ChineseNameIndex,
     NameOverrides,
     build_name_index,
+    is_japanese_language,
+    language_rank,
     to_variant,
 )
 from immich_cn.config import (
@@ -452,7 +454,12 @@ def _wanted_geoname_ids(
 
 
 def _alternate_stream(path: Path, wanted: set[int]) -> Iterator[tuple[int, str, str, bool, bool]]:
-    for record in iter_alternate_names(path, wanted):
+    def wanted_language(language: str) -> bool:
+        if not language or language[0] not in "zZjJ":
+            return False
+        return language_rank(language) is not None or is_japanese_language(language)
+
+    for record in iter_alternate_names(path, wanted, language_filter=wanted_language):
         yield (record.geoname_id, record.language, record.name, record.preferred, record.historic)
 
 
