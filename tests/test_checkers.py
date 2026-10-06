@@ -101,6 +101,24 @@ def test_check_docs_detects_undocumented_env_var(repo_copy: Path) -> None:
     assert "IMMICH_CN_UNDOCUMENTED_PROBE" in result.stdout
 
 
+def test_check_docs_detects_env_default_drift(repo_copy: Path) -> None:
+    """docs/development.md 把默认值写错时必须被报出。"""
+    development = repo_copy / "docs" / "development.md"
+    mutate(development, "| `IMMICH_CN_AMAP_QPS` | `3` |", "| `IMMICH_CN_AMAP_QPS` | `5` |")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "实现为" in result.stdout
+
+
+def test_check_docs_detects_env_default_source_change(repo_copy: Path) -> None:
+    """实现默认值变化但文档未同步时必须被报出。"""
+    amap = repo_copy / "src" / "immich_cn" / "providers" / "amap.py"
+    mutate(amap, 'positive_int_env("IMMICH_CN_AMAP_QPS", 3)', 'positive_int_env("IMMICH_CN_AMAP_QPS", 9)')
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "IMMICH_CN_AMAP_QPS" in result.stdout
+
+
 def test_check_docs_detects_cli_flag_drift(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     mutate(readme, "## 快速开始", "`immich-cn all --definitely-not-a-flag`\n\n## 快速开始")

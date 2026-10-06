@@ -149,6 +149,57 @@ def check_env(doc_text: str, code_text: str, errors: list[str]) -> None:
         errors.append(f"实现的环境变量未出现在文档中：{name}")
 
 
+#: 需要在 docs/development.md 表格中标注默认值的环境变量及其实现位置。
+ENV_DEFAULT_FILES = {
+    "IMMICH_CN_AMAP_QPS": Path("src/immich_cn/providers/amap.py"),
+    "IMMICH_CN_AMAP_BATCH_SIZE": Path("src/immich_cn/providers/amap.py"),
+    "IMMICH_CN_NOMINATIM_QPS": Path("src/immich_cn/providers/nominatim.py"),
+    "IMMICH_CN_LOG_LEVEL": Path("src/immich_cn/logging_config.py"),
+}
+#: 默认值来自模块级 DEFAULT_COUNTRIES 常量的环境变量。
+ENV_DEFAULT_COUNTRY_FILES = {
+    "IMMICH_CN_AMAP_COUNTRIES": Path("src/immich_cn/providers/amap.py"),
+    "IMMICH_CN_NOMINATIM_COUNTRIES": Path("src/immich_cn/providers/nominatim.py"),
+}
+
+
+def _implemented_env_defaults() -> dict[str, str]:
+    """从实现源码解析文档表格需要标注的环境变量默认值。"""
+    defaults: dict[str, str] = {}
+    for name, path in ENV_DEFAULT_FILES.items():
+        text = path.read_text(encoding="utf-8")
+        match = re.search(rf'positive_int_env\(\s*"{name}"\s*,\s*(\d+)\s*\)', text)
+        if match is None:
+            match = re.search(rf'environ\.get\(\s*"{name}"\s*,\s*"([^"]*)"', text)
+        if match is not None:
+            defaults[name] = match.group(1)
+    for name, path in ENV_DEFAULT_COUNTRY_FILES.items():
+        codes = re.search(r"DEFAULT_COUNTRIES = \(([^)]*)\)", path.read_text(encoding="utf-8"))
+        if codes is not None:
+            defaults[name] = ",".join(re.findall(r'"([A-Za-z]{2})"', codes.group(1)))
+    return defaults
+
+
+def check_env_defaults(errors: list[str]) -> None:
+    """docs/development.md 记录的环境变量默认值必须与实现一致。"""
+    path = Path("docs/development.md")
+    rows = re.findall(
+        r"^\|\s*`(IMMICH_[A-Z0-9_]+)`\s*\|\s*`([^`]*)`\s*\|",
+        path.read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
+    documented = dict(rows)
+    implemented = _implemented_env_defaults()
+    if not implemented:
+        errors.append("未能从实现源码解析到环境变量默认值，护栏可能已失效")
+        return
+    for name, expected in sorted(implemented.items()):
+        if name not in documented:
+            errors.append(f"docs/development.md 缺少 {name} 的默认值行（实现默认 {expected!r}）")
+        elif documented[name] != expected:
+            errors.append(f"docs/development.md 记录 {name} 默认 {documented[name]!r}，实现为 {expected!r}")
+
+
 def check_cli(doc_text: str, errors: list[str]) -> None:
     commands, flags = _cli_surface()
     for command, flag_text in CLI_PATTERN.findall(doc_text):
@@ -442,6 +493,7 @@ def main(argv: list[str] | None = None) -> int:
 
     errors: list[str] = []
     check_env(doc_text, code_text, errors)
+    check_env_defaults(errors)
     check_cli(doc_text, errors)
     check_make(doc_text, errors)
     check_langs_mounts(doc_files + _expand(("examples/*.yml",)), errors)
