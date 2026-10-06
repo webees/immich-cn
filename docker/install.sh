@@ -23,11 +23,30 @@ while [ "$#" -gt 0 ]; do
 done
 
 mkdir -p "$target"
+
+REQUIRED_FILES="admin1CodesASCII.txt admin2Codes.txt cities500.txt countryInfo.txt geodata-date.txt ne_10m_admin_0_countries.geojson"
+missing_files=""
+for name in $REQUIRED_FILES; do
+  if [ ! -f "$geodata_root/$name" ]; then
+    missing_files="${missing_files} ${name}"
+  fi
+done
+if [ -n "$missing_files" ]; then
+  echo "错误：geodata 源缺少必需文件：${missing_files# }" >&2
+  echo "      请检查 IMMICH_CN_GEODATA_DIR=${geodata_root}" >&2
+  exit 1
+fi
+
 rm -rf "$target/geodata"
 cp -a "$geodata_root" "$target/geodata"
-if [ -n "$langs_root" ] && [ -d "$langs_root" ]; then
-  rm -rf "$target/i18n-iso-countries"
-  cp -a "$langs_root" "$target/i18n-iso-countries"
+if [ -n "$langs_root" ]; then
+  if [ -d "$langs_root" ]; then
+    rm -rf "$target/i18n-iso-countries"
+    cp -a "$langs_root" "$target/i18n-iso-countries"
+  else
+    # 旧版 Immich 才需要国家名称覆盖；静默跳过会让用户以为已经生效
+    echo "警告：未找到国家名称目录，已跳过：${langs_root}" >&2
+  fi
 fi
 
 if [ -n "$pattern" ] && [ "$pattern" != "{admin_2}" ]; then
