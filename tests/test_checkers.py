@@ -643,6 +643,15 @@ def test_check_workflows_detects_incomplete_failure_notifier(repo_copy: Path) ->
     assert "notify-failure 的 needs 未覆盖" in result.stdout
 
 
+def test_check_workflows_requires_compose_example_validation(repo_copy: Path) -> None:
+    """CI 必须用 docker compose config 校验 examples/，否则文档示例会悄悄失效。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    mutate(workflow, 'docker compose -f "$file" config >/dev/null', "true")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "docker compose config" in result.stdout
+
+
 def test_check_workflows_detects_illegal_key_on_reusable_job(repo_copy: Path) -> None:
     """这次修复过的真实事故：reusable 调用 job 上出现 timeout-minutes。"""
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
