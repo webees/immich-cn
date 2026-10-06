@@ -133,6 +133,16 @@ def create_synthetic_sources(work_dir: Path, langs_dir: Path) -> Path:
                 admin2="061",
                 population=8_804_190,
             ),
+            # 国家没有 admin1/2 层级时，仍应回退到中文国名而不是输出英文原值
+            geo_row(
+                1880252,
+                "Singapore",
+                alternates="新加坡,Singapore",
+                latitude="1.28967",
+                longitude="103.85007",
+                country="SG",
+                population=5_637_000,
+            ),
             # 缺少有效 admin1，应被过滤掉
             geo_row(9999999, "Ghost Town", latitude="1", longitude="1", admin1="ZZ", population=10),
         ],
@@ -304,7 +314,14 @@ def create_synthetic_sources(work_dir: Path, langs_dir: Path) -> Path:
         json.dumps(
             {
                 "locale": "zh",
-                "countries": {"CN": "中国", "HK": "中国香港", "TW": "中国台湾", "JP": "日本", "US": "美国"},
+                "countries": {
+                    "CN": "中国",
+                    "HK": "中国香港",
+                    "TW": "中国台湾",
+                    "JP": "日本",
+                    "US": "美国",
+                    "SG": "新加坡",
+                },
             },
             ensure_ascii=False,
         ),

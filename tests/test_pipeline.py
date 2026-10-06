@@ -46,6 +46,7 @@ def test_end_to_end_build(build_options: BuildOptions) -> None:
     assert rows["1816670"][1] == "北京市"
     assert rows["1819729"][1] == "元朗区"
     assert rows["1668341"][1] == "台北市"
+    assert rows["1880252"][1] == "新加坡"
 
     # 非 full 变体：人口为 0 的补充点位不写入 geodata 目录
     assert "9101" not in rows
