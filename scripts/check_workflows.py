@@ -197,6 +197,8 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
         or text.count("org.immich-cn.data-date") < 2
     ):
         errors.append(f"{path} OCI version 未使用项目版本，或缺少独立的数据日期标签")
+    if "org.opencontainers.image.licenses=AGPL-3.0-only AND MIT" not in text:
+        errors.append(f"{path} server 组合镜像未声明 AGPL-3.0-only AND MIT")
 
 
 def check_version_release(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:

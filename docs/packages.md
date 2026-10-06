@@ -15,6 +15,9 @@ GHCR 中有两个容器包，它们不是重复镜像，也不是可互换别名
 两者都包含同一份 geodata，但用途、入口和升级边界不同。不要用数据镜像替换 Immich server，
 也不要假设两个包的 `latest` 摘要相同。
 
+许可证也不同：`immich-cn` 的数据处理层按 MIT 发布；`immich-cn-server` 包含上游
+Immich server 代码，整体按 `AGPL-3.0-only AND MIT` 分发。
+
 ## 标签
 
 | Package | 标签 | 用途 |
