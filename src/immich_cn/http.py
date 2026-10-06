@@ -6,6 +6,8 @@ import hashlib
 import json
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 import httpx
@@ -18,7 +20,36 @@ from immich_cn.models import SourceRecord
 logger = get_logger("http")
 
 _CHUNK = 1024 * 1024
+#: 只有这些状态码才值得重试；其余 4xx 视为永久失败，立即放弃（避免无谓重试与放大限流）。
 _RETRY_STATUS = {408, 425, 429, 500, 502, 503, 504}
+_MAX_RETRY_DELAY = 120.0
+
+
+def _retry_delay(attempt: int, error: Exception) -> float:
+    """计算退避时间：优先遵循上游的 ``Retry-After``，否则指数退避。"""
+    response = getattr(error, "response", None)
+    if isinstance(response, httpx.Response):
+        hint = _retry_after_seconds(response)
+        if hint is not None:
+            return hint
+    return float(min(2**attempt, 30))
+
+
+def _retry_after_seconds(response: httpx.Response) -> float | None:
+    raw = response.headers.get("retry-after")
+    if not raw:
+        return None
+    value = raw.strip()
+    if value.isdigit():
+        return min(float(value), _MAX_RETRY_DELAY)
+    try:
+        when = parsedate_to_datetime(value)
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=UTC)
+        delta = (when - datetime.now(UTC)).total_seconds()
+    except (TypeError, ValueError, AttributeError):
+        return None
+    return max(0.0, min(delta, _MAX_RETRY_DELAY))
 
 
 def sha256_file(path: Path) -> str:
@@ -179,9 +210,16 @@ class Fetcher:
                 return self._stream_to_file(spec, target, part, headers)
             except (httpx.HTTPError, SourceError) as error:
                 last_error = error
+                if isinstance(error, httpx.HTTPStatusError) and error.response.status_code not in _RETRY_STATUS:
+                    logger.warning(
+                        "下载 %s 失败且不可重试：HTTP %s",
+                        spec.name,
+                        error.response.status_code,
+                    )
+                    break
                 if attempt == self._retries:
                     break
-                delay = min(2**attempt, 30)
+                delay = _retry_delay(attempt, error)
                 logger.warning("下载 %s 失败（第 %d 次）：%s；%.0fs 后重试", spec.name, attempt, error, delay)
                 time.sleep(delay)
         raise SourceError(f"下载 {spec.url} 失败：{last_error}") from last_error
