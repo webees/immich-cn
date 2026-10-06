@@ -114,3 +114,13 @@ def test_compose_matches_reference_implementation(pattern: str) -> None:
     """优化后的 compose 必须与优化前逐字节一致（防止为性能改坏语义）。"""
     for levels in LEVEL_SAMPLES:
         assert compose(pattern, levels) == _reference_compose(pattern, levels), (pattern, levels)
+
+
+def test_contains_cjk_distinguishes_latin_from_chinese() -> None:
+    """上游缺中文别名时会透传英文，contains_cjk 是这类判断的依据。"""
+    from immich_cn.display import contains_cjk
+
+    assert contains_cjk("椒江市")
+    assert contains_cjk("Alxa 右旗")
+    assert not contains_cjk("Jiaojiang Shi")
+    assert not contains_cjk("")
