@@ -53,7 +53,7 @@ make smoke       # 合成数据端到端冒烟
 ## 新增 provider
 
 1. 在 `src/immich_cn/providers/` 下实现 `prefetch()` / `enrich()`；
-2. 在 `providers/__init__.py:build_chain` 中注册；
+2. 在 `src/immich_cn/providers/__init__.py:build_chain` 中注册；
 3. 结果写入 JSONL 缓存，避免重复请求；
 4. 补充单元测试并说明在 `docs/data-sources.md`。
 
