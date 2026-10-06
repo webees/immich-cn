@@ -316,6 +316,22 @@ def test_check_docs_detects_citation_punct_space(repo_copy: Path) -> None:
     assert "中文标点后出现空格" in result.stdout
 
 
+def test_check_docs_requires_i18n_asset_for_release_users(repo_copy: Path) -> None:
+    """geodata zip 不含 langs/，让用户挂载它就必须同时说明要下载 i18n 覆盖包。"""
+    deployment = repo_copy / "docs" / "deployment.md"
+    mutate(
+        deployment,
+        "curl -fsSL -o immich-cn-i18n-json-v1.zip \\\n"
+        "  https://github.com/webees/immich-cn/releases/latest/download/immich-cn-i18n-json-v1.zip\n",
+        "",
+    )
+    mutate(deployment, "unzip -o immich-cn-i18n-json-v1.zip -d i18n-iso-countries", "true")
+
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "immich-cn-i18n-json-v1.zip" in result.stdout
+
+
 def test_check_docs_rejects_misleading_adm4_wording(repo_copy: Path) -> None:
     """把 73 条说成 GeoNames 的 ADM4 总数会被严重误读，必须拦下。"""
     readme = repo_copy / "README.md"

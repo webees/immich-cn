@@ -89,7 +89,19 @@ docker run --rm -v "$PWD/immich-cn:/out" ghcr.io/webees/immich-cn:latest --targe
 
 ### 方式三：下载 Release 数据
 
-在 [Releases](https://github.com/webees/immich-cn/releases) 页面下载 `immich-cn-geodata-admin2-default-v1.zip`，解压后按下面的路径挂载：
+在 [Releases](https://github.com/webees/immich-cn/releases) 页面下载两个资产，按下面命令解压即可得到与挂载路径一致的目录结构：
+
+```bash
+curl -fsSL -o immich-cn-geodata-admin2-default-v1.zip \
+  https://github.com/webees/immich-cn/releases/latest/download/immich-cn-geodata-admin2-default-v1.zip
+curl -fsSL -o immich-cn-i18n-json-v1.zip \
+  https://github.com/webees/immich-cn/releases/latest/download/immich-cn-i18n-json-v1.zip
+unzip -o immich-cn-geodata-admin2-default-v1.zip -d .
+mkdir -p i18n-iso-countries
+unzip -o immich-cn-i18n-json-v1.zip -d i18n-iso-countries
+```
+
+`immich-cn-geodata-*.zip` 里只有 `geodata/`；国家名称覆盖单独发布为 `immich-cn-i18n-json-v1.zip`，其成员是 `langs/` 与上游 `LICENSE`，所以要解压到 `i18n-iso-countries/` 下才对得上后面的挂载路径。Immich 3.3.0 起改读 `countryInfo.txt`，不再需要这个覆盖包。
 
 ```yaml
 volumes:

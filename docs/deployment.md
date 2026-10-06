@@ -94,10 +94,14 @@ services:
 ```bash
 curl -fsSL -o immich-cn-geodata-admin2-default-v1.zip \
   https://github.com/webees/immich-cn/releases/latest/download/immich-cn-geodata-admin2-default-v1.zip
+curl -fsSL -o immich-cn-i18n-json-v1.zip \
+  https://github.com/webees/immich-cn/releases/latest/download/immich-cn-i18n-json-v1.zip
 unzip -o immich-cn-geodata-admin2-default-v1.zip -d .
+mkdir -p i18n-iso-countries
+unzip -o immich-cn-i18n-json-v1.zip -d i18n-iso-countries
 ```
 
-解压后得到 `geodata/` 目录，按方案 B 的方式挂载即可。
+解压后得到 `geodata/` 与 `i18n-iso-countries/langs/`，按方案 B 的方式挂载即可。注意国家名称覆盖是**独立资产**：`immich-cn-geodata-*.zip` 里没有 `langs/`，只下载它会缺失 Immich 1.136.0 ~ 3.2.x 需要的国家名覆盖（3.3.0 起 Immich 改读 `countryInfo.txt`，不再需要）。
 
 ## 让中文地名立即生效
 
