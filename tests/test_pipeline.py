@@ -123,6 +123,10 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
     assert manifest["tool"]["name"] == "immich-cn"
     assert len(manifest["variants"]) == 4
     assert manifest["license"]["code"] == "MIT"
+    stats = manifest["stats"]
+    assert stats["droppedPlaces"] > 0
+    assert stats["perCountry"]["CN"] > 0
+    assert sum(stats["perCountry"].values()) == stats["outputPlaces"]
 
     with zipfile.ZipFile(dist / "geodata_admin_2_admin_3_full.zip") as zf:
         names = set(zf.namelist())

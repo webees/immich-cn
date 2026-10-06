@@ -11,7 +11,6 @@ IDX_NAME = 1
 IDX_ALTERNATENAMES = 3
 IDX_LATITUDE = 4
 IDX_LONGITUDE = 5
-IDX_FEATURE_CLASS = 6
 IDX_FEATURE_CODE = 7
 IDX_COUNTRY_CODE = 8
 IDX_ADMIN1 = 10
@@ -57,10 +56,6 @@ class Place:
     @property
     def admin4_code(self) -> str:
         return self.columns[IDX_ADMIN4]
-
-    @property
-    def feature_class(self) -> str:
-        return self.columns[IDX_FEATURE_CLASS]
 
     @property
     def feature_code(self) -> str:

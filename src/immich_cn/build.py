@@ -141,18 +141,20 @@ def run_build(options: BuildOptions) -> BuildResult:
     stats.admin4_entries = len(admin_units[4])
 
     cities500_file = options.work_dir / "cities500.txt"
-    existing_ids, existing_locations = _prepare_cities500(paths.cities500, cities500_file, admin1_raw)
+    existing_ids, existing_locations, dropped_cities = _prepare_cities500(paths.cities500, cities500_file, admin1_raw)
+    stats.dropped_places = dropped_cities
     stats.source_places = len(existing_ids)
     logger.info("cities500 有效记录：%d 条", stats.source_places)
 
     extra_file = options.work_dir / "extra_all.txt"
-    extra_ids = _select_extra_places(
+    extra_ids, dropped_extra = _select_extra_places(
         paths.country_dumps,
         extra_file,
         admin1_raw=admin1_raw,
         existing_ids=existing_ids,
         existing_locations=existing_locations,
     )
+    stats.dropped_places += dropped_extra
     stats.extra_places = len(extra_ids)
 
     wanted = _wanted_geoname_ids(existing_ids, extra_ids, admin1_raw, admin2_raw, admin_units)
@@ -384,21 +386,23 @@ def _prepare_cities500(
     path: Path,
     output: Path,
     admin1_raw: dict[str, AdminEntry],
-) -> tuple[set[int], set[tuple[str, str]]]:
+) -> tuple[set[int], set[tuple[str, str]], int]:
     """过滤 cities500 并落盘为 canonical 版本，后续阶段只读这一份。"""
     ids: set[int] = set()
     locations: set[tuple[str, str]] = set()
+    dropped = 0
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8") as sink:
         for count, place in enumerate(iter_places(path), start=1):
             if not keep_place(place, admin1_raw):
+                dropped += 1
                 continue
             ids.add(place.geoname_id)
             locations.add(place.location_key)
             sink.write(place.to_line() + "\n")
             if count % PROGRESS_EVERY == 0:
                 logger.info("扫描 cities500：%d 行", count)
-    return ids, locations
+    return ids, locations, dropped
 
 
 def _select_extra_places(
@@ -408,7 +412,7 @@ def _select_extra_places(
     admin1_raw: dict[str, AdminEntry],
     existing_ids: set[int],
     existing_locations: set[tuple[str, str]],
-) -> set[int]:
+) -> tuple[set[int], int]:
     """把国家全量 dump 中不在 cities500 的记录写入 ``extra_all.txt``。
 
     这里保留全部候选，是否进入非 full 变体留到打包阶段按人口过滤，
@@ -417,6 +421,7 @@ def _select_extra_places(
     output.parent.mkdir(parents=True, exist_ok=True)
     ids: set[int] = set()
     count = 0
+    dropped = 0
     with output.open("w", encoding="utf-8") as sink:
         for path in country_dumps:
             if not path.exists():
@@ -424,8 +429,10 @@ def _select_extra_places(
                 continue
             for place in iter_places(path):
                 if not keep_place(place, admin1_raw):
+                    dropped += 1
                     continue
                 if place.geoname_id in existing_ids or place.location_key in existing_locations:
+                    dropped += 1
                     continue
                 existing_locations.add(place.location_key)
                 ids.add(place.geoname_id)
@@ -434,7 +441,7 @@ def _select_extra_places(
                 if count % PROGRESS_EVERY == 0:
                     logger.info("筛选额外地点：%d 条", count)
     logger.info("额外地点候选：%d 条", count)
-    return ids
+    return ids, dropped
 
 
 def _wanted_geoname_ids(
@@ -503,6 +510,7 @@ def _write_levels(
     """写 ``geonameId -> 四级名称`` 映射表（full 超集，供所有变体共用）。"""
     written = 0
     fallback = 0
+    count_country = stats.count_country
     with output.open("w", encoding="utf-8") as sink:
         for place in iter_output_places(
             cities500=cities500,
@@ -529,6 +537,7 @@ def _write_levels(
                 )
                 + "\n"
             )
+            count_country(place.country_code)
             written += 1
             if written % PROGRESS_EVERY == 0:
                 logger.info("生成名称表：%d 条", written)
