@@ -266,6 +266,15 @@ def test_check_docs_detects_new_manifest_field(repo_copy: Path) -> None:
     assert "probeNewField" in result.stdout
 
 
+def test_check_docs_requires_manifest_stats_scope(repo_copy: Path) -> None:
+    """stats 是规范层 full 口径，缺少口径说明时必须被报出。"""
+    spec = repo_copy / "docs" / "artifact-spec.md"
+    mutate(spec, "`sourcePlaces + extraPlaces == outputPlaces`；", "记录数之间的关系见实现；")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "未说明 stats 口径" in result.stdout
+
+
 def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     mutate(readme, "本项目按独立实现组织", "本项目是独立重写版本")

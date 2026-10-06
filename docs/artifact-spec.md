@@ -84,7 +84,7 @@ immich-cn-geodata-admin2-admin3-full-v1.zip
 | `tool` | 生成工具的名称、版本与 CI 修订 |
 | `generatedAt` | 本次构建时间 |
 | `providers` | 本次使用的 provider 列表 |
-| `stats` | 各级记录数、去重与覆盖率统计 |
+| `stats` | **规范层口径**的各级记录数、去重与覆盖率统计（见下文「stats 口径」） |
 | `index` | 中文名称索引规模 |
 | `adminEntries` | 行政层级条目数 |
 | `config` | 构建配置快照 |
@@ -99,6 +99,20 @@ immich-cn-geodata-admin2-admin3-full-v1.zip
 `artifacts` 的元素包含 `pattern`、`full`、`file`、`id`、`profile`、`scope`、
 `schemaVersion`、`canonicalFile`、`sizeBytes` 与 `sha256`；`assets` 的元素包含
 `file`、`kind`、`sizeBytes` 与 `sha256`。上面的 JSON 只展示命名与摘要相关字段。
+
+### `stats` 口径
+
+`stats` 描述的是**规范层（full 名称表）**，不是某一个 zip 的文件内容：
+
+- `sourcePlaces + extraPlaces == outputPlaces`；
+- `perCountry` 各项之和等于 `outputPlaces`，按同一 full 口径统计；
+- 非 full 变体在打包时按人口阈值过滤 extra 记录，因此变体的实际行数小于 `outputPlaces`；
+  每个变体的 pattern 与 full 状态记录在包内 `geodata/build-info.json`，行数以包内
+  `cities500.txt` 为准。
+
+实测示例（Release `data-2026-10-06`）：`outputPlaces=1318848`、`perCountry.CN=956792`，
+而 `immich-cn-geodata-admin2-default-v1.zip` 内 `cities500.txt` 为 256,644 行、其中 CN 34,897 行
+（= `sourcePlaces` 235,649 + 人口 ≥100 的 extra 20,995）。把 `stats` 当作“这个 zip 有多少条记录”会高估。
 
 `assets` 是完整发布文件索引；`artifacts` 是 canonical geodata 索引。manifest 与
 checksums 文件自身不列入 `assets`，由 `immich-cn-checksums-sha256-v1.txt` 覆盖。
