@@ -61,7 +61,17 @@ schema 版本。
 ```
 
 稳定入口 `geodata.zip` 与 `geodata_full.zip` 继续保留；其他旧变体名只作为迁移期兼容名，
-不再新增重复的默认 profile 资产。
+不再新增重复的默认 profile 资产。`legacyAliases` 为每个旧变体文件名提供到 canonical ID
+的机械映射，例如：
+
+```json
+{
+  "legacyAliases": {
+    "geodata_admin_2_admin_3.zip": "geodata.immich.admin2-admin3.default.v1",
+    "geodata_admin_2_admin_3_full.zip": "geodata.immich.admin2-admin3.full.v1"
+  }
+}
+```
 
 ## 解析 canonical 制品
 
@@ -73,6 +83,9 @@ immich-cn artifact resolve --manifest dist/manifest.json \
 
 immich-cn artifact resolve --manifest dist/manifest.json \
   --alias geodata.zip
+
+immich-cn artifact resolve --manifest dist/manifest.json \
+  --alias geodata_admin_2_admin_3.zip
 
 immich-cn artifact resolve --manifest dist/manifest.json \
   --profile admin2-admin3 --scope full

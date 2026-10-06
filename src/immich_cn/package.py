@@ -248,6 +248,7 @@ def _write_manifest(options: BuildOptions, result: BuildResult, package_result: 
     if (options.dist_dir / "geodata_full.zip").exists():
         aliases["geodata_full.zip"] = artifact_id(DEFAULT_PATTERN, True)
     manifest["aliases"] = aliases
+    manifest["legacyAliases"] = {str(item["file"]): str(item["id"]) for item in package_result.variants}
     manifest["patternsTable"] = "patterns.tsv.gz"
     if package_result.dataset is not None:
         manifest["dataset"] = {

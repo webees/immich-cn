@@ -61,9 +61,15 @@ def resolve_artifact(
 
     if alias:
         aliases = manifest.get("aliases")
-        if not isinstance(aliases, dict) or alias not in aliases:
+        legacy_aliases = manifest.get("legacyAliases")
+        combined: dict[str, object] = {}
+        if isinstance(aliases, dict):
+            combined.update(aliases)
+        if isinstance(legacy_aliases, dict):
+            combined.update(legacy_aliases)
+        if alias not in combined:
             raise ConfigError(f"manifest 中没有 alias：{alias}")
-        artifact_id = str(aliases[alias])
+        artifact_id = str(combined[alias])
 
     if artifact_id:
         matches = [item for item in candidates if item.get("id") == artifact_id]
