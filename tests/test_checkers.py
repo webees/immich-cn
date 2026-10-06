@@ -175,6 +175,24 @@ def test_check_docs_detects_missing_referenced_path(repo_copy: Path) -> None:
     assert "引用了不存在的文件" in result.stdout
 
 
+def test_check_docs_detects_undocumented_source(repo_copy: Path) -> None:
+    """新增上游数据源但未同步 docs/data-sources.md 时必须被报出。"""
+    settings = repo_copy / "src" / "immich_cn" / "settings.py"
+    mutate(
+        settings,
+        '        SourceSpec(\n            name="alternateNamesV2",',
+        "        SourceSpec(\n"
+        '            name="probeUndocumentedSource",\n'
+        '            url=f"{GEONAMES_BASE}/probe.txt",\n'
+        '            filename="probe.txt",\n'
+        "        ),\n"
+        '        SourceSpec(\n            name="alternateNamesV2",',
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "未在 docs/data-sources.md 记录" in result.stdout
+
+
 def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     mutate(readme, "本项目按独立实现组织", "本项目是独立重写版本")

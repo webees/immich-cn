@@ -247,6 +247,27 @@ def check_numeric_contracts(errors: list[str]) -> None:
         errors.append(f"Makefile 称首次下载约 {make_download.group(1)} MiB，实际压缩下载约 {FIRST_DOWNLOAD_MIB} MiB")
 
 
+def check_source_contracts(errors: list[str]) -> None:
+    """上游数据源清单必须与 docs/data-sources.md 的表格同步。
+
+    新增或重命名 `SourceSpec` 时必须同步文档，否则文档会静默描述一套不存在的源。
+    """
+    sys.path.insert(0, str(Path("src").resolve()))
+    from immich_cn.settings import geonames_sources, i18n_sources, natural_earth_source
+
+    doc = Path("docs/data-sources.md").read_text(encoding="utf-8")
+    country_placeholder = "{CC}.zip"
+    for source in [*geonames_sources(), natural_earth_source(), *i18n_sources()]:
+        if source.name.startswith("country_dump_"):
+            marker = country_placeholder
+        elif source.name == "i18nIsoCountries":
+            marker = "i18n-iso-countries"
+        else:
+            marker = source.cache_filename
+        if marker not in doc:
+            errors.append(f"上游数据源 {source.name} 未在 docs/data-sources.md 记录（期望出现 {marker!r}）")
+
+
 def check_referenced_paths(doc_files: list[Path], errors: list[str]) -> None:
     """文档中引用的仓库文件必须真实存在（防止重构后路径静默失效）。"""
     inline = re.compile(r"`([^`\s]+)`")
@@ -384,6 +405,7 @@ def main(argv: list[str] | None = None) -> int:
     check_langs_mounts(doc_files + _expand(("examples/*.yml",)), errors)
     check_discoverable(errors)
     check_numeric_contracts(errors)
+    check_source_contracts(errors)
     check_referenced_paths(doc_files, errors)
     check_project_positioning(errors)
     check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
