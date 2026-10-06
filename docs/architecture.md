@@ -56,9 +56,17 @@ Immich 的反向地理编码需要一组固定格式的文本文件（见 `serve
 
 ## 关键设计决策
 
+### 0. 外部契约与内部模型分离
+
+Immich 读取的文件名、列位置和目录结构是外部契约，必须保持稳定；`levels.tsv`、
+`patterns.tsv.gz`、`manifest.json` 和 provider 缓存是本项目自己的内部模型，可以独立演进。
+未来需要新的消费者协议时，应新增适配器或导出器，而不是直接改变 Immich 输出。
+
+该决策的完整背景、后果和未选方案见 [ADR 0001](adr/0001-immich-output-contract.md)。
+
 ### 1. 默认零密钥
 
-上游实现需要高德 API Key 才能生成国内数据。本项目把 provider 拆成可选层：
+本项目的默认设计目标是无需付费 API Key 即可生成国内数据，因此把 provider 拆成可选层：
 
 - `offline`（默认）：只依赖 GeoNames，通过 `admin1CodesASCII.txt`、`admin2Codes.txt` 以及各国家 dump 中的 `ADM3`/`ADM4` 要素自建四级行政层级表。
 - `amap`：配置 `AMAP_API_KEY` 后启用，用高德补充区县/乡镇，结果按坐标缓存到磁盘。
@@ -69,9 +77,9 @@ Immich 的反向地理编码需要一组固定格式的文本文件（见 `serve
 
 ### 2. 展示粒度与数据解耦
 
-上游把 7 种粒度 × 2 种数据规模预生成为 14 个 zip。本项目把「地点 → 四级名称」抽成 `levels.tsv`：
+项目把 7 种粒度 × 2 种数据规模预生成为 14 个 zip，并把「地点 → 四级名称」抽成 `levels.tsv`：
 
-- Python 侧按 `--patterns` 在打包时组合，产出与上游一致的 zip；
+- Python 侧按 `--patterns` 在打包时组合，产出 Immich 可直接读取的 zip；
 - 镜像侧额外附带 `patterns.tsv.gz`，容器启动时用 `awk` 重写 `cities500.txt` 的第 1、2 列，
   因此**同一个镜像可以通过 `IMMICH_CN_PATTERN` 切换粒度**，不需要重新构建或下载。
 

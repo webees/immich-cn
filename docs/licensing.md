@@ -42,10 +42,10 @@
 因此本项目的默认构建**不使用**高德，CI 中也只在你显式配置 Secret 与 `--provider amap` 时才会调用。
 若需要分发高德派生数据，请自行确认是否符合高德的服务条款。
 
-## 与上游项目的关系
+## 项目独立性
 
-本项目在思路上参考了 [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)（GPL-3.0），
-但代码、流水线与配置均为独立实现，不包含上游源代码，也不复用其人工整理的数据文件；
-两者共享的只是 Immich 与 GeoNames 的公开数据格式。因此本项目可以以 MIT 发布。
+本仓库以独立实现为原则，不包含从其他同类项目复制的源代码或人工整理的数据文件。
+项目使用 Immich、GeoNames、Natural Earth、i18n-iso-countries 等公开接口和公开数据格式；
+各部分许可与再分发义务以本文和 [NOTICE](../NOTICE) 为准。
 
 如果你认为本项目侵犯了你的权利，请提交 issue，我们会尽快处理。

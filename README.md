@@ -9,19 +9,37 @@
 
 Immich 的反向地理编码默认输出英文地名，本项目的目标是让照片地图显示**熟悉的中文地名**，并且可以直接用中文搜索地点。
 
-本项目是 [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn) 的独立重写版本，在保留相同数据格式与使用方式的前提下，重新设计了构建流水线与发布方式：
+本项目是完全独立的实现，不包含或改写其他项目的代码，也不复用其人工整理的数据文件。
+项目采用 **MIT** 许可；数据来源和再分发要求单独说明，见 [docs/licensing.md](docs/licensing.md)。
 
-| 维度 | 上游项目 | 本项目 |
-|:--|:--|:--|
-| 代码许可 | GPL-3.0 | **MIT**（数据许可单独说明，见 [docs/licensing.md](docs/licensing.md)） |
-| 构建入口 | Shell 脚本串联 | 可测试的 Python 包 + 统一 CLI |
-| 外部依赖 | 必须提供高德 API Key | **默认零密钥**（GeoNames 离线层级表），高德/Nominatim 作为可选增强 |
-| 行政区粒度 | 四级别依赖 Amap | 从 GeoNames `ADM3`/`ADM4` 自建区县、乡镇表，离线即可覆盖 |
-| 发布方式 | Release zip | **Release zip + GHCR 镜像**（数据镜像 + 开箱即用的 Immich 镜像） |
-| 粒度切换 | 下载不同 zip | 同一镜像内用 `IMMICH_CN_PATTERN` 环境变量切换 |
-| 更新频率 | 每周一次 | **每天自动检查并更新**（含 ETag 增量校验） |
-| 数据来源追踪 | 无 | 每次构建写入源文件 SHA256、ETag、统计到 `manifest.json` |
-| 校验 | 无 | 构建后自动执行结构、覆盖率、去重校验 |
+设计重点不是复制某个目录结构，而是把职责拆清楚：
+
+| 维度 | 本项目设计 |
+|:--|:--|
+| 构建入口 | 可测试的 Python 包 + 统一 CLI |
+| 默认运行 | 零密钥，GeoNames 离线层级表即可完成构建 |
+| 可选增强 | 高德 / Nominatim provider，带限速与磁盘缓存 |
+| 发布方式 | Release zip + GHCR 数据镜像 + 开箱即用的 Immich 覆盖镜像 |
+| 粒度切换 | 同一镜像内用 `IMMICH_CN_PATTERN` 切换，无需重新构建 |
+| 更新频率 | 每天自动检查并更新，含 ETag 增量校验与发布指纹 |
+| 数据追踪 | 每次构建记录源文件 SHA256、ETag、统计与输出摘要 |
+| 发布校验 | 结构、覆盖率、去重、制品哈希、容器 smoke、Trivy 与 Cosign |
+
+## 为什么保留 Immich 输出格式
+
+输出文件不是本项目的私有格式，而是 Immich 直接读取的外部契约。`cities500.txt`、
+`admin1CodesASCII.txt`、`admin2Codes.txt`、`countryInfo.txt`、`geodata-date.txt` 和
+GeoJSON 的文件名、列位置与语义都由 Immich 决定。只要仍以官方 Immich 作为消费者，
+任意“更先进”的格式都会直接破坏兼容性，除非同时修改 Immich 或增加适配层。
+
+本项目因此采用两层设计：
+
+- **外部契约层**：保持 Immich 可读取的文件名和列格式，确保替换数据目录或镜像即可使用；
+- **内部格式层**：使用自身设计的 `levels.tsv`、`patterns.tsv.gz`、`manifest.json`、provider
+  缓存和可测试 CLI。内部模型、构建流程、校验和发布方式可以独立演进。
+
+如果未来出现新的消费者协议，应新增适配器或导出器，而不是让现有 Immich 用户被动迁移。
+完整决策见 [ADR 0001](docs/adr/0001-immich-output-contract.md)。
 
 ## 全自动更新机制
 
@@ -173,13 +191,9 @@ release.yml ──► 手动创建语义化版本 Release
 - [许可与署名](docs/licensing.md)
 - [常见问题](docs/faq.md)
 
-## 与上游项目的关系
-
-本项目只复用 Immich 与 GeoNames 的**公开数据格式**，代码与流水线均为重新实现，不包含上游项目的源代码或人工整理的数据文件。数据格式兼容意味着你可以直接用本项目替换上游的数据目录。
-
 ## 致谢
 
-- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)：最初的思路与数据格式探索。
+- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)：早期中文 Immich geodata 思路提供了启发；本项目代码、流水线和数据产物均为独立实现。
 - [Immich](https://github.com/immich-app/immich)：反向地理编码的实现与文档。
 - [GeoNames](https://www.geonames.org/)、[Natural Earth](https://www.naturalearthdata.com/)、[OpenStreetMap](https://www.openstreetmap.org/)：开放地理数据。
 
