@@ -17,6 +17,7 @@ import tarfile
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 
 from immich_cn import SCHEMA_VERSION, __version__
@@ -728,10 +729,9 @@ def load_levels(path: Path) -> dict[int, tuple[str, str, str, str, str]]:
     return levels
 
 
-def display_name(levels: tuple[str, str, str, str, str] | None, pattern: str) -> str:
-    """按 pattern 组合一条名称记录。"""
-    if levels is None:
-        return ""
+@lru_cache(maxsize=500_000)
+def _render_levels(levels: tuple[str, str, str, str, str], pattern: str) -> str:
+    """缓存重复行政层级的组合结果；真实数据约 27 个地点共享同一层级。"""
     country, admin_1, admin_2, admin_3, admin_4 = levels
     return compose(
         pattern,
@@ -743,6 +743,13 @@ def display_name(levels: tuple[str, str, str, str, str] | None, pattern: str) ->
             "admin_4": admin_4,
         },
     )
+
+
+def display_name(levels: tuple[str, str, str, str, str] | None, pattern: str) -> str:
+    """按 pattern 组合一条名称记录。"""
+    if levels is None:
+        return ""
+    return _render_levels(levels, pattern)
 
 
 def write_patterns_table(
