@@ -14,6 +14,7 @@ from immich_cn.build import (
     display_name,
     iter_output_places,
     load_levels,
+    write_pattern_rows,
     write_patterns_table,
 )
 from immich_cn.config import DEFAULT_PATTERN, BuildOptions
@@ -91,17 +92,18 @@ def package_all(options: BuildOptions, result: BuildResult) -> PackageResult:
     legacy_zip = _write_i18n_archive(options.dist_dir, result)
     package_result.artifacts.append(legacy_zip)
 
-    # 明文变体表（130 MiB 级）只用于本地/镜像构建，发布目录仅保留 gzip 版本
+    # 默认直接流式写 gzip，避免为 121 MiB 明文中间表额外写盘再读回。
     patterns_table = options.work_dir / "patterns.tsv"
-    rows = write_patterns_table(patterns_table, levels=levels, patterns=options.patterns)
-    package_result.patterns_table = patterns_table
-    compressed = compressed_patterns_table(patterns_table, options.dist_dir / "patterns.tsv.gz")
+    compressed = options.dist_dir / "patterns.tsv.gz"
+    if options.keep_raw:
+        rows = write_patterns_table(patterns_table, levels=levels, patterns=options.patterns)
+        package_result.patterns_table = patterns_table
+        compressed_patterns_table(patterns_table, compressed)
+    else:
+        rows = write_compressed_patterns_table(compressed, levels=levels, patterns=options.patterns)
+        package_result.patterns_table = compressed
     package_result.artifacts.append(compressed)
-    logger.info("变体表写出完成：%d 行", rows)
-    if not options.keep_raw:
-        # 明文变体表（百 MiB 级）只是生成 gz 的中间产物，发布目录只用 gz 版本
-        patterns_table.unlink(missing_ok=True)
-        logger.info("已删除明文变体表 %s（发布只用 %s）", patterns_table.name, compressed.name)
+    logger.info("变体表写出完成：%d 行 -> %s", rows, compressed.name)
 
     manifest = _write_manifest(options, result, package_result)
     package_result.manifest = manifest
@@ -244,3 +246,17 @@ def compressed_patterns_table(source: Path, destination: Path) -> Path:
         while chunk := src.read(1024 * 1024):
             dst.write(chunk)
     return destination
+
+
+def write_compressed_patterns_table(
+    destination: Path,
+    *,
+    levels: dict[int, tuple[str, str, str, str, str]],
+    patterns: tuple[str, ...],
+) -> int:
+    """直接从名称表写出 gzip，避免落一份百 MiB 级明文中间文件。"""
+    import gzip
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with gzip.open(destination, "wt", encoding="utf-8", newline="\n", compresslevel=6) as sink:
+        return write_pattern_rows(sink, levels=levels, patterns=patterns)
