@@ -122,3 +122,17 @@ def test_package_cleanup_prune_all_keeps_protected_and_newest_version() -> None:
     selected = select_package_versions(versions, retention=20, prune_all=True)
 
     assert [version.id for version in selected] == [3, 4]
+
+
+def test_package_cleanup_never_deletes_untagged_child_manifests() -> None:
+    versions = [
+        PackageVersionRecord(1, at(1), ("v1.0.4",)),
+        PackageVersionRecord(2, at(2), ("latest",)),
+        PackageVersionRecord(3, at(3), ("2026-10-07",)),
+        PackageVersionRecord(4, at(4), ()),
+        PackageVersionRecord(5, at(5), ()),
+    ]
+
+    selected = select_package_versions(versions, retention=1, prune_all=True)
+
+    assert [version.id for version in selected] == [3]
