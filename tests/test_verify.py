@@ -459,6 +459,31 @@ def test_cities500_rejects_non_integer_geoname_id(tmp_path: Path) -> None:
     assert result.passed is False, result.detail
 
 
+def test_cities500_coordinate_boundaries(tmp_path: Path) -> None:
+    valid = _cities(1, 1, 1)[0].split("\t")
+
+    def check(latitude: str, longitude: str) -> bool:
+        fields = list(valid)
+        fields[4] = latitude
+        fields[5] = longitude
+        path = tmp_path / f"cities-{latitude}-{longitude}.txt"
+        write_lines(path, ["\t".join(fields)])
+        results = _check_cities500(
+            path,
+            min_cn_cjk_ratio=0.9,
+            min_cn_admin2_code_ratio=0.9,
+            admin2_codes={"CN.04.A000"},
+        )
+        return {item.name: item for item in results}["cities500"].passed
+
+    assert check("90", "180") is True
+    assert check("-90", "-180") is True
+    assert check("90.0001", "0") is False
+    assert check("0", "180.0001") is False
+    assert check("nan", "0") is False
+    assert check("inf", "0") is False
+
+
 def test_cities500_cjk_ratio_threshold_boundary(tmp_path: Path) -> None:
     def check(chinese: int):
         path = tmp_path / f"cities-cjk-{chinese}.txt"

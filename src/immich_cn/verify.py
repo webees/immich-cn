@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -252,6 +253,20 @@ def _check_cities500(
             try:
                 geoname_id = int(fields[0])
             except ValueError:
+                bad += 1
+                continue
+            try:
+                latitude = float(fields[4])
+                longitude = float(fields[5])
+            except ValueError:
+                bad += 1
+                continue
+            if (
+                not math.isfinite(latitude)
+                or not math.isfinite(longitude)
+                or not -90.0 <= latitude <= 90.0
+                or not -180.0 <= longitude <= 180.0
+            ):
                 bad += 1
                 continue
             if geoname_id in seen:
