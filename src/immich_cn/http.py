@@ -30,11 +30,16 @@ class _RangeNotSatisfiableError(SourceError):
     """本地分片使 Range 越界，需要改为完整下载。"""
 
 
-def _retry_delay(attempt: int, error: Exception) -> float:
+def retry_delay(
+    attempt: int,
+    error: Exception | None = None,
+    *,
+    response: httpx.Response | None = None,
+) -> float:
     """计算退避时间：优先遵循上游的 ``Retry-After``，否则指数退避。"""
-    response = getattr(error, "response", None)
-    if isinstance(response, httpx.Response):
-        hint = _retry_after_seconds(response)
+    source = response if response is not None else getattr(error, "response", None)
+    if isinstance(source, httpx.Response):
+        hint = _retry_after_seconds(source)
         if hint is not None:
             return hint
     return float(min(2**attempt, 30))
@@ -303,7 +308,7 @@ class Fetcher:
                     break
                 if attempt == self._retries:
                     break
-                delay = _retry_delay(attempt, error)
+                delay = retry_delay(attempt, error)
                 logger.warning("下载 %s 失败（第 %d 次）：%s；%.0fs 后重试", spec.name, attempt, error, delay)
                 time.sleep(delay)
                 attempt += 1

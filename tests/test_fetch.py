@@ -11,7 +11,7 @@ import pytest
 from immich_cn.build import _materialize
 from immich_cn.config import BuildOptions, SourceSpec
 from immich_cn.errors import SourceError
-from immich_cn.http import Fetcher, _retry_delay, sha256_bytes
+from immich_cn.http import Fetcher, retry_delay, sha256_bytes
 from immich_cn.models import SourceRecord
 
 # 以 root 运行时文件权限不生效，无法构造只读目录场景
@@ -554,7 +554,7 @@ def test_retry_delay_prefers_retry_after_header() -> None:
         request=request,
         response=httpx.Response(429, headers={"retry-after": "7"}, request=request),
     )
-    assert _retry_delay(1, seconds) == 7.0
+    assert retry_delay(1, seconds) == 7.0
 
     http_date = httpx.HTTPStatusError(
         "429",
@@ -565,12 +565,12 @@ def test_retry_delay_prefers_retry_after_header() -> None:
             request=request,
         ),
     )
-    assert _retry_delay(1, http_date) == 120.0
+    assert retry_delay(1, http_date) == 120.0
 
 
 def test_retry_delay_falls_back_to_exponential_backoff() -> None:
-    assert _retry_delay(1, httpx.ConnectError("boom")) == 2.0
-    assert _retry_delay(5, httpx.ConnectError("boom")) == 30.0
+    assert retry_delay(1, httpx.ConnectError("boom")) == 2.0
+    assert retry_delay(5, httpx.ConnectError("boom")) == 30.0
 
 
 @requires_real_permissions

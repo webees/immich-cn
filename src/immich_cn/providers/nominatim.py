@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,6 +12,7 @@ from typing import Any
 import httpx
 
 from immich_cn.config import USER_AGENT, BuildOptions, positive_int_env
+from immich_cn.http import retry_delay
 from immich_cn.logging_setup import get_logger
 from immich_cn.models import Place, PlaceNames
 from immich_cn.providers.cache import JsonlCache
@@ -107,8 +109,12 @@ class NominatimEnricher:
                 if response.status_code == 200:
                     return _parse(response.json())
                 logger.warning("Nominatim 返回 %s（第 %d 次）", response.status_code, attempt)
+                if attempt < self._options.retries:
+                    time.sleep(retry_delay(attempt, response=response))
             except (httpx.HTTPError, ValueError) as error:
                 logger.warning("Nominatim 请求失败（第 %d 次）：%s", attempt, error)
+                if attempt < self._options.retries:
+                    time.sleep(retry_delay(attempt, error))
         return {"_error": "request-failed"}
 
     def enrich(self, place: Place, names: PlaceNames) -> PlaceNames:

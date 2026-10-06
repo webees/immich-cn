@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +14,7 @@ import httpx
 
 from immich_cn.config import USER_AGENT, BuildOptions, positive_int_env
 from immich_cn.errors import ConfigError
+from immich_cn.http import retry_delay
 from immich_cn.logging_setup import get_logger
 from immich_cn.models import Place, PlaceNames
 from immich_cn.providers.cache import JsonlCache
@@ -141,11 +143,15 @@ class AmapEnricher:
                     self._options.retries,
                     self._redact(error),
                 )
+                if attempt < self._options.retries:
+                    time.sleep(retry_delay(attempt, error))
                 continue
             if isinstance(payload, dict) and payload.get("status") == "1":
                 break
             logger.warning("高德返回异常状态：%s", self._redact(payload))
             payload = None
+            if attempt < self._options.retries:
+                time.sleep(retry_delay(attempt, response=response))
 
         if payload is None:
             # 瞬时故障不写负缓存：否则服务恢复后这些坐标会被永久跳过
