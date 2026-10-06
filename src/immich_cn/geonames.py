@@ -45,7 +45,6 @@ def read_admin_codes(path: Path) -> dict[str, AdminEntry]:
             entries[fields[0]] = AdminEntry(
                 code=fields[0],
                 name=fields[1],
-                ascii_name=fields[2],
                 geoname_id=int(geoname_raw) if geoname_raw.isdigit() else None,
             )
     logger.info("读取 %s：%d 条", path.name, len(entries))
@@ -167,7 +166,6 @@ def read_country_info(path: Path) -> list[CountryInfoRow]:
 class AlternateName:
     """alternateNamesV2.txt 中与中文相关的一行。"""
 
-    alt_id: int
     geoname_id: int
     language: str
     name: str
@@ -196,7 +194,6 @@ def iter_alternate_names(path: Path, wanted: set[int] | None = None) -> Iterator
             if wanted is not None and geoname_id not in wanted:
                 continue
             yield AlternateName(
-                alt_id=int(fields[0]) if fields[0].isdigit() else 0,
                 geoname_id=geoname_id,
                 language=fields[2],
                 name=fields[3],

@@ -77,4 +77,4 @@ def test_overrides_load_rejects_bad_key(tmp_path: Path) -> None:
 
 
 def test_admin_entry_is_exported() -> None:
-    assert AdminEntry(code="CN.04", name="Jiangsu", ascii_name="Jiangsu").geoname_id is None
+    assert AdminEntry(code="CN.04", name="Jiangsu").geoname_id is None
