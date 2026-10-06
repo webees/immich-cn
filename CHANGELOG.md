@@ -8,8 +8,7 @@
 
 ### 修复
 
-- `immich-cn-server` 组合镜像的 OCI 许可元数据改为 `AGPL-3.0-only AND MIT`，
-  不再把包含上游 Immich 代码的镜像错误声明为纯 MIT；
+- `immich-cn-server` 组合镜像的 OCI 许可元数据改为 `AGPL-3.0-only AND MIT`，不再把包含上游 Immich 代码的镜像错误声明为纯 MIT；
 
 ## [1.0.3] - 2026-10-06
 
@@ -21,8 +20,7 @@
 
 ### 修复
 
-- 镜像 OCI 元数据将项目版本与数据日期分开记录：`org.opencontainers.image.version`
-  表示项目版本，`org.immich-cn.data-date` 表示数据批次；
+- 镜像 OCI 元数据将项目版本与数据日期分开记录：`org.opencontainers.image.version` 表示项目版本，`org.immich-cn.data-date` 表示数据批次；
 
 ## [1.0.1] - 2026-10-06
 
@@ -30,21 +28,14 @@
 
 - 数据更新频率由每周提升为**每天全自动检查并更新**；
 - 新增 `--revalidate`：用 ETag/Last-Modified 条件校验上游，未变化时返回 304、不传输正文；
-- 新增 `immich-cn fingerprint` 与 `immich-cn-manifest-json-v1.json` 的 `config` 字段，
-  用「上游文件摘要 + 构建配置 + 发布器修订」判断是否需要发布，避免无意义版本与重复导入；
-- 发布指纹纳入 `manifest` schema、构建器版本与 CI 修订；只改构建逻辑时不会被误判为
-  “无变化”而跳过新镜像发布；
-- 镜像推送后按最终 digest 重新拉取并执行入口 smoke test，增加 Trivy 漏洞/许可证扫描与
-  Cosign keyless 签名；server 覆盖镜像只阻断相对官方基础镜像新增的漏洞，并记录继承例外；
-- 日期快照只记录当日首次发布；同日后续修订使用 `data-YYYY-MM-DD-sha-<短提交>`，
-  避免覆盖不可变历史或让日期快照与 auto-release 的语义失真；
+- 新增 `immich-cn fingerprint` 与 `immich-cn-manifest-json-v1.json` 的 `config` 字段，用「上游文件摘要 + 构建配置 + 发布器修订」判断是否需要发布，避免无意义版本与重复导入；
+- 发布指纹纳入 `manifest` schema、构建器版本与 CI 修订；只改构建逻辑时不会被误判为 “无变化”而跳过新镜像发布；
+- 镜像推送后按最终 digest 重新拉取并执行入口 smoke test，增加 Trivy 漏洞/许可证扫描与 Cosign keyless 签名；server 覆盖镜像只阻断相对官方基础镜像新增的漏洞，并记录继承例外；
+- 日期快照只记录当日首次发布；同日后续修订使用 `data-YYYY-MM-DD-sha-<短提交>`，避免覆盖不可变历史或让日期快照与 auto-release 的语义失真；
 - 版本化 Release 同时给数据镜像与 Immich 覆盖镜像追加项目语义化版本标签；
-- 项目定位改为独立实现，移除“重写”和上游横向比较；新增 ADR，明确 Immich
-  外部读取契约与项目内部模型的边界；
-- 发布制品与镜像语言目录现在保留 i18n-iso-countries 的上游 MIT `LICENSE`，
-  避免再分发时遗漏版权声明；
-- 新增 `no-change` 与 `notify-failure` 作业：无变化时明确记录并跳过发布，
-  失败时自动创建/更新带 `automation` 标签的 issue；
+- 项目定位改为独立实现，移除“重写”和上游横向比较；新增 ADR，明确 Immich 外部读取契约与项目内部模型的边界；
+- 发布制品与镜像语言目录现在保留 i18n-iso-countries 的上游 MIT `LICENSE`，避免再分发时遗漏版权声明；
+- 新增 `no-change` 与 `notify-failure` 作业：无变化时明确记录并跳过发布，失败时自动创建/更新带 `automation` 标签的 issue；
 - 新增日期快照保留策略（当时默认保留最近 14 个），自动清理过期快照；后续默认值已调整为 3。
 
 ## [1.0.0] - 2026-10-06

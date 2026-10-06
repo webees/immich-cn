@@ -70,6 +70,12 @@ SLA_PROMISE = re.compile(r"(?<!通常)会\s*在\s*\d+\s*(?:个)?(?:天|日|小�
 #: Markdown 行内链接；只校验相对目标，外部 URL、锚点与 mailto 跳过。
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 EXTERNAL_LINK_PREFIXES = ("http://", "https://", "#", "mailto:")
+#: CJK 与全角标点；用于检测 Markdown 软换行在中文之间渲染出空格。
+CJK_CHAR = re.compile(r"[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uff00-\uffef]")
+#: 行首即新块（标题/列表/表格/代码围栏/HTML），不与上一行合并。
+MD_BLOCK_START = re.compile(r"^(#{1,6}\s|[-*+]\s|\d+[.)]\s|>|\||```|~~~|<|-{3,}$|={3,}$)")
+#: 中文标点后紧跟空格：YAML 折叠标量把中文描述折行时会产生这种痕迹。
+CJK_PUNCT_SPACE = re.compile(r"[、，。；：！？]\s")
 ASSET_TOKEN = re.compile(r"\bimmich-cn-[A-Za-z0-9._<>-]+")
 CANONICAL_GEODATA = re.compile(r"^immich-cn-geodata-[a-z0-9-]+-(default|full)-v[0-9]+\.zip$")
 INTERNAL_FILES = {"immich-cn-patterns-v1.tsv"}
@@ -499,6 +505,74 @@ def check_manifest_stats_scope(errors: list[str]) -> None:
         )
 
 
+def check_cjk_soft_breaks(doc_files: list[Path], errors: list[str]) -> None:
+    """中文段落内的软换行会被 Markdown 渲染成空格，必须合并为单行。"""
+    checked = 0
+    for path in doc_files:
+        lines = path.read_text(encoding="utf-8").splitlines()
+        in_fence = False
+        for index in range(len(lines) - 1):
+            raw = lines[index]
+            if raw.strip().startswith(("```", "~~~")):
+                in_fence = not in_fence
+                continue
+            if in_fence:
+                continue
+            current = raw.rstrip()
+            following = lines[index + 1].strip()
+            if not current or not following:
+                continue
+            if current.strip().startswith(">") and following.startswith(">"):
+                left = re.sub(r"^\s*>+\s?", "", current.strip())
+                right = re.sub(r"^\s*>+\s?", "", following)
+                checked += 1
+                if left and right and CJK_CHAR.search(left[-1]) and CJK_CHAR.search(right[0]):
+                    errors.append(f"{path}:{index + 2} 引用块内的中文软换行会在渲染时插入空格，请合并为一行")
+                continue
+            if MD_BLOCK_START.match(following):
+                continue
+            checked += 1
+            if CJK_CHAR.search(current[-1]) and CJK_CHAR.search(following[0]):
+                errors.append(f"{path}:{index + 2} 中文软换行会在渲染时插入空格，请与本段合并为一行")
+    if checked == 0:
+        errors.append("CJK 软换行检查未扫描到任何续行，护栏可能已失效")
+
+
+def check_citation_spacing(errors: list[str]) -> None:
+    """CITATION.cff 的字符串不应在中文标点后出现空格（YAML 折叠标量会引入）。"""
+    try:
+        import yaml
+    except ModuleNotFoundError:  # pragma: no cover - 依赖已在 dev extra 中声明
+        errors.append("缺少 PyYAML，无法校验 CITATION.cff")
+        return
+
+    path = Path("CITATION.cff")
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as error:
+        errors.append(f"{path} 不是合法 YAML：{error}")
+        return
+
+    def strings(value: object):
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, dict):
+            for item in value.values():
+                yield from strings(item)
+        elif isinstance(value, list):
+            for item in value:
+                yield from strings(item)
+
+    for text in strings(data):
+        match = CJK_PUNCT_SPACE.search(text)
+        if match:
+            errors.append(
+                f"{path} 的字符串在中文标点后出现空格（{match.group(0)!r}）：{text[:40]!r}"
+                "；YAML 折叠标量折行会引入空格，请写成单行"
+            )
+            break
+
+
 def check_asset_names(paths: list[Path], errors: list[str]) -> None:
     """文档中的发布资产名必须符合 v4 规范，且不能回退到 legacy 命名。"""
     sys.path.insert(0, str(Path("src").resolve()))
@@ -559,6 +633,8 @@ def main(argv: list[str] | None = None) -> int:
     check_markdown_links(doc_files, errors)
     check_manifest_field_docs(errors)
     check_manifest_stats_scope(errors)
+    check_cjk_soft_breaks(doc_files, errors)
+    check_citation_spacing(errors)
     check_asset_names(doc_files, errors)
 
     for error in errors:

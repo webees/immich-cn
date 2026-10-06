@@ -9,14 +9,11 @@ GHCR 中有两个容器包，它们不是重复镜像，也不是可互换别名
 
 ## 为什么有两个
 
-`immich-cn` 只负责分发数据，适合继续使用官方 Immich 镜像并挂载数据目录的用户。
-`immich-cn-server` 在官方 server 镜像启动前注入数据，适合希望减少手工挂载步骤的用户。
+`immich-cn` 只负责分发数据，适合继续使用官方 Immich 镜像并挂载数据目录的用户。 `immich-cn-server` 在官方 server 镜像启动前注入数据，适合希望减少手工挂载步骤的用户。
 
-两者都包含同一份 geodata，但用途、入口和升级边界不同。不要用数据镜像替换 Immich server，
-也不要假设两个包的 `latest` 摘要相同。
+两者都包含同一份 geodata，但用途、入口和升级边界不同。不要用数据镜像替换 Immich server，也不要假设两个包的 `latest` 摘要相同。
 
-许可证也不同：`immich-cn` 的数据处理层按 MIT 发布；`immich-cn-server` 包含上游
-Immich server 代码，按当前组合方式声明为 `AGPL-3.0-only AND MIT`。具体再分发义务应结合镜像内实际文件确认。
+许可证也不同：`immich-cn` 的数据处理层按 MIT 发布；`immich-cn-server` 包含上游 Immich server 代码，按当前组合方式声明为 `AGPL-3.0-only AND MIT`。具体再分发义务应结合镜像内实际文件确认。
 
 ## 标签
 
@@ -40,13 +37,11 @@ Immich server 代码，按当前组合方式声明为 `AGPL-3.0-only AND MIT`。
 
 - 生成 BuildKit provenance 与 SBOM；
 - 在数据目录中保留 i18n 语言文件的上游 `LICENSE`；
-- 执行 Trivy 漏洞和许可证扫描；在当次扫描数据库与扫描范围内，数据镜像的 `HIGH`/`CRITICAL` 阻断，
-  Immich 覆盖镜像只阻断相对官方基础镜像新增的漏洞，继承项写入显式例外报告；
+- 执行 Trivy 漏洞和许可证扫描；在当次扫描数据库与扫描范围内，数据镜像的 `HIGH`/`CRITICAL` 阻断， Immich 覆盖镜像只阻断相对官方基础镜像新增的漏洞，继承项写入显式例外报告；
 - 通过 GitHub OIDC 使用 Cosign keyless 签名；
 - 推送后按最终 digest 重新拉取并执行入口 smoke test。
 
-OCI 元数据约定中，`org.opencontainers.image.version` 表示项目版本；
-数据日期单独写入 `org.immich-cn.data-date`，避免把软件版本和数据批次混为一谈。
+OCI 元数据约定中，`org.opencontainers.image.version` 表示项目版本；数据日期单独写入 `org.immich-cn.data-date`，避免把软件版本和数据批次混为一谈。
 
 验证签名时以最终 digest 为准：
 
@@ -57,14 +52,11 @@ cosign verify \
   ghcr.io/webees/immich-cn@sha256:<digest>
 ```
 
-`healthcheck` 和运行时数据路径属于 `immich-cn-server` 的 Immich 兼容接口；数据镜像的约定是
-`--target` 目录按当前契约提供可挂载的 geodata 文件，实际兼容性仍取决于目标 Immich 版本和部署方式。
+`healthcheck` 和运行时数据路径属于 `immich-cn-server` 的 Immich 兼容接口；数据镜像的约定是 `--target` 目录按当前契约提供可挂载的 geodata 文件，实际兼容性仍取决于目标 Immich 版本和部署方式。
 
 ## 自动清理
 
-GHCR 版本、`data-*` Release 和 Actions 运行由 `cleanup.yml` 每周清理。默认保留语义版本、
-`auto-release`、`latest`、`release` 与最近版本；稳定前可手动启用 `prune-all`。完整规则见
-[自动清理与保留策略](maintenance.md)。
+GHCR 版本、`data-*` Release 和 Actions 运行由 `cleanup.yml` 每周清理。默认保留语义版本、 `auto-release`、`latest`、`release` 与最近版本；稳定前可手动启用 `prune-all`。完整规则见 [自动清理与保留策略](maintenance.md)。
 
 发布资产的 canonical ID、v4 文件名和唯一发布规则见 [制品命名规范 v4](artifact-spec.md)。
 

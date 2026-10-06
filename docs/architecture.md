@@ -2,9 +2,7 @@
 
 ## 目标
 
-本项目先定义自己的规范数据集，再把它导出给不同消费者。Immich 的反向地理编码需要一组
-固定格式的文本文件（见 `server/src/repositories/map.repository.ts`），但那只是适配器契约，
-不是项目的数据模型。职责是：
+本项目先定义自己的规范数据集，再把它导出给不同消费者。Immich 的反向地理编码需要一组固定格式的文本文件（见 `server/src/repositories/map.repository.ts`），但那只是适配器契约，不是项目的数据模型。职责是：
 
 1. 从公开数据源生成可查询、可版本化的规范数据集；
 2. 把地名汉化到「国家 → 一级行政区 → 二级行政区 → 三级行政区 → 四级行政区」；
@@ -61,10 +59,7 @@
 
 ### 0. 规范模型优先，外部契约只做适配
 
-`immich-cn-dataset-sqlite-v1.zip` 中的 SQLite 数据集是本项目的规范模型，定义字段语义、schema 版本、
-索引和查询视图；`geodata*.zip` 仅把该模型导出为 Immich 当前需要的文件名、列位置和目录结构。
-`levels.tsv`、`immich-cn-patterns-tsv-v1.gz`、`immich-cn-manifest-json-v1.json` 和 provider 缓存则是构建与兼容层，
-不会反向约束规范字段。未来新增消费者时应增加适配器或导出器，而不是改变规范模型的数据含义。
+`immich-cn-dataset-sqlite-v1.zip` 中的 SQLite 数据集是本项目的规范模型，定义字段语义、schema 版本、索引和查询视图；`geodata*.zip` 仅把该模型导出为 Immich 当前需要的文件名、列位置和目录结构。 `levels.tsv`、`immich-cn-patterns-tsv-v1.gz`、`immich-cn-manifest-json-v1.json` 和 provider 缓存则是构建与兼容层，不会反向约束规范字段。未来新增消费者时应增加适配器或导出器，而不是改变规范模型的数据含义。
 
 规范字段和用法见 [数据格式](data-format.md)，决策见 [ADR 0001](adr/0001-immich-output-contract.md)。
 
@@ -77,17 +72,14 @@
 - `nominatim`：配置后启用，用 OSM 补充海外数据，严格遵守 1 QPS 与真实 User-Agent 的使用条款。
 - `auto`：有 `AMAP_API_KEY` 时等价于 `amap`，否则等价于 `offline`。
 
-在 GitHub Actions 已授予所需仓库权限、上游服务可访问且未启用可选 provider 的前提下，
-默认离线路径不额外依赖 Secret，可完成「数据更新 → 校验 → 发布」流程。
+在 GitHub Actions 已授予所需仓库权限、上游服务可访问且未启用可选 provider 的前提下，默认离线路径不额外依赖 Secret，可完成「数据更新 → 校验 → 发布」流程。
 
 ### 2. 规范数据、展示粒度与适配器解耦
 
-规范数据集保存地点、原始名称、坐标、人口、行政代码和中文四级名称，不包含某个呈现 pattern
-的拼接结果。项目再把 7 种粒度 × 2 种数据规模导出为 14 个 Immich zip：
+规范数据集保存地点、原始名称、坐标、人口、行政代码和中文四级名称，不包含某个呈现 pattern 的拼接结果。项目再把 7 种粒度 × 2 种数据规模导出为 14 个 Immich zip：
 
 - Python 侧按 `--patterns` 在打包时组合，产出 Immich 适配器 zip；
-- 镜像侧额外附带 `immich-cn-patterns-tsv-v1.gz`，容器启动时用 `awk` 重写 `cities500.txt` 的第 1、2 列，
-  因此**同一个镜像可以通过 `IMMICH_CN_PATTERN` 切换粒度**，不需要重新构建或下载。
+- 镜像侧额外附带 `immich-cn-patterns-tsv-v1.gz`，容器启动时用 `awk` 重写 `cities500.txt` 的第 1、2 列，因此**同一个镜像可以通过 `IMMICH_CN_PATTERN` 切换粒度**，不需要重新构建或下载。
 
 ### 3. full 与非 full
 
@@ -105,10 +97,7 @@
 - 规范数据集与 14 个兼容变体各自的 SHA256、格式版本与体积；
 - 使用的 provider 列表。
 
-镜像发布还附带 BuildKit provenance 与 SBOM；推送后按最终 digest 重新拉取执行入口 smoke test，
-再用 Trivy 扫描漏洞和许可证。在当次扫描数据库和扫描范围内，数据镜像阻断 `HIGH`/`CRITICAL`；
-Immich 覆盖镜像与官方基础镜像做差集，只阻断新增漏洞并把继承项写成例外报告。
-最后通过 GitHub OIDC 使用 Cosign 做 keyless 签名。
+镜像发布还附带 BuildKit provenance 与 SBOM；推送后按最终 digest 重新拉取执行入口 smoke test，再用 Trivy 扫描漏洞和许可证。在当次扫描数据库和扫描范围内，数据镜像阻断 `HIGH`/`CRITICAL`； Immich 覆盖镜像与官方基础镜像做差集，只阻断新增漏洞并把继承项写成例外报告。最后通过 GitHub OIDC 使用 Cosign 做 keyless 签名。
 
 ### 5. 校验前置
 
@@ -142,22 +131,13 @@ Immich 覆盖镜像与官方基础镜像做差集，只阻断新增漏洞并把�
 
 三个关键点：
 
-1. **增量校验而不是全量下载**：`immich_cn.fetching.Fetcher` 在 `--revalidate` 下带
-   `If-None-Match` / `If-Modified-Since` 请求上游；数据源支持强 ETag，未更新时直接返回 304，
-   因此上游返回 304 时正文传输为 0；请求连接和头部仍有少量开销。校验失败时会尝试回退到本地缓存，
-   缓存缺失或损坏时仍会按错误路径失败。
-2. **内容指纹而不是时间戳**：`immich_cn.fingerprint` 对"上游文件内容摘要 + 构建配置 +
-   发布器修订 + manifest schema"求哈希，不含构建时间。在实现与输入不变的前提下，同一份数据与
-   同一版发布器重复计算会得到相同指纹；在目标摘要和配置均匹配的发布条件下可以跳过发布。
-   构建逻辑修复后会主动发布新镜像，不会把旧制品误判成最新。
-3. **失败可见**：任一环节失败会自动创建或更新带 `automation` 标签的 issue，附带运行链接，
-   修复后可用 `workflow_dispatch` 立即重跑（`force-publish` 可强制发布）。
+1. **增量校验而不是全量下载**：`immich_cn.fetching.Fetcher` 在 `--revalidate` 下带 `If-None-Match` / `If-Modified-Since` 请求上游；数据源支持强 ETag，未更新时直接返回 304，因此上游返回 304 时正文传输为 0；请求连接和头部仍有少量开销。校验失败时会尝试回退到本地缓存，缓存缺失或损坏时仍会按错误路径失败。
+2. **内容指纹而不是时间戳**：`immich_cn.fingerprint` 对"上游文件内容摘要 + 构建配置 + 发布器修订 + manifest schema"求哈希，不含构建时间。在实现与输入不变的前提下，同一份数据与同一版发布器重复计算会得到相同指纹；在目标摘要和配置均匹配的发布条件下可以跳过发布。构建逻辑修复后会主动发布新镜像，不会把旧制品误判成最新。
+3. **失败可见**：任一环节失败会自动创建或更新带 `automation` 标签的 issue，附带运行链接，修复后可用 `workflow_dispatch` 立即重跑（`force-publish` 可强制发布）。
 
-历史垃圾由独立的 `cleanup.yml` 每周清理：Release 快照、Actions 运行与 GHCR 版本按
-[保留策略](maintenance.md) 处理，语义版本与稳定标签在默认策略下受保护。
+历史垃圾由独立的 `cleanup.yml` 每周清理：Release 快照、Actions 运行与 GHCR 版本按 [保留策略](maintenance.md) 处理，语义版本与稳定标签在默认策略下受保护。
 
-可通过 `workflow_dispatch` 覆盖的参数：`provider`、`immich-version`、`push-images`、
-`force-publish`、`snapshot-retention`（默认保留最近 3 个 `data-*` 快照）。
+可通过 `workflow_dispatch` 覆盖的参数：`provider`、`immich-version`、`push-images`、 `force-publish`、`snapshot-retention`（默认保留最近 3 个 `data-*` 快照）。
 
 ### 失败路径真值表
 
@@ -170,25 +150,19 @@ Immich 覆盖镜像与官方基础镜像做差集，只阻断新增漏洞并把�
 | 有变化且发布成功 | ✓ | ✓ | 发布 Release 与镜像；关闭历史告警 |
 | 有变化但发布失败 | ✓ | ✗ | **保留告警**（此时若关闭，会把刚创建的告警立刻关掉） |
 
-`force-publish` 会把"无变化"也走发布分支，因此 `no-change` 与 `release` 必须互斥，
-否则同一次运行会同时输出"跳过发布"和"已发布"两份互相矛盾的摘要。
+`force-publish` 会把"无变化"也走发布分支，因此 `no-change` 与 `release` 必须互斥，否则同一次运行会同时输出"跳过发布"和"已发布"两份互相矛盾的摘要。
 
-日期快照 `data-YYYY-MM-DD` 只代表当日第一次成功发布，不接受覆盖；同日因构建逻辑或
-上游数据再次变化而重跑时，会创建 `data-YYYY-MM-DD-sha-<短提交>`；在 GitHub 权限和仓库规则未被绕过的前提下，
-已创建的日期快照不会被覆盖。
+日期快照 `data-YYYY-MM-DD` 只代表当日第一次成功发布，不接受覆盖；同日因构建逻辑或上游数据再次变化而重跑时，会创建 `data-YYYY-MM-DD-sha-<短提交>`；在 GitHub 权限和仓库规则未被绕过的前提下，已创建的日期快照不会被覆盖。
 
-`resolve-previous-failure` 的条件因此必须同时判断 `build` 与 `release` 的结果；
-`scripts/check_workflows.py` 会静态检查"用 `if` 判断依赖结果时是否遗漏了某个依赖"。
+`resolve-previous-failure` 的条件因此必须同时判断 `build` 与 `release` 的结果； `scripts/check_workflows.py` 会静态检查"用 `if` 判断依赖结果时是否遗漏了某个依赖"。
 
 ## 地名组合规则
 
 `{admin_1}` ~ `{admin_4}` 为占位符，组合时：
 
-1. 空值自动回退到上一级（`admin_4 → admin_3 → admin_2 → admin_1`）；至少一个层级非空时不会输出空名，
-   全部层级为空时应被构建或校验流程拒绝；
+1. 空值自动回退到上一级（`admin_4 → admin_3 → admin_2 → admin_1`）；至少一个层级非空时不会输出空名，全部层级为空时应被构建或校验流程拒绝；
 2. 相邻重复的层级会被去掉，例如 `{admin_2} {admin_3}` 在 `admin_2 == admin_3` 时只输出一次；
-3. 港澳在 GeoNames 中以堂区/区作为一级行政区，构建时重排为
-   `admin_1 = 香港/澳门`、`admin_2 = 区`，香港还会补充新界/九龙/香港岛前缀；
+3. 港澳在 GeoNames 中以堂区/区作为一级行政区，构建时重排为 `admin_1 = 香港/澳门`、`admin_2 = 区`，香港还会补充新界/九龙/香港岛前缀；
 4. 台湾的一级行政区固定为 `台湾省`，市县级名称落在 `admin_2`。
 
 ## Immich 适配器输出
