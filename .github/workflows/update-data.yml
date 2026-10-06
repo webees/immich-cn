@@ -208,6 +208,7 @@ jobs:
         run: |
           set -euo pipefail
           number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --label automation \
             --search '自动更新数据失败 in:title' \
             --json number --jq '.[0].number // empty')"
           if [ -z "$number" ]; then
