@@ -316,6 +316,24 @@ def test_check_docs_detects_citation_punct_space(repo_copy: Path) -> None:
     assert "中文标点后出现空格" in result.stdout
 
 
+def test_check_docs_rejects_stale_immich_countryinfo_boundary(repo_copy: Path) -> None:
+    """Immich 的分界点是 3.3.0：写回 3.0 必须被拦下（上游 v3.0.0~v3.2.4 仍用 i18n-iso-countries）。"""
+    readme = repo_copy / "README.md"
+    mutate(readme, "3.3.0 起改读 countryInfo.txt", "3.0 起改读 countryInfo.txt")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "过时的 Immich 版本分界" in result.stdout
+
+
+def test_check_docs_rejects_missing_countryinfo_boundary(repo_copy: Path) -> None:
+    """提到 countryInfo.txt 却不写版本分界时同样要报错。"""
+    readme = repo_copy / "README.md"
+    mutate(readme, "（3.3.0 起改读 countryInfo.txt）", "（改读 countryInfo.txt）")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "未写明分界" in result.stdout or "没有任何文档声明" in result.stdout
+
+
 def test_check_docs_detects_dataset_member_drift(repo_copy: Path) -> None:
     """归档成员名写成构建期中间文件名（dataset.sqlite）时必须报错。"""
     spec = repo_copy / "docs" / "data-format.md"
