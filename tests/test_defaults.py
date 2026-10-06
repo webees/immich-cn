@@ -9,8 +9,11 @@ from __future__ import annotations
 import inspect
 from pathlib import Path
 
+import pytest
+
 from immich_cn.cli import build_parser
-from immich_cn.config import DEFAULT_EXTRA_COUNTRIES, DEFAULT_PATTERNS, BuildOptions
+from immich_cn.config import DEFAULT_EXTRA_COUNTRIES, DEFAULT_PATTERNS, BuildOptions, positive_int_env
+from immich_cn.errors import ConfigError
 from immich_cn.verify import verify_geodata
 
 
@@ -35,3 +38,9 @@ def test_verify_cli_threshold_matches_library_default() -> None:
     args = build_parser().parse_args(["verify", str(Path("build/geodata"))])
     signature = inspect.signature(verify_geodata)
     assert args.min_cn_ratio == signature.parameters["min_cn_cjk_ratio"].default
+
+
+def test_positive_int_env_rejects_non_integer(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("IMMICH_CN_TEST_POSITIVE_INT", "not-a-number")
+    with pytest.raises(ConfigError, match="必须是整数"):
+        positive_int_env("IMMICH_CN_TEST_POSITIVE_INT", 3)
