@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import shutil
+import sqlite3
 import subprocess
 import sys
 import zipfile
@@ -122,10 +123,10 @@ def test_check_docs_detects_missing_notice_reference(repo_copy: Path) -> None:
 
 def test_check_docs_detects_numeric_drift(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
-    mutate(readme, "共 14 个制品", "共 13 个制品")
+    mutate(readme, "共 14 个 geodata 变体", "共 13 个 geodata 变体")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
-    assert "13 个制品" in result.stdout
+    assert "13 个 geodata 变体" in result.stdout
 
 
 def test_check_docs_detects_makefile_download_size_drift(repo_copy: Path) -> None:
@@ -171,6 +172,25 @@ def test_check_docs_detects_missing_referenced_path(repo_copy: Path) -> None:
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "引用了不存在的文件" in result.stdout
+
+
+def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
+    readme = repo_copy / "README.md"
+    mutate(readme, "本项目是完全独立的实现", "本项目是独立重写版本")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "错误的项目定位" in result.stdout
+
+
+def test_check_docs_requires_upstream_acknowledgement_at_bottom(repo_copy: Path) -> None:
+    readme = repo_copy / "README.md"
+    link = "- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)：早期中文 Immich geodata 思路提供了启发；本项目为完全独立实现，不含代码、数据或格式继承。"
+    mutated = readme.read_text(encoding="utf-8").replace(link, "")
+    mutated = mutated.replace("## 数据模型与使用方式", f"{link}\n\n## 数据模型与使用方式")
+    readme.write_text(mutated, encoding="utf-8")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "底部致谢" in result.stdout
 
 
 # --------------------------------------------------------------------------
@@ -414,8 +434,40 @@ def _make_dist(root: Path) -> Path:
     with gzip.open(dist / "patterns.tsv.gz", "wt", encoding="utf-8") as handle:
         handle.write("geoname_id\t{admin_2}\n1\t测试\n")
 
+    database = dist / "_dataset.sqlite"
+    connection = sqlite3.connect(database)
+    try:
+        connection.executescript(
+            """
+            CREATE TABLE dataset_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE sources (name TEXT PRIMARY KEY, url TEXT, sha256 TEXT, size_bytes INTEGER);
+            CREATE TABLE countries (code TEXT PRIMARY KEY, name TEXT, iso3 TEXT, iso_numeric TEXT, geoname_id INTEGER);
+            CREATE TABLE admin_areas (level INTEGER, code TEXT, name TEXT, PRIMARY KEY (level, code));
+            CREATE TABLE places (geoname_id INTEGER PRIMARY KEY);
+            CREATE TABLE place_names (geoname_id INTEGER PRIMARY KEY REFERENCES places(geoname_id));
+            INSERT INTO dataset_meta(key, value) VALUES
+                ('format', 'immich-cn.dataset/1'),
+                ('schemaVersion', '1');
+            INSERT INTO places(geoname_id) VALUES (1);
+            INSERT INTO place_names(geoname_id) VALUES (1);
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    with zipfile.ZipFile(dist / "dataset.sqlite.zip", "w") as archive:
+        archive.write(database, "dataset.sqlite")
+        archive.writestr(
+            "schema.json",
+            json.dumps({"format": "immich-cn.dataset/1", "schemaVersion": 1}),
+        )
+        archive.writestr("NOTICE.txt", "GeoNames CC BY 4.0\n")
+        archive.writestr("README.txt", "canonical dataset\n")
+    database.unlink()
+
     artifact = dist / "geodata.zip"
     extra = dist / "patterns.tsv.gz"
+    dataset = dist / "dataset.sqlite.zip"
     variants = [
         {
             "file": artifact.name,
@@ -426,6 +478,11 @@ def _make_dist(root: Path) -> Path:
             "file": extra.name,
             "sizeBytes": extra.stat().st_size,
             "sha256": hashlib.sha256(extra.read_bytes()).hexdigest(),
+        },
+        {
+            "file": dataset.name,
+            "sizeBytes": dataset.stat().st_size,
+            "sha256": hashlib.sha256(dataset.read_bytes()).hexdigest(),
         },
     ]
     (dist / "manifest.json").write_text(
@@ -534,3 +591,28 @@ def test_check_artifacts_reports_corrupt_zip_without_traceback(tmp_path: Path) -
     assert result.returncode == 1
     assert "无法作为 zip 读取" in result.stdout
     assert "Traceback" not in result.stderr
+
+
+def test_check_artifacts_rejects_dataset_schema_drift(tmp_path: Path) -> None:
+    dist = _make_dist(tmp_path)
+    target = dist / "dataset.sqlite.zip"
+    with zipfile.ZipFile(target) as source:
+        members = {name: source.read(name) for name in source.namelist()}
+    members["schema.json"] = json.dumps({"format": "immich-cn.dataset/2", "schemaVersion": 2}).encode()
+    with zipfile.ZipFile(target, "w") as archive:
+        for name, payload in members.items():
+            archive.writestr(name, payload)
+    errors: list[str] = []
+    check_artifacts.check_dataset(dist, errors)
+    assert any("规范格式版本" in error for error in errors), errors
+
+
+def test_check_artifacts_rejects_dataset_without_notice(tmp_path: Path) -> None:
+    dist = _make_dist(tmp_path)
+    with zipfile.ZipFile(dist / "dataset.sqlite.zip", "w") as archive:
+        archive.writestr("dataset.sqlite", b"SQLite format 3\x00")
+        archive.writestr("schema.json", json.dumps({"format": "immich-cn.dataset/1", "schemaVersion": 1}))
+        archive.writestr("README.txt", "canonical dataset\n")
+    errors: list[str] = []
+    check_artifacts.check_dataset(dist, errors)
+    assert any("缺少成员" in error and "NOTICE.txt" in error for error in errors), errors

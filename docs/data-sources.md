@@ -91,7 +91,14 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，
 高德使用 GCJ-02 坐标，调用前会用 WGS-84 → GCJ-02 转换；provider 结果按坐标写入 JSONL 缓存，
 重复构建不会重复计费。
 
-### 6. 打包
+### 6. 规范数据集
+
+构建阶段先把全部地点、国家、行政层级、中文名、来源和统计写入 `dataset.sqlite`，
+再打包为 `dataset.sqlite.zip`。该 SQLite 数据库使用主键、外键、边界约束和索引，
+并提供 `localized_places` 查询视图；它不依赖 Immich 的制表符列布局。完整结构见
+[数据格式](data-format.md)。
+
+### 7. Immich 适配器打包
 
 对每个 `pattern × full` 组合：
 
@@ -104,5 +111,6 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，
 130 MiB 级的明文 `patterns.tsv` 默认不会生成；需要排查时可用 `--keep-raw` 同时保留明文表，
 镜像构建使用直接流式生成的压缩表 `patterns.tsv.gz`。
 
-`i18n-iso-countries.zip` 与 `build/langs/` 都会保留上游 `LICENSE`，避免再分发语言文件时丢失
-MIT 版权声明；每个 geodata zip 和镜像数据目录同时包含 `NOTICE.txt`，保留 GeoNames 等数据源署名。
+`dataset.sqlite.zip` 自带 `NOTICE.txt`；`i18n-iso-countries.zip` 与 `build/langs/` 保留上游
+`LICENSE`，避免再分发语言文件时丢失 MIT 版权声明；每个 geodata zip 和镜像数据目录同时包含
+`NOTICE.txt`，保留 GeoNames 等数据源署名。

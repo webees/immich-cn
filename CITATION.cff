@@ -17,13 +17,13 @@ keywords:
   - docker
 authors:
   - name: webees
-version: 1.0.0
+version: 1.0.4
 date-released: 2026-10-06
 references:
   - type: software
     title: immich-geodata-cn
     repository-code: "https://github.com/ZingLix/immich-geodata-cn"
-    notes: 思路与数据格式参考
+    notes: 早期思路启发；本项目为完全独立实现，不含代码或人工数据继承
   - type: data
     title: GeoNames
     website: "https://www.geonames.org/"

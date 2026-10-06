@@ -9,37 +9,41 @@
 
 Immich 的反向地理编码默认输出英文地名，本项目的目标是让照片地图显示**熟悉的中文地名**，并且可以直接用中文搜索地点。
 
-本项目是完全独立的实现，不包含或改写其他项目的代码，也不复用其人工整理的数据文件。
+本项目是完全独立的实现，不是任何同类项目的重写版本，也不包含、改写或复用其代码与人工整理数据。
+早期中文 Immich geodata 思路带来的启发只在文末「致谢」中说明，不构成代码、数据或格式继承。
 项目采用 **MIT** 许可；数据来源和再分发要求单独说明，见 [docs/licensing.md](docs/licensing.md)。
 
-设计重点不是复制某个目录结构，而是把职责拆清楚：
+设计重点不是复制某个数据格式或使用方式，而是建立自己的规范模型后再适配消费者：
 
 | 维度 | 本项目设计 |
 |:--|:--|
 | 构建入口 | 可测试的 Python 包 + 统一 CLI |
 | 默认运行 | 零密钥，GeoNames 离线层级表即可完成构建 |
 | 可选增强 | 高德 / Nominatim provider，带限速与磁盘缓存 |
-| 发布方式 | Release zip + GHCR 数据镜像 + 开箱即用的 Immich 覆盖镜像 |
+| 规范数据 | 自有 SQLite 数据集 `dataset.sqlite.zip`，可直接查询、分析或二次开发 |
+| 兼容导出 | Immich 文本目录与 zip 只是默认适配器，不决定内部模型 |
+| 发布方式 | Release 制品 + GHCR 数据镜像 + 开箱即用的 Immich 覆盖镜像 |
 | 粒度切换 | 同一镜像内用 `IMMICH_CN_PATTERN` 切换，无需重新构建 |
 | 更新频率 | 每天自动检查并更新，含 ETag 增量校验与发布指纹 |
 | 数据追踪 | 每次构建记录源文件 SHA256、ETag、统计与输出摘要 |
 | 发布校验 | 结构、覆盖率、去重、制品哈希、容器 smoke、Trivy 与 Cosign |
 
-## 为什么保留 Immich 输出格式
+## 数据模型与使用方式
 
-输出文件不是本项目的私有格式，而是 Immich 直接读取的外部契约。`cities500.txt`、
-`admin1CodesASCII.txt`、`admin2Codes.txt`、`countryInfo.txt`、`geodata-date.txt` 和
-GeoJSON 的文件名、列位置与语义都由 Immich 决定。只要仍以官方 Immich 作为消费者，
-任意“更先进”的格式都会直接破坏兼容性，除非同时修改 Immich 或增加适配层。
+本项目不以“保留上游相同格式与相同使用方式”为目标。规范数据模型是第一等产物，
+`dataset.sqlite.zip` 内含带索引的 SQLite 数据库，直接表达地点、四级行政名、国家、
+来源哈希与构建元数据；任何 SQLite、DuckDB、BI 或程序都可以直接查询和二次开发，
+不需要先理解 Immich 的文本列约定。
 
-本项目因此采用两层设计：
+层间关系明确：
 
-- **外部契约层**：保持 Immich 可读取的文件名和列格式，确保替换数据目录或镜像即可使用；
-- **内部格式层**：使用自身设计的 `levels.tsv`、`patterns.tsv.gz`、`manifest.json`、provider
-  缓存和可测试 CLI。内部模型、构建流程、校验和发布方式可以独立演进。
+- **规范层**：SQLite 数据集定义本项目的稳定语义、版本和查询方式；
+- **适配层**：`geodata*.zip` 把规范模型导出为 Immich 可读取的文本目录；
+- **使用层**：CLI、数据镜像和 Immich 覆盖镜像按场景选择，而不是把某一种兼容方式当成唯一入口。
 
-如果未来出现新的消费者协议，应新增适配器或导出器，而不是让现有 Immich 用户被动迁移。
-完整决策见 [ADR 0001](docs/adr/0001-immich-output-contract.md)。
+新增消费者时增加适配器或导出器，不改规范层；Immich 用户继续使用兼容导出，两者可以独立演进。
+完整格式说明见 [docs/data-format.md](docs/data-format.md)，决策见
+[ADR 0001](docs/adr/0001-immich-output-contract.md)。
 
 ## 全自动更新机制
 
@@ -50,7 +54,7 @@ GeoJSON 的文件名、列位置与语义都由 Immich 决定。只要仍以官�
 | 触发 | `每天 UTC 05:23`（北京时间 13:23）定时执行，也支持手动 `workflow_dispatch` |
 | 上游检查 | 用 `ETag` / `Last-Modified` 条件请求校验 GeoNames、Natural Earth、i18n-iso-countries；未变化时 **304，不传输正文** |
 | 变化判断 | 用「上游文件 SHA256 + 构建配置 + 发布器修订」计算发布指纹，与上一次发布对比；无变化则跳过发布，避免无意义的版本和重复导入 |
-| 构建 | 重新生成四级行政层级、汉化 `cities500`、打包 7 种粒度 × full/非 full 共 14 个制品 |
+| 构建 | 重新生成四级行政层级、汉化 `cities500`、导出 7 种粒度 × full/非 full 共 14 个 geodata 变体与规范数据集 |
 | 校验 | 文件完整性、GeoNames ID 去重、中国与香港记录中文覆盖率、国家名称覆盖率全部通过才允许发布 |
 | 发布 | 更新滚动 Release `auto-release`、创建当日至多一个不可变日期快照 `data-YYYY-MM-DD`（同日后续修订用 `data-YYYY-MM-DD-sha-<短提交>`）、推送两个多架构镜像 |
 | 保留策略 | 自动清理超过 14 个的旧 `data-*` 快照，不会无限堆积 |
@@ -120,7 +124,8 @@ pip install -e ".[dev]"
 immich-cn all
 ```
 
-产物位于 `dist/`：`geodata.zip`（默认粒度）、`geodata_full.zip`（数据增强版）、各粒度变体、`SHA256SUMS` 与 `manifest.json`。
+产物位于 `dist/`：规范数据集 `dataset.sqlite.zip`、Immich 默认粒度 `geodata.zip`、
+`geodata_full.zip`（数据增强版）、各粒度变体、`SHA256SUMS` 与 `manifest.json`。
 
 ### 生效与刷新
 
@@ -184,6 +189,7 @@ release.yml ──► 手动创建语义化版本 Release
 ## 文档
 
 - [架构设计](docs/architecture.md)
+- [规范数据格式](docs/data-format.md)
 - [数据源与处理流程](docs/data-sources.md)
 - [部署指南](docs/deployment.md)
 - [Packages 与供应链](docs/packages.md)
@@ -191,12 +197,12 @@ release.yml ──► 手动创建语义化版本 Release
 - [许可与署名](docs/licensing.md)
 - [常见问题](docs/faq.md)
 
-## 致谢
-
-- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)：早期中文 Immich geodata 思路提供了启发；本项目代码、流水线和数据产物均为独立实现。
-- [Immich](https://github.com/immich-app/immich)：反向地理编码的实现与文档。
-- [GeoNames](https://www.geonames.org/)、[Natural Earth](https://www.naturalearthdata.com/)、[OpenStreetMap](https://www.openstreetmap.org/)：开放地理数据。
-
 ## License
 
 代码以 [MIT](LICENSE) 发布；数据制品的署名要求汇总在 [NOTICE](NOTICE)，完整说明见 [docs/licensing.md](docs/licensing.md)。
+
+## 致谢
+
+- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)：早期中文 Immich geodata 思路提供了启发；本项目为完全独立实现，不含代码、数据或格式继承。
+- [Immich](https://github.com/immich-app/immich)：反向地理编码的实现与文档。
+- [GeoNames](https://www.geonames.org/)、[Natural Earth](https://www.naturalearthdata.com/)、[OpenStreetMap](https://www.openstreetmap.org/)：开放地理数据。
