@@ -81,10 +81,12 @@ docker run --rm -v "$PWD/immich-cn:/out" ghcr.io/webees/immich-cn:latest --targe
 
 ```yaml
 volumes:
-  # Immich >= 1.136.0
   - ./geodata:/build/geodata
-  # Immich < 1.136.0 还需要国家名称覆盖
-  - ./i18n-iso-countries/langs:/usr/src/app/node_modules/i18n-iso-countries/langs
+  # 国家名称覆盖：仅 Immich 1.136.0 ~ 2.x 需要（3.0 起改读 countryInfo.txt）
+  # Immich >= 1.136.0
+  - ./i18n-iso-countries/langs:/usr/src/app/server/node_modules/i18n-iso-countries/langs
+  # Immich < 1.136.0
+  # - ./i18n-iso-countries/langs:/usr/src/app/node_modules/i18n-iso-countries/langs
 ```
 
 ### 方式四：本地构建

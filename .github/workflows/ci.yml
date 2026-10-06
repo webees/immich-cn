@@ -37,6 +37,8 @@ jobs:
         run: ruff format --check .
       - name: mypy 类型检查
         run: mypy
+      - name: 文档契约检查
+        run: python scripts/check_docs.py
       - name: pytest
         run: pytest --cov=immich_cn --cov-report=term-missing --cov-fail-under=70
 

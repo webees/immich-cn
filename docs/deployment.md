@@ -48,7 +48,17 @@ services:
 | `IMMICH_CN_PATTERN` | `{admin_2}` | 展示粒度，取值见 README |
 | `IMMICH_CN_FORCE_RELOAD` | `0` | 设为 `1` 时把 `geodata-date.txt` 更新为当前时间，强制 Immich 重新导入 |
 | `IMMICH_CN_GEODATA_DIR` | `/opt/immich-cn/geodata` | 镜像内数据源目录，一般无需修改 |
+| `IMMICH_CN_LANGS_DIR` | `/opt/immich-cn/i18n-iso-countries/langs` | 镜像内国家名称目录（旧版 Immich 用） |
+| `IMMICH_CN_PATTERNS_TABLE` | `/opt/immich-cn/patterns.tsv.gz` | 运行时粒度切换用的变体表，一般无需修改 |
 | `IMMICH_BUILD_DATA` | `/build` | Immich 自身的构建数据目录，跟随官方镜像即可 |
+
+数据镜像（`ghcr.io/webees/immich-cn`）额外支持：
+
+| 变量 | 默认值 | 说明 |
+|:--|:--|:--|
+| `IMMICH_CN_TARGET` | `/out` | `--target` 的等价环境变量，指定释放目录 |
+
+> `IMMICH_CN_DATA_DATE` 是构建参数写入的只读元信息（镜像内可见），无需手动设置。
 
 ## 方案 B：官方镜像 + 数据镜像
 
@@ -66,8 +76,11 @@ services:
     image: ghcr.io/immich-app/immich-server:release
     volumes:
       - ./immich-cn/geodata:/build/geodata:ro
-      # Immich < 1.136.0 需要下面这一行
+      # 国家名称覆盖：仅 Immich 1.136.0 ~ 2.x 需要（3.0 起改读 countryInfo.txt）
+      # Immich >= 1.136.0
       - ./immich-cn/i18n-iso-countries/langs:/usr/src/app/server/node_modules/i18n-iso-countries/langs:ro
+      # Immich < 1.136.0
+      # - ./immich-cn/i18n-iso-countries/langs:/usr/src/app/node_modules/i18n-iso-countries/langs:ro
 ```
 
 ## 方案 C：只用 Release 数据

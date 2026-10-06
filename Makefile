@@ -2,7 +2,7 @@ PYTHON ?= python3
 VENV ?= .venv
 BIN := $(VENV)/bin
 
-.PHONY: help venv install lint format typecheck test check smoke artifacts entrypoint build clean
+.PHONY: help venv install lint format typecheck test docs check smoke artifacts entrypoint build clean
 
 help: ## 显示可用目标
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -28,7 +28,10 @@ typecheck: ## 类型检查
 test: ## 单元测试
 	$(BIN)/pytest --cov=immich_cn --cov-report=term-missing
 
-check: lint typecheck test ## 全部检查
+docs: ## 校验文档与实现的一致性（环境变量/CLI/make/挂载路径）
+	$(BIN)/python scripts/check_docs.py
+
+check: lint typecheck test docs ## 全部检查
 
 smoke: ## 用合成数据跑完整流水线（不访问外网）
 	$(BIN)/python -m scripts.smoke_data --work-dir build --dist-dir dist
