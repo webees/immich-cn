@@ -31,7 +31,9 @@
 - 解压 `cities500.zip`、`alternateNamesV2.zip`、国家 dump 与 npm tarball。
 
 CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，
-每日构建通常只需传输真正发生变化的少数文件。
+每日构建通常只需传输真正发生变化的少数文件。缓存键由 `runner.os`、工具版本与
+`src/immich_cn/settings.py` 的摘要组成，上游源定义或版本固定发生变化时会切换到新键；
+`check_workflows.py` 会拒绝指向不存在文件的 `hashFiles` 路径，避免缓存键的某个维度静默变成空字符串。
 
 ### 2. 确定地点集合
 
