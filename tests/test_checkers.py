@@ -316,6 +316,24 @@ def test_check_docs_detects_citation_punct_space(repo_copy: Path) -> None:
     assert "中文标点后出现空格" in result.stdout
 
 
+def test_check_docs_detects_version_drift(repo_copy: Path) -> None:
+    """pyproject / __init__ / CITATION 三处版本号必须一致。"""
+    citation = repo_copy / "CITATION.cff"
+    mutate(citation, "version: 1.0.4", "version: 1.0.5")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "版本号不一致" in result.stdout
+
+
+def test_check_docs_detects_package_version_drift(repo_copy: Path) -> None:
+    """包的 __version__ 与 pyproject 漂移时同样要报错（镜像 OCI version 取自前者）。"""
+    init = repo_copy / "src" / "immich_cn" / "__init__.py"
+    mutate(init, '__version__ = "1.0.4"', '__version__ = "1.0.3"')
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "版本号不一致" in result.stdout
+
+
 def test_check_docs_requires_i18n_asset_for_release_users(repo_copy: Path) -> None:
     """geodata zip 不含 langs/，让用户挂载它就必须同时说明要下载 i18n 覆盖包。"""
     deployment = repo_copy / "docs" / "deployment.md"

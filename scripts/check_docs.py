@@ -666,6 +666,32 @@ def check_i18n_asset_documented(paths: list[Path], errors: list[str]) -> None:
         errors.append(f"以下文档未提及 i18n 挂载契约，护栏可能已失效：{'、'.join(missing)}")
 
 
+def check_version_consistency(errors: list[str]) -> None:
+    """项目版本号必须在 pyproject / __init__ / CITATION 三处一致。
+
+    release.yml 只把用户输入的版本与 pyproject 比对；而镜像的 OCI version 取自
+    包的 ``__version__``、Release tag 取自输入版本。三者一旦漂移，会出现「tag 是
+    1.0.5、镜像 OCI version 是 1.0.4」这类不一致。
+    """
+    import tomllib
+
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    init_text = Path("src/immich_cn/__init__.py").read_text(encoding="utf-8")
+    citation_text = Path("CITATION.cff").read_text(encoding="utf-8")
+    init_match = re.search(r'__version__\s*=\s*"([^"]+)"', init_text)
+    cff_match = re.search(r"^version:\s*(\S+)\s*$", citation_text, re.MULTILINE)
+    versions = {
+        "pyproject.toml": str((pyproject.get("project") or {}).get("version", "")),
+        "src/immich_cn/__init__.py": init_match.group(1) if init_match else "",
+        "CITATION.cff": cff_match.group(1) if cff_match else "",
+    }
+    if not all(versions.values()):
+        errors.append(f"无法从以下文件解析出项目版本号：{versions}")
+        return
+    if len(set(versions.values())) > 1:
+        errors.append("项目版本号不一致：" + "、".join(f"{name}={value}" for name, value in versions.items()))
+
+
 def check_asset_names(paths: list[Path], errors: list[str]) -> None:
     """文档中的发布资产名必须符合 v4 规范，且不能回退到 legacy 命名。"""
     sys.path.insert(0, str(Path("src").resolve()))
@@ -733,6 +759,7 @@ def main(argv: list[str] | None = None) -> int:
     check_immich_countryinfo_boundary(render_files, errors)
     check_adm4_coverage_wording(render_files, errors)
     check_i18n_asset_documented(render_files, errors)
+    check_version_consistency(errors)
     check_asset_names(render_files, errors)
 
     for error in errors:
