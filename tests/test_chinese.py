@@ -56,6 +56,22 @@ def test_build_name_index_ignores_historic_names() -> None:
     assert index.get(1) is None
 
 
+def test_build_name_index_keeps_only_japanese_cjk_names() -> None:
+    records = iter(
+        [
+            (1, "ja", "東京都", True, False),
+            (2, "ja", "Tokyo", True, False),
+            (3, "jam", "東京", True, False),
+            (4, "ja-JP", "大阪府", False, False),
+        ]
+    )
+    index = build_name_index(records, overrides=NameOverrides())
+    assert index.get_kanji(1) == "东京都"
+    assert index.get_kanji(2) is None
+    assert index.get_kanji(3) is None
+    assert index.get_kanji(4) == "大阪府"
+
+
 def test_name_overrides_win(tmp_path: Path) -> None:
     path = tmp_path / "overrides.toml"
     path.write_text(

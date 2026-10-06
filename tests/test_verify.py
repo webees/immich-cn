@@ -98,6 +98,39 @@ def test_unresolvable_admin2_codes_are_rejected(build_options: BuildOptions) -> 
     assert "cities500-cn-admin2-resolvable" in failures, failures
 
 
+def test_hong_kong_ascii_names_are_rejected(build_options: BuildOptions) -> None:
+    result = run_build(build_options)
+    cities = result.geodata_dir / "cities500.txt"
+
+    def strip_hong_kong(lines: list[str]) -> list[str]:
+        out = []
+        for line in lines:
+            fields = line.split("\t")
+            if len(fields) >= 19 and fields[8] == "HK":
+                fields[1] = fields[2] = "Tsuen Wan"
+            out.append("\t".join(fields) + "\n")
+        return out
+
+    _rewrite(cities, strip_hong_kong)
+    assert "cities500-hk-cjk" in _failures(result.geodata_dir)
+
+
+def test_admin1_japan_region_thresholds(build_options: BuildOptions) -> None:
+    """日本区域既必须参与校验，又必须允许约 10% 的官方假名地名。"""
+    result = run_build(build_options)
+    admin1 = result.geodata_dir / "admin1CodesASCII.txt"
+    other_rows = [line for line in admin1.read_text(encoding="utf-8").splitlines() if not line.startswith("JP.")]
+
+    def failures(chinese: int) -> dict[str, str]:
+        rows = [f"JP.{i:02d}\t{'北海道' if i < chinese else 'Hokkaido'}\tHokkaido\t{2000 + i}" for i in range(10)]
+        write_lines(admin1, [*other_rows, *rows])
+        return _failures(result.geodata_dir)
+
+    assert "admin1" in failures(5), "日本区域未被单独校验"
+    assert "admin1" in failures(8), "日本区域阈值过松"
+    assert "admin1" not in failures(9), "日本区域阈值不应拒绝官方假名比例"
+
+
 def test_broken_geojson_is_rejected(build_options: BuildOptions) -> None:
     result = run_build(build_options)
     (result.geodata_dir / "ne_10m_admin_0_countries.geojson").write_text("{not json", encoding="utf-8")
@@ -245,6 +278,37 @@ def test_admin_region_ratio_threshold_boundary(tmp_path: Path) -> None:
     assert result.passed is False, result.detail
 
 
+def test_admin_japan_region_ratio_threshold_boundary(tmp_path: Path) -> None:
+    """日本允许少量假名名，但自定义阈值仍必须在 90% 边界处翻转。"""
+    others = ["CN.01\t浙江省\tZhejiang\t1", "CN.02\t江苏省\tJiangsu\t2", "HK.K01\t中西区\tCentral\t3"]
+    path = tmp_path / "admin1-japan.txt"
+
+    at_threshold = [f"JP.{i:02d}\t東京都\tTokyo\t{100 + i}" for i in range(9)]
+    at_threshold.append("JP.09\tTokyo\tTokyo\t109")  # 9/10 = 0.90
+    write_lines(path, at_threshold + others)
+    result = _check_admin(
+        path,
+        "admin1",
+        min_overall_ratio=0.5,
+        min_country_ratio=0.95,
+        regions=("JP.",),
+        region_min_ratios={"JP.": 0.90},
+    )
+    assert result.passed is True, result.detail
+
+    below_threshold = [*at_threshold[:8], "JP.08\tTokyo\tTokyo\t108", "JP.09\tTokyo\tTokyo\t109"]
+    write_lines(path, below_threshold + others)
+    result = _check_admin(
+        path,
+        "admin1",
+        min_overall_ratio=0.5,
+        min_country_ratio=0.95,
+        regions=("JP.",),
+        region_min_ratios={"JP.": 0.90},
+    )
+    assert result.passed is False, result.detail
+
+
 def _cities(rows: int, chinese: int, with_admin2: int) -> list[str]:
     out = []
     for i in range(rows):
@@ -307,6 +371,33 @@ def test_cities500_admin2_resolvable_threshold_boundary(tmp_path: Path) -> None:
             admin2_codes=codes,
         )
         return {result.name: result for result in results}["cities500-cn-admin2-resolvable"]
+
+    assert check(99).passed is True, check(99).detail  # 99/100 = 0.99
+    assert check(98).passed is False, check(98).detail
+
+
+def test_cities500_hong_kong_cjk_ratio_threshold_boundary(tmp_path: Path) -> None:
+    def check(chinese: int):
+        path = tmp_path / f"cities-hk-{chinese}.txt"
+        rows = [
+            geo_row(
+                2_000_000 + i,
+                "荃湾区" if i < chinese else "Tsuen Wan",
+                country="HK",
+                admin1="NTW",
+                latitude=str(22 + i / 1000),
+                longitude=str(114 + i / 1000),
+            )
+            for i in range(100)
+        ]
+        write_lines(path, rows)
+        results = _check_cities500(
+            path,
+            min_cn_cjk_ratio=0.9,
+            min_hk_cjk_ratio=0.99,
+            min_cn_admin2_code_ratio=0.9,
+        )
+        return {result.name: result for result in results}["cities500-hk-cjk"]
 
     assert check(99).passed is True, check(99).detail  # 99/100 = 0.99
     assert check(98).passed is False, check(98).detail

@@ -18,6 +18,9 @@ from immich_cn.models import AdminEntry, Place, PlaceNames
 
 logger = get_logger("hierarchy")
 
+#: 这些国家/地区允许在缺少中文名时回退到"日文汉字"（官方写法本身是汉字）
+KANJI_FALLBACK_COUNTRIES: frozenset[str] = frozenset({"JP"})
+
 
 @dataclass(slots=True)
 class Hierarchy:
@@ -51,6 +54,8 @@ def translate_admin_codes(
     translated: dict[str, str] = {}
     for code, entry in entries.items():
         name = index.get_admin(code) or index.get(entry.geoname_id)
+        if not name and code.split(".")[0] in KANJI_FALLBACK_COUNTRIES:
+            name = index.get_kanji(entry.geoname_id)
         if not name and fallback_to_ascii:
             name = to_variant(entry.name, index.variant)
         if name:
@@ -71,6 +76,8 @@ def translate_admin_units(
     translated: dict[str, str] = {}
     for code, geoname_id in units.items():
         name = index.get(geoname_id) or index.get_admin(code)
+        if not name and code.split(".")[0] in KANJI_FALLBACK_COUNTRIES:
+            name = index.get_kanji(geoname_id)
         if not name:
             entry = geoname_names.get(code)
             if entry is not None:

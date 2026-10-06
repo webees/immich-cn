@@ -205,9 +205,12 @@ class ChineseNameIndex:
     """geonameId → 中文名 的索引。"""
 
     names: dict[int, str] = field(default_factory=dict)
+    #: 非中文但可直接显示的名称（目前只用于日本的日文汉字），按国家受限使用
+    kanji_names: dict[int, str] = field(default_factory=dict)
     overrides: NameOverrides = field(default_factory=NameOverrides)
     variant: ChineseVariant = "hans"
     _ranks: dict[int, tuple[int, int]] = field(default_factory=dict, init=False, repr=False)
+    _kanji_ranks: dict[int, int] = field(default_factory=dict, init=False, repr=False)
 
     def add_candidate(self, geoname_id: int, language: str, name: str, *, preferred: bool, historic: bool) -> None:
         if historic:
@@ -224,6 +227,24 @@ class ChineseNameIndex:
         if current is None or score < current:
             self.names[geoname_id] = value
             self._ranks[geoname_id] = score
+
+    def add_kanji_candidate(self, geoname_id: int, language: str, name: str, *, preferred: bool) -> None:
+        """记录日文汉字名称。
+
+        日本地名的官方写法就是汉字（如 座間市），比 GeoNames 的罗马字更接近中文用户预期；
+        但这不是中文，必须由国家层面显式启用（见 ``KANJI_FALLBACK_COUNTRIES``）。
+        """
+        normalized = language.strip().lower().replace("_", "-")
+        if normalized != "ja" and not normalized.startswith("ja-"):
+            return
+        value = name.strip()
+        if not value or not has_cjk(value):
+            return
+        score = 0 if preferred else 1
+        current = self._kanji_ranks.get(geoname_id)
+        if current is None or score < current:
+            self.kanji_names[geoname_id] = value
+            self._kanji_ranks[geoname_id] = score
 
     def get(self, geoname_id: int | None) -> str | None:
         """返回转换到目标字形并应用覆盖后的名称。"""
@@ -242,6 +263,15 @@ class ChineseNameIndex:
         if override is None:
             return None
         return override if self.variant == "hant" else to_variant(override, self.variant)
+
+    def get_kanji(self, geoname_id: int | None) -> str | None:
+        """返回日文汉字名称（转换为目标字形），没有则返回 None。"""
+        if geoname_id is None:
+            return None
+        raw = self.kanji_names.get(geoname_id)
+        if raw is None:
+            return None
+        return to_variant(raw, self.variant)
 
     def get_country(self, alpha2: str) -> str | None:
         override = self.overrides.countries.get(alpha2.upper())
@@ -265,6 +295,8 @@ def build_name_index(
     for geoname_id, language, name, preferred, historic in alternate_names:
         count += 1
         index.add_candidate(geoname_id, language, name, preferred=preferred, historic=historic)
+        if not historic:
+            index.add_kanji_candidate(geoname_id, language, name, preferred=preferred)
         if count % 1_000_000 == 0:
             logger.debug("已处理 %d 条候选名称", count)
     logger.info("中文名索引完成：%d 条候选，命中 %d 个 GeoNames ID", count, len(index.names))
