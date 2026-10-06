@@ -97,7 +97,7 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("path", type=Path, help="待校验的 geodata 目录")
     verify.add_argument("--min-cn-ratio", type=float, default=0.90, help="中国记录的中文名称覆盖率下限")
 
-    fingerprint = sub.add_parser("fingerprint", help="打印 manifest.json 的数据指纹")
+    fingerprint = sub.add_parser("fingerprint", help="打印 manifest.json 的发布指纹")
     fingerprint.add_argument("manifest", type=Path, help="manifest.json 路径")
     return parser
 

@@ -220,10 +220,10 @@ def test_check_workflows_detects_delete_then_recreate_release(repo_copy: Path) -
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
     mutate(
         workflow,
-        '            echo "上游数据与构建配置均无变化，已跳过发布与镜像推送。"',
+        '            echo "上游数据、构建配置与发布器修订均无变化，已跳过发布与镜像推送。"',
         "            gh release delete auto-release --yes --cleanup-tag || true\n"
         "            gh release create auto-release dist/*\n"
-        '            echo "上游数据与构建配置均无变化，已跳过发布与镜像推送。"',
+        '            echo "上游数据、构建配置与发布器修订均无变化，已跳过发布与镜像推送。"',
     )
     result = run_checker(repo_copy, "check_workflows.py")
     assert result.returncode == 1
@@ -234,10 +234,10 @@ def test_check_workflows_detects_release_metadata_before_assets(repo_copy: Path)
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
     mutate(
         workflow,
-        '            echo "上游数据与构建配置均无变化，已跳过发布与镜像推送。"',
+        '            echo "上游数据、构建配置与发布器修订均无变化，已跳过发布与镜像推送。"',
         "            gh release edit probe --title new\n"
         "            gh release upload probe dist/*\n"
-        '            echo "上游数据与构建配置均无变化，已跳过发布与镜像推送。"',
+        '            echo "上游数据、构建配置与发布器修订均无变化，已跳过发布与镜像推送。"',
     )
     result = run_checker(repo_copy, "check_workflows.py")
     assert result.returncode == 1

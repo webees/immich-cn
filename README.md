@@ -31,7 +31,7 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 |:--|:--|
 | 触发 | `每天 UTC 05:23`（北京时间 13:23）定时执行，也支持手动 `workflow_dispatch` |
 | 上游检查 | 用 `ETag` / `Last-Modified` 条件请求校验 GeoNames、Natural Earth、i18n-iso-countries；未变化时 **304，不传输正文** |
-| 变化判断 | 用「上游文件 SHA256 + 构建配置」计算数据指纹，与上一次发布对比；无变化则跳过发布，避免无意义的版本和重复导入 |
+| 变化判断 | 用「上游文件 SHA256 + 构建配置 + 发布器修订」计算发布指纹，与上一次发布对比；无变化则跳过发布，避免无意义的版本和重复导入 |
 | 构建 | 重新生成四级行政层级、汉化 `cities500`、打包 7 种粒度 × full/非 full 共 14 个制品 |
 | 校验 | 文件完整性、GeoNames ID 去重、中国与香港记录中文覆盖率、国家名称覆盖率全部通过才允许发布 |
 | 发布 | 更新滚动 Release `auto-release`、创建当日不可变快照 `data-YYYY-MM-DD`、推送 `ghcr.io/webees/immich-cn` 与 `ghcr.io/webees/immich-cn-server` 多架构镜像 |
@@ -150,7 +150,7 @@ immich-cn all
         │                    │
         │                    ├─ ETag 条件校验上游（未变化 → 304）
         │                    ├─ immich-cn all（翻译 → 打包 → 校验）
-        │                    ├─ 数据指纹对比（无变化 → 跳过发布）
+        │                    ├─ 发布指纹对比（无变化 → 跳过发布）
         │                    └─ 推送多架构镜像
         │
         └──► Release：auto-release（滚动）+ data-YYYY-MM-DD（快照，保留 14 个）

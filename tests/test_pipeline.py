@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from immich_cn import __version__
 from immich_cn.build import (
     _alternate_stream,
     _extract_i18n,
@@ -107,6 +108,12 @@ def test_build_is_idempotent(build_options: BuildOptions) -> None:
     ).read_text(encoding="utf-8")
 
 
+def test_manifest_records_ci_build_revision(build_options: BuildOptions, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_SHA", "deadbeef")
+    manifest = run_build(build_options).as_manifest()
+    assert manifest["tool"] == {"name": "immich-cn", "version": __version__, "revision": "deadbeef"}
+
+
 def test_package_produces_expected_artifacts(build_options: BuildOptions) -> None:
     result = run_build(build_options)
     assert package_all(build_options, result).variants
@@ -128,6 +135,7 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
 
     manifest = json.loads((dist / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["tool"]["name"] == "immich-cn"
+    assert isinstance(manifest["tool"]["revision"], str)
     assert len(manifest["variants"]) == 4
     assert manifest["license"]["code"] == "MIT"
     stats = manifest["stats"]

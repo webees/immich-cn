@@ -124,7 +124,7 @@ date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./immich-cn/geodata/geodata-date.txt
 上游数据由 GitHub Actions **每天自动更新**（UTC 05:23 / 北京时间 13:23）：
 
 - 每天用 ETag 条件请求检查 GeoNames、Natural Earth、i18n-iso-countries；
-- 只有数据或构建配置真正变化时才重新构建、发布 Release 与推送镜像；
+- 只有数据、构建配置或发布器修订真正变化时才重新构建、发布 Release 与推送镜像；
 - 因此每周甚至每月拉取一次镜像，也能一次拿到累积的全部更新。
 
 判断当前数据版本：查看 Release 标题日期，或容器内 `/build/geodata/geodata-date.txt`。

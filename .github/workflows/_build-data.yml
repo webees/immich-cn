@@ -32,7 +32,7 @@ on:
         type: boolean
         default: false
       force-publish:
-        description: 即使上游数据与构建配置均未变化也强制发布
+        description: 即使上游数据、构建配置与发布器修订均未变化也强制发布
         type: boolean
         default: false
     outputs:
@@ -46,7 +46,7 @@ on:
         description: 制品名称
         value: ${{ jobs.build.outputs.artifact }}
       changed:
-        description: 上游数据或构建配置是否发生变化（true/false）
+        description: 上游数据、构建配置或发布器修订是否发生变化（true/false）
         value: ${{ jobs.build.outputs.changed }}
 
 permissions:
@@ -108,14 +108,14 @@ jobs:
             --extra-countries "$INPUT_EXTRA_COUNTRIES" \
             --revalidate
 
-      - name: 判断上游数据是否有变化
+      - name: 判断发布内容是否有变化
         id: change
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           digest="$(immich-cn fingerprint dist/manifest.json)"
-          echo "本次数据指纹：${digest}"
+          echo "本次发布指纹：${digest}"
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
           previous=""
@@ -123,14 +123,14 @@ jobs:
           if gh release download auto-release --repo "$GITHUB_REPOSITORY" \
                --pattern manifest.json --dir "$work" >/dev/null 2>&1; then
             previous="$(immich-cn fingerprint "${work}/manifest.json" 2>/dev/null || true)"
-            echo "上次数据指纹：${previous:-未知}"
+            echo "上次发布指纹：${previous:-未知}"
           else
             echo "未找到历史 manifest，视为首次构建"
           fi
 
           if [ -n "$previous" ] && [ "$previous" = "$digest" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "上游数据与构建配置均无变化，跳过镜像推送"
+            echo "上游数据、构建配置与发布器修订均无变化，跳过镜像推送"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
