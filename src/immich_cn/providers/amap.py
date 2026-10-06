@@ -98,7 +98,9 @@ class AmapEnricher:
         for place in places:
             if place.country_code not in self._options.countries:
                 continue
-            if self._cache.get(_key(place)) is not None:
+            cached = self._cache.get(_key(place))
+            # 只信任成功结果：旧的 _error 条目视为缓存失效，重新请求（自愈）
+            if cached is not None and "_error" not in cached:
                 continue
             pending.append(place)
             if len(pending) >= self._options.batch_size:
@@ -146,8 +148,8 @@ class AmapEnricher:
             payload = None
 
         if payload is None:
-            for place in batch:
-                self._cache.put(_key(place), {"_error": "request-failed"})
+            # 瞬时故障不写负缓存：否则服务恢复后这些坐标会被永久跳过
+            logger.warning("高德批量请求失败，本批 %d 个坐标下次运行重试", len(batch))
             return
 
         regeocodes = payload.get("regeocodes")
@@ -160,7 +162,7 @@ class AmapEnricher:
             record = regeocodes[index] if index < len(regeocodes) else None
             levels = _parse_regeocode(record)
             if levels is None:
-                self._cache.put(_key(place), {"_error": "empty"})
+                logger.debug("高德未返回有效地址，跳过缓存以便下次重试")
             else:
                 self._cache.put(_key(place), levels)
 
