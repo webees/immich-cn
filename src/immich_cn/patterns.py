@@ -57,8 +57,8 @@ def validate_pattern(pattern: str) -> None:
 
 def _validate_keys(pattern: str, keys: tuple[str, ...]) -> None:
     """校验占位符；与 :func:`validate_pattern` 等价，但可复用已解析的 keys。"""
-    if not keys:
-        raise ConfigError(f"展示粒度 {pattern!r} 未包含任何占位符")
+    # 注意：keys 为空时下面的 admin_N 检查同样会拒绝，
+    # 因此这里不再保留一个永远排不上用场的“无占位符”分支。
     unknown = [key for key in keys if key not in ALLOWED_KEYS]
     if unknown:
         raise ConfigError(f"展示粒度 {pattern!r} 含未知占位符：{', '.join(unknown)}")
