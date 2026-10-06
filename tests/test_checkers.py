@@ -193,6 +193,28 @@ def test_check_docs_detects_undocumented_source(repo_copy: Path) -> None:
     assert "未在 docs/data-sources.md 记录" in result.stdout
 
 
+def test_check_docs_detects_stale_module_name(repo_copy: Path) -> None:
+    """命名规范表里的现行模块名在源码中不存在时必须被报出。"""
+    naming = repo_copy / "docs" / "naming-conventions.md"
+    mutate(
+        naming,
+        "| `artifacts.py` | `artifact_spec.py` |",
+        "| `artifacts.py` | `artifact_spec_v2.py` |",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "现行模块名" in result.stdout
+
+
+def test_check_docs_detects_legacy_module_resurrection(repo_copy: Path) -> None:
+    """命名规范表标记为旧名的模块重新出现时必须被报出。"""
+    naming = repo_copy / "docs" / "naming-conventions.md"
+    mutate(naming, "| `models.py` | `domain.py` |", "| `domain.py` | `domain.py` |")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "旧模块名" in result.stdout
+
+
 def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     mutate(readme, "本项目按独立实现组织", "本项目是独立重写版本")
