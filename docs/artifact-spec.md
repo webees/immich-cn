@@ -63,6 +63,24 @@ schema 版本。
 稳定入口 `geodata.zip` 与 `geodata_full.zip` 继续保留；其他旧变体名只作为迁移期兼容名，
 不再新增重复的默认 profile 资产。
 
+## 解析 canonical 制品
+
+使用 CLI 解析 manifest，不需要手写 JSON：
+
+```bash
+immich-cn artifact resolve --manifest dist/manifest.json \
+  --id geodata.immich.admin2-admin3.full.v1
+
+immich-cn artifact resolve --manifest dist/manifest.json \
+  --alias geodata.zip
+
+immich-cn artifact resolve --manifest dist/manifest.json \
+  --profile admin2-admin3 --scope full
+```
+
+输出包含 `id`、`file`、`canonicalFile`、`profile`、`scope`、`sha256` 等字段，适合脚本和
+下载器直接消费。
+
 ## 迁移规则
 
 1. 当前 Release 继续发布兼容文件名，同时在 manifest 中发布 canonical ID。

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import sys
 from collections.abc import Sequence
 from pathlib import Path
 
 from immich_cn import __version__
+from immich_cn.artifacts import resolve_artifact
 from immich_cn.build import fetch_sources, run_build
 from immich_cn.config import DEFAULT_EXTRA_COUNTRIES, DEFAULT_PATTERNS, BuildOptions
 from immich_cn.errors import ImmichCnError
@@ -99,6 +101,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     fingerprint = sub.add_parser("fingerprint", help="打印 manifest.json 的发布指纹")
     fingerprint.add_argument("manifest", type=Path, help="manifest.json 路径")
+
+    artifact = sub.add_parser("artifact", help="解析 v2 manifest 中的 canonical 制品")
+    artifact_sub = artifact.add_subparsers(dest="artifact_command", required=True)
+    resolve = artifact_sub.add_parser("resolve", help="按 ID、alias 或 profile/scope 解析制品")
+    resolve.add_argument("--manifest", type=Path, required=True, help="manifest.json 路径")
+    selector = resolve.add_mutually_exclusive_group()
+    selector.add_argument("--id", dest="artifact_id", help="canonical artifact ID")
+    selector.add_argument("--alias", help="稳定下载别名，例如 geodata.zip")
+    resolve.add_argument("--profile", help="profile ID，例如 admin2-admin3")
+    resolve.add_argument("--scope", choices=("default", "full"), help="数据范围")
     return parser
 
 
@@ -137,6 +149,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             print(fingerprint_from_file(str(args.manifest)))
         except (OSError, ValueError) as error:
+            logger.error("%s", error)
+            return EXIT_ERROR
+        return EXIT_OK
+    if args.command == "artifact":
+        try:
+            manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+            artifact = resolve_artifact(
+                manifest,
+                artifact_id=args.artifact_id,
+                alias=args.alias,
+                profile=args.profile,
+                scope=args.scope,
+            )
+            print(json.dumps(artifact, ensure_ascii=False, indent=2))
+        except (OSError, json.JSONDecodeError, ImmichCnError) as error:
             logger.error("%s", error)
             return EXIT_ERROR
         return EXIT_OK
