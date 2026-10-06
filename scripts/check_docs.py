@@ -25,6 +25,8 @@ BUILD_ONLY = {
 
 #: 参与契约检查的文档（含贡献指南与安全策略，它们同样会引用路径与命令）
 DOC_GLOBS = ("README.md", "docs/*.md", "CONTRIBUTING.md", "SECURITY.md")
+#: 同样会被渲染成 Markdown 的附加文件：Release 说明、Issue 模板、示例注释。
+RENDER_EXTRA_GLOBS = (".github/*.md", ".github/ISSUE_TEMPLATE/*.yml", "examples/*.yml")
 CODE_GLOBS = ("src/**/*.py", "docker/*", "scripts/*", ".github/workflows/*.yml", ".github/*.md", "examples/*.yml")
 
 ENV_PATTERN = re.compile(r"\b(IMMICH_[A-Z0-9_]+)\b")
@@ -633,9 +635,10 @@ def main(argv: list[str] | None = None) -> int:
     check_markdown_links(doc_files, errors)
     check_manifest_field_docs(errors)
     check_manifest_stats_scope(errors)
-    check_cjk_soft_breaks(doc_files, errors)
+    render_files = [*doc_files, *_expand(RENDER_EXTRA_GLOBS)]
+    check_cjk_soft_breaks(render_files, errors)
     check_citation_spacing(errors)
-    check_asset_names(doc_files, errors)
+    check_asset_names(render_files, errors)
 
     for error in errors:
         print(f"[!!] {error}")
