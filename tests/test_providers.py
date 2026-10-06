@@ -234,6 +234,17 @@ def test_provider_cache_is_jsonl(tmp_path: Path) -> None:
     assert JsonlCache(path).get("1,2") == {"admin_1": "江苏省"}
 
 
+def test_provider_cache_skips_non_object_json_lines(tmp_path: Path) -> None:
+    path = tmp_path / "cache.jsonl"
+    path.write_text(
+        '[]\n"text"\n{"key": "1,2", "value": {"admin_1": "江苏省"}}\n',
+        encoding="utf-8",
+    )
+    from immich_cn.providers.cache import JsonlCache
+
+    assert JsonlCache(path).get("1,2") == {"admin_1": "江苏省"}
+
+
 def test_amap_endpoint_is_https() -> None:
     assert AMAP_ENDPOINT.startswith("https://")
     assert NOMINATIM_ENDPOINT.startswith("https://")

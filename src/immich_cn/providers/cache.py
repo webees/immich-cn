@@ -30,6 +30,8 @@ class JsonlCache:
                     payload = json.loads(line)
                 except json.JSONDecodeError:
                     continue
+                if not isinstance(payload, dict):
+                    continue
                 key = payload.get("key")
                 value = payload.get("value")
                 if isinstance(key, str) and isinstance(value, dict):
