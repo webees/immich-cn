@@ -97,7 +97,7 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，
 
 1. 流式读取 `cities500.txt` 与 `extra_all.txt`；
 2. 从 `levels.tsv` 取四级名称，按 pattern 组合成展示名，写入第 1、2 列；
-3. 直接写进 zip（不在磁盘上落中间文件），zip 内目录结构为 `geodata/`，与上游保持一致；
+3. 直接写进 zip（不在磁盘上落中间文件），zip 内目录结构为 `geodata/`，与 Immich 读取约定一致；
 4. 追加 `geodata/build-info.json` 说明该变体的 pattern 与 full 状态。
 
 最后生成 `manifest.json`、`SHA256SUMS`、`patterns.tsv.gz` 与 `i18n-iso-countries.zip`。
