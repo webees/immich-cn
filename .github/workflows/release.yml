@@ -46,6 +46,11 @@ jobs:
             echo "::error::版本号必须是语义化版本，例如 1.1.0"
             exit 1
           fi
+          repo_version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          if [ "$VERSION" != "$repo_version" ]; then
+            echo "::error::输入版本 $VERSION 与 pyproject.toml 的 $repo_version 不一致；请先提交版本变更"
+            exit 1
+          fi
           if gh release view "v${VERSION}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::error::v${VERSION} 已存在"
             exit 1

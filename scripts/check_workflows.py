@@ -202,6 +202,8 @@ def check_version_release(path: Path, workflow: dict[str, Any], errors: list[str
         errors.append(f"{path} 缺少版本 Release 的预检查；重复版本可能在构建后失败并覆盖镜像标签")
     if "image-version: ${{ inputs.version }}" not in text:
         errors.append(f"{path} 未把 Release 版本传递给镜像构建")
+    if "tomllib" not in text or "repo_version=" not in text:
+        errors.append(f"{path} 缺少输入版本与 pyproject.toml 的一致性检查")
 
 
 def check_concurrency(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
