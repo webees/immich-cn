@@ -7,10 +7,12 @@
 from __future__ import annotations
 
 import inspect
+import tomllib
 from pathlib import Path
 
 import pytest
 
+from immich_cn import __version__
 from immich_cn.cli import build_parser
 from immich_cn.config import DEFAULT_EXTRA_COUNTRIES, DEFAULT_PATTERNS, BuildOptions, positive_int_env
 from immich_cn.errors import ConfigError
@@ -32,6 +34,11 @@ def test_build_options_defaults_match_cli() -> None:
         DEFAULT_EXTRA_COUNTRIES
     )
     assert tuple(item.strip() for item in args.patterns.split(",") if item.strip()) == tuple(DEFAULT_PATTERNS)
+
+
+def test_project_version_matches_runtime() -> None:
+    project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    assert __version__ == project["project"]["version"]
 
 
 def test_verify_cli_threshold_matches_library_default() -> None:
