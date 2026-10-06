@@ -666,6 +666,22 @@ def check_i18n_asset_documented(paths: list[Path], errors: list[str]) -> None:
         errors.append(f"以下文档未提及 i18n 挂载契约，护栏可能已失效：{'、'.join(missing)}")
 
 
+def check_geodata_import_wording(paths: list[Path], errors: list[str]) -> None:
+    """描述 Immich geodata 重新导入条件时不能写成「按新旧比较」。
+
+    上游 map.repository.ts 的判断是 `geocodingMetadata?.lastUpdate === geodataDate`
+    就 return：与上次记录**相等**才跳过，任何不同的值（更新或更旧）都会重新导入。
+    """
+    stale_phrases = ("比上次导入时间更新", "不新于上次导入时间")
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        for phrase in stale_phrases:
+            if phrase in text:
+                errors.append(
+                    f"{path} 使用了不准确的导入条件（{phrase}）；上游是「与上次记录相等则跳过，否则重新导入」"
+                )
+
+
 def check_version_consistency(errors: list[str]) -> None:
     """项目版本号必须在 pyproject / __init__ / CITATION 三处一致。
 
@@ -760,6 +776,7 @@ def main(argv: list[str] | None = None) -> int:
     check_adm4_coverage_wording(render_files, errors)
     check_i18n_asset_documented(render_files, errors)
     check_version_consistency(errors)
+    check_geodata_import_wording(render_files, errors)
     check_asset_names(render_files, errors)
 
     for error in errors:

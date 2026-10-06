@@ -25,7 +25,7 @@ docker pull ghcr.io/webees/immich-cn-server:latest
 详见 [部署指南](https://github.com/webees/immich-cn/blob/main/docs/deployment.md)。
 
 > [!IMPORTANT]
-> Immich 只在 `geodata-date.txt` 比上次导入时间更新时才重新导入数据。如果替换数据后没有生效，请把该文件内容改为当前时间（或设置 `IMMICH_CN_FORCE_RELOAD=1`）。
+> Immich 只在 `geodata-date.txt` 与上次导入时记录的值**不同**时才重新导入数据（相等就跳过）。如果替换数据后没有生效，请把该文件内容改为当前时间（或设置 `IMMICH_CN_FORCE_RELOAD=1`）。
 >
 > 同一 Release 内所有变体的时间戳相同，因此切换到同一 Release 的其他变体时需要手动调整该文件。
 

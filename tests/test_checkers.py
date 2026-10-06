@@ -316,6 +316,19 @@ def test_check_docs_detects_citation_punct_space(repo_copy: Path) -> None:
     assert "中文标点后出现空格" in result.stdout
 
 
+def test_check_docs_rejects_stale_geodata_import_wording(repo_copy: Path) -> None:
+    """上游是「相等则跳过」，写成「按新旧比较」必须被拦下。"""
+    faq = repo_copy / "docs" / "faq.md"
+    mutate(
+        faq,
+        "Immich 只在 `geodata-date.txt` 与上次导入时记录的值**不同**时才重新导入",
+        "Immich 只在 `geodata-date.txt` 比上次导入时间更新时才重新导入",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "不准确的导入条件" in result.stdout
+
+
 def test_check_docs_detects_version_drift(repo_copy: Path) -> None:
     """pyproject / __init__ / CITATION 三处版本号必须一致。"""
     citation = repo_copy / "CITATION.cff"
