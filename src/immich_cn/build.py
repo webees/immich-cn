@@ -656,14 +656,26 @@ def _load_translations(langs_dir: Path, variant: ChineseVariant = "hans") -> dic
 
 
 def load_levels(path: Path) -> dict[int, tuple[str, str, str, str, str]]:
-    """读取 ``levels.tsv``。"""
+    """读取 ``levels.tsv``。
+
+    同一份地名会在上百万行里反复出现，这里用字符串池复用对象：
+    否则每个单元格都会创建独立字符串，峰值内存相差数百 MiB。
+    """
     levels: dict[int, tuple[str, str, str, str, str]] = {}
+    pool: dict[str, str] = {}
+    reuse = pool.setdefault
     with path.open("r", encoding="utf-8") as handle:
         for line in handle:
             fields = line.rstrip("\n").split("\t")
             if len(fields) != 6:
                 continue
-            levels[int(fields[0])] = (fields[1], fields[2], fields[3], fields[4], fields[5])
+            levels[int(fields[0])] = (
+                reuse(fields[1], fields[1]),
+                reuse(fields[2], fields[2]),
+                reuse(fields[3], fields[3]),
+                reuse(fields[4], fields[4]),
+                reuse(fields[5], fields[5]),
+            )
     return levels
 
 
