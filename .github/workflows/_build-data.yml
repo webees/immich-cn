@@ -301,6 +301,96 @@ jobs:
           docker run --rm "$image" true
           docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image"
 
+      - name: 完整 Immich 服务栈冒烟（PostgreSQL + Valkey）
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
+        env:
+          SERVER_DIGEST: ${{ steps.server-image.outputs.digest }}
+          POSTGRES_IMAGE: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+          REDIS_IMAGE: docker.io/valkey/valkey:8-bookworm
+        run: |
+          set -euo pipefail
+          server_image="ghcr.io/${GITHUB_REPOSITORY}-server@${SERVER_DIGEST}"
+          suffix="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${RANDOM}"
+          network="immich-cn-smoke-${suffix}"
+          postgres="immich-cn-postgres-${suffix}"
+          redis="immich-cn-redis-${suffix}"
+          server="immich-cn-server-${suffix}"
+          cleanup() {
+            docker rm -f "$server" "$postgres" "$redis" >/dev/null 2>&1 || true
+            docker network rm "$network" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker network create "$network" >/dev/null
+          docker run -d --name "$redis" --network "$network" "$REDIS_IMAGE" >/dev/null
+          docker run -d --name "$postgres" --network "$network" \
+            -e POSTGRES_PASSWORD=immich-smoke-password \
+            -e POSTGRES_USER=immich \
+            -e POSTGRES_DB=immich \
+            "$POSTGRES_IMAGE" >/dev/null
+
+          dependencies_ready=0
+          for attempt in $(seq 1 90); do
+            if docker exec "$redis" redis-cli ping >/dev/null 2>&1 \
+              && docker exec "$postgres" pg_isready -U immich -d immich >/dev/null 2>&1; then
+              dependencies_ready=1
+              break
+            fi
+            if [ "$attempt" -eq 90 ]; then
+              echo "::error::PostgreSQL 或 Valkey 未在 180 秒内就绪"
+              docker logs "$postgres" || true
+              docker logs "$redis" || true
+              exit 1
+            fi
+            sleep 2
+          done
+          test "$dependencies_ready" = 1
+
+          docker run -d --name "$server" --network "$network" \
+            -e DB_HOSTNAME="$postgres" \
+            -e DB_USERNAME=immich \
+            -e DB_PASSWORD=immich-smoke-password \
+            -e DB_DATABASE_NAME=immich \
+            -e REDIS_HOSTNAME="$redis" \
+            -e IMMICH_MACHINE_LEARNING_ENABLED=false \
+            -e IMMICH_CN_PATTERN='{admin_2} {admin_3}' \
+            -e IMMICH_CN_FORCE_RELOAD=1 \
+            "$server_image" >/dev/null
+
+          server_ready=0
+          for attempt in $(seq 1 120); do
+            if docker exec "$server" immich-healthcheck >/dev/null 2>&1; then
+              server_ready=1
+              break
+            fi
+            if [ "$attempt" -eq 120 ]; then
+              echo "::error::Immich server 未在 240 秒内通过健康检查"
+              docker logs "$server" || true
+              exit 1
+            fi
+            sleep 2
+          done
+          test "$server_ready" = 1
+
+          import_ready=0
+          for attempt in $(seq 1 120); do
+            docker logs "$server" > server-smoke.log 2>&1
+            if grep -q "Geodata import completed" server-smoke.log; then
+              import_ready=1
+              break
+            fi
+            if [ "$attempt" -eq 120 ]; then
+              echo "::error::Immich geodata 未在 240 秒内完成导入"
+              cat server-smoke.log
+              exit 1
+            fi
+            sleep 2
+          done
+          test "$import_ready" = 1
+          grep -q "Successfully imported .* geodata records" server-smoke.log
+          docker exec "$server" grep -q "苏州市 昆山市" /build/geodata/cities500.txt
+          echo "完整 Immich 服务栈 smoke 通过"
+
       - name: 安装 Trivy
         if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
