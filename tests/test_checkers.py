@@ -285,6 +285,31 @@ def test_check_workflows_requires_project_version_consistency(repo_copy: Path) -
     assert "缺少输入版本与 pyproject.toml 的一致性检查" in result.stdout
 
 
+def test_check_workflows_requires_release_preflight_checkout(repo_copy: Path) -> None:
+    workflow = repo_copy / ".github" / "workflows" / "release.yml"
+    mutate(
+        workflow,
+        "  validate:\n"
+        "    name: 检查版本可用性\n"
+        "    runs-on: ubuntu-latest\n"
+        "    timeout-minutes: 10\n"
+        "    permissions:\n"
+        "      contents: read\n"
+        "    steps:\n"
+        "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n",
+        "  validate:\n"
+        "    name: 检查版本可用性\n"
+        "    runs-on: ubuntu-latest\n"
+        "    timeout-minutes: 10\n"
+        "    permissions:\n"
+        "      contents: read\n"
+        "    steps:\n",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "validate 缺少 checkout" in result.stdout
+
+
 def test_check_workflows_detects_unscoped_automation_issue_search(repo_copy: Path) -> None:
     """自动化告警搜索必须限定 automation 标签，防止误关用户 issue。"""
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"

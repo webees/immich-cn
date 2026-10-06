@@ -204,6 +204,12 @@ def check_version_release(path: Path, workflow: dict[str, Any], errors: list[str
         errors.append(f"{path} 未把 Release 版本传递给镜像构建")
     if "tomllib" not in text or "repo_version=" not in text:
         errors.append(f"{path} 缺少输入版本与 pyproject.toml 的一致性检查")
+    validate = (workflow.get("jobs") or {}).get("validate")
+    steps = validate.get("steps") if isinstance(validate, dict) else None
+    if not isinstance(steps, list) or not any(
+        isinstance(step, dict) and str(step.get("uses", "")).startswith("actions/checkout@") for step in steps
+    ):
+        errors.append(f"{path}:validate 缺少 checkout，无法读取 pyproject.toml 校验版本")
 
 
 def check_concurrency(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
