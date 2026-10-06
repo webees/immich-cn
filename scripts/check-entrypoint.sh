@@ -145,7 +145,7 @@ mismatch_case() {
     echo "失败：变体表与数据不匹配时不应成功" >&2
     exit 1
   fi
-  if ! printf '%s' "$output" | grep -q "没有匹配到任何条目"; then
+  if ! printf '%s' "$output" | grep -q "仅匹配"; then
     echo "失败：不匹配时未给出明确提示：${output}" >&2
     exit 1
   fi
@@ -153,6 +153,31 @@ mismatch_case() {
 }
 
 mismatch_case
+
+# 只匹配部分地点同样是假成功：必须整表匹配，不能悄悄保留大多数错误粒度。
+partial_match_case() {
+  local data="$work/partial/geodata"
+  mkdir -p "$data"
+  cp "$repo_root/build/geodata/cities500.txt" "$data/cities500.txt"
+  gzip -dc "$repo_root/dist/patterns.tsv.gz" | head -n 2 > "$work/partial-table.tsv"
+
+  local output
+  if output="$(PATH="$work/bin:$PATH" \
+      immich-cn-apply-pattern \
+      --source "$data" \
+      --table "$work/partial-table.tsv" \
+      --pattern '{admin_2}' 2>&1)"; then
+    echo "失败：变体表只匹配部分地点时不应成功" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "仅匹配"; then
+    echo "失败：部分匹配时未给出明确提示：${output}" >&2
+    exit 1
+  fi
+  echo "通过：变体表仅部分匹配时明确失败"
+}
+
+partial_match_case
 
 # 源数据不完整时必须立刻失败，而不是把残缺数据复制进去让 Immich 报错。
 incomplete_source_case() {

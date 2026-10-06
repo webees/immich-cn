@@ -72,12 +72,13 @@ if [ -z "$column" ]; then
   exit 2
 fi
 
-awk -F'\t' -v OFS='\t' -v column="$column" -v countfile="$work/matched" '
+awk -F'\t' -v OFS='\t' -v column="$column" -v countfile="$work/matched" -v totalfile="$work/total" '
   FNR == NR {
     if (FNR > 1) names[$1] = $column
     next
   }
   {
+    total++
     name = names[$1]
     if (name != "") {
       $2 = name
@@ -86,13 +87,17 @@ awk -F'\t' -v OFS='\t' -v column="$column" -v countfile="$work/matched" '
     }
     print
   }
-  END { print matched + 0 > countfile }
+  END {
+    print matched + 0 > countfile
+    print total + 0 > totalfile
+  }
 ' "$work/patterns.tsv" "$cities" > "$work/cities500.txt"
 
 matched="$(cat "$work/matched")"
-if [ "$matched" -eq 0 ]; then
-  # 静默不改写等于"假成功"：用户会以为粒度已切换，实际仍是默认粒度
-  echo "错误：变体表与 cities500.txt 没有匹配到任何条目，展示粒度未生效" >&2
+total="$(cat "$work/total")"
+if [ "$matched" -ne "$total" ]; then
+  # 部分匹配同样是"假成功"：只改少数行会让绝大多数地点保留错误粒度。
+  echo "错误：变体表仅匹配 ${matched}/${total} 条，展示粒度未完整生效" >&2
   echo "      请确认变体表与 geodata 来自同一次构建" >&2
   exit 1
 fi
