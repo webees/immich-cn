@@ -39,6 +39,10 @@ def manifest() -> dict[str, object]:
             },
         ],
         "aliases": {"geodata.zip": "geodata.immich.admin2.default.v1"},
+        "legacyAliases": {
+            "geodata_admin_2.zip": "geodata.immich.admin2.default.v1",
+            "geodata_admin_2_admin_3_full.zip": "geodata.immich.admin2-admin3.full.v1",
+        },
     }
 
 
@@ -57,6 +61,7 @@ def test_resolve_artifact_by_id_alias_and_profile() -> None:
     payload = manifest()
     assert resolve_artifact(payload, artifact_id="geodata.immich.admin2.default.v1")["file"] == "geodata.zip"
     assert resolve_artifact(payload, alias="geodata.zip")["profile"] == "admin2"
+    assert resolve_artifact(payload, alias="geodata_admin_2.zip")["profile"] == "admin2"
     assert resolve_artifact(payload, profile="admin2-admin3", scope="full")["file"].endswith("_full.zip")
 
 

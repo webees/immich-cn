@@ -538,6 +538,7 @@ def _make_dist(root: Path) -> Path:
                     "geodata.zip": "geodata.immich.admin2.default.v1",
                     "geodata_full.zip": "geodata.immich.admin2.full.v1",
                 },
+                "legacyAliases": {},
                 "variants": variants,
             },
             ensure_ascii=False,

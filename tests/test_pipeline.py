@@ -144,6 +144,8 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
         "geodata.zip": "geodata.immich.admin2.default.v1",
         "geodata_full.zip": "geodata.immich.admin2.full.v1",
     }
+    assert manifest["legacyAliases"]["geodata_admin_2.zip"] == "geodata.immich.admin2.default.v1"
+    assert manifest["legacyAliases"]["geodata_admin_2_full.zip"] == "geodata.immich.admin2.full.v1"
     first_artifact = manifest["artifacts"][0]
     assert first_artifact["id"].startswith("geodata.immich.")
     assert "{" not in first_artifact["profile"] and "_" not in first_artifact["profile"]

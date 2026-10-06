@@ -99,6 +99,16 @@ def check_manifest(dist: Path, errors: list[str]) -> None:
         if not (dist / str(alias)).exists():
             errors.append(f"manifest.json 的 alias 文件不存在：{alias}")
 
+    legacy_aliases = manifest.get("legacyAliases")
+    if not isinstance(legacy_aliases, dict):
+        errors.append("manifest.json 没有 legacyAliases 映射")
+        return
+    for alias, target in legacy_aliases.items():
+        if not isinstance(alias, str) or target not in artifact_ids:
+            errors.append(f"manifest.json 的 legacy alias 无效：{alias!r} -> {target!r}")
+        if not (dist / str(alias)).exists():
+            errors.append(f"manifest.json 的 legacy alias 文件不存在：{alias}")
+
 
 def check_zips(dist: Path, errors: list[str]) -> int:
     checked = 0
