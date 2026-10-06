@@ -464,6 +464,16 @@ def test_check_artifacts_rejects_zip_symlink(tmp_path: Path) -> None:
     assert any("符号链接" in error for error in errors), errors
 
 
+def test_check_artifacts_requires_i18n_license(tmp_path: Path) -> None:
+    dist = _make_dist(tmp_path)
+    with zipfile.ZipFile(dist / "i18n-iso-countries.zip", "w") as archive:
+        archive.writestr("langs/en.json", "{}")
+
+    errors: list[str] = []
+    check_artifacts.check_zips(dist, errors)
+    assert any("缺少可读的 LICENSE" in error for error in errors), errors
+
+
 def test_check_artifacts_reports_corrupt_zip_without_traceback(tmp_path: Path) -> None:
     """损坏的 zip 必须以校验错误呈现，而不是抛栈崩掉。"""
     dist = _make_dist(tmp_path)

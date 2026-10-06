@@ -158,6 +158,11 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
     assert rows["1886760"][1] == "苏州市"
     assert "9101" not in rows
 
+    with zipfile.ZipFile(dist / "i18n-iso-countries.zip") as zf:
+        license_text = zf.read("LICENSE").decode("utf-8")
+    assert "MIT License" in license_text
+    assert "Copyright" in license_text
+
     checksums = (dist / "SHA256SUMS").read_text(encoding="utf-8")
     assert "geodata.zip" in checksums
 
@@ -269,12 +274,20 @@ def test_extract_i18n_rejects_path_traversal(tmp_path: Path) -> None:
 def test_extract_i18n_accepts_normal_tarball(tmp_path: Path) -> None:
     """正常 tarball 仍应被解出，避免因噎废食。"""
     good = tmp_path / "good.tgz"
-    _make_tarball(good, {"package/langs/zh.json": b'{"locale":"zh"}', "package/package.json": b"{}"})
+    _make_tarball(
+        good,
+        {
+            "package/langs/zh.json": b'{"locale":"zh"}',
+            "package/LICENSE": b"MIT License\nCopyright (c) Test",
+            "package/package.json": b"{}",
+        },
+    )
     options = BuildOptions(work_dir=tmp_path / "build", dist_dir=tmp_path / "dist")
 
     _extract_i18n(good, options)
     extracted = tmp_path / "build" / "i18n-iso-countries" / "langs" / "zh.json"
     assert extracted.read_text() == '{"locale":"zh"}'
+    assert (tmp_path / "build" / "i18n-iso-countries" / "LICENSE").exists()
 
 
 def test_min_population_threshold_boundary(tmp_path: Path) -> None:

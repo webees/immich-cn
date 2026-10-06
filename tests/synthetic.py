@@ -343,4 +343,9 @@ def create_synthetic_sources(work_dir: Path, langs_dir: Path) -> Path:
         ),
         encoding="utf-8",
     )
+    (langs_dir.parent / "LICENSE").write_text(
+        "MIT License\n\nCopyright (c) 2016 widdix GmbH\n\nPermission is hereby granted, free of charge, "
+        "to any person obtaining a copy of this software and associated documentation files.\n",
+        encoding="utf-8",
+    )
     return sources
