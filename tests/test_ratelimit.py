@@ -8,8 +8,12 @@ from immich_cn.ratelimit import RateLimiter
 def test_rate_limiter_rejects_invalid_configuration() -> None:
     with pytest.raises(ValueError, match="calls"):
         RateLimiter(0)
+    with pytest.raises(ValueError, match="calls"):
+        RateLimiter(-1)
     with pytest.raises(ValueError, match="period"):
         RateLimiter(1, period=0)
+    with pytest.raises(ValueError, match="period"):
+        RateLimiter(1, period=-0.1)
 
 
 def test_rate_limiter_releases_slot_at_window_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
