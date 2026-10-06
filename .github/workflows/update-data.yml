@@ -182,9 +182,11 @@ jobs:
   resolve-previous-failure:
     name: 成功时关闭历史告警
     needs: [build, release]
-    # 只要本次构建成功（无论是否有数据变化）就关闭此前留下的自动化告警，
-    # 避免一次环境抖动留下的 issue 长期存在，变成持续的"假告警"。
-    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    # 仅当"构建成功且发布没有失败"时关闭历史告警：
+    #   build 成功 + release 跳过（无变化）→ 关闭
+    #   build 成功 + release 成功        → 关闭
+    #   build 成功 + release 失败        → 保持打开（否则会把刚创建的告警立刻关掉）
+    if: ${{ !cancelled() && needs.build.result == 'success' && (needs.release.result == 'success' || needs.release.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

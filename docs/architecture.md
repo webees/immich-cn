@@ -135,6 +135,20 @@ Immich 的反向地理编码需要一组固定格式的文本文件（见 `serve
 可通过 `workflow_dispatch` 覆盖的参数：`provider`、`immich-version`、`push-images`、
 `force-publish`、`snapshot-retention`（默认保留最近 14 个日期快照）。
 
+### 失败路径真值表
+
+自动化任务之间有依赖关系，失败路径必须逐格确认（`update-data.yml`）：
+
+| 场景 | `build` | `release` | 期望行为 |
+|:--|:--|:--|:--|
+| 构建失败 | ✗ | 跳过 | 创建/更新 `automation` issue 告警 |
+| 上游无变化 | ✓ | 跳过 | `no-change` 记录摘要；关闭历史告警 |
+| 有变化且发布成功 | ✓ | ✓ | 发布 Release 与镜像；关闭历史告警 |
+| 有变化但发布失败 | ✓ | ✗ | **保留告警**（此时若关闭，会把刚创建的告警立刻关掉） |
+
+`resolve-previous-failure` 的条件因此必须同时判断 `build` 与 `release` 的结果；
+`scripts/check_workflows.py` 会静态检查"用 `if` 判断依赖结果时是否遗漏了某个依赖"。
+
 ## 地名组合规则
 
 `{admin_1}` ~ `{admin_4}` 为占位符，组合时：
