@@ -110,6 +110,9 @@
 "HK.NIS" = "离岛区"
 
 [countries]
+# i18n-iso-countries 不包含已撤销代码，GeoNames 仍保留这两条历史政区。
+CS = "塞尔维亚和黑山"
+AN = "荷属安的列斯"
 
 [rules.strip_suffixes]
 CN = ["特别行政区"]
