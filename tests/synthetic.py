@@ -157,6 +157,7 @@ def create_synthetic_sources(work_dir: Path, langs_dir: Path) -> Path:
             "CN.22.11876380\tBeijing\tBeijing\t11876380",
             "CN.04.SZ\tSuzhou Shi\tSuzhou Shi\t1886760",
             "TW.03.TPE\tTaipei City\tTaipei City\t1668338",
+            "JP.01.01\t札幌市\tSapporo\t2130640",
             "US.NY.061\tNew York County\tNew York County\t5128594",
         ],
     )
