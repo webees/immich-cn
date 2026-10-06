@@ -121,10 +121,10 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
 
     dist = build_options.dist_dir
     for name in (
-        "immich-cn-geodata-immich-admin2-default-v1.zip",
-        "immich-cn-geodata-immich-admin2-full-v1.zip",
-        "immich-cn-geodata-immich-admin2-admin3-default-v1.zip",
-        "immich-cn-geodata-immich-admin2-admin3-full-v1.zip",
+        "immich-cn-geodata-admin2-default-v1.zip",
+        "immich-cn-geodata-admin2-full-v1.zip",
+        "immich-cn-geodata-admin2-admin3-default-v1.zip",
+        "immich-cn-geodata-admin2-admin3-full-v1.zip",
         "immich-cn-dataset-sqlite-v1.zip",
         "immich-cn-i18n-json-v1.zip",
         "immich-cn-manifest-json-v1.json",
@@ -136,14 +136,14 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
     manifest = json.loads((dist / "immich-cn-manifest-json-v1.json").read_text(encoding="utf-8"))
     assert manifest["tool"]["name"] == "immich-cn"
     assert isinstance(manifest["tool"]["revision"], str)
-    assert manifest["artifactSpecVersion"] == 3
+    assert manifest["artifactSpecVersion"] == 4
     assert len(manifest["artifacts"]) == 4
     assert len(manifest["assets"]) == 7
     assert "aliases" not in manifest and "legacyAliases" not in manifest and "variants" not in manifest
     first_artifact = manifest["artifacts"][0]
-    assert first_artifact["id"].startswith("geodata.immich.")
+    assert first_artifact["id"].startswith("immich-cn.geodata.")
     assert "{" not in first_artifact["profile"] and "_" not in first_artifact["profile"]
-    assert first_artifact["canonicalFile"].startswith("immich-cn-geodata-immich-")
+    assert first_artifact["canonicalFile"].startswith("immich-cn-geodata-")
     assert manifest["dataset"]["file"] == "immich-cn-dataset-sqlite-v1.zip"
     assert manifest["dataset"]["format"] == "immich-cn.dataset/1"
     assert manifest["dataset"]["schemaVersion"] == 1
@@ -153,7 +153,7 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
     assert stats["perCountry"]["CN"] > 0
     assert sum(stats["perCountry"].values()) == stats["outputPlaces"]
 
-    with zipfile.ZipFile(dist / "immich-cn-geodata-immich-admin2-admin3-full-v1.zip") as zf:
+    with zipfile.ZipFile(dist / "immich-cn-geodata-admin2-admin3-full-v1.zip") as zf:
         names = set(zf.namelist())
         assert "geodata/cities500.txt" in names
         assert "geodata/build-info.json" in names
@@ -163,7 +163,7 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
     assert rows["9100"][1] == "苏州市 昆山市"
     assert "9101" in rows, "full 变体应保留人口为 0 的补充点位"
 
-    with zipfile.ZipFile(dist / "immich-cn-geodata-immich-admin2-default-v1.zip") as zf:
+    with zipfile.ZipFile(dist / "immich-cn-geodata-admin2-default-v1.zip") as zf:
         payload = zf.read("geodata/cities500.txt").decode("utf-8").splitlines()
     rows = {line.split("\t")[0]: line.split("\t") for line in payload}
     assert rows["1886760"][1] == "苏州市"
@@ -175,7 +175,7 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
     assert "Copyright" in license_text
 
     checksums = (dist / "immich-cn-checksums-sha256-v1.txt").read_text(encoding="utf-8")
-    assert "immich-cn-geodata-immich-admin2-default-v1.zip" in checksums
+    assert "immich-cn-geodata-admin2-default-v1.zip" in checksums
     assert "immich-cn-dataset-sqlite-v1.zip" in checksums
 
 

@@ -25,7 +25,8 @@
 
 - 测试文件名与被测模块对应，例如 `pipeline.py` → `test_pipeline.py`。
 - 文件名使用小写 snake_case，不使用版本后缀、`new`、`old`、`final` 等词。
-- 发布资产使用 [制品命名规范 v3](artifact-spec.md)，不生成兼容别名。
+- 发布资产使用 [制品命名规范 v4](artifact-spec.md)，不生成兼容别名。
+- 运行时占位符 `{admin_2}` 与制品 profile `admin2` 是不同契约，前者不改，后者不写回花括号。
 - 工作流使用 `<动作>-<领域>.yml`，例如 `update-data.yml`、`cleanup.yml`。
 
 ## 代码标识符

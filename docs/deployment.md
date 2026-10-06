@@ -91,9 +91,9 @@ services:
 ## 方案 C：只用 Release 数据
 
 ```bash
-curl -fsSL -o immich-cn-geodata-immich-admin2-default-v1.zip \
-  https://github.com/webees/immich-cn/releases/latest/download/immich-cn-geodata-immich-admin2-default-v1.zip
-unzip -o immich-cn-geodata-immich-admin2-default-v1.zip -d .
+curl -fsSL -o immich-cn-geodata-admin2-default-v1.zip \
+  https://github.com/webees/immich-cn/releases/latest/download/immich-cn-geodata-admin2-default-v1.zip
+unzip -o immich-cn-geodata-admin2-default-v1.zip -d .
 ```
 
 解压后得到 `geodata/` 目录，按方案 B 的方式挂载即可。

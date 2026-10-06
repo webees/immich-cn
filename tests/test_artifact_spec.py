@@ -19,20 +19,20 @@ from immich_cn.errors import ConfigError
 
 def manifest() -> dict[str, object]:
     return {
-        "artifactSpecVersion": 3,
+        "artifactSpecVersion": 4,
         "artifacts": [
             {
-                "id": "geodata.immich.admin2.default.v1",
-                "file": "immich-cn-geodata-immich-admin2-default-v1.zip",
-                "canonicalFile": "immich-cn-geodata-immich-admin2-default-v1.zip",
+                "id": "immich-cn.geodata.admin2.default.v1",
+                "file": "immich-cn-geodata-admin2-default-v1.zip",
+                "canonicalFile": "immich-cn-geodata-admin2-default-v1.zip",
                 "profile": "admin2",
                 "scope": "default",
                 "sha256": "a" * 64,
             },
             {
-                "id": "geodata.immich.admin2-admin3.full.v1",
-                "file": "immich-cn-geodata-immich-admin2-admin3-full-v1.zip",
-                "canonicalFile": "immich-cn-geodata-immich-admin2-admin3-full-v1.zip",
+                "id": "immich-cn.geodata.admin2-admin3.full.v1",
+                "file": "immich-cn-geodata-admin2-admin3-full-v1.zip",
+                "canonicalFile": "immich-cn-geodata-admin2-admin3-full-v1.zip",
                 "profile": "admin2-admin3",
                 "scope": "full",
                 "sha256": "b" * 64,
@@ -44,19 +44,19 @@ def manifest() -> dict[str, object]:
 def test_artifact_ids_are_stable_and_profile_safe() -> None:
     assert profile_id("{admin_2}") == "admin2"
     assert profile_id("{admin_2} {admin_3}") == "admin2-admin3"
-    assert artifact_id("{admin_2} {admin_3}", False) == "geodata.immich.admin2-admin3.default.v1"
-    assert canonical_filename("{admin_2} {admin_3}", True) == "immich-cn-geodata-immich-admin2-admin3-full-v1.zip"
-    assert validate_artifact_id("geodata.immich.admin2-admin3.default.v1")
-    assert not validate_artifact_id("geodata.immich.admin_2.default.v1")
-    assert validate_canonical_filename("immich-cn-geodata-immich-admin2-default-v1.zip")
-    assert not validate_canonical_filename("immich-cn-geodata-immich-admin2-default-v1.zip".replace("default", "bad"))
+    assert artifact_id("{admin_2} {admin_3}", False) == "immich-cn.geodata.admin2-admin3.default.v1"
+    assert canonical_filename("{admin_2} {admin_3}", True) == "immich-cn-geodata-admin2-admin3-full-v1.zip"
+    assert validate_artifact_id("immich-cn.geodata.admin2-admin3.default.v1")
+    assert not validate_artifact_id("immich-cn.geodata.admin_2.default.v1")
+    assert validate_canonical_filename("immich-cn-geodata-admin2-default-v1.zip")
+    assert not validate_canonical_filename("immich-cn-geodata-admin2-default-v1.zip".replace("default", "bad"))
 
 
 def test_resolve_artifact_by_id_and_profile() -> None:
     payload = manifest()
     assert (
-        resolve_artifact(payload, artifact_id="geodata.immich.admin2.default.v1")["file"]
-        == "immich-cn-geodata-immich-admin2-default-v1.zip"
+        resolve_artifact(payload, artifact_id="immich-cn.geodata.admin2.default.v1")["file"]
+        == "immich-cn-geodata-admin2-default-v1.zip"
     )
     assert resolve_artifact(payload, profile="admin2-admin3", scope="full")["id"].endswith(".v1")
 
@@ -80,11 +80,11 @@ def test_cli_artifact_resolve(tmp_path: Path, capsys: pytest.CaptureFixture[str]
                 "--manifest",
                 str(path),
                 "--id",
-                "geodata.immich.admin2.default.v1",
+                "immich-cn.geodata.admin2.default.v1",
             ]
         )
         == 0
     )
     output = json.loads(capsys.readouterr().out)
-    assert output["id"] == "geodata.immich.admin2.default.v1"
-    assert output["file"] == "immich-cn-geodata-immich-admin2-default-v1.zip"
+    assert output["id"] == "immich-cn.geodata.admin2.default.v1"
+    assert output["file"] == "immich-cn-geodata-admin2-default-v1.zip"

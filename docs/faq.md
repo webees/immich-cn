@@ -23,7 +23,7 @@ date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./geodata/geodata-date.txt
 
 Immich 使用"最近的点"做反向地理编码，边界处的误差是原理性的。可以：
 
-- 换用 `immich-cn-geodata-immich-admin2-full-v1.zip`（点位更多，通常更准，导入更慢）；
+- 换用 `immich-cn-geodata-admin2-full-v1.zip`（点位更多，通常更准，导入更慢）；
 - 到 [GeoNames](https://www.geonames.org/) 补充缺失地点，下次构建会自动收录。
 
 ## 地名粒度太粗/太细
@@ -46,9 +46,9 @@ Immich 使用"最近的点"做反向地理编码，边界处的误差是原理�
 
 ## 为什么镜像里的数据比 Release zip 大？
 
-镜像内置的是默认非 full 数据集，点位口径与 `immich-cn-geodata-immich-admin2-default-v1.zip` 一致；镜像还附带未压缩的 geodata
+镜像内置的是默认非 full 数据集，点位口径与 `immich-cn-geodata-admin2-default-v1.zip` 一致；镜像还附带未压缩的 geodata
 文件和用于运行时切换粒度的 `immich-cn-patterns-tsv-v1.gz`，因此不能直接与只下载一个 zip 的体积比较。
-需要 full 点位时请下载 `immich-cn-geodata-immich-admin2-full-v1.zip`。
+需要 full 点位时请下载 `immich-cn-geodata-admin2-full-v1.zip`。
 
 ## 构建耗时多久？
 
