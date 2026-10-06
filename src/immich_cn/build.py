@@ -25,6 +25,7 @@ from immich_cn.config import (
     DEFAULT_PATTERN,
     FINE_GRAINED_ADMIN2,
     BuildOptions,
+    ChineseVariant,
     SourceSpec,
     geonames_sources,
     i18n_sources,
@@ -529,7 +530,12 @@ def _write_langs(source_dir: Path, options: BuildOptions) -> Path:
     zh_path = source_dir / "zh.json"
     if not zh_path.exists():
         raise ParseError(f"缺少 {zh_path}")
-    countries = json.loads(zh_path.read_text(encoding="utf-8")).get("countries", {})
+    raw_countries = json.loads(zh_path.read_text(encoding="utf-8")).get("countries", {})
+    countries = (
+        {str(key): to_variant(str(value), options.chinese_variant) for key, value in raw_countries.items()}
+        if isinstance(raw_countries, dict)
+        else {}
+    )
     for json_file in sorted(source_dir.glob("*.json")):
         target = destination / json_file.name
         payload = json.loads(json_file.read_text(encoding="utf-8"))
@@ -625,7 +631,7 @@ def _write_country_info(
     index: ChineseNameIndex,
     langs_dir: Path,
 ) -> None:
-    translations = _load_translations(langs_dir)
+    translations = _load_translations(langs_dir, index.variant)
     with path.open("w", encoding="utf-8") as sink:
         for row in rows:
             name = (
@@ -636,13 +642,16 @@ def _write_country_info(
             sink.write(row.with_name(name).to_line() + "\n")
 
 
-def _load_translations(langs_dir: Path) -> dict[str, str]:
+def _load_translations(langs_dir: Path, variant: ChineseVariant = "hans") -> dict[str, str]:
+    """读取 i18n-iso-countries 的 zh 语言包，并按目标字形转换。"""
     path = langs_dir / "zh.json"
     if not path.exists():
         return {}
     payload = json.loads(path.read_text(encoding="utf-8"))
     countries = payload.get("countries")
-    return {str(k): str(v) for k, v in countries.items()} if isinstance(countries, dict) else {}
+    if not isinstance(countries, dict):
+        return {}
+    return {str(k): to_variant(str(v), variant) for k, v in countries.items()}
 
 
 def load_levels(path: Path) -> dict[int, tuple[str, str, str, str, str]]:

@@ -155,7 +155,6 @@ class BuildOptions:
     min_population: int = 100
     provider: ProviderName = "offline"
     chinese_variant: ChineseVariant = "hans"
-    full: bool = True
     force_refresh: bool = False
     #: 使用 ETag/Last-Modified 校验上游是否更新；每日自动更新时应开启。
     revalidate: bool = False
