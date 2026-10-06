@@ -300,6 +300,33 @@ symlink_target_case() {
   echo "通过：入口脚本不会跟随目标目录中的符号链接"
 }
 
+source_symlink_force_reload_case() {
+  local root="$work/source-symlink"
+  mkdir -p "$root"
+  cp -a "$repo_root/build/geodata" "$root/source"
+  cp -a "$repo_root/build/langs" "$root/langs"
+  printf 'sentinel\n' > "$root/outside.txt"
+  rm "$root/source/geodata-date.txt"
+  ln -s "$root/outside.txt" "$root/source/geodata-date.txt"
+
+  IMMICH_BUILD_DATA="$root/build" \
+    IMMICH_CN_GEODATA_DIR="$root/source" \
+    IMMICH_CN_LANGS_DIR="$root/langs" \
+    IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/patterns.tsv.gz" \
+    IMMICH_CN_FORCE_RELOAD=1 \
+    bash "$repo_root/docker/entrypoint.sh" true >/dev/null
+
+  if [ "$(cat "$root/outside.txt")" != "sentinel" ]; then
+    echo "失败：强制刷新跟随了源数据中的符号链接" >&2
+    exit 1
+  fi
+  if [ -L "$root/build/geodata/geodata-date.txt" ]; then
+    echo "失败：强制刷新后仍保留危险符号链接" >&2
+    exit 1
+  fi
+  echo "通过：源数据符号链接不会被强制刷新跟随"
+}
+
 install_readme_symlink_case() {
   local root="$work/install-readme"
   mkdir -p "$root/out"
@@ -322,6 +349,7 @@ install_readme_symlink_case() {
 }
 
 symlink_target_case
+source_symlink_force_reload_case
 install_readme_symlink_case
 
 echo "入口脚本校验通过"
