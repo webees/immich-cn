@@ -268,6 +268,28 @@ def check_source_contracts(errors: list[str]) -> None:
             errors.append(f"上游数据源 {source.name} 未在 docs/data-sources.md 记录（期望出现 {marker!r}）")
 
 
+#: docs/naming-conventions.md 的模块映射表行：| `old.py` | `current.py` | 职责 |
+MODULE_TABLE_ROW = re.compile(
+    r"^\|\s*`([a-z_][a-z0-9_]*\.py)`\s*\|\s*`([a-z_][a-z0-9_]*\.py)`\s*\|",
+    re.MULTILINE,
+)
+
+
+def check_module_name_table(errors: list[str]) -> None:
+    """命名规范表里的现行模块名必须存在，旧模块名必须已经消失。"""
+    path = Path("docs/naming-conventions.md")
+    rows = MODULE_TABLE_ROW.findall(path.read_text(encoding="utf-8"))
+    if not rows:
+        errors.append(f"{path} 的模块命名表未解析到任何映射，护栏可能已失效")
+        return
+    existing = {module.name for module in Path("src/immich_cn").rglob("*.py")}
+    for legacy, current in rows:
+        if current not in existing:
+            errors.append(f"{path} 标记为现行模块名的 {current} 在 src/immich_cn 中不存在")
+        if legacy in existing:
+            errors.append(f"{path} 标记为旧模块名的 {legacy} 仍存在于 src/immich_cn 中")
+
+
 def check_referenced_paths(doc_files: list[Path], errors: list[str]) -> None:
     """文档中引用的仓库文件必须真实存在（防止重构后路径静默失效）。"""
     inline = re.compile(r"`([^`\s]+)`")
@@ -406,6 +428,7 @@ def main(argv: list[str] | None = None) -> int:
     check_discoverable(errors)
     check_numeric_contracts(errors)
     check_source_contracts(errors)
+    check_module_name_table(errors)
     check_referenced_paths(doc_files, errors)
     check_project_positioning(errors)
     check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
