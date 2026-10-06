@@ -129,7 +129,8 @@ jobs:
   no-change:
     name: 无变化时跳过发布
     needs: build
-    if: needs.build.outputs.changed != 'true'
+    # 强制发布时即使数据未变化也会走 release 分支，此处必须互斥，否则摘要自相矛盾
+    if: needs.build.outputs.changed != 'true' && !inputs.force-publish
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

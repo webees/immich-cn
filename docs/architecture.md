@@ -146,6 +146,9 @@ Immich 的反向地理编码需要一组固定格式的文本文件（见 `serve
 | 有变化且发布成功 | ✓ | ✓ | 发布 Release 与镜像；关闭历史告警 |
 | 有变化但发布失败 | ✓ | ✗ | **保留告警**（此时若关闭，会把刚创建的告警立刻关掉） |
 
+`force-publish` 会把"无变化"也走发布分支，因此 `no-change` 与 `release` 必须互斥，
+否则同一次运行会同时输出"跳过发布"和"已发布"两份互相矛盾的摘要。
+
 `resolve-previous-failure` 的条件因此必须同时判断 `build` 与 `release` 的结果；
 `scripts/check_workflows.py` 会静态检查"用 `if` 判断依赖结果时是否遗漏了某个依赖"。
 
