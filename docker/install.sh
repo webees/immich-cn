@@ -26,12 +26,23 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ -z "$target" ] || [ -z "$(printf '%s' "$target" | tr -d '/')" ]; then
-  echo "错误：--target 不能为空或根目录（收到：${target:-空}）" >&2
+if [ -z "$target" ]; then
+  echo "错误：--target 不能为空（收到：空）" >&2
   exit 2
 fi
 
-mkdir -p "$target"
+if ! mkdir -p "$target"; then
+  echo "错误：无法创建目标目录 $target" >&2
+  exit 1
+fi
+target="$(cd "$target" && pwd -P)" || {
+  echo "错误：无法解析目标目录 $target" >&2
+  exit 1
+}
+if [ "$target" = "/" ]; then
+  echo "错误：--target 不能是根目录（收到：/）" >&2
+  exit 2
+fi
 
 REQUIRED_FILES="admin1CodesASCII.txt admin2Codes.txt cities500.txt countryInfo.txt geodata-date.txt ne_10m_admin_0_countries.geojson"
 missing_files=""
