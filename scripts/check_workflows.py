@@ -25,6 +25,8 @@ INTERPOLATION = re.compile(r"\$\{\{.*?\}\}", re.DOTALL)
 ACTION_SHA = re.compile(r"[0-9a-f]{40}")
 RELEASE_DELETE = re.compile(r"\bgh release delete\s+([A-Za-z0-9._-]+)")
 RELEASE_CREATE = re.compile(r"\bgh release create\s+([A-Za-z0-9._-]+)")
+RELEASE_EDIT = re.compile(r"\bgh release edit\s+([A-Za-z0-9._-]+)")
+RELEASE_UPLOAD = re.compile(r"\bgh release upload\s+([A-Za-z0-9._-]+)")
 SCHEDULED = {"schedule"}
 #: 这些函数是运行级聚合判断，已经涵盖全部依赖的结果，因此不受"依赖覆盖"规则约束。
 #: 注意不能把 cancelled() 算进来：它只表示"是否被取消"，并不反映依赖是否失败，
@@ -117,6 +119,27 @@ def check_release_replacements(path: Path, workflow: dict[str, Any], errors: lis
                     f"{path}:{job_name}/step#{index} 对 Release {tag!r} 先删除后重建；"
                     "创建失败会造成发布空窗，应原地 edit/upload"
                 )
+
+
+def check_release_update_order(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """滚动 Release 必须先替换资产，再更新标题/说明，避免资产失败后元数据谎报新版本。"""
+    for job_name, job in (workflow.get("jobs") or {}).items():
+        if not isinstance(job, dict):
+            continue
+        for index, step in enumerate(job.get("steps") or [], start=1):
+            if not isinstance(step, dict) or "run" not in step:
+                continue
+            script = str(step["run"])
+            edited = set(RELEASE_EDIT.findall(script))
+            uploaded = set(RELEASE_UPLOAD.findall(script))
+            for tag in sorted(edited & uploaded):
+                edit_at = script.find(f"gh release edit {tag}")
+                upload_at = script.find(f"gh release upload {tag}")
+                if edit_at < upload_at:
+                    errors.append(
+                        f"{path}:{job_name}/step#{index} 对 Release {tag!r} 在替换资产前更新了元数据；"
+                        "upload 失败时标题会谎报新版本"
+                    )
 
 
 def check_concurrency(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
@@ -222,6 +245,7 @@ def main() -> int:
         check_permissions(path, workflow, errors)
         check_action_pins(path, workflow, errors)
         check_release_replacements(path, workflow, errors)
+        check_release_update_order(path, workflow, errors)
         check_concurrency(path, workflow, errors)
         check_needs_coverage(path, workflow, errors)
         check_references(path, workflow, errors, outputs_by_workflow)

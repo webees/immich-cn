@@ -206,6 +206,20 @@ def test_check_workflows_detects_delete_then_recreate_release(repo_copy: Path) -
     assert "先删除后重建" in result.stdout
 
 
+def test_check_workflows_detects_release_metadata_before_assets(repo_copy: Path) -> None:
+    workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
+    mutate(
+        workflow,
+        '            echo "上游数据与构建配置均无变化，已跳过发布与镜像推送。"',
+        "            gh release edit probe --title new\n"
+        "            gh release upload probe dist/*\n"
+        '            echo "上游数据与构建配置均无变化，已跳过发布与镜像推送。"',
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "替换资产前更新了元数据" in result.stdout
+
+
 def test_check_workflows_detects_illegal_key_on_reusable_job(repo_copy: Path) -> None:
     """这次修复过的真实事故：reusable 调用 job 上出现 timeout-minutes。"""
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"

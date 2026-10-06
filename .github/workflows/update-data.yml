@@ -76,11 +76,11 @@ jobs:
           DATE: ${{ needs.build.outputs.date }}
         run: |
           if gh release view auto-release --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload auto-release dist/* --clobber
             gh release edit auto-release \
               --repo "$GITHUB_REPOSITORY" \
               --title "自动更新数据 ${DATE}" \
               --notes-file .github/auto_release_note.md
-            gh release upload auto-release dist/* --clobber
           else
             gh release create auto-release dist/* \
               --repo "$GITHUB_REPOSITORY" \
