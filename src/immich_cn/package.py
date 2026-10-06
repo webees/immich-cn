@@ -108,7 +108,7 @@ def package_all(options: BuildOptions, result: BuildResult) -> PackageResult:
     checksums = _write_checksums(options.dist_dir)
     package_result.checksums = checksums
     if not options.keep_raw:
-        cleanup_removable(result)
+        cleanup_removable(result, work_dir=options.work_dir)
     logger.info("打包完成，共 %d 个制品", len(package_result.artifacts))
     return package_result
 
