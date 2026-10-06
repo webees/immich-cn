@@ -14,6 +14,21 @@ if [ -z "$pattern" ]; then
   pattern='{admin_2}'
 fi
 
+# Immich 导入需要这 6 个文件；源数据不完整时必须立刻报错，
+# 否则容器会带着残缺数据启动，问题被推迟到 Immich 导入阶段才暴露。
+REQUIRED_FILES="admin1CodesASCII.txt admin2Codes.txt cities500.txt countryInfo.txt geodata-date.txt ne_10m_admin_0_countries.geojson"
+missing_files=""
+for name in $REQUIRED_FILES; do
+  if [ ! -f "$source_dir/$name" ]; then
+    missing_files="${missing_files} ${name}"
+  fi
+done
+if [ -n "$missing_files" ]; then
+  echo "immich-cn: 数据源缺少必需文件：${missing_files# }" >&2
+  echo "immich-cn: 请检查 IMMICH_CN_GEODATA_DIR=${source_dir}" >&2
+  exit 1
+fi
+
 mkdir -p "$target"
 if ! cp -a "$source_dir/." "$target/" 2>/dev/null; then
   # 用户可能把 /build/geodata 以只读方式挂载进来

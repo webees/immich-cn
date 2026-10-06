@@ -85,7 +85,8 @@ missing_source_case() {
     echo "失败：源目录缺失时不应成功" >&2
     exit 1
   fi
-  if ! printf '%s' "$output" | grep -q "无法写入"; then
+  # 源目录缺失现在由"必需文件校验"更早拦下（比旧的"无法写入"提示更明确）
+  if ! printf '%s' "$output" | grep -q "缺少必需文件"; then
     echo "失败：源目录缺失时未给出明确提示：${output}" >&2
     exit 1
   fi
@@ -94,11 +95,45 @@ missing_source_case() {
 
 missing_source_case
 
+# 目标目录不可写且没有现成数据时，必须给出"无法写入"提示（第 6 轮修过的分支）。
+unwritable_target_case() {
+  if [ "$(id -u)" = "0" ]; then
+    echo "跳过：以 root 运行，文件权限不生效"
+    return
+  fi
+  local root="$work/ro-target"
+  mkdir -p "$root/geodata"
+  # 让目标 geodata 目录本身不可写（只读挂载的效果），而不是它的父目录
+  chmod 0555 "$root/geodata"
+  local output
+  if output="$(IMMICH_BUILD_DATA="$root" \
+      IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
+      IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/patterns.tsv.gz" \
+      bash "$repo_root/docker/entrypoint.sh" true 2>&1)"; then
+    chmod 0755 "$root/geodata"
+    echo "失败：目标不可写且无数据时不应成功" >&2
+    exit 1
+  fi
+  chmod 0755 "$root/geodata"
+  if ! printf '%s' "$output" | grep -q "无法写入"; then
+    echo "失败：目标不可写时未给出「无法写入」提示：${output}" >&2
+    exit 1
+  fi
+  echo "通过：目标不可写且无数据时给出明确错误"
+}
+
+unwritable_target_case
+
 # 变体表与数据不匹配时必须失败，而不是"看起来成功但一字未改"。
 mismatch_case() {
   local data="$work/mismatch/geodata"
-  mkdir -p "$data"
-  awk -F'\t' -v OFS='\t' '{ $1 = $1 + 900000000; print }' "$repo_root/build/geodata/cities500.txt" > "$data/cities500.txt"
+  # 必须是"完整但版本不一致"的数据：只改 cities500 的 id，其余文件保持齐全，
+  # 否则会被"必需文件校验"先拦下，测不到变体表不匹配这条路径。
+  mkdir -p "$work/mismatch"
+  cp -a "$repo_root/build/geodata" "$data"
+  awk -F'\t' -v OFS='\t' '{ $1 = $1 + 900000000; print }' "$data/cities500.txt" > "$data/cities500.txt.shifted"
+  mv "$data/cities500.txt.shifted" "$data/cities500.txt"
   local output
   if output="$(PATH="$work/bin:$PATH" \
       IMMICH_BUILD_DATA="$work/mismatch/build" \
@@ -118,5 +153,50 @@ mismatch_case() {
 }
 
 mismatch_case
+
+# 源数据不完整时必须立刻失败，而不是把残缺数据复制进去让 Immich 报错。
+incomplete_source_case() {
+  local partial="$work/incomplete"
+  mkdir -p "$partial"
+  cp "$repo_root/build/geodata/cities500.txt" "$partial/cities500.txt"
+  local output
+  if output="$(IMMICH_BUILD_DATA="$work/incomplete/build" \
+      IMMICH_CN_GEODATA_DIR="$partial" \
+      IMMICH_CN_LANGS_DIR="$work/incomplete/langs" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/patterns.tsv.gz" \
+      bash "$repo_root/docker/entrypoint.sh" true 2>&1)"; then
+    echo "失败：源数据不完整时不应成功" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "缺少必需文件"; then
+    echo "失败：源数据不完整时未给出明确提示：${output}" >&2
+    exit 1
+  fi
+  if [ -e "$work/incomplete/build/geodata/admin1CodesASCII.txt" ]; then
+    echo "失败：源数据不完整时不应复制任何文件" >&2
+    exit 1
+  fi
+  echo "通过：源数据不完整时拒绝启动"
+}
+
+# install.sh：langs 源缺失必须给出警告，而不是静默跳过。
+install_missing_langs_case() {
+  local output
+  output="$(IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
+    IMMICH_CN_LANGS_DIR="$work/missing-langs-dir" \
+    sh "$repo_root/docker/install.sh" --target "$work/install-warn" 2>&1)"
+  if ! printf '%s' "$output" | grep -q "警告：未找到国家名称目录"; then
+    echo "失败：langs 源缺失时未告警：${output}" >&2
+    exit 1
+  fi
+  if [ ! -f "$work/install-warn/geodata/cities500.txt" ]; then
+    echo "失败：langs 缺失不应影响 geodata 释放" >&2
+    exit 1
+  fi
+  echo "通过：langs 源缺失时给出警告并继续释放 geodata"
+}
+
+incomplete_source_case
+install_missing_langs_case
 
 echo "入口脚本校验通过"
