@@ -37,6 +37,9 @@ from immich_cn.settings import BuildOptions
 
 logger = get_logger("package")
 
+#: 这些地区的输出必须是中文名；上游缺中文别名时会把英文/葡文原名透传，需在打包阶段拦下。
+CHINESE_OUTPUT_COUNTRIES = frozenset({"CN", "HK", "TW", "MO"})
+
 ZIP_COMPRESS_LEVEL = 6
 GEODATA_PREFIX = "geodata/"
 
@@ -151,7 +154,7 @@ def _write_variant(
         info.compress_type = zipfile.ZIP_DEFLATED
         info.external_attr = 0o644 << 16
         with archive.open(info, "w", force_zip64=True) as sink:
-            untranslated_cn = 0
+            untranslated = 0
             untranslated_samples: list[str] = []
             for place in iter_output_places(
                 cities500=result.cities500,
@@ -166,14 +169,14 @@ def _write_variant(
                     place.columns[2] = name
                 # 上游缺中文别名时会把英文原名透传；这类值会让 {admin_3}/{admin_4} 变体
                 # 显示英文地名（2026-10-07 实测 7~8 行），必须在打包阶段拦下而不是发布。
-                if place.country_code == "CN" and not contains_cjk(place.columns[1]):
-                    untranslated_cn += 1
+                if place.country_code in CHINESE_OUTPUT_COUNTRIES and not contains_cjk(place.columns[1]):
+                    untranslated += 1
                     if len(untranslated_samples) < 5:
-                        untranslated_samples.append(f"{place.geoname_id}={place.columns[1]}")
+                        untranslated_samples.append(f"{place.country_code}:{place.geoname_id}={place.columns[1]}")
                 sink.write((place.to_line() + "\n").encode("utf-8"))
-            if untranslated_cn:
+            if untranslated:
                 raise VerifyError(
-                    f"{variant.filename} 有 {untranslated_cn} 条中国记录的展示名不含中文"
+                    f"{variant.filename} 有 {untranslated} 条中文地区记录的展示名不含中文"
                     f"（pattern={variant.pattern}，样例：{'、'.join(untranslated_samples)}）"
                     "：请补 config/overrides.toml 的 [admins]，"
                     "或修正该层级名称的中文来源"
