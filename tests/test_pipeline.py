@@ -225,6 +225,25 @@ def test_canonical_dataset_is_deterministic(build_options: BuildOptions) -> None
     assert first == second
 
 
+def test_package_rejects_untranslated_chinese_names(
+    build_options: BuildOptions, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """上游缺中文别名会把英文原名透传；打包必须失败，而不是把英文地名发出去。"""
+    import immich_cn.packaging as packaging
+    from immich_cn.errors import VerifyError
+
+    result = run_build(build_options)
+    original = packaging.display_name
+    monkeypatch.setattr(
+        packaging,
+        "display_name",
+        lambda levels, pattern: "Jiaojiang Shi" if levels else original(levels, pattern),
+    )
+
+    with pytest.raises(VerifyError, match="展示名不含中文"):
+        package_all(build_options, result)
+
+
 def test_checksums_ignore_unregistered_leftovers(build_options: BuildOptions) -> None:
     """dist 里的历史残留不能被写进校验和。
 

@@ -19,9 +19,9 @@ from immich_cn.artifact_spec import (
     canonical_filename,
 )
 from immich_cn.dataset import DATASET_ARCHIVE, DATASET_FORMAT, DATASET_SCHEMA_VERSION, write_canonical_dataset
-from immich_cn.display import validate_pattern
+from immich_cn.display import contains_cjk, validate_pattern
 from immich_cn.domain import Variant
-from immich_cn.errors import ParseError
+from immich_cn.errors import ParseError, VerifyError
 from immich_cn.fetching import sha256_file
 from immich_cn.logging_config import get_logger
 from immich_cn.pipeline import (
@@ -151,6 +151,8 @@ def _write_variant(
         info.compress_type = zipfile.ZIP_DEFLATED
         info.external_attr = 0o644 << 16
         with archive.open(info, "w", force_zip64=True) as sink:
+            untranslated_cn = 0
+            untranslated_samples: list[str] = []
             for place in iter_output_places(
                 cities500=result.cities500,
                 extra_file=result.extra_file,
@@ -162,7 +164,20 @@ def _write_variant(
                     place = type(place)(columns=list(place.columns))
                     place.columns[1] = name
                     place.columns[2] = name
+                # 上游缺中文别名时会把英文原名透传；这类值会让 {admin_3}/{admin_4} 变体
+                # 显示英文地名（2026-10-07 实测 7~8 行），必须在打包阶段拦下而不是发布。
+                if place.country_code == "CN" and not contains_cjk(place.columns[1]):
+                    untranslated_cn += 1
+                    if len(untranslated_samples) < 5:
+                        untranslated_samples.append(f"{place.geoname_id}={place.columns[1]}")
                 sink.write((place.to_line() + "\n").encode("utf-8"))
+            if untranslated_cn:
+                raise VerifyError(
+                    f"{variant.filename} 有 {untranslated_cn} 条中国记录的展示名不含中文"
+                    f"（pattern={variant.pattern}，样例：{'、'.join(untranslated_samples)}）"
+                    "：请补 config/overrides.toml 的 [admins]，"
+                    "或修正该层级名称的中文来源"
+                )
         for source_name in (
             "admin1CodesASCII.txt",
             "admin2Codes.txt",
