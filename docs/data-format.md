@@ -39,7 +39,7 @@ SHA256、ETag 与 Last-Modified；`dataset_meta` 保存格式版本、工具版�
 ```bash
 unzip dataset.sqlite.zip
 sqlite3 dataset.sqlite \
-  "SELECT country_name, admin1_name, admin2_name, source_name
+  "SELECT geoname_name, country_name, admin1_name, admin2_name, source
    FROM localized_places WHERE geoname_id = 1816670;"
 ```
 
