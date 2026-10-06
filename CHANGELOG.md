@@ -13,7 +13,7 @@
 - 发布指纹纳入 `manifest` schema、构建器版本与 CI 修订；只改构建逻辑时不会被误判为
   “无变化”而跳过新镜像发布；
 - 镜像推送后按最终 digest 重新拉取并执行入口 smoke test，增加 Trivy 漏洞/许可证扫描与
-  Cosign keyless 签名，并为 Immich 覆盖镜像补充 Git SHA 标签；
+  Cosign keyless 签名；server 覆盖镜像只阻断相对官方基础镜像新增的漏洞，并记录继承例外；
 - 日期快照只记录当日首次发布；同日后续修订使用 `data-YYYY-MM-DD-sha-<短提交>`，
   避免覆盖不可变历史或让日期快照与 auto-release 的语义失真；
 - 新增 `no-change` 与 `notify-failure` 作业：无变化时明确记录并跳过发布，
