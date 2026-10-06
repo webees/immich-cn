@@ -172,6 +172,7 @@ def run_build(options: BuildOptions) -> BuildResult:
 
     names_file = options.work_dir / "levels.tsv"
     chain = build_chain(options)
+    country_names = _load_translations(paths.langs_dir, options.chinese_variant)
     try:
         chain.prefetch(iter_all_places(cities500_file, extra_file))
         _write_levels(
@@ -182,6 +183,7 @@ def run_build(options: BuildOptions) -> BuildResult:
             index=index,
             overrides=overrides,
             chain=chain,
+            country_names=country_names,
             min_population=options.min_population,
             stats=stats,
         )
@@ -509,6 +511,7 @@ def _write_levels(
     index: ChineseNameIndex,
     overrides: NameOverrides,
     chain: ProviderChain,
+    country_names: dict[str, str],
     min_population: int,
     stats: BuildStats,
 ) -> None:
@@ -525,6 +528,8 @@ def _write_levels(
         ):
             names = resolve_place_names(place, hierarchy, index)
             names = chain.enrich(place, names)
+            if not names.admin_1:
+                names.admin_1 = index.get_country(place.country_code) or country_names.get(place.country_code, "")
             finalize_place_names(names, place.country_code, overrides)
             if not names.admin_2:
                 fallback += 1
