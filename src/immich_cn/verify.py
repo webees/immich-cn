@@ -268,15 +268,15 @@ def _check_cities500(
         CheckResult("cities500", bad == 0, f"{total} 条记录，字段异常 {bad} 条"),
         CheckResult("cities500-duplicates", duplicates == 0, f"重复 GeoNames ID {duplicates} 条"),
     ]
-    if cn_total:
-        ratio = cn_chinese / cn_total
-        results.append(
-            CheckResult(
-                "cities500-cn-cjk",
-                ratio >= min_cn_cjk_ratio,
-                f"中国记录 {cn_total} 条，中文名称 {cn_chinese} 条（{ratio:.1%}）",
-            )
+    cn_ratio = cn_chinese / cn_total if cn_total else 0.0
+    results.append(
+        CheckResult(
+            "cities500-cn-cjk",
+            cn_total > 0 and cn_ratio >= min_cn_cjk_ratio,
+            f"中国记录 {cn_total} 条，中文名称 {cn_chinese} 条（{cn_ratio:.1%}）",
         )
+    )
+    if cn_total:
         admin_ratio = cn_with_admin2 / cn_total
         results.append(
             CheckResult(
@@ -296,15 +296,14 @@ def _check_cities500(
                 f"{cn_admin2_resolved} 条（{resolved_ratio:.2%}）",
             )
         )
-    if hk_total:
-        hk_ratio = hk_chinese / hk_total
-        results.append(
-            CheckResult(
-                "cities500-hk-cjk",
-                hk_ratio >= min_hk_cjk_ratio,
-                f"香港记录 {hk_total} 条，中文名称 {hk_chinese} 条（{hk_ratio:.1%}）",
-            )
+    hk_ratio = hk_chinese / hk_total if hk_total else 0.0
+    results.append(
+        CheckResult(
+            "cities500-hk-cjk",
+            hk_total > 0 and hk_ratio >= min_hk_cjk_ratio,
+            f"香港记录 {hk_total} 条，中文名称 {hk_chinese} 条（{hk_ratio:.1%}）",
         )
+    )
     return results
 
 

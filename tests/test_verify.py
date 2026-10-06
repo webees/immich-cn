@@ -98,6 +98,40 @@ def test_unresolvable_admin2_codes_are_rejected(build_options: BuildOptions) -> 
     assert "cities500-cn-admin2-resolvable" in failures, failures
 
 
+def test_missing_all_cn_cities_are_rejected(build_options: BuildOptions) -> None:
+    result = run_build(build_options)
+    cities = result.geodata_dir / "cities500.txt"
+
+    def drop_cn(lines: list[str]) -> list[str]:
+        out = []
+        for line in lines:
+            fields = line.split("\t")
+            if len(fields) >= 19 and fields[8] == "CN":
+                continue
+            out.append("\t".join(fields))
+        return out
+
+    cities.write_text("\n".join(drop_cn(cities.read_text(encoding="utf-8").splitlines())) + "\n", encoding="utf-8")
+    assert "cities500-cn-cjk" in _failures(result.geodata_dir)
+
+
+def test_missing_all_hk_cities_are_rejected(build_options: BuildOptions) -> None:
+    result = run_build(build_options)
+    cities = result.geodata_dir / "cities500.txt"
+
+    def drop_hk(lines: list[str]) -> list[str]:
+        out = []
+        for line in lines:
+            fields = line.split("\t")
+            if len(fields) >= 19 and fields[8] == "HK":
+                continue
+            out.append("\t".join(fields))
+        return out
+
+    cities.write_text("\n".join(drop_hk(cities.read_text(encoding="utf-8").splitlines())) + "\n", encoding="utf-8")
+    assert "cities500-hk-cjk" in _failures(result.geodata_dir)
+
+
 def test_hong_kong_ascii_names_are_rejected(build_options: BuildOptions) -> None:
     result = run_build(build_options)
     cities = result.geodata_dir / "cities500.txt"
@@ -401,3 +435,31 @@ def test_cities500_hong_kong_cjk_ratio_threshold_boundary(tmp_path: Path) -> Non
 
     assert check(99).passed is True, check(99).detail  # 99/100 = 0.99
     assert check(98).passed is False, check(98).detail
+
+
+def test_missing_country_records_fail_even_with_zero_ratio_threshold(tmp_path: Path) -> None:
+    path = tmp_path / "cities-only-us.txt"
+    write_lines(
+        path,
+        [
+            geo_row(
+                3_000_000,
+                "New York",
+                country="US",
+                admin1="NY",
+                latitude="40.7",
+                longitude="-74.0",
+            )
+        ],
+    )
+    results = {
+        result.name: result
+        for result in _check_cities500(
+            path,
+            min_cn_cjk_ratio=0.0,
+            min_hk_cjk_ratio=0.0,
+            min_cn_admin2_code_ratio=0.0,
+        )
+    }
+    assert results["cities500-cn-cjk"].passed is False
+    assert results["cities500-hk-cjk"].passed is False
