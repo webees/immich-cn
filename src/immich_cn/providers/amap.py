@@ -11,7 +11,7 @@ from urllib.parse import quote
 
 import httpx
 
-from immich_cn.config import USER_AGENT, BuildOptions
+from immich_cn.config import USER_AGENT, BuildOptions, positive_int_env
 from immich_cn.errors import ConfigError
 from immich_cn.logging_setup import get_logger
 from immich_cn.models import Place, PlaceNames
@@ -69,8 +69,8 @@ class AmapEnricher:
             AmapOptions(
                 api_key=api_key,
                 countries=countries,
-                qps=int(os.environ.get("IMMICH_CN_AMAP_QPS", "3")),
-                batch_size=int(os.environ.get("IMMICH_CN_AMAP_BATCH_SIZE", "20")),
+                qps=positive_int_env("IMMICH_CN_AMAP_QPS", 3),
+                batch_size=positive_int_env("IMMICH_CN_AMAP_BATCH_SIZE", 20),
             ),
             options.cache_dir / "amap-regeo.jsonl",
         )

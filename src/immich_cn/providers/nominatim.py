@@ -10,7 +10,7 @@ from typing import Any
 
 import httpx
 
-from immich_cn.config import USER_AGENT, BuildOptions
+from immich_cn.config import USER_AGENT, BuildOptions, positive_int_env
 from immich_cn.logging_setup import get_logger
 from immich_cn.models import Place, PlaceNames
 from immich_cn.providers.cache import JsonlCache
@@ -68,7 +68,7 @@ class NominatimEnricher:
         return cls(
             NominatimOptions(
                 countries=countries or DEFAULT_COUNTRIES,
-                qps=int(os.environ.get("IMMICH_CN_NOMINATIM_QPS", "1")),
+                qps=positive_int_env("IMMICH_CN_NOMINATIM_QPS", 1),
             ),
             options.cache_dir / "nominatim-reverse.jsonl",
         )
