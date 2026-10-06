@@ -35,6 +35,7 @@ REPO_SUBSET = (
     "Makefile",
     "pyproject.toml",
     "README.md",
+    "CITATION.cff",
     "NOTICE",
     "CONTRIBUTING.md",
     "SECURITY.md",
@@ -176,7 +177,7 @@ def test_check_docs_detects_missing_referenced_path(repo_copy: Path) -> None:
 
 def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
-    mutate(readme, "本项目是完全独立的实现", "本项目是独立重写版本")
+    mutate(readme, "本仓库为独立实现", "本项目是独立重写版本")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "错误的项目定位" in result.stdout
@@ -184,13 +185,25 @@ def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
 
 def test_check_docs_requires_upstream_acknowledgement_at_bottom(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
-    link = "- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)：早期中文 Immich geodata 思路提供了启发；本项目为完全独立实现，不含代码、数据或格式继承。"
+    link = (
+        "- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)："
+        "早期中文 Immich geodata 思路提供了启发；本仓库为独立实现，"
+        "当前树中不包含来自该项目的代码或人工整理数据。"
+    )
     mutated = readme.read_text(encoding="utf-8").replace(link, "")
     mutated = mutated.replace("## 数据模型与使用方式", f"{link}\n\n## 数据模型与使用方式")
     readme.write_text(mutated, encoding="utf-8")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "底部致谢" in result.stdout
+
+
+def test_check_docs_rejects_absolute_claims(repo_copy: Path) -> None:
+    readme = repo_copy / "README.md"
+    mutate(readme, "本仓库为独立实现", "本项目是完全独立的实现")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "绝对化表述" in result.stdout
 
 
 # --------------------------------------------------------------------------

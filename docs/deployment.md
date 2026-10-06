@@ -8,7 +8,7 @@
 
 ## 方案 A：开箱即用的 Immich 镜像
 
-完整可用的 compose 文件（含 redis 与 database）：[examples/compose.server.yml](../examples/compose.server.yml)。
+示例 compose 文件（含 redis 与 database，仍需提供 `.env` 与持久化目录）：[examples/compose.server.yml](../examples/compose.server.yml)。
 
 ```yaml
 # compose.yaml
@@ -65,7 +65,7 @@ services:
 
 ## 方案 B：官方镜像 + 数据镜像
 
-完整可用的 compose 文件：[examples/compose.volume.yml](../examples/compose.volume.yml)。
+示例 compose 文件（需自行提供 `.env` 和持久化目录）：[examples/compose.volume.yml](../examples/compose.volume.yml)。
 
 ```bash
 # 1. 把数据释放到宿主机
@@ -126,7 +126,7 @@ date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./immich-cn/geodata/geodata-date.txt
 
 - 每天用 ETag 条件请求检查 GeoNames、Natural Earth、i18n-iso-countries；
 - 只有数据、构建配置或发布器修订真正变化时才重新构建、发布 Release 与推送镜像；
-- 因此每周甚至每月拉取一次镜像，也能一次拿到累积的全部更新。
+- 因此拉取最新镜像即可获得该 Release 当时的完整数据；拉取频率取决于你对数据新鲜度和保留策略的要求。
 
 判断当前数据版本：查看 Release 标题日期，或容器内 `/build/geodata/geodata-date.txt`。
 

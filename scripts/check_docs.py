@@ -37,6 +37,13 @@ FORBIDDEN_POSITIONING = (
     "独立重写版本",
     "在保留相同数据格式与使用方式的前提下",
 )
+ABSOLUTE_CLAIMS = {
+    "完全独立": "改用“独立实现”，并说明当前树与依赖事实",
+    "完全无人值守": "改用“按设计无人值守”，并写明运行前提",
+    "绝不会输出空": "改为按非空层级回退，并说明全空记录的校验边界",
+    "不会发布坏数据": "改为已实现检查失败会阻断发布，不声称覆盖所有潜在缺陷",
+    "零密钥": "改为“无需 API Key”，并说明默认 provider 的依赖",
+}
 
 #: 价值完全依赖"能被找到"的文件：必须在 README 或 docs 中被引用，否则等于隐藏文件。
 DISCOVERABLE_GLOBS = ("NOTICE", "examples/*.yml", "docs/*.md")
@@ -260,6 +267,17 @@ def check_project_positioning(errors: list[str]) -> None:
         errors.append("对 ZingLix/immich-geodata-cn 的引用必须位于 README 底部致谢")
 
 
+def check_absolute_claims(paths: list[Path], errors: list[str]) -> None:
+    """拒绝没有范围、条件与例外的绝对化承诺。"""
+    for path in paths:
+        if path.name == "documentation-policy.md":
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase, replacement in ABSOLUTE_CLAIMS.items():
+            if phrase in text:
+                errors.append(f"{path} 使用绝对化表述 {phrase!r}；{replacement}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--quiet", action="store_true")
@@ -279,6 +297,7 @@ def main(argv: list[str] | None = None) -> int:
     check_numeric_contracts(errors)
     check_referenced_paths(doc_files, errors)
     check_project_positioning(errors)
+    check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
 
     for error in errors:
         print(f"[!!] {error}")

@@ -13,8 +13,8 @@
 | `ne_10m_admin_0_countries.geojson` | Natural Earth v5.1.2 | Public Domain | 国家边界回退 |
 | `i18n-iso-countries@7.0.0` | npm | MIT | 国家名称中文覆盖（旧版 Immich） |
 
-所有版本都在 `src/immich_cn/settings.py` 中固定，Natural Earth 与 i18n-iso-countries 使用不可变标签/版本号，
-GeoNames 为滚动数据，其指纹会记录在每次构建的 `immich-cn-manifest-json-v1.json` 中。
+不可变依赖在 `src/immich_cn/settings.py` 中固定版本；Natural Earth 与 i18n-iso-countries
+使用不可变标签/版本号。GeoNames 为滚动数据，其每次构建的指纹会记录在 manifest 中。
 
 ## 处理流程
 
@@ -27,7 +27,7 @@ GeoNames 为滚动数据，其指纹会记录在每次构建的 `immich-cn-manif
 - 把 ETag、Last-Modified、SHA256、大小写入 `.cache/immich-cn/.meta/<name>.json`，命中缓存时跳过重复下载；
 - 在 `--revalidate` 模式下用 `If-None-Match` / `If-Modified-Since` 校验上游：
   GeoNames 支持强 ETag，未更新时返回 **304 且不传输正文**，更新时才重新下载；
-  校验过程出错会自动回退到本地缓存，不阻断流水线；
+  校验过程出错时会尝试回退到本地缓存；缓存不可用或内容无效时仍会失败；
 - 解压 `cities500.zip`、`alternateNamesV2.zip`、国家 dump 与 npm tarball。
 
 CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，
@@ -41,7 +41,7 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，
 4. 顺带从国家 dump 中抽取 `ADM3`/`ADM4` 要素，构造 `CC.A1.A2[.A3[.A4]]` 形式的行政区代码表。
 
 > 第 4 步是本项目不依赖付费 API 也能给出区县、乡镇粒度的关键：GeoNames 只发布 admin1/admin2 的代码表，
-> 但各国全量数据里带有完整的 `ADM3`/`ADM4` 记录与代码。
+> 但各国全量数据中包含部分 `ADM3`/`ADM4` 记录与代码，覆盖程度因国家而异。
 
 实际覆盖情况（2026-10 数据）：中国大陆 `ADM3`（区县）约 2,900 条，`ADM4`（乡镇）在 GeoNames 中仅 73 条，
 因此**默认的 `{admin_4}` 变体在中国大陆通常会回退到区县**。如果必须精确到乡镇，请配置 `AMAP_API_KEY`
@@ -89,7 +89,7 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，
 | `nominatim` | `--provider nominatim` | OSM 行政层级 | 默认 1 QPS，真实 User-Agent |
 
 高德使用 GCJ-02 坐标，调用前会用 WGS-84 → GCJ-02 转换；provider 结果按坐标写入 JSONL 缓存，
-重复构建不会重复计费。
+缓存命中时不会重复请求上游；缓存未命中、缓存损坏或显式刷新时仍可能产生请求和计费。
 
 ### 6. 规范数据集
 

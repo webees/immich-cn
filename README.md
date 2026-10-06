@@ -9,19 +9,21 @@
 
 Immich 的反向地理编码默认输出英文地名，本项目的目标是让照片地图显示**熟悉的中文地名**，并且可以直接用中文搜索地点。
 
-本项目是完全独立的实现，不是任何同类项目的重写版本，也不包含、改写或复用其代码与人工整理数据。
-早期中文 Immich geodata 思路带来的启发只在文末「致谢」中说明，不构成代码、数据或格式继承。
-项目采用 **MIT** 许可；数据来源和再分发要求单独说明，见 [docs/licensing.md](docs/licensing.md)。
+本仓库为独立实现：当前代码、配置、流水线和数据构建脚本不依赖或打包任何同类项目的代码或人工整理数据，
+也未从同类项目移植实现。与同类项目之间只保留思路层面的启发关系，该关系仅在文末「致谢」中说明；
+Immich 文本格式兼容属于消费者接口适配，不代表继承同类项目的内部格式。
+本仓库的源代码、配置、CI 工作流和文档采用 **MIT** 许可；生成的数据库与地理数据制品不属于 MIT，
+数据来源、署名和再分发要求见 [docs/licensing.md](docs/licensing.md)。
 
 设计重点不是复制某个数据格式或使用方式，而是建立自己的规范模型后再适配消费者：
 
 | 维度 | 本项目设计 |
 |:--|:--|
 | 构建入口 | 可测试的 Python 包 + 统一 CLI |
-| 默认运行 | 零密钥，GeoNames 离线层级表即可完成构建 |
+| 默认运行 | 默认 provider 不要求 API Key，使用 GeoNames 离线层级表构建 |
 | 可选增强 | 高德 / Nominatim provider，带限速与磁盘缓存 |
 | 规范数据 | 自有 SQLite 数据集 `immich-cn-dataset-sqlite-v1.zip`，可直接查询、分析或二次开发 |
-| 兼容导出 | Immich 文本目录与 zip 只是默认适配器，不决定内部模型 |
+| 兼容导出 | Immich 文本目录与 zip 是默认适配器，不定义内部模型 |
 | 发布方式 | Release 制品 + GHCR 数据镜像 + 开箱即用的 Immich 覆盖镜像 |
 | 粒度切换 | 同一镜像内用 `IMMICH_CN_PATTERN` 切换，无需重新构建 |
 | 更新频率 | 每天自动检查并更新，含 ETag 增量校验与发布指纹 |
@@ -32,8 +34,8 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 
 本项目不以“保留上游相同格式与相同使用方式”为目标。规范数据模型是第一等产物，
 `immich-cn-dataset-sqlite-v1.zip` 内含带索引的 SQLite 数据库，直接表达地点、四级行政名、国家、
-来源哈希与构建元数据；任何 SQLite、DuckDB、BI 或程序都可以直接查询和二次开发，
-不需要先理解 Immich 的文本列约定。
+来源哈希与构建元数据；支持 SQLite 3 的工具可以查询和二次开发，具体兼容性取决于客户端版本，
+不要求先理解 Immich 的文本列约定。
 
 层间关系明确：
 
@@ -47,7 +49,8 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 
 ## 全自动更新机制
 
-数据更新**完全无人值守**：GitHub Actions 每天自动检查上游地理数据，发现变化就重新翻译、打包、校验并发布，同时推送新的容器镜像。
+数据更新按设计为无人值守流程：在 GitHub Actions、上游数据源和仓库权限正常时，每天自动检查上游地理数据，
+发现变化后重新翻译、打包、校验并发布，同时推送新的容器镜像。
 
 | 环节 | 行为 |
 |:--|:--|
@@ -57,7 +60,7 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 | 构建 | 重新生成四级行政层级、汉化 `cities500`、导出 7 种粒度 × full/非 full 共 14 个 geodata 变体与规范数据集 |
 | 校验 | 文件完整性、GeoNames ID 去重、中国与香港记录中文覆盖率、国家名称覆盖率全部通过才允许发布 |
 | 发布 | 更新滚动 Release `auto-release`、创建当日至多一个不可变日期快照 `data-YYYY-MM-DD`（同日后续修订用 `data-YYYY-MM-DD-sha-<短提交>`）、推送两个多架构镜像 |
-| 保留策略 | 默认只保留最近 3 个 `data-*` 快照，不会无限堆积 |
+| 保留策略 | 默认保留最近 3 个 `data-*` 快照；达到策略期限后自动清理，手动修改策略除外 |
 | 失败兜底 | 任一环节失败自动创建/更新带 `automation` 标签的 issue，附带运行链接 |
 
 你只需要定期 `docker compose pull`，或使用 Release 的固定地址 `releases/latest/download/immich-cn-geodata-admin2-default-v1.zip`，即可持续获得最新数据。
@@ -66,8 +69,9 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 
 ### 方式一：使用开箱即用的 Immich 镜像（推荐）
 
-`ghcr.io/webees/immich-cn-server` 基于官方 `immich-server`，在启动时把中文 geodata 注入到正确位置，无需手工挂载文件。
-完整可用的 compose 文件（含 redis 与 database）：[examples/compose.server.yml](examples/compose.server.yml)。
+`ghcr.io/webees/immich-cn-server` 基于官方 `immich-server`，在启动时把中文 geodata 注入到目标目录；
+仍需要按 Immich 官方要求配置数据库、缓存和持久化目录。
+示例 compose 文件（含 redis 与 database，需按 Immich 官方要求提供 `.env` 与持久化目录）：[examples/compose.server.yml](examples/compose.server.yml)。
 
 ```yaml
 # docker-compose.yml（只列出需要改动的部分）
@@ -120,7 +124,7 @@ git clone https://github.com/webees/immich-cn.git && cd immich-cn
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
 
-# 全流程：下载 -> 翻译 -> 打包 -> 校验，默认零密钥
+# 全流程：下载 -> 翻译 -> 打包 -> 校验，默认无需 API Key
 immich-cn all
 ```
 
@@ -145,7 +149,8 @@ immich-cn all
 | `{admin_2} {admin_3}` | 苏州市 昆山市 |
 | `{admin_2} {admin_3} {admin_4}` | 苏州市 昆山市 周市镇 |
 
-缺少对应层级的地区会自动回退到上一级，绝不会输出空地名。完整的组合规则见 [docs/architecture.md](docs/architecture.md)。
+存在至少一个非空层级时，显示名会自动回退到上一级；若全部层级为空，构建校验应拒绝该记录。
+完整的组合规则见 [docs/architecture.md](docs/architecture.md)。
 
 > [!NOTE]
 > 默认（离线）数据在中国大陆的 `admin_4` 通常回退到区县，因为 GeoNames 几乎没有乡镇级 `ADM4` 记录。
@@ -192,6 +197,7 @@ release.yml ──► 手动创建语义化版本 Release
 - [架构设计](docs/architecture.md)
 - [制品命名规范 v4](docs/artifact-spec.md)
 - [项目命名规范](docs/naming-conventions.md)
+- [文档严谨性规范](docs/documentation-policy.md)
 - [规范数据格式](docs/data-format.md)
 - [数据源与处理流程](docs/data-sources.md)
 - [部署指南](docs/deployment.md)
@@ -203,10 +209,11 @@ release.yml ──► 手动创建语义化版本 Release
 
 ## License
 
-代码以 [MIT](LICENSE) 发布；数据制品的署名要求汇总在 [NOTICE](NOTICE)，完整说明见 [docs/licensing.md](docs/licensing.md)。
+源代码、配置、CI 工作流和文档以 [MIT](LICENSE) 发布；数据库和地理数据制品不适用 MIT，
+署名要求汇总在 [NOTICE](NOTICE)，完整说明见 [docs/licensing.md](docs/licensing.md)。
 
 ## 致谢
 
-- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)：早期中文 Immich geodata 思路提供了启发；本项目为完全独立实现，不含代码、数据或格式继承。
+- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)：早期中文 Immich geodata 思路提供了启发；本仓库为独立实现，当前树中不包含来自该项目的代码或人工整理数据。
 - [Immich](https://github.com/immich-app/immich)：反向地理编码的实现与文档。
 - [GeoNames](https://www.geonames.org/)、[Natural Earth](https://www.naturalearthdata.com/)、[OpenStreetMap](https://www.openstreetmap.org/)：开放地理数据。

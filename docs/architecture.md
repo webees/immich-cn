@@ -68,7 +68,7 @@
 
 规范字段和用法见 [数据格式](data-format.md)，决策见 [ADR 0001](adr/0001-immich-output-contract.md)。
 
-### 1. 默认零密钥
+### 1. 默认无需 API Key
 
 本项目的默认设计目标是无需付费 API Key 即可生成国内数据，因此把 provider 拆成可选层：
 
@@ -77,7 +77,8 @@
 - `nominatim`：配置后启用，用 OSM 补充海外数据，严格遵守 1 QPS 与真实 User-Agent 的使用条款。
 - `auto`：有 `AMAP_API_KEY` 时等价于 `amap`，否则等价于 `offline`。
 
-这样 GitHub Actions 在没有任何 Secret 的情况下依然可以完成「数据更新 → 校验 → 发布」全链路。
+在 GitHub Actions 已授予所需仓库权限、上游服务可访问且未启用可选 provider 的前提下，
+默认离线路径不额外依赖 Secret，可完成「数据更新 → 校验 → 发布」流程。
 
 ### 2. 规范数据、展示粒度与适配器解耦
 
@@ -105,8 +106,9 @@
 - 使用的 provider 列表。
 
 镜像发布还附带 BuildKit provenance 与 SBOM；推送后按最终 digest 重新拉取执行入口 smoke test，
-再用 Trivy 扫描漏洞和许可证。数据镜像阻断全部 `HIGH`/`CRITICAL`；Immich 覆盖镜像与官方基础镜像
-做差集，只阻断新增漏洞并把继承项写成例外报告。最后通过 GitHub OIDC 使用 Cosign 做 keyless 签名。
+再用 Trivy 扫描漏洞和许可证。在当次扫描数据库和扫描范围内，数据镜像阻断 `HIGH`/`CRITICAL`；
+Immich 覆盖镜像与官方基础镜像做差集，只阻断新增漏洞并把继承项写成例外报告。
+最后通过 GitHub OIDC 使用 Cosign 做 keyless 签名。
 
 ### 5. 校验前置
 
@@ -119,11 +121,11 @@
 - `countryInfo.txt` 中文覆盖率；
 - `ne_10m_admin_0_countries.geojson` 是否为合法 FeatureCollection。
 
-任何一项失败都会让 GitHub Actions 中断，不会发布坏数据。
+任一已实现检查失败都会让 GitHub Actions 中断，阻止该次发布。该校验不等于对所有潜在数据错误的形式化证明。
 
 ## 全自动更新机制
 
-数据更新是全自动的，不需要任何人工介入：
+数据更新按设计无需人工介入；实际运行依赖 GitHub Actions、上游服务和仓库权限正常：
 
 ```
 每天 UTC 05:23（cron）
@@ -142,16 +144,17 @@
 
 1. **增量校验而不是全量下载**：`immich_cn.fetching.Fetcher` 在 `--revalidate` 下带
    `If-None-Match` / `If-Modified-Since` 请求上游；数据源支持强 ETag，未更新时直接返回 304，
-   因此每日运行的额外带宽几乎为零。校验失败时自动回退到本地缓存，保证流水线不会被网络抖动打断。
+   因此上游返回 304 时正文传输为 0；请求连接和头部仍有少量开销。校验失败时会尝试回退到本地缓存，
+   缓存缺失或损坏时仍会按错误路径失败。
 2. **内容指纹而不是时间戳**：`immich_cn.fingerprint` 对"上游文件内容摘要 + 构建配置 +
    发布器修订 + manifest schema"求哈希，不含构建时间。同一份数据与同一版发布器无论跑多少次
-   都会得到相同指纹，可以安全地跳过发布；但构建逻辑修复后会主动发布新镜像，不会把旧制品
+   都会得到相同指纹；在目标摘要和配置均匹配的发布条件下可以跳过发布。构建逻辑修复后会主动发布新镜像，不会把旧制品
    误判成最新。
 3. **失败可见**：任一环节失败会自动创建或更新带 `automation` 标签的 issue，附带运行链接，
    修复后可用 `workflow_dispatch` 立即重跑（`force-publish` 可强制发布）。
 
 历史垃圾由独立的 `cleanup.yml` 每周清理：Release 快照、Actions 运行与 GHCR 版本按
-[保留策略](maintenance.md) 处理，语义版本与稳定标签始终受保护。
+[保留策略](maintenance.md) 处理，语义版本与稳定标签在默认策略下受保护。
 
 可通过 `workflow_dispatch` 覆盖的参数：`provider`、`immich-version`、`push-images`、
 `force-publish`、`snapshot-retention`（默认保留最近 3 个 `data-*` 快照）。
@@ -171,7 +174,8 @@
 否则同一次运行会同时输出"跳过发布"和"已发布"两份互相矛盾的摘要。
 
 日期快照 `data-YYYY-MM-DD` 只代表当日第一次成功发布，不接受覆盖；同日因构建逻辑或
-上游数据再次变化而重跑时，会创建 `data-YYYY-MM-DD-sha-<短提交>`，保证历史不可变。
+上游数据再次变化而重跑时，会创建 `data-YYYY-MM-DD-sha-<短提交>`；在 GitHub 权限和仓库规则未被绕过的前提下，
+已创建的日期快照不会被覆盖。
 
 `resolve-previous-failure` 的条件因此必须同时判断 `build` 与 `release` 的结果；
 `scripts/check_workflows.py` 会静态检查"用 `if` 判断依赖结果时是否遗漏了某个依赖"。
@@ -180,7 +184,8 @@
 
 `{admin_1}` ~ `{admin_4}` 为占位符，组合时：
 
-1. 空值自动回退到上一级（`admin_4 → admin_3 → admin_2 → admin_1`），保证不会输出空名；
+1. 空值自动回退到上一级（`admin_4 → admin_3 → admin_2 → admin_1`）；至少一个层级非空时不会输出空名，
+   全部层级为空时应被构建或校验流程拒绝；
 2. 相邻重复的层级会被去掉，例如 `{admin_2} {admin_3}` 在 `admin_2 == admin_3` 时只输出一次；
 3. 港澳在 GeoNames 中以堂区/区作为一级行政区，构建时重排为
    `admin_1 = 香港/澳门`、`admin_2 = 区`，香港还会补充新界/九龙/香港岛前缀；
