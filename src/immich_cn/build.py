@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import tarfile
 from collections.abc import Iterator
@@ -101,6 +102,8 @@ class BuildResult:
     stats: BuildStats
     sources: list[SourceRecord]
     generated_at: str
+    #: CI 发布器修订；上游数据未变化但构建逻辑变化时，必须触发重新发布。
+    build_revision: str = ""
     provider_names: list[str] = field(default_factory=list)
     index_stats: dict[str, int] = field(default_factory=dict)
     admin_entries: dict[str, int] = field(default_factory=dict)
@@ -109,7 +112,11 @@ class BuildResult:
     def as_manifest(self) -> dict[str, object]:
         return {
             "schemaVersion": SCHEMA_VERSION,
-            "tool": {"name": "immich-cn", "version": __version__},
+            "tool": {
+                "name": "immich-cn",
+                "version": __version__,
+                "revision": self.build_revision,
+            },
             "generatedAt": self.generated_at,
             "providers": self.provider_names,
             "stats": self.stats.as_dict(),
@@ -219,6 +226,7 @@ def run_build(options: BuildOptions) -> BuildResult:
         stats=stats,
         sources=records,
         generated_at=generated_at,
+        build_revision=os.environ.get("GITHUB_SHA", "").strip(),
         provider_names=chain.names,
         index_stats=index.stats(),
         admin_entries=hierarchy.as_stats(),

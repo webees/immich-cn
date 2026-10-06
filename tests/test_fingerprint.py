@@ -10,6 +10,7 @@ def make_manifest(**overrides: object) -> dict[str, object]:
     manifest: dict[str, object] = {
         "schemaVersion": 1,
         "generatedAt": "2026-10-05T00:00:00+00:00",
+        "tool": {"name": "immich-cn", "version": "1.0.0", "revision": "abc123"},
         "sources": [
             {"name": "cities500", "url": "https://example.com/cities500.zip", "sha256": "aaa", "sizeBytes": 1},
             {"name": "admin1CodesASCII", "sha256": "bbb", "sizeBytes": 2},
@@ -52,6 +53,21 @@ def test_fingerprint_changes_with_source_content() -> None:
 def test_fingerprint_changes_with_build_config() -> None:
     changed = make_manifest()
     changed["config"] = {"provider": "amap", "patterns": ["{admin_2}"], "extraCountries": ["CN"]}
+    assert data_fingerprint(changed) != data_fingerprint(make_manifest())
+
+
+def test_fingerprint_changes_with_schema_version() -> None:
+    changed = make_manifest(schemaVersion=2)
+    assert data_fingerprint(changed) != data_fingerprint(make_manifest())
+
+
+def test_fingerprint_changes_with_tool_revision() -> None:
+    changed = make_manifest(tool={"name": "immich-cn", "version": "1.0.0", "revision": "def456"})
+    assert data_fingerprint(changed) != data_fingerprint(make_manifest())
+
+
+def test_fingerprint_changes_with_tool_version() -> None:
+    changed = make_manifest(tool={"name": "immich-cn", "version": "1.0.1", "revision": "abc123"})
     assert data_fingerprint(changed) != data_fingerprint(make_manifest())
 
 
