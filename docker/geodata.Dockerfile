@@ -1,6 +1,7 @@
 # 纯数据镜像：把构建产物打成可以直接释放到宿主机的镜像。
 # 构建：docker build -f docker/geodata.Dockerfile -t ghcr.io/webees/immich-cn:local .
-FROM alpine:3.24
+# 固定官方基础镜像摘要，避免可重定向 tag 在构建时被替换；Dependabot 负责后续摘要更新。
+FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 
 LABEL org.opencontainers.image.title="immich-cn geodata" \
       org.opencontainers.image.description="Immich 中文反向地理编码数据" \
