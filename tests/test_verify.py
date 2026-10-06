@@ -79,6 +79,19 @@ def test_missing_admin2_codes_are_rejected(build_options: BuildOptions) -> None:
     assert "cities500-cn-admin2" in failures, failures
 
 
+def test_unresolvable_admin2_codes_are_rejected(build_options: BuildOptions) -> None:
+    """admin2 代码必须能在 admin2Codes.txt 中解析出名称，否则只能算"看起来有值"。"""
+    result = run_build(build_options)
+    admin2 = result.geodata_dir / "admin2Codes.txt"
+
+    def drop_suzhou(lines: list[str]) -> list[str]:
+        return [line for line in lines if not line.startswith("CN.04.SZ\t")]
+
+    _rewrite(admin2, drop_suzhou)
+    failures = _failures(result.geodata_dir)
+    assert "cities500-cn-admin2-resolvable" in failures, failures
+
+
 def test_broken_geojson_is_rejected(build_options: BuildOptions) -> None:
     result = run_build(build_options)
     (result.geodata_dir / "ne_10m_admin_0_countries.geojson").write_text("{not json", encoding="utf-8")
