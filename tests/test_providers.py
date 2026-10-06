@@ -325,6 +325,23 @@ def test_amap_transient_failure_is_not_negatively_cached(tmp_path: Path) -> None
     assert names.admin_4 == "周市镇"
 
 
+def test_amap_honors_retry_after(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    sleeps: list[float] = []
+    monkeypatch.setattr("immich_cn.providers.amap.time.sleep", sleeps.append)
+
+    client = httpx.Client(
+        transport=httpx.MockTransport(lambda _request: httpx.Response(429, headers={"retry-after": "5"}))
+    )
+    enricher = AmapEnricher(
+        AmapOptions(api_key="k", qps=1_000_000, retries=3),
+        tmp_path / "amap.jsonl",
+        client=client,
+    )
+    enricher.prefetch([make_place()])
+
+    assert [delay for delay in sleeps if delay >= 1] == [5.0, 5.0]
+
+
 def test_amap_legacy_error_cache_entries_are_retried(tmp_path: Path) -> None:
     """历史缓存里残留的 _error 条目必须被当作失效，重新请求。"""
     cache = tmp_path / "amap.jsonl"
@@ -387,3 +404,21 @@ def test_nominatim_transient_failure_is_not_negatively_cached(tmp_path: Path) ->
     second = NominatimEnricher(NominatimOptions(countries=("JP",), retries=1), cache, client=healthy)
     second.prefetch([place])
     assert second.enrich(place, PlaceNames(geoname_id=1)).admin_1 == "北海道"
+
+
+def test_nominatim_honors_retry_after(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    sleeps: list[float] = []
+    monkeypatch.setattr("immich_cn.providers.nominatim.time.sleep", sleeps.append)
+
+    client = httpx.Client(
+        transport=httpx.MockTransport(lambda _request: httpx.Response(429, headers={"retry-after": "5"}))
+    )
+    enricher = NominatimEnricher(
+        NominatimOptions(countries=("JP",), qps=1_000_000, retries=3),
+        tmp_path / "nominatim.jsonl",
+        client=client,
+    )
+    place = make_place(country="JP", latitude="43.06417", longitude="141.34694")
+    enricher.prefetch([place])
+
+    assert [delay for delay in sleeps if delay >= 1] == [5.0, 5.0]
