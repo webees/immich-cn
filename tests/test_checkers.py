@@ -855,6 +855,19 @@ def test_check_shell_passes_on_repo_copy(repo_copy: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_check_shell_requires_flag_documentation(repo_copy: Path) -> None:
+    """实现了 CLI 参数却没在文件注释里说明时必须报错。"""
+    script = repo_copy / "docker" / "install.sh"
+    mutate(
+        script,
+        '    --geodata-only) langs_root=""; shift ;;',
+        '    --probe-flag) langs_root=""; shift ;;\n    --geodata-only) langs_root=""; shift ;;',
+    )
+    result = run_checker(repo_copy, "check_shell.py")
+    assert result.returncode == 1
+    assert "--probe-flag" in result.stdout
+
+
 def test_check_shell_detects_cjk_adjacent_variable(repo_copy: Path) -> None:
     """这次修复过两次的真实事故：$VAR 紧跟全角字符被并入变量名。"""
     script = repo_copy / "docker" / "apply-pattern.sh"

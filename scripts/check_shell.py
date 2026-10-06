@@ -30,6 +30,17 @@ def scan_text(path: Path, text: str, errors: list[str]) -> None:
                     f"{path}:{number} `{name}` 紧跟非 ASCII 字符，bash 会把它并入变量名；请写成 ${{{name[1:]}}}"
                 )
 
+    # CLI 参数必须在文件注释里说明，否则用户只能读代码才能发现（--geodata-only 曾如此）
+    documented = {
+        flag
+        for line in text.splitlines()
+        if line.lstrip().startswith("#")
+        for flag in re.findall(r"--[a-z][a-z-]+", line)
+    }
+    for flag in sorted(set(re.findall(r"^\s+(--[a-z][a-z-]+)\)", text, re.MULTILINE))):
+        if flag not in documented:
+            errors.append(f"{path} 实现了 {flag}，但注释里没有说明用法")
+
 
 def shell_files() -> list[Path]:
     files = list(Path("docker").glob("*.sh")) + list(Path("scripts").glob("*.sh"))
