@@ -204,6 +204,18 @@ def test_check_workflows_detects_unpinned_action(repo_copy: Path) -> None:
     assert "未固定到 40 位 commit SHA" in result.stdout
 
 
+def test_check_workflows_detects_top_level_write_permissions(repo_copy: Path) -> None:
+    workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
+    mutate(
+        workflow,
+        "permissions:\n  contents: read\n\nconcurrency:",
+        "permissions:\n  contents: write\n\nconcurrency:",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "顶层 permissions 含 write" in result.stdout
+
+
 def test_check_workflows_detects_delete_then_recreate_release(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
     mutate(
