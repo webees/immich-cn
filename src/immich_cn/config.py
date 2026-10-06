@@ -23,6 +23,19 @@ I18N_ISO_COUNTRIES_URL = (
 
 USER_AGENT = f"immich-cn/{__version__} (+https://github.com/webees/immich-cn)"
 
+
+def positive_int_env(name: str, default: int) -> int:
+    """读取必须大于 0 的整数环境变量。"""
+    raw = os.environ.get(name, str(default)).strip()
+    try:
+        value = int(raw)
+    except ValueError as error:
+        raise ConfigError(f"{name} 必须是整数：{raw!r}") from error
+    if value < 1:
+        raise ConfigError(f"{name} 必须大于 0：{value}")
+    return value
+
+
 #: 默认需要附带国家全量 dump 的地区；`cities500` 只有人口 > 500 的记录，国内数据在人口维度并不可靠。
 DEFAULT_EXTRA_COUNTRIES: tuple[str, ...] = ("CN", "HK", "TW", "MO", "JP")
 

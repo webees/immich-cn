@@ -7,6 +7,8 @@ from pathlib import Path
 import httpx
 import pytest
 
+from immich_cn.config import BuildOptions
+from immich_cn.errors import ConfigError
 from immich_cn.logging_setup import get_logger
 from immich_cn.models import Place, PlaceNames
 from immich_cn.providers.amap import AMAP_ENDPOINT, AmapEnricher, AmapOptions, _parse_regeocode
@@ -108,6 +110,42 @@ def test_amap_enricher_prefetch_and_enrich(tmp_path: Path) -> None:
     enricher.prefetch([place])
     assert len(requested) == 1
     assert str(client.base_url) == str(httpx.URL(""))
+
+
+def test_amap_qps_zero_is_rejected_and_one_is_accepted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AMAP_API_KEY", "test-key")
+    options = BuildOptions(
+        work_dir=tmp_path / "build",
+        dist_dir=tmp_path / "dist",
+        cache_dir=tmp_path / "cache",
+        provider="amap",
+    )
+    monkeypatch.setenv("IMMICH_CN_AMAP_QPS", "0")
+    with pytest.raises(ConfigError, match="IMMICH_CN_AMAP_QPS"):
+        AmapEnricher.from_options(options)
+
+    monkeypatch.setenv("IMMICH_CN_AMAP_QPS", "1")
+    enricher = AmapEnricher.from_options(options)
+    enricher.close()
+
+
+def test_nominatim_qps_zero_is_rejected_and_one_is_accepted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options = BuildOptions(
+        work_dir=tmp_path / "build",
+        dist_dir=tmp_path / "dist",
+        cache_dir=tmp_path / "cache",
+        provider="nominatim",
+    )
+    monkeypatch.setenv("IMMICH_CN_NOMINATIM_QPS", "0")
+    with pytest.raises(ConfigError, match="IMMICH_CN_NOMINATIM_QPS"):
+        NominatimEnricher.from_options(options)
+
+    monkeypatch.setenv("IMMICH_CN_NOMINATIM_QPS", "1")
+    enricher = NominatimEnricher.from_options(options)
+    enricher.close()
 
 
 def test_amap_enricher_skips_other_countries(tmp_path: Path) -> None:
