@@ -29,9 +29,14 @@ REPO_SUBSET = (
     "docs",
     "examples",
     ".github",
+    "config",
+    "tests",
     "Makefile",
+    "pyproject.toml",
     "README.md",
     "NOTICE",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
 )
 
 
@@ -121,6 +126,19 @@ def test_check_docs_detects_numeric_drift(repo_copy: Path) -> None:
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "13 个制品" in result.stdout
+
+
+def test_check_docs_detects_missing_referenced_path(repo_copy: Path) -> None:
+    """文档引用的仓库文件写错路径（例如漏掉 src/ 前缀）必须被报出。"""
+    contributing = repo_copy / "CONTRIBUTING.md"
+    mutate(
+        contributing,
+        "`src/immich_cn/providers/__init__.py:build_chain`",
+        "`providers/__init__.py:build_chain`",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "引用了不存在的文件" in result.stdout
 
 
 # --------------------------------------------------------------------------

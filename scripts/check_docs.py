@@ -18,7 +18,8 @@ from pathlib import Path
 #: 仅作为构建参数存在、不需要在运行时文档中出现的变量。
 BUILD_ONLY = {"IMMICH_BASE", "IMMICH_VERSION", "IMMICH_CN_DATA_DATE"}
 
-DOC_GLOBS = ("README.md", "docs/*.md")
+#: 参与契约检查的文档（含贡献指南与安全策略，它们同样会引用路径与命令）
+DOC_GLOBS = ("README.md", "docs/*.md", "CONTRIBUTING.md", "SECURITY.md")
 CODE_GLOBS = ("src/**/*.py", "docker/*", "scripts/*", ".github/workflows/*.yml", ".github/*.md", "examples/*.yml")
 
 ENV_PATTERN = re.compile(r"\b(IMMICH_[A-Z0-9_]+)\b")
@@ -29,6 +30,24 @@ LANGS_PATH = "/i18n-iso-countries/langs"
 
 #: 价值完全依赖"能被找到"的文件：必须在 README 或 docs 中被引用，否则等于隐藏文件。
 DISCOVERABLE_GLOBS = ("NOTICE", "examples/*.yml", "docs/*.md")
+
+#: 文档里以这些后缀出现的反引号路径必须是仓库中真实存在的文件
+FILE_SUFFIXES = (".py", ".sh", ".toml", ".json", ".yml", ".yaml", ".md", ".cff", ".cfg", ".txt")
+#: 这些前缀指向生成物、归档内部路径或外部仓库，不按仓库文件校验
+RUNTIME_PATH_PREFIXES = (
+    "build/",
+    "dist/",
+    ".cache/",
+    "work/",
+    "outputs/",
+    "geodata/",
+    "i18n-iso-countries/",
+    "releases/",
+    "package/",
+    "/",
+    "http",
+    "ghcr.io",
+)
 
 
 def _read(paths: list[Path]) -> str:
@@ -168,6 +187,31 @@ def check_numeric_contracts(errors: list[str]) -> None:
                 errors.append(f"文档称保留最近 {match.group(1)} 个快照，实际默认 {expected}")
 
 
+def check_referenced_paths(doc_files: list[Path], errors: list[str]) -> None:
+    """文档中引用的仓库文件必须真实存在（防止重构后路径静默失效）。"""
+    inline = re.compile(r"`([^`\s]+)`")
+    for path in doc_files:
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            for token in inline.findall(line):
+                raw = token.rstrip("。，,.)")
+                if any(char in raw for char in "*<>${}|"):
+                    continue
+                candidate = raw
+                if ":" in raw:  # `path.py:symbol` 形式
+                    head, _, tail = raw.partition(":")
+                    if head.endswith(FILE_SUFFIXES) and tail:
+                        candidate = head
+                if not candidate.endswith(FILE_SUFFIXES):
+                    continue
+                # 只校验"含目录的相对路径"；裸文件名多指归档内部或生成物，不在此校验
+                if "/" not in candidate:
+                    continue
+                if candidate.startswith(RUNTIME_PATH_PREFIXES):
+                    continue
+                if not Path(candidate).exists():
+                    errors.append(f"{path}:{line_number} 引用了不存在的文件：`{candidate}`")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--quiet", action="store_true")
@@ -185,6 +229,7 @@ def main(argv: list[str] | None = None) -> int:
     check_langs_mounts(doc_files + _expand(("examples/*.yml",)), errors)
     check_discoverable(errors)
     check_numeric_contracts(errors)
+    check_referenced_paths(doc_files, errors)
 
     for error in errors:
         print(f"[!!] {error}")

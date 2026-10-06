@@ -13,7 +13,7 @@
 | `ne_10m_admin_0_countries.geojson` | Natural Earth v5.1.2 | Public Domain | 国家边界回退 |
 | `i18n-iso-countries@7.0.0` | npm | MIT | 国家名称中文覆盖（旧版 Immich） |
 
-所有版本都在 `immich_cn/config.py` 中固定，Natural Earth 与 i18n-iso-countries 使用不可变标签/版本号，
+所有版本都在 `src/immich_cn/config.py` 中固定，Natural Earth 与 i18n-iso-countries 使用不可变标签/版本号，
 GeoNames 为滚动数据，其指纹会记录在每次构建的 `manifest.json` 中。
 
 ## 处理流程
