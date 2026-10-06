@@ -71,6 +71,23 @@ jobs:
         run: python scripts/check_artifacts.py dist
       - name: 校验容器入口脚本（含 IMMICH_CN_PATTERN 组合）
         run: bash scripts/check-entrypoint.sh
+      # examples/ 是文档里让用户直接复制执行的 compose 文件；官方 compose 规范要求
+      # 这里真的能解析（挂载路径、镜像名、env_file 都参与校验），不能只做 YAML 语法检查。
+      - name: 校验 examples 的 compose 文件可解析
+        run: |
+          set -euo pipefail
+          workdir="$(mktemp -d)"
+          cp examples/compose.server.yml examples/compose.volume.yml "$workdir/"
+          printf '%s\n' \
+            'UPLOAD_LOCATION=/tmp/upload' \
+            'DB_PASSWORD=example' \
+            'DB_USERNAME=immich' \
+            'DB_DATABASE_NAME=immich' \
+            'DB_DATA_LOCATION=/tmp/db' > "$workdir/.env"
+          for file in compose.server.yml compose.volume.yml; do
+            (cd "$workdir" && docker compose -f "$file" config >/dev/null)
+            echo "ok: $file"
+          done
       - name: 构建数据镜像
         run: docker build -f docker/geodata.Dockerfile -t immich-cn-geodata:ci .
       - name: 运行数据镜像

@@ -459,6 +459,23 @@ def check_required_check_names(
             )
 
 
+def check_examples_compose_validation(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """CI 必须真实解析 examples/ 的 compose 文件。
+
+    文档让用户直接复制这些文件，只做 YAML 语法检查抓不到错误挂载路径、
+    缺失 env_file 或写错的镜像名；必须用 `docker compose config` 走一遍官方规范。
+    """
+    if path.name != "ci.yml":
+        return
+    text = yaml.safe_dump(workflow, allow_unicode=True)
+    if "docker compose -f" not in text:
+        errors.append(f"{path} 未用 docker compose config 校验 examples/，文档示例可能悄悄失效")
+        return
+    for name in ("compose.server.yml", "compose.volume.yml"):
+        if name not in text:
+            errors.append(f"{path} 的 compose 校验没有覆盖 {name}")
+
+
 def check_checkout_credentials(path: Path, workflow: dict[str, Any], errors: list[str]) -> int:
     """每个 actions/checkout 都必须关闭凭据持久化，返回发现的 checkout 数量。
 
@@ -547,6 +564,7 @@ def main() -> int:
         check_references(path, workflow, errors, outputs_by_workflow)
         check_hash_files_paths(path, workflow, errors)
         checkout_total += check_checkout_credentials(path, workflow, errors)
+        check_examples_compose_validation(path, workflow, errors)
 
     if checkout_total == 0:
         errors.append("未在任何工作流中找到 actions/checkout 步骤，凭据持久化护栏可能已失效")
