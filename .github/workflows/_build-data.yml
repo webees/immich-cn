@@ -293,31 +293,48 @@ jobs:
           docker run --rm "$image" true
           docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image"
 
+      - name: 安装 Trivy
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.75.0
+
       - name: 扫描镜像漏洞与许可证
         if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          scan-type: image
-          image-ref: ghcr.io/${{ github.repository }}@${{ steps.data-image.outputs.digest }}
-          scanners: vuln,license
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
-          format: table
-          output: trivy-data.txt
+        env:
+          DATA_DIGEST: ${{ steps.data-image.outputs.digest }}
+          SERVER_DIGEST: ${{ steps.server-image.outputs.digest }}
+        run: |
+          set -uo pipefail
+          status=0
+          data_image="ghcr.io/${GITHUB_REPOSITORY}@${DATA_DIGEST}"
+          server_image="ghcr.io/${GITHUB_REPOSITORY}-server@${SERVER_DIGEST}"
 
-      - name: 扫描 Immich 覆盖镜像漏洞与许可证
-        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+          # 漏洞结论阻断发布；许可证报告仅留证，避免把 Alpine 正常的 GPL 工具误判成漏洞。
+          if ! trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+              --exit-code 1 --format table --output trivy-data-vuln.txt "$data_image"; then
+            status=1
+          fi
+          trivy image --scanners license --severity HIGH,CRITICAL \
+            --format table --output trivy-data-license.txt "$data_image"
+
+          if ! trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+              --exit-code 1 --format table --output trivy-server-vuln.txt "$server_image"; then
+            status=1
+          fi
+          trivy image --scanners license --severity HIGH,CRITICAL \
+            --format table --output trivy-server-license.txt "$server_image"
+
+          exit "$status"
+
+      - name: 上传 Trivy 报告
+        if: always() && inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          scan-type: image
-          image-ref: ghcr.io/${{ github.repository }}-server@${{ steps.server-image.outputs.digest }}
-          scanners: vuln,license
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
-          format: table
-          output: trivy-server.txt
+          name: trivy-reports
+          path: trivy-*.txt
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: 安装 cosign
         if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
