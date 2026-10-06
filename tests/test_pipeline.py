@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import io
 import json
+import tarfile
 import zipfile
+from pathlib import Path
 
-from immich_cn.build import load_levels, run_build, write_patterns_table
+import pytest
+
+from immich_cn.build import _extract_i18n, load_levels, run_build, write_patterns_table
 from immich_cn.config import BuildOptions
+from immich_cn.errors import ParseError
 from immich_cn.package import build_variants, package_all
 from immich_cn.verify import assert_valid, verify_geodata
 
@@ -120,3 +126,33 @@ def test_build_variants_covers_full_axis() -> None:
         ("admin_3", False),
         ("admin_3", True),
     ]
+
+
+def _make_tarball(path: Path, members: dict[str, bytes]) -> None:
+    with tarfile.open(path, "w:gz") as tar:
+        for name, payload in members.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(payload)
+            tar.addfile(info, io.BytesIO(payload))
+
+
+def test_extract_i18n_rejects_path_traversal(tmp_path: Path) -> None:
+    """恶意 tarball 成员不得写到目标目录之外（tar-slip）。"""
+    evil = tmp_path / "evil.tgz"
+    _make_tarball(evil, {"package/langs/../../../ESCAPED.txt": b"pwned"})
+    options = BuildOptions(work_dir=tmp_path / "build", dist_dir=tmp_path / "dist")
+
+    with pytest.raises(ParseError):
+        _extract_i18n(evil, options)
+    assert not (tmp_path / "ESCAPED.txt").exists()
+
+
+def test_extract_i18n_accepts_normal_tarball(tmp_path: Path) -> None:
+    """正常 tarball 仍应被解出，避免因噎废食。"""
+    good = tmp_path / "good.tgz"
+    _make_tarball(good, {"package/langs/zh.json": b'{"locale":"zh"}', "package/package.json": b"{}"})
+    options = BuildOptions(work_dir=tmp_path / "build", dist_dir=tmp_path / "dist")
+
+    _extract_i18n(good, options)
+    extracted = tmp_path / "build" / "i18n-iso-countries" / "langs" / "zh.json"
+    assert extracted.read_text() == '{"locale":"zh"}'

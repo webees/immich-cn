@@ -164,6 +164,14 @@ class Fetcher:
                 last_modified=_opt_str(meta.get("lastModified")),
             )
             if target.stat().st_size == record.size_bytes:
+                if spec.expected_sha256 and (
+                    record.sha256 != spec.expected_sha256 or sha256_file(target) != spec.expected_sha256
+                ):
+                    # 固定版本的缓存必须与预期摘要一致，否则重新下载
+                    logger.warning("缓存 %s 与预期摘要不符，重新下载", spec.name)
+                    target.unlink(missing_ok=True)
+                    self._meta_path(spec).unlink(missing_ok=True)
+                    return self._download(spec, target)
                 if self._revalidate and (record.etag or record.last_modified):
                     return self._revalidate_cached(spec, target, record)
                 logger.debug("命中缓存 %s (%s)", spec.name, record.sha256[:12])
@@ -209,6 +217,7 @@ class Fetcher:
             logger.warning("校验 %s 返回空内容，保留本地缓存", spec.name)
             return FetchedSource(spec=spec, path=target, record=cached)
 
+        _verify_expected_digest(spec, digest.hexdigest())
         part.replace(target)
         record = SourceRecord(
             name=spec.name,
@@ -324,6 +333,7 @@ class Fetcher:
             if actual != expected:
                 raise SourceError(f"{spec.name} 下载不完整：收到 {actual} 字节，预期 {expected} 字节")
 
+        _verify_expected_digest(spec, digest.hexdigest())
         part.replace(target)
         _part_meta_path(part).unlink(missing_ok=True)
         record = SourceRecord(
@@ -347,6 +357,12 @@ class Fetcher:
 
 def _opt_str(value: object) -> str | None:
     return value if isinstance(value, str) else None
+
+
+def _verify_expected_digest(spec: SourceSpec, digest: str) -> None:
+    """固定版本的数据源必须与预期摘要一致，防止上游内容被替换。"""
+    if spec.expected_sha256 and digest != spec.expected_sha256:
+        raise SourceError(f"{spec.name} 内容摘要与预期不符（期望 {spec.expected_sha256[:12]}…，实际 {digest[:12]}…）")
 
 
 def _as_int(value: object) -> int:

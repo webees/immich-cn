@@ -309,6 +309,52 @@ def test_fetcher_reports_readonly_cache_dir_as_source_error(tmp_path: Path) -> N
     assert "无法创建缓存目录" in str(excinfo.value)
 
 
+def test_fetcher_rejects_content_not_matching_pinned_digest(tmp_path: Path) -> None:
+    """固定版本的数据源必须校验摘要，防止上游内容被替换（供应链）。"""
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"tampered")
+
+    spec = SourceSpec(
+        name="pinned",
+        url="https://example.com/pinned.tgz",
+        filename="pinned.tgz",
+        expected_sha256="0" * 64,
+    )
+    with (
+        Fetcher(
+            tmp_path / "cache",
+            retries=1,
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+        ) as fetcher,
+        pytest.raises(SourceError) as excinfo,
+    ):
+        fetcher.fetch(spec)
+    assert "摘要与预期不符" in str(excinfo.value)
+    assert not (tmp_path / "cache" / "pinned.tgz").exists(), "校验失败的内容不得进入缓存"
+
+
+def test_fetcher_accepts_content_matching_pinned_digest(tmp_path: Path) -> None:
+    payload = b"trusted"
+    digest = sha256_bytes(payload)
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=payload)
+
+    spec = SourceSpec(
+        name="pinned",
+        url="https://example.com/pinned.tgz",
+        filename="pinned.tgz",
+        expected_sha256=digest,
+    )
+    with Fetcher(
+        tmp_path / "cache",
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    ) as fetcher:
+        result = fetcher.fetch(spec)
+    assert result.record.sha256 == digest
+
+
 class _StubFetched:
     """最小的 FetchedSource 替身，避免为测试构造完整下载流程。"""
 
