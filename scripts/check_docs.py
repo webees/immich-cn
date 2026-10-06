@@ -450,6 +450,34 @@ def check_markdown_links(doc_files: list[Path], errors: list[str]) -> None:
         errors.append("Markdown 链接检查未解析到任何相对链接，护栏可能已失效")
 
 
+def _manifest_top_level_keys() -> set[str]:
+    """从实现提取 manifest 顶层字段：as_manifest 的返回字面量与 packaging 的赋值。"""
+    import ast
+
+    keys: set[str] = set()
+    tree = ast.parse(Path("src/immich_cn/pipeline.py").read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == "as_manifest":
+            for sub in ast.walk(node):
+                if isinstance(sub, ast.Return) and isinstance(sub.value, ast.Dict):
+                    keys.update(key.value for key in sub.value.keys if isinstance(key, ast.Constant))
+    packaging = Path("src/immich_cn/packaging.py").read_text(encoding="utf-8")
+    keys.update(re.findall(r'manifest\["([A-Za-z0-9_]+)"\]\s*=', packaging))
+    return keys
+
+
+def check_manifest_field_docs(errors: list[str]) -> None:
+    """docs/artifact-spec.md 必须记录 manifest 的每个顶层字段。"""
+    doc = Path("docs/artifact-spec.md").read_text(encoding="utf-8")
+    keys = _manifest_top_level_keys()
+    if not keys:
+        errors.append("未能从实现提取 manifest 顶层字段，护栏可能已失效")
+        return
+    for key in sorted(keys):
+        if key not in doc:
+            errors.append(f"docs/artifact-spec.md 未记录 manifest 顶层字段：{key}")
+
+
 def check_asset_names(paths: list[Path], errors: list[str]) -> None:
     """文档中的发布资产名必须符合 v4 规范，且不能回退到 legacy 命名。"""
     sys.path.insert(0, str(Path("src").resolve()))
@@ -508,6 +536,7 @@ def main(argv: list[str] | None = None) -> int:
     check_independence_guidance(errors)
     check_sla_promises([*doc_files, Path("CITATION.cff")], errors)
     check_markdown_links(doc_files, errors)
+    check_manifest_field_docs(errors)
     check_asset_names(doc_files, errors)
 
     for error in errors:

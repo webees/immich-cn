@@ -243,6 +243,29 @@ def test_check_docs_detects_broken_markdown_link(repo_copy: Path) -> None:
     assert "Markdown 链接目标不存在" in result.stdout
 
 
+def test_check_docs_detects_manifest_field_drift(repo_copy: Path) -> None:
+    """manifest 顶层字段名在文档里写错时必须被报出。"""
+    spec = repo_copy / "docs" / "artifact-spec.md"
+    mutate(spec, '"patternsTable": "immich-cn-patterns-tsv-v1.gz"', '"patternTableX": "immich-cn-patterns-tsv-v1.gz"')
+    mutate(spec, "| `patternsTable` |", "| `patternTableX` |")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "未记录 manifest 顶层字段" in result.stdout
+
+
+def test_check_docs_detects_new_manifest_field(repo_copy: Path) -> None:
+    """实现新增 manifest 顶层字段但文档未记录时必须被报出。"""
+    packaging = repo_copy / "src" / "immich_cn" / "packaging.py"
+    mutate(
+        packaging,
+        'manifest["patternsTable"] = PATTERNS_FILE',
+        'manifest["probeNewField"] = "x"\n    manifest["patternsTable"] = PATTERNS_FILE',
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "probeNewField" in result.stdout
+
+
 def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     mutate(readme, "本项目按独立实现组织", "本项目是独立重写版本")
