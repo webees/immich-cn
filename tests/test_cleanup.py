@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import io
+import urllib.error
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from scripts.cleanup import (
     CleanupError,
     CleanupSettings,
+    GitHubClient,
     PackageVersionRecord,
     ReleaseRecord,
     RunRecord,
@@ -13,6 +17,17 @@ from scripts.cleanup import (
     select_releases,
     select_runs,
 )
+
+
+class FakeResponse:
+    def __enter__(self) -> FakeResponse:
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        return None
+
+    def read(self) -> bytes:
+        return b"{}"
 
 
 def at(days_ago: int) -> datetime:
@@ -136,3 +151,29 @@ def test_package_cleanup_never_deletes_untagged_child_manifests() -> None:
     selected = select_package_versions(versions, retention=1, prune_all=True)
 
     assert [version.id for version in selected] == [3]
+
+
+def test_github_client_retries_transient_http_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    attempts: list[int] = []
+
+    def fake_urlopen(request: Any, timeout: float) -> FakeResponse:
+        attempts.append(1)
+        if len(attempts) < 3:
+            raise urllib.error.HTTPError(request.full_url, 500, "transient", {}, io.BytesIO(b""))
+        return FakeResponse()
+
+    monkeypatch.setattr("scripts.cleanup.urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("scripts.cleanup.time.sleep", lambda _seconds: None)
+
+    client = GitHubClient("webees/immich-cn", "token")
+    assert client._request("GET", "/x") == {}
+    assert len(attempts) == 3
+
+
+def test_github_client_allows_not_found_for_idempotent_delete(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_urlopen(request: Any, timeout: float) -> FakeResponse:
+        raise urllib.error.HTTPError(request.full_url, 404, "gone", {}, io.BytesIO(b""))
+
+    monkeypatch.setattr("scripts.cleanup.urllib.request.urlopen", fake_urlopen)
+    client = GitHubClient("webees/immich-cn", "token")
+    assert client._request("DELETE", "/x", allow_not_found=True) is None
