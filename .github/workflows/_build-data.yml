@@ -57,6 +57,7 @@ jobs:
   build:
     name: 构建数据集与镜像
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     outputs:
       date: ${{ steps.meta.outputs.date }}
       digest: ${{ steps.data-image.outputs.digest }}
@@ -94,11 +95,15 @@ jobs:
       - name: 构建、打包与校验
         env:
           AMAP_API_KEY: ${{ secrets.AMAP_API_KEY }}
+          # 输入一律通过环境变量传递，避免 ${{ }} 直接插值进 shell 造成命令注入
+          INPUT_PROVIDER: ${{ inputs.provider }}
+          INPUT_PATTERNS: ${{ inputs.patterns }}
+          INPUT_EXTRA_COUNTRIES: ${{ inputs.extra-countries }}
         run: |
           immich-cn all \
-            --provider "${{ inputs.provider }}" \
-            --patterns "${{ inputs.patterns }}" \
-            --extra-countries "${{ inputs.extra-countries }}" \
+            --provider "$INPUT_PROVIDER" \
+            --patterns "$INPUT_PATTERNS" \
+            --extra-countries "$INPUT_EXTRA_COUNTRIES" \
             --revalidate
 
       - name: 判断上游数据是否有变化
@@ -130,6 +135,9 @@ jobs:
 
       - name: 汇总构建元信息
         id: meta
+        env:
+          INPUT_PROVIDER: ${{ inputs.provider }}
+          INPUT_PATTERNS: ${{ inputs.patterns }}
         run: |
           date="$(date -u +%Y-%m-%d)"
           short_sha="${GITHUB_SHA::7}"
@@ -140,8 +148,8 @@ jobs:
             echo "## immich-cn 数据构建"
             echo ""
             echo "- 日期：${date}"
-            echo "- Provider：${{ inputs.provider }}"
-            echo "- 展示粒度：\`${{ inputs.patterns }}\`"
+            echo "- Provider：${INPUT_PROVIDER}"
+            echo "- 展示粒度：\`${INPUT_PATTERNS}\`"
             echo "- 提交：\`${GITHUB_SHA}\`"
             echo ""
             echo "### 产物"

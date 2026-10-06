@@ -17,6 +17,7 @@ jobs:
   python:
     name: 静态检查与单元测试 (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -39,12 +40,15 @@ jobs:
         run: mypy
       - name: 文档契约检查
         run: python scripts/check_docs.py
+      - name: 工作流契约检查
+        run: python scripts/check_workflows.py
       - name: pytest
         run: pytest --cov=immich_cn --cov-report=term-missing --cov-fail-under=70
 
   docker:
     name: Docker 冒烟构建
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
