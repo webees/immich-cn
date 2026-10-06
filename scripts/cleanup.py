@@ -11,6 +11,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -21,6 +22,8 @@ from typing import Any
 SEMVER = re.compile(r"^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 PACKAGE_TAGS = {"latest", "release"}
 PACKAGE_NAMES = ("immich-cn", "immich-cn-server")
+RETRY_STATUS = {408, 425, 429, 500, 502, 503, 504}
+MAX_ATTEMPTS = 4
 
 
 class CleanupError(RuntimeError):
@@ -188,7 +191,7 @@ class GitHubClient:
         self.owner = repository.split("/", 1)[0]
         self.token = token
 
-    def _request(self, method: str, path: str) -> Any:
+    def _request(self, method: str, path: str, *, allow_not_found: bool = False) -> Any:
         request = urllib.request.Request(
             f"https://api.github.com{path}",
             method=method,
@@ -201,14 +204,29 @@ class GitHubClient:
         )
         if not request.full_url.startswith("https://api.github.com/"):
             raise CleanupError(f"拒绝非 GitHub API URL：{request.full_url}")
-        try:
-            with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
-                body = response.read()
-        except urllib.error.HTTPError as error:
-            detail = error.read().decode("utf-8", errors="replace")[:400]
-            raise CleanupError(f"{method} {path} -> HTTP {error.code}: {detail}") from error
-        except OSError as error:
-            raise CleanupError(f"{method} {path} 失败：{error}") from error
+        for attempt in range(MAX_ATTEMPTS):
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
+                    body = response.read()
+                break
+            except urllib.error.HTTPError as error:
+                try:
+                    if allow_not_found and error.code == 404:
+                        return None
+                    detail = error.read().decode("utf-8", errors="replace")[:400]
+                    if error.code in RETRY_STATUS and attempt + 1 < MAX_ATTEMPTS:
+                        time.sleep(min(2**attempt, 30))
+                        continue
+                    raise CleanupError(f"{method} {path} -> HTTP {error.code}: {detail}") from error
+                finally:
+                    error.close()
+            except OSError as error:
+                if attempt + 1 < MAX_ATTEMPTS:
+                    time.sleep(min(2**attempt, 30))
+                    continue
+                raise CleanupError(f"{method} {path} 失败：{error}") from error
+        else:  # pragma: no cover - 循环要么 break 要么抛错
+            raise CleanupError(f"{method} {path} 重试耗尽")
         if not body:
             return None
         try:
@@ -251,22 +269,27 @@ class GitHubClient:
         return str(payload.get("sha", "")) if isinstance(payload, dict) else ""
 
     def delete_release(self, release: ReleaseRecord) -> None:
-        self._request("DELETE", f"/repos/{self.repository}/releases/{release.id}")
+        self._request("DELETE", f"/repos/{self.repository}/releases/{release.id}", allow_not_found=True)
         encoded = urllib.parse.quote(release.tag_name, safe="")
-        try:
-            self._request("DELETE", f"/repos/{self.repository}/git/refs/tags/{encoded}")
-        except CleanupError as error:
-            if "HTTP 404" not in str(error):
-                raise
+        self._request(
+            "DELETE",
+            f"/repos/{self.repository}/git/refs/tags/{encoded}",
+            allow_not_found=True,
+        )
 
     def delete_run(self, run: RunRecord) -> None:
-        self._request("DELETE", f"/repos/{self.repository}/actions/runs/{run.id}")
+        self._request(
+            "DELETE",
+            f"/repos/{self.repository}/actions/runs/{run.id}",
+            allow_not_found=True,
+        )
 
     def delete_package_version(self, package: str, version: PackageVersionRecord) -> None:
         encoded = urllib.parse.quote(package, safe="")
         self._request(
             "DELETE",
             f"/users/{self.owner}/packages/container/{encoded}/versions/{version.id}",
+            allow_not_found=True,
         )
 
 
