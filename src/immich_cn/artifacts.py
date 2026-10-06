@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from immich_cn.errors import ConfigError
 from immich_cn.patterns import pattern_keys
@@ -40,3 +41,39 @@ def validate_artifact_id(value: str) -> bool:
 
 def validate_canonical_filename(value: str) -> bool:
     return bool(CANONICAL_FILE_PATTERN.fullmatch(value))
+
+
+def resolve_artifact(
+    manifest: dict[str, Any],
+    *,
+    artifact_id: str | None = None,
+    alias: str | None = None,
+    profile: str | None = None,
+    scope: str | None = None,
+) -> dict[str, Any]:
+    """从 v2 manifest 解析一个 canonical artifact。"""
+    if manifest.get("artifactSpecVersion") != 2:
+        raise ConfigError("manifest 的 artifactSpecVersion 不是 2")
+    artifacts = manifest.get("artifacts")
+    if not isinstance(artifacts, list) or not artifacts:
+        raise ConfigError("manifest 没有 artifacts")
+    candidates = [item for item in artifacts if isinstance(item, dict)]
+
+    if alias:
+        aliases = manifest.get("aliases")
+        if not isinstance(aliases, dict) or alias not in aliases:
+            raise ConfigError(f"manifest 中没有 alias：{alias}")
+        artifact_id = str(aliases[alias])
+
+    if artifact_id:
+        matches = [item for item in candidates if item.get("id") == artifact_id]
+    elif profile and scope:
+        matches = [item for item in candidates if item.get("profile") == profile and item.get("scope") == scope]
+    else:
+        raise ConfigError("必须提供 --id、--alias 或同时提供 --profile/--scope")
+
+    if not matches:
+        raise ConfigError("没有匹配的 canonical artifact")
+    if len(matches) > 1:
+        raise ConfigError("匹配到多个 canonical artifact")
+    return matches[0]
