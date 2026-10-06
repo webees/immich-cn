@@ -3,7 +3,7 @@ immich-cn
 
 本项目（代码、配置、文档、CI 工作流）采用 MIT 许可证发布，见 LICENSE。
 
-通过本项目的构建流水线生成的数据制品（geodata.zip、镜像中的 geodata 目录等）
+通过本项目的构建流水线生成的数据制品（dataset.sqlite.zip、geodata.zip、镜像中的 geodata 目录等）
 并不属于 MIT 许可范围，它们来自以下上游数据源，需遵守各自的许可协议：
 
 1. GeoNames 数据（cities500.txt、admin*.txt、countryInfo.txt 等）

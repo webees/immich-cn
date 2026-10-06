@@ -17,6 +17,7 @@ from immich_cn.build import (
     write_pattern_rows,
     write_patterns_table,
 )
+from immich_cn.canonical import DATASET_ARCHIVE, DATASET_FORMAT, DATASET_SCHEMA_VERSION, write_canonical_dataset
 from immich_cn.config import DEFAULT_PATTERN, BuildOptions
 from immich_cn.errors import ParseError
 from immich_cn.http import sha256_file
@@ -37,6 +38,7 @@ class PackageResult:
     dist_dir: Path
     artifacts: list[Path] = field(default_factory=list)
     variants: list[dict[str, object]] = field(default_factory=list)
+    dataset: Path | None = None
     patterns_table: Path | None = None
     manifest: Path | None = None
     checksums: Path | None = None
@@ -105,6 +107,15 @@ def package_all(options: BuildOptions, result: BuildResult) -> PackageResult:
         package_result.patterns_table = compressed
     package_result.artifacts.append(compressed)
     logger.info("变体表写出完成：%d 行 -> %s", rows, compressed.name)
+
+    package_result.dataset = write_canonical_dataset(
+        dist_dir=options.dist_dir,
+        work_dir=options.work_dir,
+        result=result,
+        levels=levels,
+        min_population=options.min_population,
+    )
+    package_result.artifacts.append(package_result.dataset)
 
     manifest = _write_manifest(options, result, package_result)
     package_result.manifest = manifest
@@ -223,6 +234,14 @@ def _write_manifest(options: BuildOptions, result: BuildResult, package_result: 
     manifest = result.as_manifest()
     manifest["variants"] = sorted(package_result.variants, key=lambda item: str(item["file"]))
     manifest["patternsTable"] = "patterns.tsv.gz"
+    if package_result.dataset is not None:
+        manifest["dataset"] = {
+            "file": DATASET_ARCHIVE,
+            "format": DATASET_FORMAT,
+            "schemaVersion": DATASET_SCHEMA_VERSION,
+            "sizeBytes": package_result.dataset.stat().st_size,
+            "sha256": sha256_file(package_result.dataset),
+        }
     manifest["license"] = {
         "code": "MIT",
         "data": "见 NOTICE 与 docs/licensing.md",

@@ -3,6 +3,7 @@ from __future__ import annotations
 import gzip
 import io
 import json
+import sqlite3
 import tarfile
 import zipfile
 from pathlib import Path
@@ -126,6 +127,7 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
         "geodata_admin_2_full.zip",
         "geodata_admin_2_admin_3.zip",
         "geodata_admin_2_admin_3_full.zip",
+        "dataset.sqlite.zip",
         "i18n-iso-countries.zip",
         "manifest.json",
         "patterns.tsv.gz",
@@ -137,6 +139,9 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
     assert manifest["tool"]["name"] == "immich-cn"
     assert isinstance(manifest["tool"]["revision"], str)
     assert len(manifest["variants"]) == 4
+    assert manifest["dataset"]["file"] == "dataset.sqlite.zip"
+    assert manifest["dataset"]["format"] == "immich-cn.dataset/1"
+    assert manifest["dataset"]["schemaVersion"] == 1
     assert manifest["license"]["code"] == "MIT"
     stats = manifest["stats"]
     assert stats["droppedPlaces"] > 0
@@ -166,6 +171,45 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
 
     checksums = (dist / "SHA256SUMS").read_text(encoding="utf-8")
     assert "geodata.zip" in checksums
+    assert "dataset.sqlite.zip" in checksums
+
+
+def test_canonical_dataset_is_queryable_and_preserves_immich_boundary(build_options: BuildOptions) -> None:
+    result = run_build(build_options)
+    package_all(build_options, result)
+
+    archive_path = build_options.dist_dir / "dataset.sqlite.zip"
+    with zipfile.ZipFile(archive_path) as archive:
+        assert set(archive.namelist()) == {"dataset.sqlite", "schema.json", "NOTICE.txt", "README.txt"}
+        schema = json.loads(archive.read("schema.json").decode("utf-8"))
+        assert schema["compatibility"]["immich"].startswith("通过 geodata*.zip")
+        database = build_options.work_dir / "extracted-dataset.sqlite"
+        database.write_bytes(archive.read("dataset.sqlite"))
+
+    connection = sqlite3.connect(database)
+    try:
+        row = connection.execute(
+            """
+            SELECT country_name, admin1_name, admin2_name, admin3_name, in_default
+            FROM localized_places
+            WHERE geoname_id = 9100
+            """
+        ).fetchone()
+        assert row == ("中国", "江苏省", "苏州市", "昆山市", 1)
+        assert connection.execute("SELECT COUNT(*) FROM places").fetchone()[0] == result.stats.output_places
+        assert connection.execute("SELECT COUNT(*) FROM place_names").fetchone()[0] == result.stats.output_places
+        assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    finally:
+        connection.close()
+
+
+def test_canonical_dataset_is_deterministic(build_options: BuildOptions) -> None:
+    result = run_build(build_options)
+    package_all(build_options, result)
+    first = (build_options.dist_dir / "dataset.sqlite.zip").read_bytes()
+    package_all(build_options, result)
+    second = (build_options.dist_dir / "dataset.sqlite.zip").read_bytes()
+    assert first == second
 
 
 def test_package_removes_plain_patterns_table(build_options: BuildOptions) -> None:

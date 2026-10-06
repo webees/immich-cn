@@ -107,6 +107,7 @@ src/immich_cn/        Python 包
   hierarchy.py        行政层级表
   providers/          offline / amap / nominatim
   build.py            流水线编排
+  canonical.py        规范 SQLite 数据集导出
   package.py          打包与 manifest
   verify.py           校验
 config/overrides.toml 人工覆盖表

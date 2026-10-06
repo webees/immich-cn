@@ -2,11 +2,13 @@
 
 ## 目标
 
-Immich 的反向地理编码需要一组固定格式的文本文件（见 `server/src/repositories/map.repository.ts`）。本项目的职责是：
+本项目先定义自己的规范数据集，再把它导出给不同消费者。Immich 的反向地理编码需要一组
+固定格式的文本文件（见 `server/src/repositories/map.repository.ts`），但那只是适配器契约，
+不是项目的数据模型。职责是：
 
-1. 从公开数据源生成这组文件；
+1. 从公开数据源生成可查询、可版本化的规范数据集；
 2. 把地名汉化到「国家 → 一级行政区 → 二级行政区 → 三级行政区 → 四级行政区」；
-3. 以数据制品（Release zip）与容器镜像两种形式发布；
+3. 通过适配器导出 Immich 文本包，并以 Release 与容器镜像发布；
 4. 让整条链路可以在没有人工干预的情况下周期运行。
 
 ## 流水线分层
@@ -31,8 +33,8 @@ Immich 的反向地理编码需要一组固定格式的文本文件（见 `serve
                     └───────────────────┬──────────────────────────┘
                                         ▼
                     ┌──────────────────────────────────────────────┐
-   产出             │ geodata/ + levels.tsv + patterns.tsv.gz       │
-                    │ （--keep-raw 额外保留 patterns.tsv）           │
+   产出             │ SQLite 规范数据集 + Immich geodata/ 适配器    │
+                    │ + levels.tsv + patterns.tsv.gz                │
                     │ → 各展示粒度 zip、manifest、SHA256SUMS         │
                     └───────────────────┬──────────────────────────┘
                                         ▼
@@ -51,18 +53,20 @@ Immich 的反向地理编码需要一组固定格式的文本文件（见 `serve
 | 层级表 | `immich_cn.hierarchy` |
 | 可选增强 | `immich_cn.providers.*` |
 | 编排 | `immich_cn.build` |
+| 规范数据集 | `immich_cn.canonical` |
 | 打包 | `immich_cn.package` |
 | 校验 | `immich_cn.verify` |
 
 ## 关键设计决策
 
-### 0. 外部契约与内部模型分离
+### 0. 规范模型优先，外部契约只做适配
 
-Immich 读取的文件名、列位置和目录结构是外部契约，必须保持稳定；`levels.tsv`、
-`patterns.tsv.gz`、`manifest.json` 和 provider 缓存是本项目自己的内部模型，可以独立演进。
-未来需要新的消费者协议时，应新增适配器或导出器，而不是直接改变 Immich 输出。
+`dataset.sqlite.zip` 中的 SQLite 数据集是本项目的规范模型，定义字段语义、schema 版本、
+索引和查询视图；`geodata*.zip` 仅把该模型导出为 Immich 当前需要的文件名、列位置和目录结构。
+`levels.tsv`、`patterns.tsv.gz`、`manifest.json` 和 provider 缓存则是构建与兼容层，
+不会反向约束规范字段。未来新增消费者时应增加适配器或导出器，而不是改变规范模型的数据含义。
 
-该决策的完整背景、后果和未选方案见 [ADR 0001](adr/0001-immich-output-contract.md)。
+规范字段和用法见 [数据格式](data-format.md)，决策见 [ADR 0001](adr/0001-immich-output-contract.md)。
 
 ### 1. 默认零密钥
 
@@ -75,11 +79,12 @@ Immich 读取的文件名、列位置和目录结构是外部契约，必须保�
 
 这样 GitHub Actions 在没有任何 Secret 的情况下依然可以完成「数据更新 → 校验 → 发布」全链路。
 
-### 2. 展示粒度与数据解耦
+### 2. 规范数据、展示粒度与适配器解耦
 
-项目把 7 种粒度 × 2 种数据规模预生成为 14 个 zip，并把「地点 → 四级名称」抽成 `levels.tsv`：
+规范数据集保存地点、原始名称、坐标、人口、行政代码和中文四级名称，不包含某个呈现 pattern
+的拼接结果。项目再把 7 种粒度 × 2 种数据规模导出为 14 个 Immich zip：
 
-- Python 侧按 `--patterns` 在打包时组合，产出 Immich 可直接读取的 zip；
+- Python 侧按 `--patterns` 在打包时组合，产出 Immich 适配器 zip；
 - 镜像侧额外附带 `patterns.tsv.gz`，容器启动时用 `awk` 重写 `cities500.txt` 的第 1、2 列，
   因此**同一个镜像可以通过 `IMMICH_CN_PATTERN` 切换粒度**，不需要重新构建或下载。
 
@@ -96,7 +101,7 @@ Immich 读取的文件名、列位置和目录结构是外部契约，必须保�
 
 - 每个上游文件的 URL、SHA256、大小、ETag、Last-Modified；
 - 各级行政表条目数、源记录数、输出记录数、中文覆盖率；
-- 14 个变体各自的 SHA256 与体积；
+- 规范数据集与 14 个兼容变体各自的 SHA256、格式版本与体积；
 - 使用的 provider 列表。
 
 镜像发布还附带 BuildKit provenance 与 SBOM；推送后按最终 digest 重新拉取执行入口 smoke test，
@@ -178,7 +183,7 @@ Immich 读取的文件名、列位置和目录结构是外部契约，必须保�
    `admin_1 = 香港/澳门`、`admin_2 = 区`，香港还会补充新界/九龙/香港岛前缀；
 4. 台湾的一级行政区固定为 `台湾省`，市县级名称落在 `admin_2`。
 
-## 与 Immich 的接口
+## Immich 适配器输出
 
 | 文件 | 用途 |
 |:--|:--|

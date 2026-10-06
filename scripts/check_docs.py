@@ -28,6 +28,10 @@ CLI_PATTERN = re.compile(r"(?:^|[ \t`(])immich-cn[ \t]+([a-z-]+)((?:[ \t]+--[a-z
 MAKE_PATTERN = re.compile(r"(?:^|[ \t`(])make[ \t]+([a-z][a-z-]{2,})", re.MULTILINE)
 LANGS_PATH = "/i18n-iso-countries/langs"
 FIRST_DOWNLOAD_MIB = 260
+FORBIDDEN_POSITIONING = (
+    "独立重写版本",
+    "在保留相同数据格式与使用方式的前提下",
+)
 
 #: 价值完全依赖"能被找到"的文件：必须在 README 或 docs 中被引用，否则等于隐藏文件。
 DISCOVERABLE_GLOBS = ("NOTICE", "examples/*.yml", "docs/*.md")
@@ -176,9 +180,9 @@ def check_numeric_contracts(errors: list[str]) -> None:
         errors.append("文档错误：默认构建直接流式写 patterns.tsv.gz，不生成明文 patterns.tsv")
 
     expected_variants = len(build_variants(DEFAULT_PATTERNS))
-    for match in re.finditer(r"(\d+)\s*个制品", doc_text):
+    for match in re.finditer(r"(\d+)\s*个 geodata 变体", doc_text):
         if int(match.group(1)) != expected_variants:
-            errors.append(f"文档称 {match.group(1)} 个制品，实际生成 {expected_variants} 个")
+            errors.append(f"文档称 {match.group(1)} 个 geodata 变体，实际生成 {expected_variants} 个")
 
     cron = re.search(r'cron:\s*"(\d+)\s+(\d+)', workflow)
     if cron:
@@ -230,6 +234,27 @@ def check_referenced_paths(doc_files: list[Path], errors: list[str]) -> None:
                     errors.append(f"{path}:{line_number} 引用了不存在的文件：`{candidate}`")
 
 
+def check_project_positioning(errors: list[str]) -> None:
+    """项目定位必须保持独立实现，且上游启发只在 README 底部致谢中出现。"""
+    readme = Path("README.md").read_text(encoding="utf-8")
+    for phrase in FORBIDDEN_POSITIONING:
+        if phrase in readme:
+            errors.append(f"README 出现错误的项目定位：{phrase}")
+
+    marker = "## 致谢"
+    upstream = "https://github.com/ZingLix/immich-geodata-cn"
+    positions = [index for index, line in enumerate(readme.splitlines(), start=1) if upstream in line]
+    if len(positions) != 1:
+        errors.append("README 对 ZingLix/immich-geodata-cn 的引用必须且只能出现在底部致谢中")
+        return
+    marker_line = next(
+        (index for index, line in enumerate(readme.splitlines(), start=1) if line.strip() == marker),
+        None,
+    )
+    if marker_line is None or positions[0] < marker_line:
+        errors.append("对 ZingLix/immich-geodata-cn 的引用必须位于 README 底部致谢")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--quiet", action="store_true")
@@ -248,6 +273,7 @@ def main(argv: list[str] | None = None) -> int:
     check_discoverable(errors)
     check_numeric_contracts(errors)
     check_referenced_paths(doc_files, errors)
+    check_project_positioning(errors)
 
     for error in errors:
         print(f"[!!] {error}")

@@ -9,8 +9,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
+import sqlite3
 import stat
 import sys
+import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
@@ -91,6 +94,78 @@ def check_zips(dist: Path, errors: list[str]) -> int:
     return checked
 
 
+def check_dataset(dist: Path, errors: list[str]) -> None:
+    """校验规范数据集归档、SQLite 结构和 Immich 适配器的边界声明。"""
+    path = dist / "dataset.sqlite.zip"
+    if not path.exists():
+        errors.append("缺少约定制品：dataset.sqlite.zip")
+        return
+    try:
+        archive = zipfile.ZipFile(path)
+    except (zipfile.BadZipFile, OSError) as error:
+        errors.append(f"{path.name} 无法作为 zip 读取：{error}")
+        return
+    with archive:
+        bad = archive.testzip()
+        if bad is not None:
+            errors.append(f"{path.name} 内 {bad} 校验失败")
+        check_zip_members(path, archive, errors)
+        required = {"dataset.sqlite", "schema.json", "NOTICE.txt", "README.txt"}
+        missing = sorted(required - set(archive.namelist()))
+        if missing:
+            errors.append(f"{path.name} 缺少成员：{', '.join(missing)}")
+            return
+        try:
+            schema = json.loads(archive.read("schema.json").decode("utf-8"))
+        except (KeyError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            errors.append(f"{path.name} 的 schema.json 无法解析：{error}")
+            return
+        if schema.get("format") != "immich-cn.dataset/1" or schema.get("schemaVersion") != 1:
+            errors.append(f"{path.name} 的规范格式版本不是 immich-cn.dataset/1")
+        notice = archive.read("NOTICE.txt").decode("utf-8", errors="replace")
+        if "GeoNames" not in notice or "CC BY 4.0" not in notice:
+            errors.append(f"{path.name} 的 NOTICE.txt 缺少 GeoNames CC BY 4.0 署名")
+
+        with tempfile.TemporaryDirectory(prefix="immich-cn-dataset-") as temporary:
+            sqlite_path = Path(temporary) / "dataset.sqlite"
+            with archive.open("dataset.sqlite") as source, sqlite_path.open("wb") as target:
+                shutil.copyfileobj(source, target)
+            try:
+                connection = sqlite3.connect(f"file:{sqlite_path}?mode=ro", uri=True)
+            except sqlite3.Error as error:
+                errors.append(f"{path.name} 的 dataset.sqlite 无法打开：{error}")
+                return
+            try:
+                tables = {
+                    row[0]
+                    for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
+                }
+                required_tables = {
+                    "dataset_meta",
+                    "sources",
+                    "countries",
+                    "admin_areas",
+                    "places",
+                    "place_names",
+                }
+                if missing_tables := sorted(required_tables - tables):
+                    errors.append(f"{path.name} 的 SQLite 缺少表：{', '.join(missing_tables)}")
+                    return
+                place_count = connection.execute("SELECT COUNT(*) FROM places").fetchone()[0]
+                name_count = connection.execute("SELECT COUNT(*) FROM place_names").fetchone()[0]
+                meta = dict(connection.execute("SELECT key, value FROM dataset_meta").fetchall())
+                if place_count < 1:
+                    errors.append(f"{path.name} 的 places 表为空")
+                if name_count != place_count:
+                    errors.append(f"{path.name} 的 places/place_names 数量不一致：{place_count}/{name_count}")
+                if meta.get("schemaVersion") != "1" or meta.get("format") != "immich-cn.dataset/1":
+                    errors.append(f"{path.name} 的 dataset_meta 格式版本不一致")
+            except sqlite3.Error as error:
+                errors.append(f"{path.name} 的 SQLite 结构无法校验：{error}")
+            finally:
+                connection.close()
+
+
 def check_zip_members(path: Path, archive: zipfile.ZipFile, errors: list[str]) -> None:
     """拒绝可能造成 Zip Slip 或符号链接逃逸的归档成员。"""
     for info in archive.infolist():
@@ -130,7 +205,7 @@ def check_checksums(dist: Path, errors: list[str]) -> int:
 
 
 def check_required_files(dist: Path, errors: list[str]) -> None:
-    for name in ("geodata.zip", "geodata_full.zip", "patterns.tsv.gz"):
+    for name in ("geodata.zip", "geodata_full.zip", "dataset.sqlite.zip", "patterns.tsv.gz"):
         if not (dist / name).exists():
             errors.append(f"缺少约定制品：{name}")
 
@@ -144,6 +219,7 @@ def main(argv: list[str] | None = None) -> int:
     check_required_files(args.dist, errors)
     check_manifest(args.dist, errors)
     zips = check_zips(args.dist, errors)
+    check_dataset(args.dist, errors)
     verified = check_checksums(args.dist, errors)
 
     for error in errors:

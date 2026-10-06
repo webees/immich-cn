@@ -42,6 +42,18 @@ class Place:
         return self.columns[IDX_COUNTRY_CODE]
 
     @property
+    def name(self) -> str:
+        return self.columns[IDX_NAME]
+
+    @property
+    def ascii_name(self) -> str:
+        return self.columns[2]
+
+    @property
+    def feature_class(self) -> str:
+        return self.columns[6]
+
+    @property
     def admin1_code(self) -> str:
         return self.columns[IDX_ADMIN1]
 
