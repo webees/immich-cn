@@ -50,7 +50,13 @@ def check_manifest(dist: Path, errors: list[str]) -> None:
 def check_zips(dist: Path, errors: list[str]) -> int:
     checked = 0
     for path in sorted(dist.glob("geodata*.zip")) + sorted(dist.glob("i18n-iso-countries.zip")):
-        with zipfile.ZipFile(path) as archive:
+        try:
+            archive = zipfile.ZipFile(path)
+        except (zipfile.BadZipFile, OSError) as error:
+            # 损坏的 zip 必须以可读的校验错误呈现，而不是抛栈崩掉整个检查
+            errors.append(f"{path.name} 无法作为 zip 读取：{error}")
+            continue
+        with archive:
             bad = archive.testzip()
             if bad is not None:
                 errors.append(f"{path.name} 内 {bad} 校验失败")
