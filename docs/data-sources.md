@@ -103,3 +103,6 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，
 最后生成 `manifest.json`、`SHA256SUMS`、`patterns.tsv.gz` 与 `i18n-iso-countries.zip`。
 130 MiB 级的明文 `patterns.tsv` 默认不会生成；需要排查时可用 `--keep-raw` 同时保留明文表，
 镜像构建使用直接流式生成的压缩表 `patterns.tsv.gz`。
+
+`i18n-iso-countries.zip` 与 `build/langs/` 都会保留上游 `LICENSE`，避免再分发语言文件时丢失
+MIT 版权声明。

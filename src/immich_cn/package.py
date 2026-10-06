@@ -18,6 +18,7 @@ from immich_cn.build import (
     write_patterns_table,
 )
 from immich_cn.config import DEFAULT_PATTERN, BuildOptions
+from immich_cn.errors import ParseError
 from immich_cn.http import sha256_file
 from immich_cn.logging_setup import get_logger
 from immich_cn.models import Variant
@@ -195,9 +196,13 @@ def _zip_bytes(
 
 def _write_i18n_archive(dist_dir: Path, result: BuildResult) -> Path:
     target = dist_dir / "i18n-iso-countries.zip"
+    license_path = result.langs_dir / "LICENSE"
+    if not license_path.exists():
+        raise ParseError(f"缺少 {license_path}，拒绝生成不含版权声明的语言包")
     logger.info("打包 %s", target.name)
     date_time = (1980, 1, 1, 0, 0, 0)
     with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=ZIP_COMPRESS_LEVEL) as archive:
+        _zip_file(archive, license_path, "LICENSE", date_time)
         for json_file in sorted(result.langs_dir.glob("*.json")):
             _zip_file(archive, json_file, f"langs/{json_file.name}", date_time)
     return target

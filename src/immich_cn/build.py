@@ -325,11 +325,16 @@ def _is_current(
 
 def _extract_i18n(archive: Path, options: BuildOptions) -> None:
     destination = options.work_dir / "i18n-iso-countries"
-    if (destination / "langs" / "zh.json").exists():
+    license_target = destination / "LICENSE"
+    if (destination / "langs" / "zh.json").exists() and license_target.exists():
         return
     destination.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive, "r:gz") as tar:
-        files = [member for member in tar.getmembers() if member.name.startswith("package/langs/") and member.isfile()]
+        files = [
+            member
+            for member in tar.getmembers()
+            if (member.name.startswith("package/langs/") or member.name == "package/LICENSE") and member.isfile()
+        ]
         if not files:
             raise ParseError(f"{archive.name} 中未找到 package/langs/ 目录")
         for member in files:
@@ -340,6 +345,8 @@ def _extract_i18n(archive: Path, options: BuildOptions) -> None:
                 continue
             with source, target.open("wb") as sink:
                 shutil.copyfileobj(source, sink)
+    if not license_target.exists():
+        raise ParseError(f"{archive.name} 中未找到 package/LICENSE，无法保留上游版权声明")
     logger.info("解出 i18n-iso-countries 语言文件：%d 个", len(list((destination / "langs").glob("*.json"))))
 
 
@@ -585,6 +592,10 @@ def _write_langs(source_dir: Path, options: BuildOptions) -> Path:
         if json_file.name == "en.json":
             payload = {"locale": "en", "countries": countries}
         target.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    license_source = source_dir.parent / "LICENSE"
+    if not license_source.exists():
+        raise ParseError(f"缺少 {license_source}，无法发布上游版权声明")
+    shutil.copyfile(license_source, destination / "LICENSE")
     logger.info("语言文件写出完成：%d 个", len(list(destination.glob("*.json"))))
     return destination
 

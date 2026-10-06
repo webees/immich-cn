@@ -63,6 +63,13 @@ def check_zips(dist: Path, errors: list[str]) -> int:
                 errors.append(f"{path.name} 内 {bad} 校验失败")
             check_zip_members(path, archive, errors)
             if path.name == "i18n-iso-countries.zip":
+                try:
+                    license_text = archive.read("LICENSE").decode("utf-8")
+                except (KeyError, UnicodeDecodeError):
+                    errors.append(f"{path.name} 缺少可读的 LICENSE")
+                else:
+                    if "MIT License" not in license_text or "Copyright" not in license_text:
+                        errors.append(f"{path.name} 的 LICENSE 不是完整的 MIT 版权声明")
                 checked += 1
                 continue
             entry = "geodata/cities500.txt"
