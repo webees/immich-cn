@@ -9,7 +9,7 @@ import pytest
 from immich_cn.build import _materialize
 from immich_cn.config import BuildOptions, SourceSpec
 from immich_cn.errors import SourceError
-from immich_cn.http import Fetcher, sha256_bytes
+from immich_cn.http import Fetcher, _retry_delay, sha256_bytes
 from immich_cn.models import SourceRecord
 
 
@@ -158,6 +158,75 @@ def test_fetcher_rejects_truncated_download(tmp_path: Path) -> None:
         fetcher.fetch(spec)
     assert "下载不完整" in str(excinfo.value)
     assert not (tmp_path / "cache" / "demo.txt").exists()
+
+
+def test_fetcher_does_not_retry_permanent_client_errors(tmp_path: Path) -> None:
+    """404 这类永久错误只应请求一次，避免无谓重试与放大上游压力。"""
+    calls: list[int] = []
+
+    def not_found(_request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        return httpx.Response(404, content=b"nope")
+
+    spec = SourceSpec(name="missing", url="https://example.com/missing.txt", filename="missing.txt")
+    with (
+        Fetcher(
+            tmp_path / "cache",
+            retries=4,
+            client=httpx.Client(transport=httpx.MockTransport(not_found)),
+        ) as fetcher,
+        pytest.raises(SourceError),
+    ):
+        fetcher.fetch(spec)
+    assert len(calls) == 1
+
+
+def test_fetcher_retries_retryable_status(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """503 属于可重试状态，应当重试到上限。"""
+    monkeypatch.setattr("immich_cn.http.time.sleep", lambda _seconds: None)
+    calls: list[int] = []
+
+    def unavailable(_request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        return httpx.Response(503, content=b"later")
+
+    spec = SourceSpec(name="busy", url="https://example.com/busy.txt", filename="busy.txt")
+    with (
+        Fetcher(
+            tmp_path / "cache",
+            retries=3,
+            client=httpx.Client(transport=httpx.MockTransport(unavailable)),
+        ) as fetcher,
+        pytest.raises(SourceError),
+    ):
+        fetcher.fetch(spec)
+    assert len(calls) == 3
+
+
+def test_retry_delay_prefers_retry_after_header() -> None:
+    request = httpx.Request("GET", "https://example.com/x")
+    seconds = httpx.HTTPStatusError(
+        "429",
+        request=request,
+        response=httpx.Response(429, headers={"retry-after": "7"}, request=request),
+    )
+    assert _retry_delay(1, seconds) == 7.0
+
+    http_date = httpx.HTTPStatusError(
+        "429",
+        request=request,
+        response=httpx.Response(
+            429,
+            headers={"retry-after": "Wed, 21 Oct 2099 07:28:00 GMT"},
+            request=request,
+        ),
+    )
+    assert _retry_delay(1, http_date) == 120.0
+
+
+def test_retry_delay_falls_back_to_exponential_backoff() -> None:
+    assert _retry_delay(1, httpx.ConnectError("boom")) == 2.0
+    assert _retry_delay(5, httpx.ConnectError("boom")) == 30.0
 
 
 class _StubFetched:

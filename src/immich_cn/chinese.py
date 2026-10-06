@@ -253,18 +253,6 @@ class ChineseNameIndex:
         return {"names": len(self.names), "overrides": len(self.overrides.places)}
 
 
-def iter_wanted_ids(
-    *,
-    places_geoname_ids: Iterable[int],
-    admin_geonames_ids: Iterable[int | None],
-    admin_units_geoname_ids: Iterable[int],
-) -> set[int]:
-    wanted = set(places_geoname_ids)
-    wanted.update(item for item in admin_geonames_ids if item is not None)
-    wanted.update(admin_units_geoname_ids)
-    return wanted
-
-
 def build_name_index(
     alternate_names: Iterator[tuple[int, str, str, bool, bool]],
     *,

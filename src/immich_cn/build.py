@@ -704,13 +704,9 @@ def write_patterns_table(
 
 __all__ = [
     "BuildResult",
-    "SourcePaths",
     "display_name",
     "fetch_sources",
-    "is_fine_grained",
-    "iter_all_places",
     "iter_output_places",
-    "keep_place",
     "load_levels",
     "run_build",
     "write_patterns_table",
