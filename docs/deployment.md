@@ -8,6 +8,8 @@
 
 ## 方案 A：开箱即用的 Immich 镜像
 
+完整可用的 compose 文件（含 redis 与 database）：[examples/compose.server.yml](../examples/compose.server.yml)。
+
 ```yaml
 # compose.yaml
 name: immich
@@ -61,6 +63,8 @@ services:
 > `IMMICH_CN_DATA_DATE` 是构建参数写入的只读元信息（镜像内可见），无需手动设置。
 
 ## 方案 B：官方镜像 + 数据镜像
+
+完整可用的 compose 文件：[examples/compose.volume.yml](../examples/compose.volume.yml)。
 
 ```bash
 # 1. 把数据释放到宿主机
