@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "immich-cn"
-version = "1.0.2"
+version = "1.0.3"
 description = "为 Immich 提供中文反向地理编码数据的自动化构建流水线"
 readme = "README.md"
 requires-python = ">=3.11"

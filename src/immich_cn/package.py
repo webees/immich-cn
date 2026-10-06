@@ -149,6 +149,7 @@ def _write_variant(
             "countryInfo.txt",
             "geodata-date.txt",
             "ne_10m_admin_0_countries.geojson",
+            "NOTICE.txt",
         ):
             _zip_file(archive, result.geodata_dir / source_name, f"{GEODATA_PREFIX}{source_name}", date_time)
         _zip_bytes(
