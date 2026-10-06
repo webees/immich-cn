@@ -22,6 +22,8 @@
 
 受保护标签命中的镜像版本会额外保留，不占“最近 20 个”之外的删除范围。没有标签的 GHCR 版本通常是多架构索引的子 manifest 或 attestation，当前策略不会直接删除，避免破坏仍受保护的父镜像索引。
 
+滚动 Release `auto-release` 由 `update-data.yml` 在每次上传后自我收敛：调用 `scripts/cleanup.py --prune-release-assets auto-release --dist-dir dist --apply`，删除不在本次 `dist` 清单里的资产（`gh release upload --clobber` 只增不删，命名规范变更后会留下旧资产）。该脚本默认 dry-run；清单为空、或清单与 Release 资产没有任何交集时直接拒绝执行，避免因为目录路径写错而清空整个 Release。不可变快照 `data-*` 不受影响。
+
 ## 稳定前激进清理
 
 项目尚未形成稳定版本时，可手动触发 `cleanup.yml` 并启用 `prune-all`：
