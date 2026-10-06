@@ -643,6 +643,19 @@ def test_check_workflows_detects_incomplete_failure_notifier(repo_copy: Path) ->
     assert "notify-failure 的 needs 未覆盖" in result.stdout
 
 
+def test_check_workflows_requires_published_url_verification(repo_copy: Path) -> None:
+    """发布流程必须自检文档承诺的固定下载地址。"""
+    workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
+    mutate(
+        workflow,
+        '/releases/latest/download/immich-cn-geodata-admin2-default-v1.zip"',
+        '/releases/download/auto-release/immich-cn-geodata-admin2-default-v1.zip"',
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "固定下载地址" in result.stdout
+
+
 def test_check_workflows_requires_compose_example_validation(repo_copy: Path) -> None:
     """CI 必须用 docker compose config 校验 examples/，否则文档示例会悄悄失效。"""
     workflow = repo_copy / ".github" / "workflows" / "ci.yml"
