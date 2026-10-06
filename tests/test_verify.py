@@ -443,6 +443,22 @@ def test_cities500_requires_19_fields(tmp_path: Path) -> None:
     assert check(18) is False
 
 
+def test_cities500_rejects_non_integer_geoname_id(tmp_path: Path) -> None:
+    fields = _cities(1, 1, 1)[0].split("\t")
+    fields[0] = "not-an-id"
+    path = tmp_path / "cities-invalid-id.txt"
+    write_lines(path, ["\t".join(fields)])
+
+    results = _check_cities500(
+        path,
+        min_cn_cjk_ratio=0.9,
+        min_cn_admin2_code_ratio=0.9,
+        admin2_codes={"CN.04.A000"},
+    )
+    result = {item.name: item for item in results}["cities500"]
+    assert result.passed is False, result.detail
+
+
 def test_cities500_cjk_ratio_threshold_boundary(tmp_path: Path) -> None:
     def check(chinese: int):
         path = tmp_path / f"cities-cjk-{chinese}.txt"
