@@ -1,6 +1,6 @@
 # immich-cn
 
-> 为 [Immich](https://immich.app/) 提供**中文反向地理编码数据**的全自动构建流水线：中文地名、标准四级行政区、周更数据、开箱即用的容器镜像。
+> 为 [Immich](https://immich.app/) 提供**中文反向地理编码数据**的全自动构建流水线：中文地名、标准四级行政区、**每日自动更新**、开箱即用的容器镜像。
 
 [![CI](https://github.com/webees/immich-cn/actions/workflows/ci.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/ci.yml)
 [![全自动更新数据](https://github.com/webees/immich-cn/actions/workflows/update-data.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/update-data.yml)
