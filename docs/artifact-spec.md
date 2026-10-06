@@ -103,6 +103,16 @@ immich-cn-geodata-admin2-admin3-full-v1.zip
 `assets` 是完整发布文件索引；`artifacts` 是 canonical geodata 索引。manifest 与
 checksums 文件自身不列入 `assets`，由 `immich-cn-checksums-sha256-v1.txt` 覆盖。
 
+### 输出目录不变量
+
+发布路径使用 `gh release upload ... dist/*` 与 `gh release create ... dist/*`，
+因此 `dist/` 必须只包含本次构建登记的制品：
+
+- `immich-cn-checksums-sha256-v1.txt` 只登记 manifest 的 `artifacts` 与 `assets`（外加 manifest 自身），
+  不扫描目录，历史残留不会被签名；
+- `scripts/check_artifacts.py` 会拒绝任何未登记的残留文件（旧命名、临时文件），
+  并提示清理或改用 `immich-cn all --clean`。
+
 ## 解析 canonical 制品
 
 ```bash

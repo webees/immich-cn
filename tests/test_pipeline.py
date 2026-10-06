@@ -222,6 +222,26 @@ def test_canonical_dataset_is_deterministic(build_options: BuildOptions) -> None
     assert first == second
 
 
+def test_checksums_ignore_unregistered_leftovers(build_options: BuildOptions) -> None:
+    """dist 里的历史残留不能被写进校验和。
+
+    发布路径是 `gh release upload ... dist/*`，残留文件会被一起上传；
+    旧实现扫描整个 dist 目录，会替残留文件签名。
+    """
+    result = run_build(build_options)
+    build_options.dist_dir.mkdir(parents=True, exist_ok=True)
+    stray = build_options.dist_dir / "geodata_admin_2.zip"
+    stray.write_bytes(b"legacy leftover")
+
+    package_result = package_all(build_options, result)
+    listing = package_result.checksums.read_text(encoding="utf-8")
+
+    assert "geodata_admin_2.zip" not in listing
+    assert "immich-cn-geodata-admin2-default-v1.zip" in listing
+    assert "immich-cn-manifest-json-v1.json" in listing
+    assert "immich-cn-checksums-sha256-v1.txt" not in listing  # 清单不登记自身
+
+
 def test_package_removes_plain_patterns_table(build_options: BuildOptions) -> None:
     """明文变体表只是生成 gz 的中间产物，默认不保留（百 MiB 级磁盘浪费）。"""
     result = run_build(build_options)

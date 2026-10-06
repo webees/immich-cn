@@ -783,6 +783,15 @@ def test_check_artifacts_passes_on_minimal_dist(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_check_artifacts_rejects_unregistered_dist_files(tmp_path: Path) -> None:
+    """dist 里的历史残留会被 dist/* 一起发布，必须被拦下。"""
+    dist = _make_dist(tmp_path)
+    (dist / "geodata_admin_2.zip").write_bytes(b"legacy leftover")
+    result = run_checker(tmp_path, "check_artifacts.py", str(dist))
+    assert result.returncode == 1
+    assert "未登记的残留文件" in result.stdout
+
+
 def test_check_artifacts_detects_tampered_zip(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
     target = dist / "immich-cn-patterns-tsv-v1.gz"  # 非 zip 制品：只有哈希层能发现
