@@ -58,9 +58,36 @@ def test_build_name_index_prefers_higher_priority_language() -> None:
     assert index.get(1) == "台北市"
 
 
+def test_build_name_index_prefers_preferred_name_within_language() -> None:
+    records = iter(
+        [
+            (1, "zh", "旧称", False, False),
+            (1, "zh", "北京市", True, False),
+        ]
+    )
+    index = build_name_index(records, overrides=NameOverrides())
+    assert index.names[1] == "北京市"
+
+
 def test_build_name_index_ignores_historic_names() -> None:
     index = build_name_index(iter([(1, "zh", "旧名", False, True)]), overrides=NameOverrides())
     assert index.get(1) is None
+
+
+def test_build_name_index_ignores_historic_japanese_names() -> None:
+    index = build_name_index(iter([(1, "ja", "旧東京", False, True)]), overrides=NameOverrides())
+    assert index.get_kanji(1) is None
+
+
+def test_build_name_index_prefers_preferred_kanji_name() -> None:
+    records = iter(
+        [
+            (1, "ja", "東京市", False, False),
+            (1, "ja", "東京都", True, False),
+        ]
+    )
+    index = build_name_index(records, overrides=NameOverrides())
+    assert index.get_kanji(1) == "东京都"
 
 
 def test_build_name_index_keeps_only_japanese_cjk_names() -> None:

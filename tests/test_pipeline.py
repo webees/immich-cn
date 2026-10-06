@@ -8,7 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from immich_cn.build import _extract_i18n, iter_output_places, load_levels, run_build, write_patterns_table
+from immich_cn.build import (
+    _alternate_stream,
+    _extract_i18n,
+    iter_output_places,
+    load_levels,
+    run_build,
+    write_patterns_table,
+)
 from immich_cn.config import BuildOptions
 from immich_cn.errors import ParseError
 from immich_cn.package import build_variants, package_all
@@ -62,6 +69,26 @@ def test_end_to_end_build(build_options: BuildOptions) -> None:
 
     results = verify_geodata(geodata)
     assert_valid(results)
+
+
+def test_alternate_stream_keeps_chinese_and_japanese_languages(tmp_path: Path) -> None:
+    path = tmp_path / "alternateNamesV2.txt"
+    write_lines(
+        path,
+        [
+            "1\t10\ten\tEnglish\t1\t0\t0\t0",
+            "2\t10\tjam\tJamaican\t1\t0\t0\t0",
+            "3\t10\tzh-Hant\t臺北\t0\t0\t0\t0",
+            "4\t10\tja\t東京\t1\t0\t0\t0",
+            "5\t10\tJA\t大阪\t0\t0\t0\t0",
+            "6\t11\tja\t別府\t1\t0\t0\t0",
+        ],
+    )
+    assert list(_alternate_stream(path, {10})) == [
+        (10, "zh-Hant", "臺北", False, False),
+        (10, "ja", "東京", True, False),
+        (10, "JA", "大阪", False, False),
+    ]
 
 
 def test_build_is_idempotent(build_options: BuildOptions) -> None:
