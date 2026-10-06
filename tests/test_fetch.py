@@ -59,6 +59,34 @@ def test_fetcher_force_refreshes(tmp_path: Path) -> None:
     assert len(calls) == 2
 
 
+def test_fetcher_ignores_corrupt_meta_and_redownloads(tmp_path: Path) -> None:
+    payload = b"fresh"
+    calls: list[str] = []
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        calls.append("x")
+        return httpx.Response(200, content=payload)
+
+    cache = tmp_path / "cache"
+    (cache / ".meta").mkdir(parents=True)
+    target = cache / "demo.txt"
+    target.write_bytes(b"old")
+    (cache / ".meta" / "demo.json").write_text(
+        json.dumps({"url": "https://example.com/demo.txt", "sizeBytes": len(b"old")}),
+        encoding="utf-8",
+    )
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.txt", filename="demo.txt")
+    with Fetcher(
+        cache,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    ) as fetcher:
+        result = fetcher.fetch(spec)
+
+    assert calls == ["x"]
+    assert result.path.read_bytes() == payload
+
+
 def test_fetcher_revalidate_keeps_cached_content_on_304(tmp_path: Path) -> None:
     calls: list[str | None] = []
     state = {"body": b"v1", "etag": '"e1"'}
