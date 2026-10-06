@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 from immich_cn.errors import ConfigError
 
@@ -44,13 +45,18 @@ def normalize_level(value: str) -> str:
     return "".join(result)
 
 
+@lru_cache(maxsize=64)
 def pattern_keys(pattern: str) -> tuple[str, ...]:
     """返回 pattern 中出现的占位符，保持出现顺序。"""
     return tuple(_PLACEHOLDER.findall(pattern))
 
 
 def validate_pattern(pattern: str) -> None:
-    keys = pattern_keys(pattern)
+    _validate_keys(pattern, pattern_keys(pattern))
+
+
+def _validate_keys(pattern: str, keys: tuple[str, ...]) -> None:
+    """校验占位符；与 :func:`validate_pattern` 等价，但可复用已解析的 keys。"""
     if not keys:
         raise ConfigError(f"展示粒度 {pattern!r} 未包含任何占位符")
     unknown = [key for key in keys if key not in ALLOWED_KEYS]
@@ -69,23 +75,27 @@ def slugify(pattern: str) -> str:
 
 
 def compose(pattern: str, levels: dict[str, str]) -> str:
-    """按 pattern 组合展示名，并去掉相邻重复与多余空白。"""
-    validate_pattern(pattern)
-    normalized = {key: normalize_level(levels.get(key, "")) for key in ALLOWED_KEYS}
+    """按 pattern 组合展示名，并去掉相邻重复与多余空白。
+
+    打包阶段会调用上千万次（行数 × 变体数），因此这里只做必要工作：
+    ``pattern_keys`` 带缓存，取值字典只包含 pattern 中出现的键。
+    """
+    keys = pattern_keys(pattern)
+    _validate_keys(pattern, keys)
 
     # 层级相同（例如苏州市的 admin_2 与 admin_3）时只保留一次。
-    level_values: dict[str, str] = {}
+    values: dict[str, str] = {}
     previous = ""
-    for key in pattern_keys(pattern):
-        value = normalized.get(key, "")
+    for key in keys:
+        value = normalize_level(levels.get(key, ""))
         if value and value == previous:
             value = ""
-        level_values[key] = value
+        values[key] = value
         if value:
             previous = value
 
     try:
-        rendered = pattern.format(**{**normalized, **level_values})
+        rendered = pattern.format(**values)
     except (KeyError, IndexError) as error:  # pragma: no cover - validate_pattern 已挡住
         raise ConfigError(f"无法渲染展示粒度 {pattern!r}：{error}") from error
 

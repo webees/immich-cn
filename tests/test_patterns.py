@@ -3,7 +3,14 @@ from __future__ import annotations
 import pytest
 
 from immich_cn.errors import ConfigError
-from immich_cn.patterns import compose, normalize_level, pattern_keys, slugify, validate_pattern
+from immich_cn.patterns import (
+    ALLOWED_KEYS,
+    compose,
+    normalize_level,
+    pattern_keys,
+    slugify,
+    validate_pattern,
+)
 
 
 def test_compose_deduplicates_adjacent_levels() -> None:
@@ -46,3 +53,56 @@ def test_slugify() -> None:
 def test_validate_pattern_rejects_invalid(pattern: str) -> None:
     with pytest.raises(ConfigError):
         validate_pattern(pattern)
+
+
+def _reference_compose(pattern: str, levels: dict[str, str]) -> str:
+    """优化前的实现，作为等价性基准保留在测试里。"""
+    validate_pattern(pattern)
+    normalized = {key: normalize_level(levels.get(key, "")) for key in ALLOWED_KEYS}
+    level_values: dict[str, str] = {}
+    previous = ""
+    for key in pattern_keys(pattern):
+        value = normalized.get(key, "")
+        if value and value == previous:
+            value = ""
+        level_values[key] = value
+        if value:
+            previous = value
+    rendered = pattern.format(**{**normalized, **level_values})
+    unique: list[str] = []
+    for token in rendered.split():
+        if unique and unique[-1] == token:
+            continue
+        unique.append(token)
+    return " ".join(unique)
+
+
+LEVEL_SAMPLES: tuple[dict[str, str], ...] = (
+    {"country": "CN", "admin_1": "江苏省", "admin_2": "苏州市", "admin_3": "昆山市", "admin_4": "周市镇"},
+    {"country": "CN", "admin_1": "湖南省", "admin_2": "株洲 市", "admin_3": "株洲 市", "admin_4": "株洲 市"},
+    {"country": "HK", "admin_1": "香港", "admin_2": "元朗区", "admin_3": "新界 元朗区", "admin_4": ""},
+    {"country": "US", "admin_1": "New York", "admin_2": "New York County", "admin_3": "", "admin_4": ""},
+    {"country": "CN", "admin_1": "上海市", "admin_2": "上海市", "admin_3": "", "admin_4": ""},
+    {"country": "", "admin_1": "", "admin_2": "", "admin_3": "", "admin_4": ""},
+    {"country": "CN", "admin_1": "北京市", "admin_2": "北京市", "admin_3": "朝阳区", "admin_4": "三里屯街道"},
+)
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    [
+        "{admin_2}",
+        "{admin_3}",
+        "{admin_4}",
+        "{admin_2} {admin_3}",
+        "{admin_2} {admin_4}",
+        "{admin_3} {admin_4}",
+        "{admin_2} {admin_3} {admin_4}",
+        "{admin_3}-{admin_2}",
+        "{country}·{admin_1} {admin_2}",
+    ],
+)
+def test_compose_matches_reference_implementation(pattern: str) -> None:
+    """优化后的 compose 必须与优化前逐字节一致（防止为性能改坏语义）。"""
+    for levels in LEVEL_SAMPLES:
+        assert compose(pattern, levels) == _reference_compose(pattern, levels), (pattern, levels)
