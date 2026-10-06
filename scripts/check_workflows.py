@@ -176,6 +176,22 @@ def check_needs_coverage(path: Path, workflow: dict[str, Any], errors: list[str]
             errors.append(f"{path}:{job_name} 的 if 只判断了部分依赖，遗漏 {missing}；被遗漏的依赖失败时该任务仍会运行")
 
 
+def check_issue_search_scope(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """自动化 issue 的标题搜索必须限定 automation 标签，避免误改用户 issue。"""
+    for job_name, job in (workflow.get("jobs") or {}).items():
+        if not isinstance(job, dict):
+            continue
+        for index, step in enumerate(job.get("steps") or [], start=1):
+            if not isinstance(step, dict) or "run" not in step:
+                continue
+            script = str(step["run"])
+            if "gh issue list" in script and "自动更新数据失败 in:title" in script and "--label automation" not in script:
+                errors.append(
+                    f"{path}:{job_name}/step#{index} 的自动化 issue 标题搜索未限定 automation 标签，"
+                    "可能误改或误关用户 issue"
+                )
+
+
 def _workflow_call_outputs(workflow: dict[str, Any]) -> set[str]:
     triggers = workflow.get("on")
     if not isinstance(triggers, dict):
@@ -248,6 +264,7 @@ def main() -> int:
         check_release_update_order(path, workflow, errors)
         check_concurrency(path, workflow, errors)
         check_needs_coverage(path, workflow, errors)
+        check_issue_search_scope(path, workflow, errors)
         check_references(path, workflow, errors, outputs_by_workflow)
 
     for error in errors:

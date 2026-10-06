@@ -220,6 +220,22 @@ def test_check_workflows_detects_release_metadata_before_assets(repo_copy: Path)
     assert "替换资产前更新了元数据" in result.stdout
 
 
+def test_check_workflows_detects_unscoped_automation_issue_search(repo_copy: Path) -> None:
+    """自动化告警搜索必须限定 automation 标签，防止误关用户 issue。"""
+    workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
+    mutate(
+        workflow,
+        '          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \\\n'
+        "            --label automation \\\n"
+        "            --search '自动更新数据失败 in:title' \\\n",
+        '          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \\\n'
+        "            --search '自动更新数据失败 in:title' \\\n",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "未限定 automation 标签" in result.stdout
+
+
 def test_check_workflows_detects_illegal_key_on_reusable_job(repo_copy: Path) -> None:
     """这次修复过的真实事故：reusable 调用 job 上出现 timeout-minutes。"""
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
