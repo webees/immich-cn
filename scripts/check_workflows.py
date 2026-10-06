@@ -189,6 +189,19 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
         errors.append(f"{path} 缺少 server 覆盖镜像相对官方基础镜像的漏洞差集检查")
     if text.count("cosign sign --yes") < 2:
         errors.append(f"{path} 缺少数据或 server 镜像的 Cosign keyless 签名")
+    if text.count("imagetools create") < 1 or text.count("${IMAGE_VERSION}") < 2:
+        errors.append(f"{path} 缺少数据与 server 镜像的语义化版本标签")
+
+
+def check_version_release(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """版本化 Release 必须把同一版本传递给两个镜像，并在构建前检查占用。"""
+    if path.name != "release.yml":
+        return
+    text = yaml.safe_dump(workflow, allow_unicode=True)
+    if "needs: validate" not in text or "docker manifest inspect" not in text:
+        errors.append(f"{path} 缺少版本 Release 的预检查；重复版本可能在构建后失败并覆盖镜像标签")
+    if "image-version: ${{ inputs.version }}" not in text:
+        errors.append(f"{path} 未把 Release 版本传递给镜像构建")
 
 
 def check_concurrency(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
@@ -338,6 +351,7 @@ def main() -> int:
         check_release_update_order(path, workflow, errors)
         check_snapshot_immutability(path, workflow, errors)
         check_image_supply_chain(path, workflow, errors)
+        check_version_release(path, workflow, errors)
         check_concurrency(path, workflow, errors)
         check_needs_coverage(path, workflow, errors)
         check_issue_search_scope(path, workflow, errors)

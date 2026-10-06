@@ -19,6 +19,10 @@ on:
         description: 覆盖镜像使用的 Immich 镜像标签
         type: string
         default: release
+      image-version:
+        description: 额外的项目语义化版本标签；为空则不追加
+        type: string
+        default: ""
       server-platforms:
         description: Immich 覆盖镜像的目标平台
         type: string
@@ -387,6 +391,21 @@ jobs:
           set -euo pipefail
           cosign sign --yes "ghcr.io/${GITHUB_REPOSITORY}@${DATA_DIGEST}"
           cosign sign --yes "ghcr.io/${GITHUB_REPOSITORY}-server@${SERVER_DIGEST}"
+
+      - name: 追加版本标签
+        if: inputs.image-version != '' && inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
+        env:
+          IMAGE_VERSION: ${{ inputs.image-version }}
+          DATA_DIGEST: ${{ steps.data-image.outputs.digest }}
+          SERVER_DIGEST: ${{ steps.server-image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            --tag "ghcr.io/${GITHUB_REPOSITORY}:${IMAGE_VERSION}" \
+            "ghcr.io/${GITHUB_REPOSITORY}@${DATA_DIGEST}"
+          docker buildx imagetools create \
+            --tag "ghcr.io/${GITHUB_REPOSITORY}-server:${IMAGE_VERSION}" \
+            "ghcr.io/${GITHUB_REPOSITORY}-server@${SERVER_DIGEST}"
 
       - name: 写入镜像摘要到作业摘要
         if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)

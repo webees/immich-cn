@@ -269,6 +269,14 @@ def test_check_workflows_requires_image_supply_chain(repo_copy: Path) -> None:
     assert "缺少数据或 server 镜像的 Cosign keyless 签名" in result.stdout
 
 
+def test_check_workflows_requires_versioned_image_tag(repo_copy: Path) -> None:
+    workflow = repo_copy / ".github" / "workflows" / "release.yml"
+    mutate(workflow, "      image-version: ${{ inputs.version }}", '      image-version: ""')
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "未把 Release 版本传递给镜像构建" in result.stdout
+
+
 def test_check_workflows_detects_unscoped_automation_issue_search(repo_copy: Path) -> None:
     """自动化告警搜索必须限定 automation 标签，防止误关用户 issue。"""
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
