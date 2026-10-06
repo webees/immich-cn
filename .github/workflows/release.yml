@@ -29,7 +29,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    name: 检查版本可用性
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: 检查 GitHub Release 与镜像标签未被占用
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::版本号必须是语义化版本，例如 1.1.0"
+            exit 1
+          fi
+          if gh release view "v${VERSION}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::v${VERSION} 已存在"
+            exit 1
+          fi
+          for image in "ghcr.io/${GITHUB_REPOSITORY}" "ghcr.io/${GITHUB_REPOSITORY}-server"; do
+            if docker manifest inspect "${image}:${VERSION}" >/dev/null 2>&1; then
+              echo "::error::${image}:${VERSION} 已存在"
+              exit 1
+            fi
+          done
+
   build:
+    needs: validate
     uses: ./.github/workflows/_build-data.yml
     secrets: inherit
     permissions:
@@ -39,6 +68,7 @@ jobs:
     with:
       provider: ${{ inputs.provider }}
       immich-version: ${{ inputs.immich-version }}
+      image-version: ${{ inputs.version }}
       push-images: ${{ inputs.push-images }}
       # 版本化发布总是重新构建并推送，不受"数据未变化"跳过逻辑影响
       force-publish: true

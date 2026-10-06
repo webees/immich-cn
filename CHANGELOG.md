@@ -16,6 +16,7 @@
   Cosign keyless 签名；server 覆盖镜像只阻断相对官方基础镜像新增的漏洞，并记录继承例外；
 - 日期快照只记录当日首次发布；同日后续修订使用 `data-YYYY-MM-DD-sha-<短提交>`，
   避免覆盖不可变历史或让日期快照与 auto-release 的语义失真；
+- 版本化 Release 同时给数据镜像与 Immich 覆盖镜像追加项目语义化版本标签；
 - 新增 `no-change` 与 `notify-failure` 作业：无变化时明确记录并跳过发布，
   失败时自动创建/更新带 `automation` 标签的 issue；
 - 新增日期快照保留策略（默认保留最近 14 个），自动清理过期快照。

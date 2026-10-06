@@ -22,10 +22,12 @@ GHCR 中有两个容器包，它们不是重复镜像，也不是可互换别名
 | `immich-cn` | `latest` | 最近一次成功构建的数据 |
 | `immich-cn` | `YYYY-MM-DD` | 当日最新数据，同日重跑可更新 |
 | `immich-cn` | `sha-<短提交>` | 对应控制面代码提交 |
+| `immich-cn` | `<语义化版本>` | `Release` 工作流创建的版本标签 |
 | `immich-cn-server` | `latest` | 最近数据 + 默认 Immich `release` |
 | `immich-cn-server` | `release` | 与 Immich `release` 标签对齐 |
 | `immich-cn-server` | `release-YYYY-MM-DD` | 当日最新数据与 Immich `release`，同日重跑可更新 |
 | `immich-cn-server` | `sha-<短提交>` | 对应控制面代码提交 |
+| `immich-cn-server` | `<语义化版本>` | `Release` 工作流创建的版本标签 |
 
 生产环境应固定到 Git SHA 或完整 digest；日期标签只用于当日跟踪。
 
