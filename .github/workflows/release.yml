@@ -34,6 +34,7 @@ jobs:
   build:
     uses: ./.github/workflows/_build-data.yml
     secrets: inherit
+    timeout-minutes: 90
     with:
       provider: ${{ inputs.provider }}
       immich-version: ${{ inputs.immich-version }}
@@ -45,6 +46,7 @@ jobs:
     name: 创建版本化 Release
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:

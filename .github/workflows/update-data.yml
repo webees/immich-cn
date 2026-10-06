@@ -47,6 +47,7 @@ jobs:
     name: 检查上游并构建
     uses: ./.github/workflows/_build-data.yml
     secrets: inherit
+    timeout-minutes: 90
     with:
       provider: ${{ inputs.provider || 'offline' }}
       immich-version: ${{ inputs.immich-version || 'release' }}
@@ -58,6 +59,7 @@ jobs:
     needs: build
     if: needs.build.outputs.changed == 'true' || inputs.force-publish
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     env:
@@ -131,6 +133,7 @@ jobs:
     needs: build
     if: needs.build.outputs.changed != 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: 写入作业摘要
         run: |
@@ -146,6 +149,7 @@ jobs:
     needs: [build, release]
     if: failure()
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: write
@@ -154,6 +158,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           gh label create automation --repo "$GITHUB_REPOSITORY" \
@@ -161,7 +167,7 @@ jobs:
 
           title="自动更新数据失败（$(date -u +%F)）"
           body="$(printf '全自动更新数据流程执行失败。\n\n- 运行记录：%s\n- 触发方式：%s\n- 提交：`%s`\n\n修复后可通过 workflow_dispatch 重新执行。\n' \
-            "$RUN_URL" "${{ github.event_name }}" "${{ github.sha }}")"
+            "$RUN_URL" "$EVENT_NAME" "$COMMIT_SHA")"
 
           number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
             --label automation --search '自动更新数据失败 in:title' \
@@ -172,3 +178,32 @@ jobs:
             gh issue create --repo "$GITHUB_REPOSITORY" \
               --title "$title" --label automation --body "$body"
           fi
+
+  resolve-previous-failure:
+    name: 成功时关闭历史告警
+    needs: [build, release]
+    # 只要本次构建成功（无论是否有数据变化）就关闭此前留下的自动化告警，
+    # 避免一次环境抖动留下的 issue 长期存在，变成持续的"假告警"。
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: 关闭 automation issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search '自动更新数据失败 in:title' \
+            --json number --jq '.[0].number // empty')"
+          if [ -z "$number" ]; then
+            echo "没有未关闭的自动化告警"
+            exit 0
+          fi
+          gh issue comment "$number" --repo "$GITHUB_REPOSITORY" \
+            --body "本次自动更新已成功：${RUN_URL}，自动关闭该告警。"
+          gh issue close "$number" --repo "$GITHUB_REPOSITORY"
