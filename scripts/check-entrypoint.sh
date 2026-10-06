@@ -62,4 +62,27 @@ run_case "" "苏州市" 1
 run_case "{admin_2}" "苏州市" 0
 run_case "{admin_2} {admin_3}" "苏州市 昆山市" 1
 
+# 源目录缺失且目标为空时必须给出明确提示，
+# 而不是被 bash 的 unbound variable 覆盖（多字节变量名陷阱的回归用例）。
+missing_source_case() {
+  local target="$work/missing/build/geodata"
+  mkdir -p "$target"
+  local output
+  if output="$(IMMICH_BUILD_DATA="$work/missing/build" \
+      IMMICH_CN_GEODATA_DIR="$work/does-not-exist" \
+      IMMICH_CN_LANGS_DIR="$work/does-not-exist-langs" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/patterns.tsv.gz" \
+      bash "$repo_root/docker/entrypoint.sh" true 2>&1)"; then
+    echo "失败：源目录缺失时不应成功" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "无法写入"; then
+    echo "失败：源目录缺失时未给出明确提示：${output}" >&2
+    exit 1
+  fi
+  echo "通过：源目录缺失时给出明确错误提示"
+}
+
+missing_source_case
+
 echo "入口脚本校验通过"
