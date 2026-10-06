@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import zipfile
 from pathlib import Path
 
@@ -11,6 +12,12 @@ from immich_cn.config import BuildOptions, SourceSpec
 from immich_cn.errors import SourceError
 from immich_cn.http import Fetcher, _retry_delay, sha256_bytes
 from immich_cn.models import SourceRecord
+
+# 以 root 运行时文件权限不生效，无法构造只读目录场景
+requires_real_permissions = pytest.mark.skipif(
+    hasattr(os, "geteuid") and os.geteuid() == 0,
+    reason="root 不受文件权限限制",
+)
 
 
 def test_fetcher_caches_downloads(tmp_path: Path) -> None:
@@ -160,6 +167,65 @@ def test_fetcher_rejects_truncated_download(tmp_path: Path) -> None:
     assert not (tmp_path / "cache" / "demo.txt").exists()
 
 
+def test_fetcher_does_not_mix_versions_on_resume(tmp_path: Path) -> None:
+    """分片来自旧版本时，续传必须先校验校验值，否则会拼出两个版本的混合文件。"""
+    v1, v2 = b"A" * 10, b"B" * 20
+    state = {"phase": 1}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if state["phase"] == 1:
+            state["phase"] = 2
+            # 声明 20 字节但只发 10 字节：制造一个残留分片
+            return httpx.Response(200, content=v1, headers={"content-length": str(len(v2)), "etag": '"v1"'})
+        if request.headers.get("range") is not None:
+            state["phase"] = 3
+            # 上游已换成 v2，但服务端照旧返回 206
+            return httpx.Response(206, content=v2, headers={"content-length": str(len(v2)), "etag": '"v2"'})
+        return httpx.Response(200, content=v2, headers={"content-length": str(len(v2)), "etag": '"v2"'})
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.bin", filename="demo.bin")
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with Fetcher(tmp_path / "cache", retries=1, client=client) as fetcher, pytest.raises(SourceError):
+        fetcher.fetch(spec)
+    part = tmp_path / "cache" / "demo.bin.part"
+    assert part.stat().st_size == 10
+
+    with Fetcher(tmp_path / "cache", retries=1, client=client) as fetcher, pytest.raises(SourceError) as excinfo:
+        fetcher.fetch(spec)
+    assert "校验值不匹配" in str(excinfo.value)
+    assert not part.exists(), "校验值不匹配时必须丢弃旧分片"
+
+    with Fetcher(tmp_path / "cache", retries=1, client=client) as fetcher:
+        result = fetcher.fetch(spec)
+    assert result.path.read_bytes() == v2
+    assert result.record.size_bytes == len(v2)
+
+
+def test_fetcher_resumes_when_validator_matches(tmp_path: Path) -> None:
+    """校验值一致时应继续断点续传，并带上 If-Range（避免因噎废食禁用续传）。"""
+    total = b"A" * 20
+    seen: list[tuple[str | None, str | None]] = []
+    state = {"phase": 1}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.headers.get("range"), request.headers.get("if-range")))
+        if state["phase"] == 1:
+            state["phase"] = 2
+            return httpx.Response(200, content=total[:10], headers={"content-length": "20", "etag": '"v1"'})
+        return httpx.Response(206, content=total[10:], headers={"content-length": "10", "etag": '"v1"'})
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.bin", filename="demo.bin")
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with Fetcher(tmp_path / "cache", retries=1, client=client) as fetcher, pytest.raises(SourceError):
+        fetcher.fetch(spec)
+    with Fetcher(tmp_path / "cache", retries=1, client=client) as fetcher:
+        result = fetcher.fetch(spec)
+
+    assert seen[-1] == ("bytes=10-", '"v1"')
+    assert result.path.read_bytes() == total
+    assert result.record.size_bytes == len(total)
+
+
 def test_fetcher_does_not_retry_permanent_client_errors(tmp_path: Path) -> None:
     """404 这类永久错误只应请求一次，避免无谓重试与放大上游压力。"""
     calls: list[int] = []
@@ -227,6 +293,20 @@ def test_retry_delay_prefers_retry_after_header() -> None:
 def test_retry_delay_falls_back_to_exponential_backoff() -> None:
     assert _retry_delay(1, httpx.ConnectError("boom")) == 2.0
     assert _retry_delay(5, httpx.ConnectError("boom")) == 30.0
+
+
+@requires_real_permissions
+def test_fetcher_reports_readonly_cache_dir_as_source_error(tmp_path: Path) -> None:
+    """缓存目录不可写时必须抛出 ImmichCnError 子类，而不是裸 OSError。"""
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    cache.chmod(0o555)
+    try:
+        with pytest.raises(SourceError) as excinfo:
+            Fetcher(cache)
+    finally:
+        cache.chmod(0o755)
+    assert "无法创建缓存目录" in str(excinfo.value)
 
 
 class _StubFetched:
