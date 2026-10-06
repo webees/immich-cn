@@ -5,13 +5,16 @@
 2. 普通 job 必须设置 `timeout-minutes`；调用 reusable workflow 的 job 反之**不允许**
    出现 `timeout-minutes`/`runs-on`/`steps`（GitHub 会直接拒绝解析整个工作流）；
 3. 工作流必须声明顶层 `permissions`，保持最小权限；
-4. 定时工作流必须设置 `concurrency`，防止重叠执行。
+4. 定时工作流必须设置 `concurrency`，防止重叠执行；
+5. `hashFiles('...')` 里的固定路径必须真实存在——`hashFiles` 对不存在的路径返回空字符串，
+   会让缓存键的该维度静默消失（真实事故：`config.py` 改名 `settings.py` 后缓存键出现 `--`）。
 """
 
 from __future__ import annotations
 
 import re
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +35,10 @@ SCHEDULED = {"schedule"}
 #: 注意不能把 cancelled() 算进来：它只表示"是否被取消"，并不反映依赖是否失败，
 #: `!cancelled()` 实际等价于 always()，配合部分 needs 判断时仍会漏掉失败分支。
 GLOBAL_STATUS_FUNCTIONS = ("failure()", "success()", "always()")
+HASH_FILES_CALL = re.compile(r"hashFiles\(([^)]*)\)")
+HASH_FILES_ARG = re.compile(r"['\"]([^'\"]+)['\"]")
+#: 含这些字符的参数按 glob 处理，不要求字面路径存在。
+GLOB_CHARS = "*?[]"
 
 
 def load(path: Path) -> dict[str, Any] | None:
@@ -355,6 +362,40 @@ def check_references(
         errors.append(f"{path}: 引用了被调用工作流未声明的输出：{item}")
 
 
+def _iter_strings(value: Any) -> Iterator[str]:
+    """递归产出 YAML 结构中的全部字符串。"""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _iter_strings(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _iter_strings(item)
+
+
+def check_hash_files_paths(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """`hashFiles('...')` 里的固定路径必须存在。
+
+    `hashFiles` 对不存在的路径返回空字符串，缓存键的该维度会静默消失。
+    真实事故：`src/immich_cn/config.py` 改名 `settings.py` 后缓存键变成
+    `immich-cn-sources-Linux-1.0.4--<run_id>`，上游配置变化不再使缓存键失效。
+    """
+    for text in _iter_strings(workflow):
+        calls = HASH_FILES_CALL.findall(text)
+        if text.count("hashFiles(") and not calls:
+            errors.append(f"{path}: 无法解析 hashFiles 调用，护栏可能已失效")
+        for arguments in calls:
+            candidates = HASH_FILES_ARG.findall(arguments)
+            if not candidates:
+                errors.append(f"{path}: hashFiles 参数里没有可解析的路径：{arguments!r}")
+            for candidate in candidates:
+                if any(char in candidate for char in GLOB_CHARS):
+                    continue
+                if not Path(candidate).exists():
+                    errors.append(f"{path}: hashFiles 引用了不存在的路径 {candidate!r}，该缓存键维度会静默变成空字符串")
+
+
 def main() -> int:
     errors: list[str] = []
     files = sorted(Path(".github/workflows").glob("*.yml"))
@@ -389,6 +430,7 @@ def main() -> int:
         check_issue_search_scope(path, workflow, errors)
         check_failure_notifier_coverage(path, workflow, errors)
         check_references(path, workflow, errors, outputs_by_workflow)
+        check_hash_files_paths(path, workflow, errors)
 
     for error in errors:
         print(f"[!!] {error}")

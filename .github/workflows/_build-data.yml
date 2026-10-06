@@ -101,9 +101,9 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: .cache/immich-cn
-          key: immich-cn-sources-${{ runner.os }}-${{ steps.tool.outputs.version }}-${{ hashFiles('src/immich_cn/config.py') }}-${{ github.run_id }}
+          key: immich-cn-sources-${{ runner.os }}-${{ steps.tool.outputs.version }}-${{ hashFiles('src/immich_cn/settings.py') }}-${{ github.run_id }}
           restore-keys: |
-            immich-cn-sources-${{ runner.os }}-${{ steps.tool.outputs.version }}-${{ hashFiles('src/immich_cn/config.py') }}-
+            immich-cn-sources-${{ runner.os }}-${{ steps.tool.outputs.version }}-${{ hashFiles('src/immich_cn/settings.py') }}-
             immich-cn-sources-${{ runner.os }}-
 
       - name: 构建、打包与校验

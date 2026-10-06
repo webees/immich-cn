@@ -582,6 +582,27 @@ def test_check_workflows_detects_undeclared_reusable_output(repo_copy: Path) -> 
     assert "未声明的输出" in result.stdout
 
 
+def test_check_workflows_detects_missing_hash_files_path(repo_copy: Path) -> None:
+    """hashFiles 指向不存在的路径时该维度静默为空，必须被静态拦下。"""
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(workflow, "hashFiles('src/immich_cn/settings.py')", "hashFiles('src/immich_cn/config.py')")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "hashFiles 引用了不存在的路径" in result.stdout
+
+
+def test_check_workflows_allows_hash_files_globs(repo_copy: Path) -> None:
+    """glob 形式的 hashFiles 参数不要求字面路径存在，避免误报。"""
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(
+        workflow,
+        "hashFiles('src/immich_cn/settings.py')",
+        "hashFiles('src/immich_cn/*.py')",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 0, result.stdout
+
+
 # --------------------------------------------------------------------------
 # check_shell.py
 # --------------------------------------------------------------------------
