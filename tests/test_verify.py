@@ -401,6 +401,25 @@ def _cities(rows: int, chinese: int, with_admin2: int) -> list[str]:
     return out
 
 
+def test_cities500_requires_19_fields(tmp_path: Path) -> None:
+    valid = _cities(1, 1, 1)[0].split("\t")
+    assert len(valid) == 19
+
+    def check(width: int) -> bool:
+        path = tmp_path / f"cities-width-{width}.txt"
+        write_lines(path, ["\t".join(valid[:width])])
+        results = _check_cities500(
+            path,
+            min_cn_cjk_ratio=0.9,
+            min_cn_admin2_code_ratio=0.9,
+            admin2_codes={"CN.04.A000"},
+        )
+        return {result.name: result for result in results}["cities500"].passed
+
+    assert check(19) is True
+    assert check(18) is False
+
+
 def test_cities500_cjk_ratio_threshold_boundary(tmp_path: Path) -> None:
     def check(chinese: int):
         path = tmp_path / f"cities-cjk-{chinese}.txt"
