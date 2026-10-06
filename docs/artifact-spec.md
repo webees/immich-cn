@@ -106,6 +106,9 @@ immich-cn-geodata-admin2-admin3-full-v1.zip
 
 - `sourcePlaces + extraPlaces == outputPlaces`；
 - `perCountry` 各项之和等于 `outputPlaces`，按同一 full 口径统计；
+- `droppedPlaces = droppedCities + droppedExtra`：前者是 cities500 中缺少有效一级行政区代码而丢弃的噪声行，
+  后者是 country dump 在额外点位筛选阶段因 GeoNames ID 已存在或经纬度冲突而丢弃的记录；
+  两者来源不同，合并计数会掩盖差异；
 - 非 full 变体在打包时按人口阈值过滤 extra 记录，因此变体的实际行数小于 `outputPlaces`；
   每个变体的 pattern 与 full 状态记录在包内 `geodata/build-info.json`，行数以包内
   `cities500.txt` 为准。
@@ -113,6 +116,8 @@ immich-cn-geodata-admin2-admin3-full-v1.zip
 实测示例（Release `data-2026-10-06`）：`outputPlaces=1318848`、`perCountry.CN=956792`，
 而 `immich-cn-geodata-admin2-default-v1.zip` 内 `cities500.txt` 为 256,644 行、其中 CN 34,897 行
 （= `sourcePlaces` 235,649 + 人口 ≥100 的 extra 20,995）。把 `stats` 当作“这个 zip 有多少条记录”会高估。
+同一次独立比对（上游 `cities500.zip` 的 sha256 与 manifest 记录一致）：上游 235,989 行中有 235,649 行进入制品，
+即 `droppedCities=340`；manifest 记录的 `droppedPlaces=31,277`，其余 30,937 来自 extra 阶段。
 
 `assets` 是完整发布文件索引；`artifacts` 是 canonical geodata 索引。manifest 与
 checksums 文件自身不列入 `assets`，由 `immich-cn-checksums-sha256-v1.txt` 覆盖。

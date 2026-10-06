@@ -275,6 +275,16 @@ def test_check_docs_requires_manifest_stats_scope(repo_copy: Path) -> None:
     assert "未说明 stats 口径" in result.stdout
 
 
+def test_check_docs_requires_drop_split_documentation(repo_copy: Path) -> None:
+    """丢弃计数必须分段说明，否则合并后的数字会被误读为单一阶段的丢弃量。"""
+    spec = repo_copy / "docs" / "artifact-spec.md"
+    mutate(spec, "`droppedPlaces = droppedCities + droppedExtra`：", "丢弃计数说明：")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "未说明 stats 口径" in result.stdout
+    assert "droppedExtra" in result.stdout
+
+
 def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     mutate(readme, "本项目按独立实现组织", "本项目是独立重写版本")
