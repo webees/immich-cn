@@ -189,24 +189,26 @@ def _check_admin(
 def _check_country_info(path: Path) -> CheckResult:
     total = 0
     chinese = 0
+    bad = 0
     with path.open("r", encoding="utf-8") as handle:
         for line in handle:
             if not line.strip() or line.startswith("#"):
                 continue
             fields = line.rstrip("\n").split("\t")
             if len(fields) < 5:
+                bad += 1
                 continue
             total += 1
             if has_cjk(fields[4]):
                 chinese += 1
     if total == 0:
-        return CheckResult("countryInfo", False, "文件为空")
+        return CheckResult("countryInfo", False, f"没有可解析记录，字段异常 {bad} 条")
     ratio = chinese / total
     # 项目已通过 i18n 数据与人工覆盖保证所有当前国家/地区名称可用中文表达。
     return CheckResult(
         "countryInfo",
-        ratio >= 1.0,
-        f"{total} 个国家/地区，中文 {chinese} 条（{ratio:.1%}）",
+        bad == 0 and ratio >= 1.0,
+        f"{total} 个国家/地区，中文 {chinese} 条（{ratio:.1%}），字段异常 {bad} 条",
     )
 
 

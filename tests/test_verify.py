@@ -264,6 +264,19 @@ def test_country_info_rejects_two_missing_names(tmp_path: Path) -> None:
     assert result.passed is False, result.detail
 
 
+def test_country_info_rejects_malformed_rows(tmp_path: Path) -> None:
+    path = tmp_path / "countryInfo-malformed.txt"
+    write_lines(
+        path,
+        [
+            "CN\tCHN\t156\tCH\t中国\tBeijing\t9596961\t1330044000\tAS\t.cn\tCNY\tYuan\t86\t######\t\tzh\t1814991\t",
+            "XX\tXXX\t999\tXX",
+        ],
+    )
+    result = _check_country_info(path)
+    assert result.passed is False, result.detail
+
+
 def test_admin_country_ratio_threshold_boundary(tmp_path: Path) -> None:
     def build(chinese: int) -> Path:
         path = tmp_path / f"admin1-{chinese}.txt"
