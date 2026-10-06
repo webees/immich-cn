@@ -150,6 +150,9 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
     assert manifest["license"]["code"] == "MIT"
     stats = manifest["stats"]
     assert stats["droppedPlaces"] > 0
+    # 丢弃计数必须分段暴露：两段来源不同，合并计数会掩盖差异
+    assert stats["droppedPlaces"] == stats["droppedCities"] + stats["droppedExtra"]
+    assert stats["droppedCities"] >= 0 and stats["droppedExtra"] > 0
     assert stats["perCountry"]["CN"] > 0
     assert sum(stats["perCountry"].values()) == stats["outputPlaces"]
 

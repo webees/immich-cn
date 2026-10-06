@@ -163,6 +163,7 @@ def run_build(options: BuildOptions) -> BuildResult:
     cities500_file = options.work_dir / "cities500.txt"
     existing_ids, existing_locations, dropped_cities = _prepare_cities500(paths.cities500, cities500_file, admin1_raw)
     stats.dropped_places = dropped_cities
+    stats.dropped_cities = dropped_cities
     stats.source_places = len(existing_ids)
     logger.info("cities500 有效记录：%d 条", stats.source_places)
 
@@ -175,6 +176,7 @@ def run_build(options: BuildOptions) -> BuildResult:
         existing_locations=existing_locations,
     )
     stats.dropped_places += dropped_extra
+    stats.dropped_extra = dropped_extra
     stats.extra_places = len(extra_ids)
 
     wanted = _wanted_geoname_ids(existing_ids, extra_ids, admin1_raw, admin2_raw, admin_units)

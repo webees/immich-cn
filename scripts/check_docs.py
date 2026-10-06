@@ -484,7 +484,14 @@ def check_manifest_stats_scope(errors: list[str]) -> None:
     doc = path.read_text(encoding="utf-8")
     if "stats" not in doc:
         return  # 顶层字段护栏已保证 stats 出现，这里只在该前提成立时补充口径要求
-    required = ("sourcePlaces", "extraPlaces", "outputPlaces", "cities500.txt")
+    required = (
+        "sourcePlaces",
+        "extraPlaces",
+        "outputPlaces",
+        "droppedCities",
+        "droppedExtra",
+        "cities500.txt",
+    )
     missing = [token for token in required if token not in doc]
     if missing:
         errors.append(

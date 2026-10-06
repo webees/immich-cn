@@ -191,6 +191,10 @@ class BuildStats:
     extra_places: int = 0
     output_places: int = 0
     dropped_places: int = 0
+    #: `dropped_places` 的两段来源：cities500 噪声行、extra 去重与坐标冲突。
+    #: 分开记录便于审计；`dropped_places` 仍等于两者之和。
+    dropped_cities: int = 0
+    dropped_extra: int = 0
     translated_names: int = 0
     fallback_names: int = 0
     admin1_entries: int = 0
@@ -208,6 +212,8 @@ class BuildStats:
             "extraPlaces": self.extra_places,
             "outputPlaces": self.output_places,
             "droppedPlaces": self.dropped_places,
+            "droppedCities": self.dropped_cities,
+            "droppedExtra": self.dropped_extra,
             "translatedNames": self.translated_names,
             "fallbackNames": self.fallback_names,
             "adminEntries": {
