@@ -37,7 +37,7 @@ make clean       # 清理 build/ dist/ 与各类缓存
 | 解压后的中间文件 | ≈0.95 GiB（alternateNamesV2.txt 749 MiB、CN.txt 126 MiB） |
 | 解析 alternateNamesV2 建立中文名索引 | ≈10 s |
 | 打包 14 个变体（名称组合 + zip 压缩） | ≈1.5 min |
-| GitHub Actions 完整流程 | 约 8~15 min（含 runner 缓存恢复与镜像推送） |
+| GitHub Actions 完整流程 | 约 8~25 min（含 runner 缓存恢复与镜像推送） |
 
 构建结束后会自动删除不再需要的中间产物（解压出的上游原始文件、明文变体表 `patterns.tsv` 等，
 合计约 1.1 GiB）；需要保留它们做调试时加 `--keep-raw`。
@@ -75,7 +75,7 @@ immich-cn fingerprint dist/manifest.json  # 打印数据指纹（判断是否需
 | `--extra-countries` | `CN,HK,TW,MO,JP` | 需要附带国家全量 dump 的地区 |
 | `--min-population` | `100` | 非 full 变体的最小人口阈值 |
 | `--work-dir` / `--dist-dir` / `--cache-dir` / `--config-dir` | `build` / `dist` / `.cache/immich-cn` / `config` | 各目录位置 |
-| `--jobs` | CPU 数 | 打包并发度 |
+| `--jobs` | CPU 数（最多 8） | 打包并发度 |
 | `--revalidate` | 关 | 用 ETag/Last-Modified 校验上游，未变化不下载（每日自动更新使用） |
 | `--force` | 关 | 强制重新下载全部数据源 |
 | `--skip-fetch` | 关 | 直接用 `--work-dir/sources` 中已有数据源 |

@@ -27,6 +27,7 @@ ENV_PATTERN = re.compile(r"\b(IMMICH_[A-Z0-9_]+)\b")
 CLI_PATTERN = re.compile(r"(?:^|[ \t`(])immich-cn[ \t]+([a-z-]+)((?:[ \t]+--[a-z-]+)*)", re.MULTILINE)
 MAKE_PATTERN = re.compile(r"(?:^|[ \t`(])make[ \t]+([a-z][a-z-]{2,})", re.MULTILINE)
 LANGS_PATH = "/i18n-iso-countries/langs"
+FIRST_DOWNLOAD_MIB = 260
 
 #: 价值完全依赖"能被找到"的文件：必须在 README 或 docs 中被引用，否则等于隐藏文件。
 DISCOVERABLE_GLOBS = ("NOTICE", "examples/*.yml", "docs/*.md")
@@ -162,6 +163,7 @@ def check_numeric_contracts(errors: list[str]) -> None:
 
     doc_text = _read(_expand(DOC_GLOBS))
     workflow = Path(".github/workflows/update-data.yml").read_text(encoding="utf-8")
+    makefile = Path("Makefile").read_text(encoding="utf-8")
 
     expected_variants = len(build_variants(DEFAULT_PATTERNS))
     for match in re.finditer(r"(\d+)\s*个制品", doc_text):
@@ -185,6 +187,12 @@ def check_numeric_contracts(errors: list[str]) -> None:
         for match in re.finditer(r"保留最近 (\d+) 个", doc_text):
             if int(match.group(1)) != expected:
                 errors.append(f"文档称保留最近 {match.group(1)} 个快照，实际默认 {expected}")
+
+    make_download = re.search(r"build:.*?约\s*(\d+)\s*MiB", makefile)
+    if not make_download:
+        errors.append("Makefile 的 build 帮助未标注首次下载体积")
+    elif int(make_download.group(1)) != FIRST_DOWNLOAD_MIB:
+        errors.append(f"Makefile 称首次下载约 {make_download.group(1)} MiB，实际压缩下载约 {FIRST_DOWNLOAD_MIB} MiB")
 
 
 def check_referenced_paths(doc_files: list[Path], errors: list[str]) -> None:

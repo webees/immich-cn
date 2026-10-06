@@ -48,7 +48,7 @@ artifacts: ## 校验发布制品（依赖 dist/ 已生成）
 entrypoint: smoke ## 校验容器入口脚本
 	bash scripts/check-entrypoint.sh
 
-build: ## 真实构建（会下载约 1.5 GiB 上游数据）
+build: ## 真实构建（首次下载约 260 MiB 压缩数据）
 	$(BIN)/immich-cn all
 
 clean: ## 清理构建产物
