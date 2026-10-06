@@ -12,6 +12,7 @@ from immich_cn.chinese import (
     strip_suffix,
     to_variant,
 )
+from immich_cn.config import ChineseVariant
 from immich_cn.geonames import admin_code
 from immich_cn.logging_setup import get_logger
 from immich_cn.models import AdminEntry, Place, PlaceNames
@@ -108,25 +109,31 @@ def resolve_place_names(
     )
 
 
-def finalize_place_names(names: PlaceNames, country_code: str, overrides: NameOverrides) -> None:
+def finalize_place_names(
+    names: PlaceNames,
+    country_code: str,
+    overrides: NameOverrides,
+    variant: ChineseVariant = "hans",
+) -> None:
     """在所有 provider 增强完成后整理层级并补齐缺口。"""
     for attribute in ("admin_1", "admin_2", "admin_3", "admin_4"):
         value = getattr(names, attribute)
         if value:
-            setattr(names, attribute, strip_suffix(value, country_code, overrides))
+            setattr(names, attribute, strip_suffix(value, country_code, overrides, variant))
 
     # 港澳在 GeoNames 中把"堂区/区"放在 admin1，这里重整为
     # admin_1=特别行政区、admin_2=区，并按需补充新界/九龙/香港岛前缀。
-    top_level = SPECIAL_ADMIN_TOP_LEVEL.get(country_code)
+    raw_top_level = SPECIAL_ADMIN_TOP_LEVEL.get(country_code)
+    top_level = to_variant(raw_top_level, variant) if raw_top_level else None
     if top_level and names.admin_1 and names.admin_1 != top_level:
         district = names.admin_2 or names.admin_1
         names.admin_1 = top_level
         names.admin_2 = district
         if country_code == "HK" and not names.admin_3:
-            region = overrides.hk_districts.get(district)
-            names.admin_3 = f"{region} {district}" if region else district
+            region = overrides.hk_districts.get(district) or overrides.hk_districts.get(to_variant(district, "hans"))
+            names.admin_3 = f"{to_variant(region, variant)} {district}" if region else district
 
     if top_level:
-        names.admin_1 = strip_suffix(names.admin_1, country_code, overrides)
+        names.admin_1 = strip_suffix(names.admin_1, country_code, overrides, variant)
 
     names.fill_gaps()

@@ -531,7 +531,7 @@ def _write_levels(
             names = chain.enrich(place, names)
             if not names.admin_1:
                 names.admin_1 = index.get_country(place.country_code) or country_names.get(place.country_code, "")
-            finalize_place_names(names, place.country_code, overrides)
+            finalize_place_names(names, place.country_code, overrides, index.variant)
             if not names.admin_2:
                 fallback += 1
             levels = names.levels()
@@ -637,9 +637,10 @@ def _emit_geodata(
         geodata_dir / "admin1CodesASCII.txt",
         admin1_raw,
         hierarchy.admin1,
+        variant=index.variant,
         top_level_countries=tuple(SPECIAL_ADMIN_TOP_LEVEL),
     )
-    _write_admin_file(geodata_dir / "admin2Codes.txt", admin2_raw, hierarchy.admin2)
+    _write_admin_file(geodata_dir / "admin2Codes.txt", admin2_raw, hierarchy.admin2, variant=index.variant)
     _write_country_info(geodata_dir / "countryInfo.txt", country_rows, index, paths.langs_dir)
     shutil.copyfile(paths.geojson, geodata_dir / "ne_10m_admin_0_countries.geojson")
     (geodata_dir / "geodata-date.txt").write_text(generated_at + "\n", encoding="utf-8")
@@ -664,15 +665,16 @@ def _write_admin_file(
     raw: dict[str, AdminEntry],
     translated: dict[str, str],
     *,
+    variant: ChineseVariant,
     top_level_countries: tuple[str, ...] = (),
 ) -> None:
     with path.open("w", encoding="utf-8") as sink:
         for code, entry in raw.items():
             country = code.split(".")[0]
             if country in top_level_countries:
-                name = SPECIAL_ADMIN_TOP_LEVEL[country]
+                name = to_variant(SPECIAL_ADMIN_TOP_LEVEL[country], variant)
             else:
-                name = translated.get(code) or to_variant(entry.name)
+                name = translated.get(code) or to_variant(entry.name, variant)
             sink.write("\t".join([code, name, name, str(entry.geoname_id or "")]) + "\n")
 
 

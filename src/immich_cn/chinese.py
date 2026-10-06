@@ -257,7 +257,7 @@ class ChineseNameIndex:
             return None
         override = self.overrides.places.get(geoname_id)
         if override is not None:
-            return override if self.variant == "hant" else to_variant(override, self.variant)
+            return to_variant(override, self.variant)
         raw = self.names.get(geoname_id)
         if raw is None:
             return None
@@ -267,7 +267,7 @@ class ChineseNameIndex:
         override = self.overrides.admins.get(code)
         if override is None:
             return None
-        return override if self.variant == "hant" else to_variant(override, self.variant)
+        return to_variant(override, self.variant)
 
     def get_kanji(self, geoname_id: int | None) -> str | None:
         """返回日文汉字名称（转换为目标字形），没有则返回 None。"""
@@ -282,7 +282,7 @@ class ChineseNameIndex:
         override = self.overrides.countries.get(alpha2.upper())
         if override is None:
             return None
-        return override if self.variant == "hant" else to_variant(override, self.variant)
+        return to_variant(override, self.variant)
 
     def stats(self) -> dict[str, int]:
         return {"names": len(self.names), "overrides": len(self.overrides.places)}
@@ -308,8 +308,14 @@ def build_name_index(
     return index
 
 
-def strip_suffix(value: str, country_code: str, overrides: NameOverrides) -> str:
+def strip_suffix(
+    value: str,
+    country_code: str,
+    overrides: NameOverrides,
+    variant: ChineseVariant = "hans",
+) -> str:
     for suffix in overrides.strip_suffixes.get(country_code, ()):
-        if value.endswith(suffix) and len(value) > len(suffix):
-            return value[: -len(suffix)]
+        converted = to_variant(suffix, variant)
+        if value.endswith(converted) and len(value) > len(converted):
+            return value[: -len(converted)]
     return value
