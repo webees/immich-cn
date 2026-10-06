@@ -184,6 +184,27 @@ def test_admin_country_ratio_threshold_boundary(tmp_path: Path) -> None:
     assert below.passed is False, below.detail
 
 
+def test_admin_region_english_entry_is_rejected(tmp_path: Path) -> None:
+    """港澳条目里出现英文名（例如 GeoNames 缺中文别名）必须被判失败。"""
+    path = tmp_path / "admin1.txt"
+    rows = [f"HK.K{i:02d}\t元朗区\tYuen Long\t{1000 + i}" for i in range(17)]
+    rows.append("HK.K17\tSouthern District\tSouthern District\t2000")  # 英文条目
+    rows.extend(f"CN.{i:02d}\t浙江省\tZhejiang\t{3000 + i}" for i in range(19))
+    rows.append("TW.01\t台湾省\tTaiwan\t4000")
+    rows.append("MO.1\t澳门特别行政区\tMacau\t5000")
+    write_lines(path, rows)
+
+    result = _check_admin(
+        path,
+        "admin1",
+        min_overall_ratio=0.5,
+        min_country_ratio=0.95,
+        regions=("CN.", "HK.", "MO.", "TW."),
+    )
+    assert result.passed is False
+    assert "HK.*" in result.detail
+
+
 def _cities(rows: int, chinese: int, with_admin2: int) -> list[str]:
     out = []
     for i in range(rows):

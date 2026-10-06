@@ -48,6 +48,9 @@ def test_end_to_end_build(build_options: BuildOptions) -> None:
 
     admin1 = (geodata / "admin1CodesASCII.txt").read_text(encoding="utf-8")
     assert "江苏省" in admin1
+    # 港澳的 admin1 必须是特别行政区名称（区级信息走 place 层级的 admin_2/admin_3）
+    assert "HK.NYL\t香港特别行政区\t" in admin1
+    assert "MO.11875154\t澳门特别行政区\t" in admin1
     country_info = (geodata / "countryInfo.txt").read_text(encoding="utf-8")
     assert "\t中国\t" in country_info
 
