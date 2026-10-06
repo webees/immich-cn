@@ -18,6 +18,9 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 GEO_COLUMNS = 19
+MAX_ARCHIVE_UNCOMPRESSED_BYTES = 2 * 1024**3
+MAX_ENTRY_UNCOMPRESSED_BYTES = 1024**3
+MAX_COMPRESSION_RATIO = 200
 
 
 def sha256_file(path: Path) -> str:
@@ -65,6 +68,7 @@ def check_zips(dist: Path, errors: list[str]) -> int:
             if bad is not None:
                 errors.append(f"{path.name} 内 {bad} 校验失败")
             check_zip_members(path, archive, errors)
+            check_zip_budget(path, archive, errors)
             if path.name == "i18n-iso-countries.zip":
                 try:
                     license_text = archive.read("LICENSE").decode("utf-8")
@@ -110,6 +114,7 @@ def check_dataset(dist: Path, errors: list[str]) -> None:
         if bad is not None:
             errors.append(f"{path.name} 内 {bad} 校验失败")
         check_zip_members(path, archive, errors)
+        check_zip_budget(path, archive, errors)
         required = {"dataset.sqlite", "schema.json", "NOTICE.txt", "README.txt"}
         missing = sorted(required - set(archive.namelist()))
         if missing:
@@ -179,6 +184,22 @@ def check_zip_members(path: Path, archive: zipfile.ZipFile, errors: list[str]) -
             continue
         if stat.S_ISLNK(info.external_attr >> 16):
             errors.append(f"{path.name} 的归档成员 {info.filename!r} 是符号链接")
+
+
+def check_zip_budget(path: Path, archive: zipfile.ZipFile, errors: list[str]) -> None:
+    """限制单成员/整包解压总量与压缩比，避免制品成为 zip 炸弹。"""
+    total = 0
+    for info in archive.infolist():
+        if info.is_dir():
+            continue
+        total += info.file_size
+        if info.file_size > MAX_ENTRY_UNCOMPRESSED_BYTES:
+            errors.append(f"{path.name} 的归档成员 {info.filename!r} 解压后超过 {MAX_ENTRY_UNCOMPRESSED_BYTES} 字节")
+        ratio = info.file_size / max(info.compress_size, 1)
+        if info.file_size and ratio > MAX_COMPRESSION_RATIO:
+            errors.append(f"{path.name} 的归档成员 {info.filename!r} 压缩比 {ratio:.1f} 超过 {MAX_COMPRESSION_RATIO}")
+    if total > MAX_ARCHIVE_UNCOMPRESSED_BYTES:
+        errors.append(f"{path.name} 解压总量 {total} 超过 {MAX_ARCHIVE_UNCOMPRESSED_BYTES} 字节")
 
 
 def check_checksums(dist: Path, errors: list[str]) -> int:
