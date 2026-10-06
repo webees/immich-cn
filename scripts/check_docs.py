@@ -27,6 +27,9 @@ CLI_PATTERN = re.compile(r"(?:^|[ \t`(])immich-cn[ \t]+([a-z-]+)((?:[ \t]+--[a-z
 MAKE_PATTERN = re.compile(r"(?:^|[ \t`(])make[ \t]+([a-z][a-z-]{2,})", re.MULTILINE)
 LANGS_PATH = "/i18n-iso-countries/langs"
 
+#: 价值完全依赖"能被找到"的文件：必须在 README 或 docs 中被引用，否则等于隐藏文件。
+DISCOVERABLE_GLOBS = ("NOTICE", "examples/*.yml", "docs/*.md")
+
 
 def _read(paths: list[Path]) -> str:
     return "\n".join(path.read_text(encoding="utf-8") for path in paths)
@@ -118,6 +121,20 @@ def check_langs_mounts(paths: list[Path], errors: list[str]) -> None:
                 errors.append(f"{path}:{index + 1} 标注为 >= 1.136.0 却使用了 {legacy} 路径")
 
 
+def check_discoverable(errors: list[str]) -> None:
+    """关键文件必须至少被 README 或某个 docs 文档引用一次。"""
+    readme = Path("README.md")
+    roots = [readme, *sorted(Path("docs").glob("*.md"))]
+    root_texts = {path: path.read_text(encoding="utf-8") for path in roots if path.exists()}
+    for pattern in DISCOVERABLE_GLOBS:
+        for path in sorted(Path().glob(pattern)):
+            if not path.is_file():
+                continue
+            others = "\n".join(text for root, text in root_texts.items() if root != path)
+            if path.name not in others and str(path) not in others:
+                errors.append(f"{path} 未被 README 或 docs 引用（用户无法发现）")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--quiet", action="store_true")
@@ -133,6 +150,7 @@ def main(argv: list[str] | None = None) -> int:
     check_cli(doc_text, errors)
     check_make(doc_text, errors)
     check_langs_mounts(doc_files + _expand(("examples/*.yml",)), errors)
+    check_discoverable(errors)
 
     for error in errors:
         print(f"[!!] {error}")

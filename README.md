@@ -45,6 +45,7 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 ### 方式一：使用开箱即用的 Immich 镜像（推荐）
 
 `ghcr.io/webees/immich-cn-server` 基于官方 `immich-server`，在启动时把中文 geodata 注入到正确位置，无需手工挂载文件。
+完整可用的 compose 文件（含 redis 与 database）：[examples/compose.server.yml](examples/compose.server.yml)。
 
 ```yaml
 # docker-compose.yml（只列出需要改动的部分）
@@ -61,6 +62,7 @@ services:
 ### 方式二：把数据镜像挂载进官方 Immich
 
 如果你希望继续使用官方 `immich-app/immich-server` 镜像，可以用数据镜像提供文件：
+完整示例见 [examples/compose.volume.yml](examples/compose.volume.yml)。
 
 ```yaml
 services:
@@ -182,4 +184,4 @@ release.yml ──► 手动创建语义化版本 Release
 
 ## License
 
-代码以 [MIT](LICENSE) 发布；数据制品的许可与署名要求见 [docs/licensing.md](docs/licensing.md)。
+代码以 [MIT](LICENSE) 发布；数据制品的署名要求汇总在 [NOTICE](NOTICE)，完整说明见 [docs/licensing.md](docs/licensing.md)。
