@@ -22,8 +22,7 @@ on:
         default: true
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 concurrency:
   group: release
@@ -33,6 +32,9 @@ jobs:
   build:
     uses: ./.github/workflows/_build-data.yml
     secrets: inherit
+    permissions:
+      contents: read
+      packages: write
     with:
       provider: ${{ inputs.provider }}
       immich-version: ${{ inputs.immich-version }}

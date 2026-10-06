@@ -34,8 +34,7 @@ on:
         default: 14
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 concurrency:
   group: auto-update-data
@@ -46,6 +45,9 @@ jobs:
     name: 检查上游并构建
     uses: ./.github/workflows/_build-data.yml
     secrets: inherit
+    permissions:
+      contents: read
+      packages: write
     with:
       provider: ${{ inputs.provider || 'offline' }}
       immich-version: ${{ inputs.immich-version || 'release' }}

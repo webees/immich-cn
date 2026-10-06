@@ -79,8 +79,18 @@ def check_jobs(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
 
 
 def check_permissions(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
-    if "permissions" not in workflow:
+    permissions = workflow.get("permissions")
+    if permissions is None:
         errors.append(f"{path} 缺少顶层 permissions 声明")
+        return
+    if isinstance(permissions, str):
+        if permissions == "write-all":
+            errors.append(f"{path} 顶层 permissions 使用 write-all，权限范围过大")
+        return
+    if isinstance(permissions, dict):
+        broad = sorted(scope for scope, value in permissions.items() if value == "write")
+        if broad:
+            errors.append(f"{path} 顶层 permissions 含 write：{broad}；应下沉到具体 job")
 
 
 def check_action_pins(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
