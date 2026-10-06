@@ -1,0 +1,124 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+
+import pytest
+from scripts.cleanup import (
+    CleanupError,
+    CleanupSettings,
+    PackageVersionRecord,
+    ReleaseRecord,
+    RunRecord,
+    select_package_versions,
+    select_releases,
+    select_runs,
+)
+
+
+def at(days_ago: int) -> datetime:
+    return datetime(2026, 10, 7, tzinfo=UTC) - timedelta(days=days_ago)
+
+
+def test_cleanup_settings_rejects_non_positive_values() -> None:
+    with pytest.raises(CleanupError, match="release_retention"):
+        CleanupSettings(0, 30, 20, 20, False).validate()
+    with pytest.raises(CleanupError, match="package_retention"):
+        CleanupSettings(14, 30, 20, 0, False).validate()
+
+
+def test_release_cleanup_preserves_semver_auto_and_latest_snapshots() -> None:
+    releases = [
+        ReleaseRecord(1, "v1.0.4", at(1)),
+        ReleaseRecord(2, "auto-release", at(2)),
+        ReleaseRecord(3, "data-2026-10-07", at(1)),
+        ReleaseRecord(4, "data-2026-10-06", at(2)),
+        ReleaseRecord(5, "data-2026-10-05", at(3)),
+    ]
+
+    selected = select_releases(releases, retention=2, prune_all=False)
+
+    assert [release.tag_name for release in selected] == ["data-2026-10-05"]
+
+
+def test_release_cleanup_prune_all_keeps_only_newest_snapshot() -> None:
+    releases = [
+        ReleaseRecord(1, "v1.0.4", at(1)),
+        ReleaseRecord(2, "auto-release", at(2)),
+        ReleaseRecord(3, "data-2026-10-07", at(1)),
+        ReleaseRecord(4, "data-2026-10-06", at(2)),
+    ]
+
+    selected = select_releases(releases, retention=14, prune_all=True)
+
+    assert [release.tag_name for release in selected] == ["data-2026-10-06"]
+
+
+def test_run_cleanup_preserves_cutoff_latest_per_workflow_protected_and_current() -> None:
+    runs = [
+        RunRecord(1, "CI", "completed", at(0), "sha-current"),
+        RunRecord(2, "CI", "completed", at(1), "sha-old"),
+        RunRecord(3, "CI", "completed", at(20), "sha-protected"),
+        RunRecord(4, "CI", "completed", at(40), "sha-delete"),
+        RunRecord(5, "Release", "completed", at(50), "sha-delete-2"),
+        RunRecord(6, "CI", "in_progress", at(60), "sha-active"),
+        RunRecord(7, "Release", "completed", at(0), "sha-release-latest"),
+    ]
+
+    selected = select_runs(
+        runs,
+        cutoff=at(7),
+        keep_per_workflow=1,
+        protected_shas={"sha-protected"},
+        current_run_id=1,
+        prune_all=False,
+    )
+
+    assert {run.id for run in selected} == {4, 5}
+
+
+def test_run_cleanup_prune_all_keeps_one_per_workflow() -> None:
+    runs = [
+        RunRecord(1, "CI", "completed", at(0), "a"),
+        RunRecord(2, "CI", "completed", at(10), "b"),
+        RunRecord(3, "Release", "completed", at(11), "c"),
+        RunRecord(4, "Release", "completed", at(12), "d"),
+    ]
+
+    selected = select_runs(
+        runs,
+        cutoff=at(0),
+        keep_per_workflow=20,
+        protected_shas=set(),
+        current_run_id=None,
+        prune_all=True,
+    )
+
+    assert {run.id for run in selected} == {2, 4}
+
+
+def test_package_cleanup_preserves_semver_stable_and_recent_versions() -> None:
+    versions = [
+        PackageVersionRecord(1, at(1), ("v1.0.4",)),
+        PackageVersionRecord(2, at(2), ("latest",)),
+        PackageVersionRecord(3, at(3), ("release",)),
+        PackageVersionRecord(4, at(4), ("2026-10-07",)),
+        PackageVersionRecord(5, at(5), ("2026-10-06",)),
+        PackageVersionRecord(6, at(6), ("2026-10-05",)),
+    ]
+
+    selected = select_package_versions(versions, retention=2, prune_all=False)
+
+    assert [version.id for version in selected] == [4, 5, 6]
+
+
+def test_package_cleanup_prune_all_keeps_protected_and_newest_version() -> None:
+    versions = [
+        PackageVersionRecord(1, at(1), ("v1.0.4",)),
+        PackageVersionRecord(2, at(2), ("latest",)),
+        PackageVersionRecord(3, at(3), ("2026-10-07",)),
+        PackageVersionRecord(4, at(4), ("2026-10-06",)),
+    ]
+
+    selected = select_package_versions(versions, retention=20, prune_all=True)
+
+    assert [version.id for version in selected] == [3, 4]

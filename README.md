@@ -185,6 +185,7 @@ release.yml ──► 手动创建语义化版本 Release
 - `update-data.yml`：**每日自动更新数据**，包含增量校验、指纹对比、发布、快照清理与失败通知。
 - `ci.yml`：每次提交执行静态检查、单元测试与镜像构建冒烟测试。
 - `release.yml`：手动创建语义化版本 Release（总是强制重新构建与推送）。
+- `cleanup.yml`：每周清理旧 `data-*` 快照、Actions 历史与 GHCR 版本；稳定前可启用 `prune-all`。
 
 ## 文档
 
@@ -193,6 +194,7 @@ release.yml ──► 手动创建语义化版本 Release
 - [数据源与处理流程](docs/data-sources.md)
 - [部署指南](docs/deployment.md)
 - [Packages 与供应链](docs/packages.md)
+- [自动清理与保留策略](docs/maintenance.md)
 - [本地开发](docs/development.md)
 - [许可与署名](docs/licensing.md)
 - [常见问题](docs/faq.md)

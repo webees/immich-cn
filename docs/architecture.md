@@ -150,6 +150,9 @@
 3. **失败可见**：任一环节失败会自动创建或更新带 `automation` 标签的 issue，附带运行链接，
    修复后可用 `workflow_dispatch` 立即重跑（`force-publish` 可强制发布）。
 
+历史垃圾由独立的 `cleanup.yml` 每周清理：Release 快照、Actions 运行与 GHCR 版本按
+[保留策略](maintenance.md) 处理，语义版本与稳定标签始终受保护。
+
 可通过 `workflow_dispatch` 覆盖的参数：`provider`、`immich-version`、`push-images`、
 `force-publish`、`snapshot-retention`（默认保留最近 14 个 `data-*` 快照）。
 
