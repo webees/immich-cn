@@ -223,7 +223,8 @@ jobs:
             ghcr.io/${{ github.repository }}:sha-${{ steps.meta.outputs.short_sha }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ steps.meta.outputs.date }}
+            org.opencontainers.image.version=${{ steps.tool.outputs.version }}
+            org.immich-cn.data-date=${{ steps.meta.outputs.date }}
 
       - name: 推送 Immich 覆盖镜像
         id: server-image
@@ -234,6 +235,7 @@ jobs:
           IMMICH_VERSION: ${{ inputs.immich-version }}
           SERVER_PLATFORMS: ${{ inputs.server-platforms }}
           DATA_DATE: ${{ steps.meta.outputs.date }}
+          TOOL_VERSION: ${{ steps.tool.outputs.version }}
         run: |
           set -euo pipefail
           image="ghcr.io/${GITHUB_REPOSITORY}-server"
@@ -248,7 +250,8 @@ jobs:
               --build-arg "IMMICH_VERSION=${IMMICH_VERSION}" \
               --build-arg "IMMICH_CN_DATA_DATE=${DATA_DATE}" \
               --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
-              --label "org.opencontainers.image.version=${DATA_DATE}" \
+              --label "org.opencontainers.image.version=${TOOL_VERSION}" \
+              --label "org.immich-cn.data-date=${DATA_DATE}" \
               --tag "${image}:latest" \
               --tag "${image}:${IMMICH_VERSION}" \
               --tag "${image}:${IMMICH_VERSION}-${DATA_DATE}" \
