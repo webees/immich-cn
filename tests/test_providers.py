@@ -236,3 +236,105 @@ def test_amap_does_not_log_api_key_on_failure(tmp_path: Path) -> None:
     assert captured, "应至少记录一条失败日志"
     assert all(secret not in message for message in captured), captured
     assert any("***" in message for message in captured), captured
+
+
+def test_amap_transient_failure_is_not_negatively_cached(tmp_path: Path) -> None:
+    """一次 429 不能永久跳过该坐标：服务恢复后必须能拿到数据。"""
+    cache = tmp_path / "amap.jsonl"
+    place = make_place()
+
+    failing = httpx.Client(transport=httpx.MockTransport(lambda _r: httpx.Response(429, content=b"{}")))
+    first = AmapEnricher(AmapOptions(api_key="k", retries=1), cache, client=failing)
+    first.prefetch([place])
+
+    healthy = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda _r: httpx.Response(
+                200,
+                json={
+                    "status": "1",
+                    "regeocodes": [
+                        {
+                            "addressComponent": {
+                                "country": "中国",
+                                "province": "江苏省",
+                                "city": "苏州市",
+                                "district": "昆山市",
+                                "township": "周市镇",
+                            }
+                        }
+                    ],
+                },
+            )
+        )
+    )
+    second = AmapEnricher(AmapOptions(api_key="k", retries=1), cache, client=healthy)
+    second.prefetch([place])
+    names = second.enrich(place, PlaceNames(geoname_id=1))
+
+    assert names.admin_3 == "昆山市"
+    assert names.admin_4 == "周市镇"
+
+
+def test_amap_legacy_error_cache_entries_are_retried(tmp_path: Path) -> None:
+    """历史缓存里残留的 _error 条目必须被当作失效，重新请求。"""
+    cache = tmp_path / "amap.jsonl"
+    cache.write_text('{"key": "120.59538,31.30408", "value": {"_error": "request-failed"}}\n', encoding="utf-8")
+    place = make_place()
+
+    healthy = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda _r: httpx.Response(
+                200,
+                json={
+                    "status": "1",
+                    "regeocodes": [
+                        {
+                            "addressComponent": {
+                                "country": "中国",
+                                "province": "江苏省",
+                                "city": "苏州市",
+                                "district": "昆山市",
+                            }
+                        }
+                    ],
+                },
+            )
+        )
+    )
+    enricher = AmapEnricher(AmapOptions(api_key="k", retries=1), cache, client=healthy)
+    enricher.prefetch([place])
+    assert enricher.enrich(place, PlaceNames(geoname_id=1)).admin_3 == "昆山市"
+
+
+def test_nominatim_transient_failure_is_not_negatively_cached(tmp_path: Path) -> None:
+    """Nominatim 同样不能把瞬时故障写进负缓存。"""
+    cache = tmp_path / "nominatim.jsonl"
+    place = make_place(country="JP", latitude="43.06417", longitude="141.34694")
+
+    failing = httpx.Client(transport=httpx.MockTransport(lambda _r: httpx.Response(503, content=b"busy")))
+    first = NominatimEnricher(NominatimOptions(countries=("JP",), retries=1), cache, client=failing)
+    first.prefetch([place])
+
+    healthy = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda _r: httpx.Response(
+                200,
+                json={
+                    "features": [
+                        {
+                            "properties": {
+                                "geocoding": {
+                                    "country": "日本",
+                                    "admin": {"level4": "北海道", "level8": "石狩振興局", "level10": "札幌市"},
+                                }
+                            }
+                        }
+                    ]
+                },
+            )
+        )
+    )
+    second = NominatimEnricher(NominatimOptions(countries=("JP",), retries=1), cache, client=healthy)
+    second.prefetch([place])
+    assert second.enrich(place, PlaceNames(geoname_id=1)).admin_1 == "北海道"

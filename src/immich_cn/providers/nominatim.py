@@ -81,9 +81,14 @@ class NominatimEnricher:
         for place in places:
             if place.country_code not in self._options.countries:
                 continue
-            if self._cache.get(_key(place)) is not None:
+            cached = self._cache.get(_key(place))
+            if cached is not None and "_error" not in cached:
                 continue
-            self._cache.put(_key(place), self._query(place))
+            result = self._query(place)
+            if "_error" in result:
+                # 瞬时故障不写负缓存，下次运行重试
+                continue
+            self._cache.put(_key(place), result)
         logger.info("Nominatim 预取完成，缓存共 %d 条", len(self._cache))
 
     def _query(self, place: Place) -> dict[str, str]:
