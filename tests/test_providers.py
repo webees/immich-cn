@@ -234,7 +234,7 @@ def test_provider_cache_is_jsonl(tmp_path: Path) -> None:
     assert JsonlCache(path).get("1,2") == {"admin_1": "江苏省"}
 
 
-def test_provider_cache_skips_non_object_json_lines(tmp_path: Path) -> None:
+def test_provider_cache_skips_non_object_json_lines(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     path = tmp_path / "cache.jsonl"
     path.write_text(
         '[]\n"text"\n{"key": "1,2", "value": {"admin_1": "江苏省"}}\n',
@@ -242,7 +242,24 @@ def test_provider_cache_skips_non_object_json_lines(tmp_path: Path) -> None:
     )
     from immich_cn.providers.cache import JsonlCache
 
+    cache = JsonlCache(path)
+    assert cache.get("1,2") == {"admin_1": "江苏省"}
+    assert cache.invalid_lines == 2
+    assert "2 行无法解析或结构不合法" in caplog.text
+
+
+def test_provider_cache_survives_trailing_partial_line(tmp_path: Path) -> None:
+    """模拟中断写入留下的无换行残行，后续 put 不得与新记录拼成坏行。"""
+    path = tmp_path / "cache.jsonl"
+    path.write_text('{"key": "partial"', encoding="utf-8")
+
+    from immich_cn.providers.cache import JsonlCache
+
+    cache = JsonlCache(path)
+    cache.put("1,2", {"admin_1": "江苏省"})
+    assert cache.invalid_lines == 1
     assert JsonlCache(path).get("1,2") == {"admin_1": "江苏省"}
+    assert path.read_text(encoding="utf-8").endswith("\n")
 
 
 def test_amap_endpoint_is_https() -> None:
