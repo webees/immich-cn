@@ -24,9 +24,20 @@ make check       # lint + typecheck + test + docs
 make smoke       # 用合成数据跑完整流水线（不访问外网）
 make artifacts   # 校验 dist/ 制品（zip / manifest / SHA256SUMS）
 make entrypoint  # 校验容器入口脚本对 IMMICH_CN_PATTERN 的处理
-make build       # 真实构建（会下载约 1.5 GiB 上游数据）
+make build       # 真实构建（首次下载约 260 MiB 压缩数据）
 make clean       # 清理 build/ dist/ 与各类缓存
 ```
+
+各阶段实测开销（2026-10-06，1318830 行输出）：
+
+| 阶段 | 实测开销 |
+|:--|:--|
+| 首次下载上游压缩包 | ≈260 MiB（alternateNamesV2 195 MiB 为主） |
+| 开启 `--revalidate` 后的日常下载 | 通常仅 cities500 ≈13 MiB；未变化的数据源返回 304 |
+| 解压后的中间文件 | ≈0.95 GiB（alternateNamesV2.txt 749 MiB、CN.txt 126 MiB） |
+| 解析 alternateNamesV2 建立中文名索引 | ≈10 s |
+| 打包 14 个变体（名称组合 + zip 压缩） | ≈1.5 min |
+| GitHub Actions 完整流程 | 约 8~15 min（含 runner 缓存恢复与镜像推送） |
 
 直接使用 CLI：
 

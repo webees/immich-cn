@@ -51,8 +51,10 @@ zip 则同时提供 full 与非 full 两种规模。
 
 ## 构建耗时多久？
 
-GitHub Actions 上一次完整构建（7 种粒度 × full/非 full）通常在 10~25 分钟，
-其中约 1/3 时间花在解析 `alternateNamesV2.txt`。
+GitHub Actions 上一次完整构建（7 种粒度 × full/非 full）通常在 8~25 分钟。
+实测各阶段开销：首次下载上游压缩包约 260 MiB，解析 `alternateNamesV2.txt`（749 MiB 文本）
+约 10 秒，打包 14 个变体（名称组合 + zip 压缩）约 1.5 分钟；
+开启 `--revalidate` 后日常运行只下载发生变化的数据源，其余返回 304。
 
 ## 数据多久更新一次？
 

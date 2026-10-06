@@ -135,6 +135,39 @@ def check_discoverable(errors: list[str]) -> None:
                 errors.append(f"{path} 未被 README 或 docs 引用（用户无法发现）")
 
 
+def check_numeric_contracts(errors: list[str]) -> None:
+    """文档里的数字必须与实现一致（变体数、定时时刻、快照保留数量）。"""
+    sys.path.insert(0, str(Path("src").resolve()))
+    from immich_cn.config import DEFAULT_PATTERNS
+    from immich_cn.package import build_variants
+
+    doc_text = _read(_expand(DOC_GLOBS))
+    workflow = Path(".github/workflows/update-data.yml").read_text(encoding="utf-8")
+
+    expected_variants = len(build_variants(DEFAULT_PATTERNS))
+    for match in re.finditer(r"(\d+)\s*个制品", doc_text):
+        if int(match.group(1)) != expected_variants:
+            errors.append(f"文档称 {match.group(1)} 个制品，实际生成 {expected_variants} 个")
+
+    cron = re.search(r'cron:\s*"(\d+)\s+(\d+)', workflow)
+    if cron:
+        minute, hour = int(cron.group(1)), int(cron.group(2))
+        for match in re.finditer(r"UTC (\d{1,2}):(\d{2})", doc_text):
+            if (int(match.group(1)), int(match.group(2))) != (hour, minute):
+                errors.append(f"文档称 UTC {match.group(1)}:{match.group(2)}，实际 cron 为 {hour:02d}:{minute:02d}")
+        beijing = (hour + 8) % 24
+        for match in re.finditer(r"北京时间 (\d{1,2}):(\d{2})", doc_text):
+            if (int(match.group(1)), int(match.group(2))) != (beijing, minute):
+                errors.append(f"文档称北京时间 {match.group(1)}:{match.group(2)}，实际为 {beijing:02d}:{minute:02d}")
+
+    retention = re.search(r"snapshot-retention:.*?default:\s*(\d+)", workflow, re.DOTALL)
+    if retention:
+        expected = int(retention.group(1))
+        for match in re.finditer(r"保留最近 (\d+) 个", doc_text):
+            if int(match.group(1)) != expected:
+                errors.append(f"文档称保留最近 {match.group(1)} 个快照，实际默认 {expected}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--quiet", action="store_true")
@@ -151,6 +184,7 @@ def main(argv: list[str] | None = None) -> int:
     check_make(doc_text, errors)
     check_langs_mounts(doc_files + _expand(("examples/*.yml",)), errors)
     check_discoverable(errors)
+    check_numeric_contracts(errors)
 
     for error in errors:
         print(f"[!!] {error}")
