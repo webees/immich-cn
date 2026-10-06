@@ -99,7 +99,6 @@ class AdminEntry:
 
     code: str
     name: str
-    ascii_name: str
     geoname_id: int | None = None
 
 
