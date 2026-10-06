@@ -72,6 +72,17 @@ logger = get_logger("build")
 
 PROGRESS_EVERY = 500_000
 
+GEODATA_NOTICE = """immich-cn data attribution
+
+- GeoNames data: https://www.geonames.org/ (CC BY 4.0)
+- Natural Earth data: https://www.naturalearthdata.com/ (Public Domain)
+- Optional OpenStreetMap/Nominatim data: https://www.openstreetmap.org/ (ODbL 1.0)
+- Optional Amap-derived data: subject to Amap platform terms
+
+Data processing by immich-cn: https://github.com/webees/immich-cn
+Full notices: https://github.com/webees/immich-cn/blob/main/NOTICE
+"""
+
 #: GeoNames 中确实没有 admin1 层的国家/地区，允许其 admin1Code 为空。
 COUNTRIES_WITHOUT_ADMIN1 = frozenset({"SG", "VA"})
 
@@ -664,6 +675,7 @@ def _emit_geodata(
     _write_country_info(geodata_dir / "countryInfo.txt", country_rows, index, paths.langs_dir)
     shutil.copyfile(paths.geojson, geodata_dir / "ne_10m_admin_0_countries.geojson")
     (geodata_dir / "geodata-date.txt").write_text(generated_at + "\n", encoding="utf-8")
+    (geodata_dir / "NOTICE.txt").write_text(GEODATA_NOTICE, encoding="utf-8")
 
     with (geodata_dir / "cities500.txt").open("w", encoding="utf-8") as sink:
         for place in iter_output_places(

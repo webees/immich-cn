@@ -146,12 +146,17 @@ def check_discoverable(errors: list[str]) -> None:
     readme = Path("README.md")
     roots = [readme, *sorted(Path("docs").glob("*.md"))]
     root_texts = {path: path.read_text(encoding="utf-8") for path in roots if path.exists()}
+
+    def mentions(text: str, token: str) -> bool:
+        pattern = rf"(?<![A-Za-z0-9_.-]){re.escape(token)}(?![A-Za-z0-9_.-])"
+        return re.search(pattern, text) is not None
+
     for pattern in DISCOVERABLE_GLOBS:
         for path in sorted(Path().glob(pattern)):
             if not path.is_file():
                 continue
             others = "\n".join(text for root, text in root_texts.items() if root != path)
-            if path.name not in others and str(path) not in others:
+            if not any(mentions(others, token) for token in (path.name, str(path))):
                 errors.append(f"{path} 未被 README 或 docs 引用（用户无法发现）")
 
 

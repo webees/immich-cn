@@ -76,6 +76,13 @@ def check_zips(dist: Path, errors: list[str]) -> int:
             if entry not in archive.namelist():
                 errors.append(f"{path.name} 缺少 {entry}")
                 continue
+            notice = "geodata/NOTICE.txt"
+            if notice not in archive.namelist():
+                errors.append(f"{path.name} 缺少 {notice}")
+            else:
+                notice_text = archive.read(notice).decode("utf-8", errors="replace")
+                if "GeoNames" not in notice_text or "CC BY 4.0" not in notice_text:
+                    errors.append(f"{path.name} 的 {notice} 缺少 GeoNames CC BY 4.0 署名")
             with archive.open(entry) as handle:
                 first = handle.readline().decode("utf-8", errors="replace")
             if len(first.rstrip("\n").split("\t")) < GEO_COLUMNS:

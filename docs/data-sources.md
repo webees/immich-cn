@@ -105,4 +105,4 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，
 镜像构建使用直接流式生成的压缩表 `patterns.tsv.gz`。
 
 `i18n-iso-countries.zip` 与 `build/langs/` 都会保留上游 `LICENSE`，避免再分发语言文件时丢失
-MIT 版权声明。
+MIT 版权声明；每个 geodata zip 和镜像数据目录同时包含 `NOTICE.txt`，保留 GeoNames 等数据源署名。

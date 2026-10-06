@@ -410,6 +410,7 @@ def _make_dist(root: Path) -> Path:
     for name in ("geodata.zip", "geodata_full.zip"):
         with zipfile.ZipFile(dist / name, "w") as archive:
             archive.writestr("geodata/cities500.txt", lines)
+            archive.writestr("geodata/NOTICE.txt", "GeoNames CC BY 4.0\n")
     with gzip.open(dist / "patterns.tsv.gz", "wt", encoding="utf-8") as handle:
         handle.write("geoname_id\t{admin_2}\n1\t测试\n")
 
@@ -513,6 +514,16 @@ def test_check_artifacts_requires_i18n_license(tmp_path: Path) -> None:
     errors: list[str] = []
     check_artifacts.check_zips(dist, errors)
     assert any("缺少可读的 LICENSE" in error for error in errors), errors
+
+
+def test_check_artifacts_requires_geodata_attribution(tmp_path: Path) -> None:
+    dist = _make_dist(tmp_path)
+    with zipfile.ZipFile(dist / "geodata.zip", "w") as archive:
+        archive.writestr("geodata/cities500.txt", "\t".join(["1"] + ["x"] * 18) + "\n")
+
+    errors: list[str] = []
+    check_artifacts.check_zips(dist, errors)
+    assert any("geodata/NOTICE.txt" in error for error in errors), errors
 
 
 def test_check_artifacts_reports_corrupt_zip_without_traceback(tmp_path: Path) -> None:
