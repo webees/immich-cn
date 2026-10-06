@@ -172,5 +172,5 @@ PYTHONPYCACHEPREFIX=$(mktemp -d) .venv/bin/python -m pytest -q -x
 1. 合并到 `main` 后 CI 自动执行；
 2. 需要发版本时手动触发 `Release` 工作流并填写版本号；
 3. 数据每天由 `全自动更新数据` 工作流自动更新（含 ETag 增量校验与发布指纹对比），
-   产出滚动 Release 与不可变日期快照；
+   产出滚动 Release 与不可变 `data-*` 快照；
 4. 需要立即更新时手动触发 `全自动更新数据`，勾选 `force-publish` 可强制发布。

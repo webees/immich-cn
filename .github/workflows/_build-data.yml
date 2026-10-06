@@ -59,10 +59,12 @@ jobs:
     timeout-minutes: 90
     permissions:
       contents: read
+      id-token: write
       packages: write
     outputs:
       date: ${{ steps.meta.outputs.date }}
       digest: ${{ steps.data-image.outputs.digest }}
+      server-digest: ${{ steps.server-image.outputs.digest }}
       artifact: ${{ steps.meta.outputs.artifact }}
       changed: ${{ steps.change.outputs.changed }}
     steps:
@@ -85,14 +87,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
-      # 上游 zip（约 300 MiB）缓存一周，命中后可跳过重复下载
+      - name: 读取工具版本
+        id: tool
+        run: echo "version=$(python -c 'from immich_cn import __version__; print(__version__)')" >> "$GITHUB_OUTPUT"
+
+      # 上游 zip（约 300 MiB）缓存一周；Fetcher 仍会按 ETag/Last-Modified 校验内容，
+      # 缓存命中只节省传输，不能替代新鲜度检查。
       - name: 缓存最近一次下载的上游数据
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: .cache/immich-cn
-          key: immich-cn-sources-${{ github.run_id }}
+          key: immich-cn-sources-${{ runner.os }}-${{ steps.tool.outputs.version }}-${{ hashFiles('src/immich_cn/config.py') }}-${{ github.run_id }}
           restore-keys: |
-            immich-cn-sources-
+            immich-cn-sources-${{ runner.os }}-${{ steps.tool.outputs.version }}-${{ hashFiles('src/immich_cn/config.py') }}-
+            immich-cn-sources-${{ runner.os }}-
 
       - name: 构建、打包与校验
         env:
@@ -214,6 +222,7 @@ jobs:
             org.opencontainers.image.version=${{ steps.meta.outputs.date }}
 
       - name: 推送 Immich 覆盖镜像
+        id: server-image
         if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
         # 基础镜像来自 GHCR 的另一个命名空间，偶发 429 限流，
         # 因此这里用 buildx 直接构建并做 3 次退避重试。
@@ -224,12 +233,14 @@ jobs:
         run: |
           set -euo pipefail
           image="ghcr.io/${GITHUB_REPOSITORY}-server"
+          metadata="$(mktemp)"
           for attempt in 1 2 3; do
             if docker buildx build \
               --file docker/immich.Dockerfile \
               --platform "$SERVER_PLATFORMS" \
               --provenance=true \
               --sbom=true \
+              --metadata-file "$metadata" \
               --build-arg "IMMICH_VERSION=${IMMICH_VERSION}" \
               --build-arg "IMMICH_CN_DATA_DATE=${DATA_DATE}" \
               --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
@@ -237,7 +248,14 @@ jobs:
               --tag "${image}:latest" \
               --tag "${image}:${IMMICH_VERSION}" \
               --tag "${image}:${IMMICH_VERSION}-${DATA_DATE}" \
+              --tag "${image}:sha-${GITHUB_SHA::7}" \
               --push .; then
+              digest="$(jq -r '."containerimage.digest" // empty' "$metadata")"
+              if [ -z "$digest" ]; then
+                echo "::error::无法从 buildx 元数据读取 Immich 覆盖镜像摘要"
+                exit 1
+              fi
+              echo "digest=${digest}" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
@@ -247,3 +265,87 @@ jobs:
             echo "推送失败，60 秒后重试（第 ${attempt} 次）"
             sleep 60
           done
+
+      - name: 按最终摘要冒烟验证数据镜像
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
+        env:
+          DIGEST: ${{ steps.data-image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY}@${DIGEST}"
+          docker pull "$image"
+          rm -rf digest-smoke/data
+          mkdir -p digest-smoke/data
+          docker run --rm -v "$PWD/digest-smoke/data:/out" "$image" \
+            --target /out --pattern '{admin_2} {admin_3}'
+          test -s digest-smoke/data/geodata/cities500.txt
+          test -s digest-smoke/data/geodata/geodata-date.txt
+          docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image"
+
+      - name: 按最终摘要冒烟验证 Immich 覆盖镜像
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
+        env:
+          DIGEST: ${{ steps.server-image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY}-server@${DIGEST}"
+          docker pull "$image"
+          docker run --rm "$image" true
+          docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image"
+
+      - name: 扫描镜像漏洞与许可证
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ghcr.io/${{ github.repository }}@${{ steps.data-image.outputs.digest }}
+          scanners: vuln,license
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          output: trivy-data.txt
+
+      - name: 扫描 Immich 覆盖镜像漏洞与许可证
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ghcr.io/${{ github.repository }}-server@${{ steps.server-image.outputs.digest }}
+          scanners: vuln,license
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          output: trivy-server.txt
+
+      - name: 安装 cosign
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: 使用 GitHub OIDC 签名镜像摘要
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
+        env:
+          DATA_DIGEST: ${{ steps.data-image.outputs.digest }}
+          SERVER_DIGEST: ${{ steps.server-image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          cosign sign --yes "ghcr.io/${GITHUB_REPOSITORY}@${DATA_DIGEST}"
+          cosign sign --yes "ghcr.io/${GITHUB_REPOSITORY}-server@${SERVER_DIGEST}"
+
+      - name: 写入镜像摘要到作业摘要
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
+        env:
+          DATA_DIGEST: ${{ steps.data-image.outputs.digest }}
+          SERVER_DIGEST: ${{ steps.server-image.outputs.digest }}
+        run: |
+          {
+            echo ""
+            echo "### 发布摘要"
+            echo ""
+            echo "- 数据镜像：\`ghcr.io/${GITHUB_REPOSITORY}@${DATA_DIGEST}\`"
+            echo "- Immich 覆盖镜像：\`ghcr.io/${GITHUB_REPOSITORY}-server@${SERVER_DIGEST}\`"
+            echo "- SBOM / provenance：已生成"
+            echo "- 漏洞与许可证扫描：Trivy 已执行，HIGH/CRITICAL 会阻断"
+            echo "- 签名：Cosign keyless"
+          } >> "$GITHUB_STEP_SUMMARY"

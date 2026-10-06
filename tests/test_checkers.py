@@ -244,6 +244,31 @@ def test_check_workflows_detects_release_metadata_before_assets(repo_copy: Path)
     assert "替换资产前更新了元数据" in result.stdout
 
 
+def test_check_workflows_rejects_immutable_snapshot_regression(repo_copy: Path) -> None:
+    workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
+    mutate(
+        workflow,
+        '            revision_tag="data-${DATE}-sha-${short_sha}"',
+        '            revision_tag="data-${DATE}"',
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "未创建 data-DATE-sha-短提交" in result.stdout
+
+
+def test_check_workflows_requires_image_supply_chain(repo_copy: Path) -> None:
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(
+        workflow,
+        '          cosign sign --yes "ghcr.io/${GITHUB_REPOSITORY}@${DATA_DIGEST}"\n'
+        '          cosign sign --yes "ghcr.io/${GITHUB_REPOSITORY}-server@${SERVER_DIGEST}"',
+        '          echo "skip cosign"',
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "缺少数据或 server 镜像的 Cosign keyless 签名" in result.stdout
+
+
 def test_check_workflows_detects_unscoped_automation_issue_search(repo_copy: Path) -> None:
     """自动化告警搜索必须限定 automation 标签，防止误关用户 issue。"""
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"

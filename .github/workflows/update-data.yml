@@ -3,7 +3,7 @@ name: 全自动更新数据
 # 每天自动检查上游地理数据（GeoNames / Natural Earth / i18n-iso-countries）：
 #   1. 用 ETag/Last-Modified 条件校验上游，未变化时不传输正文；
 #   2. 有变化时重新翻译、打包、校验，并推送 GHCR 镜像；
-#   3. 更新滚动 Release（auto-release）与当日快照（data-YYYY-MM-DD）；
+#   3. 更新滚动 Release（auto-release）与不可变 data-* 快照；
 #   4. 上游、构建配置与发布器修订都没有变化时跳过发布，避免无意义的版本与重复导入。
 on:
   schedule:
@@ -29,7 +29,7 @@ on:
         type: boolean
         default: false
       snapshot-retention:
-        description: 保留最近多少个 data-* 日期快照（其余自动清理）
+        description: 保留最近多少个 data-* 快照（其余自动清理）
         type: number
         default: 14
 
@@ -47,6 +47,7 @@ jobs:
     secrets: inherit
     permissions:
       contents: read
+      id-token: write
       packages: write
     with:
       provider: ${{ inputs.provider || 'offline' }}
@@ -90,26 +91,36 @@ jobs:
               --notes-file .github/auto_release_note.md
           fi
 
-      - name: 归档为不可变日期快照
+      - name: 归档不可变快照
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DATE: ${{ needs.build.outputs.date }}
+          SHORT_SHA: ${{ github.sha }}
         run: |
+          short_sha="${SHORT_SHA::7}"
           if gh release view "data-${DATE}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "data-${DATE} 已存在，跳过"
+            revision_tag="data-${DATE}-sha-${short_sha}"
+            if gh release view "$revision_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "$revision_tag 已存在，跳过"
+              exit 0
+            fi
+            gh release create "$revision_tag" dist/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "数据修订 ${DATE} ${short_sha}" \
+              --notes "该 Release 为同日后续不可变修订；提交 \`${SHORT_SHA}\`，内容与本次 auto-release 一致。"
             exit 0
           fi
           gh release create "data-${DATE}" dist/* \
             --repo "$GITHUB_REPOSITORY" \
             --title "数据快照 ${DATE}" \
-            --notes "该 Release 为不可变的数据快照，内容与当日 auto-release 一致。"
+            --notes "该 Release 为当日首次成功发布的不可变数据快照；提交 \`${SHORT_SHA}\`，内容与本次 auto-release 一致。同日后续修订使用 data-${DATE}-sha-<短提交>。"
 
-      - name: 清理过期日期快照
+      - name: 清理过期 data-* 快照
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           keep="${SNAPSHOT_RETENTION:-14}"
-          echo "保留最近 ${keep} 个日期快照"
+          echo "保留最近 ${keep} 个 data-* 快照"
           mapfile -t old_tags < <(
             gh release list --repo "$GITHUB_REPOSITORY" --limit 200 \
               --json tagName,createdAt \
@@ -132,7 +143,7 @@ jobs:
             echo "- 上游数据：**已变化**，已重新构建并发布"
             echo "- 数据镜像摘要：\`${DIGEST:-未推送}\`"
             echo "- Immich 覆盖镜像：\`ghcr.io/${GITHUB_REPOSITORY}-server:${DATE}\`"
-            echo "- 日期快照保留：${SNAPSHOT_RETENTION:-14} 个"
+            echo "- data-* 快照保留：${SNAPSHOT_RETENTION:-14} 个"
           } >> "$GITHUB_STEP_SUMMARY"
 
   no-change:

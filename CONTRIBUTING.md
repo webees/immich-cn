@@ -24,6 +24,8 @@ make smoke       # 合成数据端到端冒烟
 
 - 禁止删除分支、禁止 force push（non-fast-forward）；
 - 必须通过 Pull Request 合并；
+- 必须使用 squash 合并并保持线性历史；
+- 必须解决全部 review thread，分支必须包含最新 main 后才可合并；
 - 必须通过以下状态检查：
   - `静态检查与单元测试 (Python 3.11)`
   - `静态检查与单元测试 (Python 3.12)`

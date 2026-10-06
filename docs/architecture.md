@@ -91,6 +91,9 @@ Immich 的反向地理编码需要一组固定格式的文本文件（见 `serve
 - 14 个变体各自的 SHA256 与体积；
 - 使用的 provider 列表。
 
+镜像发布还附带 BuildKit provenance 与 SBOM；推送后按最终 digest 重新拉取执行入口 smoke test，
+再用 Trivy 扫描漏洞和许可证，最后通过 GitHub OIDC 使用 Cosign 做 keyless 签名。
+
 ### 5. 校验前置
 
 `immich_cn.verify` 在发布前检查：
@@ -118,7 +121,7 @@ Immich 的反向地理编码需要一组固定格式的文本文件（见 `serve
    │      └─ 不同 → 继续
    ├─ 4. 构建 7 种粒度 × full/非 full，并执行发布前校验
    ├─ 5. 推送多架构镜像并更新 Release
-   └─ 6. 清理超出保留数量的旧日期快照
+   └─ 6. 清理超出保留数量的旧 data-* 快照
 ```
 
 三个关键点：
@@ -134,7 +137,7 @@ Immich 的反向地理编码需要一组固定格式的文本文件（见 `serve
    修复后可用 `workflow_dispatch` 立即重跑（`force-publish` 可强制发布）。
 
 可通过 `workflow_dispatch` 覆盖的参数：`provider`、`immich-version`、`push-images`、
-`force-publish`、`snapshot-retention`（默认保留最近 14 个日期快照）。
+`force-publish`、`snapshot-retention`（默认保留最近 14 个 `data-*` 快照）。
 
 ### 失败路径真值表
 
@@ -149,6 +152,9 @@ Immich 的反向地理编码需要一组固定格式的文本文件（见 `serve
 
 `force-publish` 会把"无变化"也走发布分支，因此 `no-change` 与 `release` 必须互斥，
 否则同一次运行会同时输出"跳过发布"和"已发布"两份互相矛盾的摘要。
+
+日期快照 `data-YYYY-MM-DD` 只代表当日第一次成功发布，不接受覆盖；同日因构建逻辑或
+上游数据再次变化而重跑时，会创建 `data-YYYY-MM-DD-sha-<短提交>`，保证历史不可变。
 
 `resolve-previous-failure` 的条件因此必须同时判断 `build` 与 `release` 的结果；
 `scripts/check_workflows.py` 会静态检查"用 `if` 判断依赖结果时是否遗漏了某个依赖"。
