@@ -3,6 +3,8 @@ from __future__ import annotations
 import io
 import urllib.error
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -13,9 +15,25 @@ from scripts.cleanup import (
     PackageVersionRecord,
     ReleaseRecord,
     RunRecord,
+    _prune_release_assets,
     select_package_versions,
     select_releases,
     select_runs,
+    select_stale_assets,
+)
+
+#: v4 迁移前发布、因而残留在 auto-release 上的旧资产名（2026-10-07 实测 21 个）。
+PRE_V4_ASSETS = (
+    "dataset.sqlite.zip",
+    "geodata.zip",
+    "geodata_admin_2.zip",
+    "geodata_admin_3.zip",
+    "geodata_admin_4.zip",
+    "geodata_full.zip",
+    "i18n-iso-countries.zip",
+    "manifest.json",
+    "patterns.tsv.gz",
+    "SHA256SUMS",
 )
 
 
@@ -177,3 +195,39 @@ def test_github_client_allows_not_found_for_idempotent_delete(monkeypatch: pytes
     monkeypatch.setattr("scripts.cleanup.urllib.request.urlopen", fake_urlopen)
     client = GitHubClient("webees/immich-cn", "token")
     assert client._request("DELETE", "/x", allow_not_found=True) is None
+
+
+def test_select_stale_assets_keeps_current_dist_and_drops_pre_v4_names() -> None:
+    """按 dist 清单回收：只保留本次构建的 canonical 资产。"""
+    keep = {"immich-cn-geodata-admin2-default-v1.zip", "immich-cn-manifest-json-v1.json"}
+    assets = [(index, name) for index, name in enumerate([*sorted(keep), *PRE_V4_ASSETS], start=1)]
+
+    stale = select_stale_assets(assets, keep)
+
+    assert [name for _, name in stale] == sorted(PRE_V4_ASSETS)
+    assert not (keep & {name for _, name in stale})
+
+
+def test_prune_release_assets_refuses_empty_dist(tmp_path: Path) -> None:
+    """空清单无法判断该删什么，必须拒绝，避免误删整个 Release。"""
+
+    class _Client:
+        def release_assets(self, tag: str) -> list[tuple[int, str]]:
+            raise AssertionError("空清单时不应访问 API")
+
+    args = SimpleNamespace(dist_dir=tmp_path, prune_release_assets="auto-release", apply=True)
+    with pytest.raises(CleanupError, match="拒绝按空清单"):
+        _prune_release_assets(_Client(), args)
+
+
+def test_prune_release_assets_refuses_disjoint_manifest(tmp_path: Path) -> None:
+    """清单与 Release 资产无交集时拒绝删除（疑似命名方案不一致或清单来源错误）。"""
+    (tmp_path / "something-else.zip").write_bytes(b"x")
+
+    class _Client:
+        def release_assets(self, tag: str) -> list[tuple[int, str]]:
+            return [(1, "immich-cn-geodata-admin2-default-v1.zip")]
+
+    args = SimpleNamespace(dist_dir=tmp_path, prune_release_assets="auto-release", apply=True)
+    with pytest.raises(CleanupError, match="没有任何交集"):
+        _prune_release_assets(_Client(), args)

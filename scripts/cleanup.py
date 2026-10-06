@@ -17,6 +17,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 SEMVER = re.compile(r"^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
@@ -163,6 +164,15 @@ def select_runs(
     return tuple(run for run in runs if run.status == "completed" and run.id not in keep)
 
 
+def select_stale_assets(assets: list[tuple[int, str]], keep: set[str]) -> list[tuple[int, str]]:
+    """返回不在 keep 清单里的 Release 资产。
+
+    发布路径是 `gh release upload --clobber`：它只增不删，命名规范变更后旧资产会长期残留
+    （v4 迁移后 auto-release 上留下 21 个 pre-v4 资产）。这里按名单排序，便于复现与断言。
+    """
+    return sorted(((asset_id, name) for asset_id, name in assets if name not in keep), key=lambda item: item[1])
+
+
 def select_package_versions(
     versions: list[PackageVersionRecord],
     *,
@@ -268,6 +278,26 @@ class GitHubClient:
         payload = self._request("GET", f"/repos/{self.repository}/commits/{encoded}")
         return str(payload.get("sha", "")) if isinstance(payload, dict) else ""
 
+    def release_assets(self, tag: str) -> list[tuple[int, str]]:
+        """返回 `<asset_id, name>` 列表；用于按当前 dist 清单回收滚动 Release 的旧资产。"""
+        encoded = urllib.parse.quote(tag, safe="")
+        payload = self._request("GET", f"/repos/{self.repository}/releases/tags/{encoded}")
+        if not isinstance(payload, dict) or "id" not in payload:
+            raise CleanupError(f"无法解析 Release {tag} 的元数据")
+        assets = self._list(f"/repos/{self.repository}/releases/{payload['id']}/assets")
+        return sorted(
+            (int(item["id"]), str(item["name"]))
+            for item in assets
+            if isinstance(item.get("id"), int) and item.get("name")
+        )
+
+    def delete_release_asset(self, asset_id: int) -> None:
+        self._request(
+            "DELETE",
+            f"/repos/{self.repository}/releases/assets/{asset_id}",
+            allow_not_found=True,
+        )
+
     def delete_release(self, release: ReleaseRecord) -> None:
         self._request("DELETE", f"/repos/{self.repository}/releases/{release.id}", allow_not_found=True)
         encoded = urllib.parse.quote(release.tag_name, safe="")
@@ -361,7 +391,35 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--run-retention-days", type=int, default=30)
     parser.add_argument("--run-keep-per-workflow", type=int, default=20)
     parser.add_argument("--package-retention", type=int, default=20)
+    parser.add_argument(
+        "--prune-release-assets",
+        metavar="TAG",
+        help="按 --dist-dir 的文件清单回收该 Release 中多余的资产（缺省 dry-run）",
+    )
+    parser.add_argument("--dist-dir", type=Path, default=Path("dist"), help="--prune-release-assets 使用的本地清单目录")
     return parser
+
+
+def _prune_release_assets(client: GitHubClient, args: argparse.Namespace) -> int:
+    """按本地 dist 清单回收 Release 中不再发布的资产。"""
+    if not args.dist_dir.is_dir():
+        raise CleanupError(f"{args.dist_dir} 不是目录，无法作为清单来源")
+    keep = {path.name for path in args.dist_dir.iterdir() if path.is_file()}
+    if not keep:
+        raise CleanupError(f"{args.dist_dir} 中没有文件，拒绝按空清单删除 Release 资产")
+    assets = client.release_assets(args.prune_release_assets)
+    if not (keep & {name for _, name in assets}):
+        raise CleanupError(
+            f"{args.dist_dir} 与 Release {args.prune_release_assets} 的资产没有任何交集，拒绝删除（疑似清单来源错误）"
+        )
+    stale = select_stale_assets(assets, keep)
+    mode = "APPLY" if args.apply else "DRY-RUN"
+    print(f"[{mode}] Release {args.prune_release_assets}：现有 {len(assets)} 个资产，待删除 {len(stale)} 个")
+    for asset_id, name in stale:
+        print(f"  - {name}")
+        if args.apply:
+            client.delete_release_asset(asset_id)
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -378,6 +436,8 @@ def main(argv: list[str] | None = None) -> int:
             repository=os.environ.get("GITHUB_REPOSITORY", "webees/immich-cn"),
             token=os.environ.get("PACKAGE_ADMIN_TOKEN") or os.environ.get("GITHUB_TOKEN", ""),
         )
+        if args.prune_release_assets:
+            return _prune_release_assets(client, args)
         plan = build_plan(client, settings)
         print_plan(plan, apply=args.apply)
         if args.apply:

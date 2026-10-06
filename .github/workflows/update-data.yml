@@ -99,21 +99,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
-          current="$(ls -1 dist)"
-          for asset in $(gh release view auto-release --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name'); do
-            found=0
-            for name in $current; do
-              if [ "$name" = "$asset" ]; then
-                found=1
-                break
-              fi
-            done
-            if [ "$found" = "0" ]; then
-              echo "删除超出本次构建的滚动资产: $asset"
-              gh release delete-asset auto-release "$asset" --yes --repo "$GITHUB_REPOSITORY"
-            fi
-          done
+          python scripts/cleanup.py --prune-release-assets auto-release --dist-dir dist --apply
 
       - name: 归档不可变快照
         env:
