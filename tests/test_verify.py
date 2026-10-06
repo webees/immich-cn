@@ -7,7 +7,13 @@ from pathlib import Path
 
 from immich_cn.build import run_build
 from immich_cn.config import BuildOptions
-from immich_cn.verify import verify_geodata
+from immich_cn.verify import (
+    _check_admin,
+    _check_cities500,
+    _check_country_info,
+    verify_geodata,
+)
+from tests.synthetic import geo_row, write_lines
 
 
 def _failures(geodata: Path) -> dict[str, str]:
@@ -138,3 +144,108 @@ def test_traditional_variant_translates_country_names(build_options: BuildOption
 
     legacy = (result.langs_dir / "en.json").read_text(encoding="utf-8")
     assert "美國" in legacy
+
+
+# --------------------------------------------------------------------------
+# 阈值边界（M2 阈值反演）：刚好等于阈值必须通过，低一点必须失败
+# --------------------------------------------------------------------------
+
+
+def test_country_info_threshold_boundary(tmp_path: Path) -> None:
+    def build(chinese: int) -> Path:
+        path = tmp_path / f"countryInfo-{chinese}.txt"
+        write_lines(
+            path,
+            [
+                f"C{i:02d}\tXXX\t000\tXX\t{'中国' if i < chinese else 'Country'}\t\t\t\t\t\t\t\t\t\t\t\t\t\t"
+                for i in range(10)
+            ],
+        )
+        return path
+
+    at_threshold = _check_country_info(build(9))  # 9/10 = 0.90
+    assert at_threshold.passed is True, at_threshold.detail
+    below = _check_country_info(build(8))  # 8/10 = 0.80
+    assert below.passed is False, below.detail
+
+
+def test_admin_country_ratio_threshold_boundary(tmp_path: Path) -> None:
+    def build(chinese: int) -> Path:
+        path = tmp_path / f"admin1-{chinese}.txt"
+        write_lines(
+            path,
+            [f"CN.{i:02d}\t{'浙江省' if i < chinese else 'Pinyin'}\tSame\t{1000 + i}" for i in range(20)],
+        )
+        return path
+
+    at_threshold = _check_admin(build(19), "admin1", min_overall_ratio=0.5, min_country_ratio=0.95)
+    assert at_threshold.passed is True, at_threshold.detail
+    below = _check_admin(build(18), "admin1", min_overall_ratio=0.5, min_country_ratio=0.95)
+    assert below.passed is False, below.detail
+
+
+def _cities(rows: int, chinese: int, with_admin2: int) -> list[str]:
+    out = []
+    for i in range(rows):
+        out.append(
+            geo_row(
+                1_000_000 + i,
+                "苏州市" if i < chinese else "Suzhou",
+                country="CN",
+                admin1="04",
+                admin2=f"A{i:03d}" if i < with_admin2 else "",
+                latitude=str(30 + i / 1000),
+                longitude=str(120 + i / 1000),
+            )
+        )
+    return out
+
+
+def test_cities500_cjk_ratio_threshold_boundary(tmp_path: Path) -> None:
+    def check(chinese: int):
+        path = tmp_path / f"cities-cjk-{chinese}.txt"
+        write_lines(path, _cities(10, chinese, 10))
+        results = _check_cities500(
+            path,
+            min_cn_cjk_ratio=0.9,
+            min_cn_admin2_code_ratio=0.9,
+            admin2_codes={f"CN.04.A{i:03d}" for i in range(10)},
+        )
+        return {result.name: result for result in results}["cities500-cn-cjk"]
+
+    assert check(9).passed is True, check(9).detail  # 9/10 = 0.90
+    assert check(8).passed is False, check(8).detail
+
+
+def test_cities500_admin2_code_ratio_threshold_boundary(tmp_path: Path) -> None:
+    def check(with_admin2: int):
+        path = tmp_path / f"cities-a2-{with_admin2}.txt"
+        write_lines(path, _cities(10, 10, with_admin2))
+        results = _check_cities500(
+            path,
+            min_cn_cjk_ratio=0.9,
+            min_cn_admin2_code_ratio=0.9,
+            admin2_codes={f"CN.04.A{i:03d}" for i in range(10)},
+        )
+        return {result.name: result for result in results}["cities500-cn-admin2"]
+
+    assert check(9).passed is True, check(9).detail  # 9/10 = 0.90
+    assert check(8).passed is False, check(8).detail
+
+
+def test_cities500_admin2_resolvable_threshold_boundary(tmp_path: Path) -> None:
+    def check(resolvable: int):
+        path = tmp_path / f"cities-res-{resolvable}.txt"
+        write_lines(path, _cities(100, 100, 100))
+        codes = {f"CN.04.A{i:03d}" for i in range(resolvable)}
+        results = _check_cities500(
+            path,
+            min_cn_cjk_ratio=0.9,
+            min_cn_admin2_code_ratio=0.9,
+            min_cn_admin2_resolved_ratio=0.99,
+            admin2_codes=codes,
+        )
+        return {result.name: result for result in results}["cities500-cn-admin2-resolvable"]
+
+    assert check(99).passed is True, check(99).detail  # 99/100 = 0.99
+    assert check(98).passed is False, check(98).detail
