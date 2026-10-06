@@ -22,6 +22,10 @@ except ModuleNotFoundError:  # pragma: no cover - 依赖已在 dev extra 中声�
 
 INTERPOLATION = re.compile(r"\$\{\{.*?\}\}", re.DOTALL)
 SCHEDULED = {"schedule"}
+#: 这些函数是运行级聚合判断，已经涵盖全部依赖的结果，因此不受"依赖覆盖"规则约束。
+#: 注意不能把 cancelled() 算进来：它只表示"是否被取消"，并不反映依赖是否失败，
+#: `!cancelled()` 实际等价于 always()，配合部分 needs 判断时仍会漏掉失败分支。
+GLOBAL_STATUS_FUNCTIONS = ("failure()", "success()", "always()")
 
 
 def load(path: Path) -> dict[str, Any] | None:
@@ -72,6 +76,30 @@ def check_concurrency(path: Path, workflow: dict[str, Any], errors: list[str]) -
         errors.append(f"{path} 是定时工作流但缺少 concurrency")
 
 
+def check_needs_coverage(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """用 `if` 判断依赖结果时，必须判断**全部**依赖。
+
+    只判断部分依赖（例如只写 `needs.build.result` 却漏了 `needs.release`），
+    一旦被遗漏的依赖失败，该任务仍会照常运行——典型的失败路径缺陷。
+    使用 failure()/success()/always()/cancelled() 的运行级判断不受此规则约束。
+    """
+    for job_name, job in (workflow.get("jobs") or {}).items():
+        if not isinstance(job, dict):
+            continue
+        needs = job.get("needs")
+        if not needs:
+            continue
+        needed = [needs] if isinstance(needs, str) else list(needs)
+        condition = str(job.get("if", ""))
+        if not condition or "needs." not in condition:
+            continue
+        if any(function in condition for function in GLOBAL_STATUS_FUNCTIONS):
+            continue
+        missing = [name for name in needed if f"needs.{name}." not in condition]
+        if missing:
+            errors.append(f"{path}:{job_name} 的 if 只判断了部分依赖，遗漏 {missing}；被遗漏的依赖失败时该任务仍会运行")
+
+
 def main() -> int:
     errors: list[str] = []
     files = sorted(Path(".github/workflows").glob("*.yml"))
@@ -87,6 +115,7 @@ def main() -> int:
         check_jobs(path, workflow, errors)
         check_permissions(path, workflow, errors)
         check_concurrency(path, workflow, errors)
+        check_needs_coverage(path, workflow, errors)
 
     for error in errors:
         print(f"[!!] {error}")
