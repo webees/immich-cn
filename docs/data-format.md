@@ -1,7 +1,6 @@
 # 规范数据格式
 
-本项目的第一等数据制品是 `immich-cn-dataset-sqlite-v1.zip`。它是一个可查询的 SQLite 3 数据库归档，
-用于直接分析、审计、二次开发或给新的消费者编写适配器；Immich 文本目录只是其中一个导出格式。
+本项目的第一等数据制品是 `immich-cn-dataset-sqlite-v1.zip`。它是一个可查询的 SQLite 3 数据库归档，用于直接分析、审计、二次开发或给新的消费者编写适配器；Immich 文本目录只是其中一个导出格式。
 
 归档成员固定为：
 
@@ -28,9 +27,7 @@
 | `source` | `cities500` 或 `extra` |
 | `in_default` | 是否进入默认非 full 变体 |
 
-`place_names` 保存每个地点对应的国家与四级中文名；`admin_areas` 保存可从地点记录推导的
-行政层级名称；`countries` 保存国家代码与名称；`sources` 保存本次构建使用的上游 URL、
-SHA256、ETag 与 Last-Modified；`dataset_meta` 保存格式版本、工具版本、provider 与地点数。
+`place_names` 保存每个地点对应的国家与四级中文名；`admin_areas` 保存可从地点记录推导的行政层级名称；`countries` 保存国家代码与名称；`sources` 保存本次构建使用的上游 URL、 SHA256、ETag 与 Last-Modified；`dataset_meta` 保存格式版本、工具版本、provider 与地点数。
 
 `localized_places` 视图把 `places`、`place_names` 与 `countries` 联起来，查询时不必手工拼接表。
 
@@ -43,16 +40,12 @@ sqlite3 dataset.sqlite \
    FROM localized_places WHERE geoname_id = 1816670;"
 ```
 
-也可以用 DuckDB、Python `sqlite3`、BI 工具或 SQL 导出程序读取。规范数据库不要求用户理解
-Immich 的制表符列位置，也不要求把数据挂载到 Immich 目录。
+也可以用 DuckDB、Python `sqlite3`、BI 工具或 SQL 导出程序读取。规范数据库不要求用户理解 Immich 的制表符列位置，也不要求把数据挂载到 Immich 目录。
 
 ## 版本与适配器
 
-`schema.json` 与 `dataset_meta` 中的 `schemaVersion` 是规范结构版本；它与项目版本、
-数据日期标签相互独立。规范字段的破坏性变更必须提升该版本。
+`schema.json` 与 `dataset_meta` 中的 `schemaVersion` 是规范结构版本；它与项目版本、数据日期标签相互独立。规范字段的破坏性变更必须提升该版本。
 
 发布层的 canonical ID、profile/scope 和唯一文件名规则见 [制品命名规范 v4](artifact-spec.md)。
 
-需要 Immich 时，使用同一 Release 中的 `immich-cn-geodata-admin2-default-v1.zip` 或 `immich-cn-geodata-admin2-full-v1.zip`。它们由规范模型
-导出，并通过 `docs/architecture.md` 中的制品契约校验；不能反过来要求规范模型复制 Immich
-的文本列布局。
+需要 Immich 时，使用同一 Release 中的 `immich-cn-geodata-admin2-default-v1.zip` 或 `immich-cn-geodata-admin2-full-v1.zip`。它们由规范模型导出，并通过 `docs/architecture.md` 中的制品契约校验；不能反过来要求规范模型复制 Immich 的文本列布局。

@@ -2,20 +2,11 @@
 
 > 为 [Immich](https://immich.app/) 提供**中文反向地理编码数据**的全自动构建流水线（设计目标：每天自动检查并更新；运行前提见后文）：中文地名、标准四级行政区、开箱即用的容器镜像。
 
-[![CI](https://github.com/webees/immich-cn/actions/workflows/ci.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/ci.yml)
-[![全自动更新数据](https://github.com/webees/immich-cn/actions/workflows/update-data.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/update-data.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Container](https://img.shields.io/badge/ghcr.io-immich--cn-blue)](https://github.com/webees/immich-cn/pkgs/container/immich-cn)
+[![CI](https://github.com/webees/immich-cn/actions/workflows/ci.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/ci.yml) [![全自动更新数据](https://github.com/webees/immich-cn/actions/workflows/update-data.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/update-data.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Container](https://img.shields.io/badge/ghcr.io-immich--cn-blue)](https://github.com/webees/immich-cn/pkgs/container/immich-cn)
 
 Immich 的反向地理编码默认输出英文地名，本项目的目标是让照片地图显示**熟悉的中文地名**，并且可以直接用中文搜索地点。
 
-本项目按独立实现组织：本仓库当前树中的代码、配置、CI 工作流与数据构建脚本由本项目维护，
-没有引用或打包同类项目的代码文件与人工整理数据文件；核查范围、关键词与边界见
-[docs/documentation-policy.md](docs/documentation-policy.md)。文末「致谢」记录了与本项目相关的
-上游思路来源。Immich 文本格式兼容属于消费者接口适配，不定义本项目的内部数据模型。
-以上描述的是当前仓库状态与项目声明，不是对历史过程或法律状态的结论。
-本仓库的源代码、配置、CI 工作流和文档采用 **MIT** 许可；生成的数据库与地理数据制品不属于 MIT，
-数据来源、署名和再分发要求见 [docs/licensing.md](docs/licensing.md)。
+本项目按独立实现组织：本仓库当前树中的代码、配置、CI 工作流与数据构建脚本由本项目维护，没有引用或打包同类项目的代码文件与人工整理数据文件；核查范围、关键词与边界见 [docs/documentation-policy.md](docs/documentation-policy.md)。文末「致谢」记录了与本项目相关的上游思路来源。Immich 文本格式兼容属于消费者接口适配，不定义本项目的内部数据模型。以上描述的是当前仓库状态与项目声明，不是对历史过程或法律状态的结论。本仓库的源代码、配置、CI 工作流和文档采用 **MIT** 许可；生成的数据库与地理数据制品不属于 MIT，数据来源、署名和再分发要求见 [docs/licensing.md](docs/licensing.md)。
 
 设计重点不是复制某个数据格式或使用方式，而是建立自己的规范模型后再适配消费者：
 
@@ -34,10 +25,7 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 
 ## 数据模型与使用方式
 
-本项目不以“保留上游相同格式与相同使用方式”为目标。规范数据模型是第一等产物，
-`immich-cn-dataset-sqlite-v1.zip` 内含带索引的 SQLite 数据库，直接表达地点、四级行政名、国家、
-来源哈希与构建元数据；支持 SQLite 3 的工具可以查询和二次开发，具体兼容性取决于客户端版本，
-不要求先理解 Immich 的文本列约定。
+本项目不以“保留上游相同格式与相同使用方式”为目标。规范数据模型是第一等产物， `immich-cn-dataset-sqlite-v1.zip` 内含带索引的 SQLite 数据库，直接表达地点、四级行政名、国家、来源哈希与构建元数据；支持 SQLite 3 的工具可以查询和二次开发，具体兼容性取决于客户端版本，不要求先理解 Immich 的文本列约定。
 
 层间关系明确：
 
@@ -45,14 +33,11 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 - **适配层**：`geodata*.zip` 把规范模型导出为 Immich 可读取的文本目录；
 - **使用层**：CLI、数据镜像和 Immich 覆盖镜像按场景选择，而不是把某一种兼容方式当成唯一入口。
 
-新增消费者时增加适配器或导出器，不改规范层；Immich 用户继续使用兼容导出，两者可以独立演进。
-完整格式说明见 [docs/data-format.md](docs/data-format.md)，决策见
-[ADR 0001](docs/adr/0001-immich-output-contract.md)。
+新增消费者时增加适配器或导出器，不改规范层；Immich 用户继续使用兼容导出，两者可以独立演进。完整格式说明见 [docs/data-format.md](docs/data-format.md)，决策见 [ADR 0001](docs/adr/0001-immich-output-contract.md)。
 
 ## 全自动更新机制
 
-数据更新按设计为无人值守流程：在 GitHub Actions、上游数据源和仓库权限正常时，每天自动检查上游地理数据，
-发现变化后重新翻译、打包、校验并发布，同时推送新的容器镜像。
+数据更新按设计为无人值守流程：在 GitHub Actions、上游数据源和仓库权限正常时，每天自动检查上游地理数据，发现变化后重新翻译、打包、校验并发布，同时推送新的容器镜像。
 
 | 环节 | 行为 |
 |:--|:--|
@@ -71,9 +56,7 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 
 ### 方式一：使用开箱即用的 Immich 镜像（推荐）
 
-`ghcr.io/webees/immich-cn-server` 基于官方 `immich-server`，在启动时把中文 geodata 注入到目标目录；
-仍需要按 Immich 官方要求配置数据库、缓存和持久化目录。
-示例 compose 文件（含 redis 与 database，需按 Immich 官方要求提供 `.env` 与持久化目录）：[examples/compose.server.yml](examples/compose.server.yml)。
+`ghcr.io/webees/immich-cn-server` 基于官方 `immich-server`，在启动时把中文 geodata 注入到目标目录；仍需要按 Immich 官方要求配置数据库、缓存和持久化目录。示例 compose 文件（含 redis 与 database，需按 Immich 官方要求提供 `.env` 与持久化目录）：[examples/compose.server.yml](examples/compose.server.yml)。
 
 ```yaml
 # docker-compose.yml（只列出需要改动的部分）
@@ -89,8 +72,7 @@ services:
 
 ### 方式二：把数据镜像挂载进官方 Immich
 
-如果你希望继续使用官方 `immich-app/immich-server` 镜像，可以用数据镜像提供文件：
-完整示例见 [examples/compose.volume.yml](examples/compose.volume.yml)。
+如果你希望继续使用官方 `immich-app/immich-server` 镜像，可以用数据镜像提供文件：完整示例见 [examples/compose.volume.yml](examples/compose.volume.yml)。
 
 ```yaml
 services:
@@ -130,8 +112,7 @@ pip install -e ".[dev]"
 immich-cn all
 ```
 
-产物位于 `dist/`：规范数据集 `immich-cn-dataset-sqlite-v1.zip`、Immich 默认粒度 `immich-cn-geodata-admin2-default-v1.zip`、
-`immich-cn-geodata-admin2-full-v1.zip`（数据增强版）、各粒度变体、`immich-cn-checksums-sha256-v1.txt` 与 `immich-cn-manifest-json-v1.json`。
+产物位于 `dist/`：规范数据集 `immich-cn-dataset-sqlite-v1.zip`、Immich 默认粒度 `immich-cn-geodata-admin2-default-v1.zip`、 `immich-cn-geodata-admin2-full-v1.zip`（数据增强版）、各粒度变体、`immich-cn-checksums-sha256-v1.txt` 与 `immich-cn-manifest-json-v1.json`。
 
 ### 生效与刷新
 
@@ -151,12 +132,10 @@ immich-cn all
 | `{admin_2} {admin_3}` | 苏州市 昆山市 |
 | `{admin_2} {admin_3} {admin_4}` | 苏州市 昆山市 周市镇 |
 
-存在至少一个非空层级时，显示名会自动回退到上一级；若全部层级为空，构建校验应拒绝该记录。
-完整的组合规则见 [docs/architecture.md](docs/architecture.md)。
+存在至少一个非空层级时，显示名会自动回退到上一级；若全部层级为空，构建校验应拒绝该记录。完整的组合规则见 [docs/architecture.md](docs/architecture.md)。
 
 > [!NOTE]
-> 默认（离线）数据在中国大陆的 `admin_4` 通常回退到区县，因为 GeoNames 几乎没有乡镇级 `ADM4` 记录。
-> 需要精确到乡镇时，配置 `AMAP_API_KEY` 并加上 `--provider amap`。
+> 默认（离线）数据在中国大陆的 `admin_4` 通常回退到区县，因为 GeoNames 几乎没有乡镇级 `ADM4` 记录。需要精确到乡镇时，配置 `AMAP_API_KEY` 并加上 `--provider amap`。
 
 ## 数据源
 
@@ -211,8 +190,7 @@ release.yml ──► 手动创建语义化版本 Release
 
 ## License
 
-源代码、配置、CI 工作流和文档以 [MIT](LICENSE) 发布；数据库和地理数据制品不适用 MIT，
-署名要求汇总在 [NOTICE](NOTICE)，完整说明见 [docs/licensing.md](docs/licensing.md)。
+源代码、配置、CI 工作流和文档以 [MIT](LICENSE) 发布；数据库和地理数据制品不适用 MIT，署名要求汇总在 [NOTICE](NOTICE)，完整说明见 [docs/licensing.md](docs/licensing.md)。
 
 ## 致谢
 

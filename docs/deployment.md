@@ -122,8 +122,7 @@ date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./immich-cn/geodata/geodata-date.txt
 
 ### 数据更新频率
 
-上游数据由 GitHub Actions 按设计每天自动检查更新（UTC 05:23 / 北京时间 13:23）；
-实际执行取决于仓库权限与上游服务可用性：
+上游数据由 GitHub Actions 按设计每天自动检查更新（UTC 05:23 / 北京时间 13:23）；实际执行取决于仓库权限与上游服务可用性：
 
 - 每天用 ETag 条件请求检查 GeoNames、Natural Earth、i18n-iso-countries；
 - 只有数据、构建配置或发布器修订真正变化时才重新构建、发布 Release 与推送镜像；
@@ -140,17 +139,13 @@ date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./immich-cn/geodata/geodata-date.txt
 0 5 * * * cd /opt/immich && docker compose pull immich-server && docker compose up -d immich-server
 ```
 
-也可以使用 Watchtower 等工具监听 `ghcr.io/webees/immich-cn-server:latest`。
-注意：数据变化后 `geodata-date.txt` 会更新，Immich 会在启动时重新导入 geodata；
-若显式设置 `IMMICH_CN_FORCE_RELOAD=1`，则每次启动都会强制重新导入。
+也可以使用 Watchtower 等工具监听 `ghcr.io/webees/immich-cn-server:latest`。注意：数据变化后 `geodata-date.txt` 会更新，Immich 会在启动时重新导入 geodata；若显式设置 `IMMICH_CN_FORCE_RELOAD=1`，则每次启动都会强制重新导入。
 
 ## 非官方 Immich 镜像
 
-`imagegenius/immich` 等第三方镜像的目录结构可能不同（未逐一验证），请把 `geodata` 挂载到它实际使用的 geodata 路径，
-并参考镜像自身的文档。`IMAGES` 目录不一致时，`IMMICH_BUILD_DATA` 也可以显式覆盖。
+`imagegenius/immich` 等第三方镜像的目录结构可能不同（未逐一验证），请把 `geodata` 挂载到它实际使用的 geodata 路径，并参考镜像自身的文档。`IMAGES` 目录不一致时，`IMMICH_BUILD_DATA` 也可以显式覆盖。
 
 ## 回滚
 
 - 镜像方案：优先固定到 `sha-<短提交>` 或 digest；`release-<日期>` 只适合当日跟踪；
-- 数据方案：从 [Releases](https://github.com/webees/immich-cn/releases) 下载 `data-<日期>` 或
-  `data-<日期>-sha-<短提交>` 不可变快照。
+- 数据方案：从 [Releases](https://github.com/webees/immich-cn/releases) 下载 `data-<日期>` 或 `data-<日期>-sha-<短提交>` 不可变快照。

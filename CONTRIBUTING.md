@@ -32,18 +32,13 @@ make smoke       # 合成数据端到端冒烟
   - `静态检查与单元测试 (Python 3.13)`
   - `Docker 冒烟构建`
 
-Ruleset 当前 `id=24545711`、`enforcement=active`、`bypass_actors` 为空，
-`strict_required_status_checks_policy=true`，只允许 squash 合并。上面四个名字必须与
-工作流真实产生的 job 名一致：`scripts/check_workflows.py` 会展开 matrix 模板，
-拒绝「没有工作流会产生」「由多个工作流同名产生」以及「产生它的工作流没有 pull_request 触发」三种情况。
+Ruleset 当前 `id=24545711`、`enforcement=active`、`bypass_actors` 为空， `strict_required_status_checks_policy=true`，只允许 squash 合并。上面四个名字必须与工作流真实产生的 job 名一致：`scripts/check_workflows.py` 会展开 matrix 模板，拒绝「没有工作流会产生」「由多个工作流同名产生」以及「产生它的工作流没有 pull_request 触发」三种情况。
 
-因此在 ruleset 生效范围内，改动需要先推到功能分支再开 PR。维护者如需保留直推能力，
-可在 Settings → Rules → Rulesets 中为「Repository admin」添加 bypass actor。
+因此在 ruleset 生效范围内，改动需要先推到功能分支再开 PR。维护者如需保留直推能力，可在 Settings → Rules → Rulesets 中为「Repository admin」添加 bypass actor。
 
 ## 新增中文地名纠正
 
-优先改 `config/overrides.toml`，并在 PR 描述中给出依据（GeoNames ID 或公开行政资料），
-例如：
+优先改 `config/overrides.toml`，并在 PR 描述中给出依据（GeoNames ID 或公开行政资料），例如：
 
 ```toml
 [admins]

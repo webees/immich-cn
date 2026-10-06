@@ -285,6 +285,37 @@ def test_check_docs_requires_drop_split_documentation(repo_copy: Path) -> None:
     assert "droppedExtra" in result.stdout
 
 
+def test_check_docs_detects_cjk_soft_break(repo_copy: Path) -> None:
+    """中文段落被折行后，Markdown 会在渲染时插入空格，必须被拦下。"""
+    readme = repo_copy / "README.md"
+    mutate(readme, "本项目按独立实现组织：本仓库当前树中的代码", "本项目按独立实现组织：本仓库当前树中的\n代码")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "中文软换行" in result.stdout
+
+
+def test_check_docs_detects_quote_soft_break(repo_copy: Path) -> None:
+    """引用块内的软换行同样会插入空格。"""
+    licensing = repo_copy / "docs" / "licensing.md"
+    mutate(
+        licensing,
+        "属公有领域。数据处理由 immich-cn",
+        "属公有领域。\n> 数据处理由 immich-cn",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "引用块内的中文软换行" in result.stdout
+
+
+def test_check_docs_detects_citation_punct_space(repo_copy: Path) -> None:
+    """CITATION.cff 折叠标量会在中文标点后留下空格，必须被拦下。"""
+    citation = repo_copy / "CITATION.cff"
+    mutate(citation, "构建流水线，包含 GeoNames", "构建流水线， 包含 GeoNames")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "中文标点后出现空格" in result.stdout
+
+
 def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     mutate(readme, "本项目按独立实现组织", "本项目是独立重写版本")
@@ -316,7 +347,7 @@ def test_check_docs_requires_independence_guidance(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     mutate(
         readme,
-        "核查范围、关键词与边界见\n[docs/documentation-policy.md](docs/documentation-policy.md)。",
+        "核查范围、关键词与边界见 [docs/documentation-policy.md](docs/documentation-policy.md)。",
         "核查范围、关键词与边界见项目维护记录。",
     )
     result = run_checker(repo_copy, "check_docs.py")
