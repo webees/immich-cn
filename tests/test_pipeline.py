@@ -40,6 +40,10 @@ def test_end_to_end_build(build_options: BuildOptions) -> None:
     # 非 full 变体：人口为 0 的补充点位不写入 geodata 目录
     assert "9101" not in rows
     assert "9100" in rows
+    # 与 cities500 重复的记录（同 ID 或同坐标）必须只出现一次
+    ids = [line.split("\t")[0] for line in cities]
+    assert ids.count("1886760") == 1
+    assert "9200" not in rows
 
     admin1 = (geodata / "admin1CodesASCII.txt").read_text(encoding="utf-8")
     assert "江苏省" in admin1

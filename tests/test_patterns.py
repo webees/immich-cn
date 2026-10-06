@@ -49,10 +49,18 @@ def test_slugify() -> None:
     assert slugify("{admin_2} {admin_3}") == "admin_2_admin_3"
 
 
-@pytest.mark.parametrize("pattern", ["admin_2", "{unknown}", "{country}"])
+@pytest.mark.parametrize("pattern", ["", "{}", "admin_2", "{unknown}", "{country}"])
 def test_validate_pattern_rejects_invalid(pattern: str) -> None:
     with pytest.raises(ConfigError):
         validate_pattern(pattern)
+
+
+@pytest.mark.parametrize("pattern", ["", "{country}"])
+def test_validate_pattern_error_message_is_actionable(pattern: str) -> None:
+    """拒绝原因必须指向 admin_N 占位符，便于用户立刻修正。"""
+    with pytest.raises(ConfigError) as excinfo:
+        validate_pattern(pattern)
+    assert "admin_N" in str(excinfo.value)
 
 
 def _reference_compose(pattern: str, levels: dict[str, str]) -> str:

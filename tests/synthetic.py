@@ -254,6 +254,26 @@ def create_synthetic_sources(work_dir: Path, langs_dir: Path) -> Path:
                 admin4="ZSZ",
                 population=0,
             ),
+            # 与 cities500 完全重复（同 ID、同坐标）：必须被去重逻辑丢弃
+            geo_row(
+                1886760,
+                "Suzhou",
+                latitude="31.30408",
+                longitude="120.59538",
+                admin1="04",
+                admin2="SZ",
+                population=5_345_961,
+            ),
+            # 新 ID 但坐标与 cities500 已有点位相同：同样必须被丢弃
+            geo_row(
+                9200,
+                "Suzhou Duplicate",
+                latitude="31.30408",
+                longitude="120.59538",
+                admin1="04",
+                admin2="SZ",
+                population=999,
+            ),
         ],
     )
 

@@ -98,6 +98,18 @@ def test_broken_geojson_is_rejected(build_options: BuildOptions) -> None:
     assert "natural-earth" in _failures(result.geodata_dir)
 
 
+def test_duplicate_geoname_ids_are_rejected(build_options: BuildOptions) -> None:
+    """cities500 出现重复 GeoNames ID 时必须失败（重复点位会让 Import 覆盖数据）。"""
+    result = run_build(build_options)
+    cities = result.geodata_dir / "cities500.txt"
+    lines = cities.read_text(encoding="utf-8").splitlines()
+    duplicated = [line for line in lines if line.startswith("1886760\t")]
+    assert duplicated, "测试前提：样例数据应包含 1886760"
+    cities.write_text("".join(line + "\n" for line in [*lines, duplicated[0]]), encoding="utf-8")
+
+    assert "cities500-duplicates" in _failures(result.geodata_dir)
+
+
 def test_missing_file_is_rejected(build_options: BuildOptions) -> None:
     result = run_build(build_options)
     (result.geodata_dir / "countryInfo.txt").unlink()

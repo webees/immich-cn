@@ -46,6 +46,8 @@ def test_build_name_index_prefers_higher_priority_language() -> None:
         ]
     )
     index = build_name_index(records, overrides=NameOverrides())
+    # 同时断言“原始选择”本身：只比较 get() 会被繁简转换掩盖（假通过）
+    assert index.names[1] == "台北市"
     assert index.get(1) == "台北市"
 
 
