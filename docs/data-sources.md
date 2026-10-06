@@ -100,5 +100,6 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，
 3. 直接写进 zip（不在磁盘上落中间文件），zip 内目录结构为 `geodata/`，与上游保持一致；
 4. 追加 `geodata/build-info.json` 说明该变体的 pattern 与 full 状态。
 
-最后生成 `manifest.json`、`SHA256SUMS`、`patterns.tsv.gz` 与 `i18n-iso-countries.zip`，
-其中 130 MiB 级的明文 `patterns.tsv` 只保留在工作目录，供镜像构建使用。
+最后生成 `manifest.json`、`SHA256SUMS`、`patterns.tsv.gz` 与 `i18n-iso-countries.zip`。
+130 MiB 级的明文 `patterns.tsv` 是生成压缩变体表的中间文件，默认在打包完成后删除；
+需要排查时可用 `--keep-raw` 保留，镜像构建使用压缩后的 `patterns.tsv.gz`。
