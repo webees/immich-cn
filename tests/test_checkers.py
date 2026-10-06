@@ -316,6 +316,28 @@ def test_check_docs_detects_citation_punct_space(repo_copy: Path) -> None:
     assert "中文标点后出现空格" in result.stdout
 
 
+def test_check_docs_covers_release_notes_and_issue_template(repo_copy: Path) -> None:
+    """Release 说明与 Issue 模板同样会被渲染，必须纳入资产名与换行护栏。"""
+    note = repo_copy / ".github" / "auto_release_note.md"
+    mutate(note, "`immich-cn-geodata-admin2-default-v1.zip`", "`immich-cn-geodata-immich-admin2-default-v1.zip`")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "重复项目命名空间" in result.stdout
+
+
+def test_check_docs_covers_issue_template_soft_break(repo_copy: Path) -> None:
+    """Issue 模板里的中文软换行会被渲染成空格，必须被拦下。"""
+    template = repo_copy / ".github" / "ISSUE_TEMPLATE" / "bug_report.yml"
+    mutate(
+        template,
+        "固有限制：可以尝试 `immich-cn-geodata-admin2-full-v1.zip`，或到",
+        "固有限制：可以尝试 `immich-cn-geodata-admin2-full-v1.zip`，\n        > 或到",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "中文软换行" in result.stdout
+
+
 def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     mutate(readme, "本项目按独立实现组织", "本项目是独立重写版本")
