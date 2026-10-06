@@ -166,7 +166,7 @@ def select_package_versions(
     retention: int,
     prune_all: bool,
 ) -> tuple[PackageVersionRecord, ...]:
-    """保留语义版本、稳定标签与最新版本，返回应删除项。"""
+    """保留语义版本、稳定标签、最新版本与全部 untagged 子 manifest，返回应删除项。"""
     keep: set[int] = set()
     for version in versions:
         if any(SEMVER.match(tag) or tag in PACKAGE_TAGS for tag in version.tags):
@@ -174,7 +174,8 @@ def select_package_versions(
     ordered = sorted(versions, key=lambda version: version.created_at, reverse=True)
     keep_count = 1 if prune_all else retention
     keep.update(version.id for version in ordered[:keep_count])
-    return tuple(version for version in versions if version.id not in keep)
+    # untagged 版本通常是多架构索引的子 manifest 或 attestation；直接删除会破坏父索引。
+    return tuple(version for version in versions if version.id not in keep and version.tags)
 
 
 class GitHubClient:
