@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
 
 from immich_cn.logging_setup import get_logger
 
@@ -18,7 +16,6 @@ class JsonlCache:
     def __init__(self, path: Path) -> None:
         self.path = path
         self._data: dict[str, dict[str, str]] = {}
-        self._dirty = 0
         self._loaded = False
 
     def load(self) -> None:
@@ -49,19 +46,7 @@ class JsonlCache:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps({"key": key, "value": value}, ensure_ascii=False) + "\n")
-        self._dirty += 1
 
     def __len__(self) -> int:
         self.load()
         return len(self._data)
-
-    def __iter__(self) -> Iterator[tuple[str, dict[str, str]]]:
-        self.load()
-        return iter(self._data.items())
-
-    @property
-    def pending_writes(self) -> int:
-        return self._dirty
-
-    def as_dict(self) -> dict[str, Any]:
-        return {"path": str(self.path), "entries": len(self)}
