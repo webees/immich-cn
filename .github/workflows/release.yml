@@ -33,7 +33,6 @@ jobs:
   build:
     uses: ./.github/workflows/_build-data.yml
     secrets: inherit
-    timeout-minutes: 90
     with:
       provider: ${{ inputs.provider }}
       immich-version: ${{ inputs.immich-version }}

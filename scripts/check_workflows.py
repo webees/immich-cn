@@ -2,7 +2,8 @@
 
 针对已经发生过的问题建立机器护栏：
 1. `run:` 块内禁止直接插值 `${{ ... }}`（应通过 `env:` 传递），防止命令注入；
-2. 每个 job 必须设置 `timeout-minutes`，避免无人值守任务挂满 runner；
+2. 普通 job 必须设置 `timeout-minutes`；调用 reusable workflow 的 job 反之**不允许**
+   出现 `timeout-minutes`/`runs-on`/`steps`（GitHub 会直接拒绝解析整个工作流）；
 3. 工作流必须声明顶层 `permissions`，保持最小权限；
 4. 定时工作流必须设置 `concurrency`，防止重叠执行。
 """
@@ -51,12 +52,23 @@ def check_run_blocks(path: Path, workflow: dict[str, Any], errors: list[str]) ->
                 errors.append(f"{path}:{job_name}/{name} 的 run 块直接插值 {found[0]}，应改用 env")
 
 
+#: 调用 reusable workflow 的 job 允许出现的键（GitHub 的 schema 限制）
+REUSABLE_JOB_KEYS = {"name", "uses", "with", "secrets", "strategy", "needs", "if", "concurrency", "permissions"}
+
+
 def check_jobs(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
     jobs = workflow.get("jobs") or {}
     for job_name, job in jobs.items():
         if not isinstance(job, dict):
             continue
-        # 复用型工作流调用（uses）没有 steps，也必须有超时
+        if "uses" in job:
+            illegal = sorted(set(job) - REUSABLE_JOB_KEYS)
+            if illegal:
+                errors.append(
+                    f"{path}:{job_name} 调用 reusable workflow，不允许出现 {illegal}；"
+                    "GitHub 会拒绝解析整个工作流（例如 timeout-minutes 只能放在被调用工作流的 job 上）"
+                )
+            continue
         if "timeout-minutes" not in job:
             errors.append(f"{path}:{job_name} 缺少 timeout-minutes")
 
