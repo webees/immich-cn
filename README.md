@@ -60,7 +60,7 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 | 保留策略 | 默认只保留最近 3 个 `data-*` 快照，不会无限堆积 |
 | 失败兜底 | 任一环节失败自动创建/更新带 `automation` 标签的 issue，附带运行链接 |
 
-你只需要定期 `docker compose pull`，或使用 Release 的固定地址 `releases/latest/download/immich-cn-geodata-immich-admin2-default-v1.zip`，即可持续获得最新数据。
+你只需要定期 `docker compose pull`，或使用 Release 的固定地址 `releases/latest/download/immich-cn-geodata-admin2-default-v1.zip`，即可持续获得最新数据。
 
 ## 快速开始
 
@@ -101,7 +101,7 @@ docker run --rm -v "$PWD/immich-cn:/out" ghcr.io/webees/immich-cn:latest --targe
 
 ### 方式三：下载 Release 数据
 
-在 [Releases](https://github.com/webees/immich-cn/releases) 页面下载 `immich-cn-geodata-immich-admin2-default-v1.zip`，解压后按下面的路径挂载：
+在 [Releases](https://github.com/webees/immich-cn/releases) 页面下载 `immich-cn-geodata-admin2-default-v1.zip`，解压后按下面的路径挂载：
 
 ```yaml
 volumes:
@@ -124,8 +124,8 @@ pip install -e ".[dev]"
 immich-cn all
 ```
 
-产物位于 `dist/`：规范数据集 `immich-cn-dataset-sqlite-v1.zip`、Immich 默认粒度 `immich-cn-geodata-immich-admin2-default-v1.zip`、
-`immich-cn-geodata-immich-admin2-full-v1.zip`（数据增强版）、各粒度变体、`immich-cn-checksums-sha256-v1.txt` 与 `immich-cn-manifest-json-v1.json`。
+产物位于 `dist/`：规范数据集 `immich-cn-dataset-sqlite-v1.zip`、Immich 默认粒度 `immich-cn-geodata-admin2-default-v1.zip`、
+`immich-cn-geodata-admin2-full-v1.zip`（数据增强版）、各粒度变体、`immich-cn-checksums-sha256-v1.txt` 与 `immich-cn-manifest-json-v1.json`。
 
 ### 生效与刷新
 
@@ -139,7 +139,7 @@ immich-cn all
 
 | `IMMICH_CN_PATTERN` / 文件名 | 展示结果 |
 |:--|:--|
-| `{admin_2}`（默认，`immich-cn-geodata-immich-admin2-default-v1.zip`） | 苏州市 |
+| `{admin_2}`（默认，`immich-cn-geodata-admin2-default-v1.zip`） | 苏州市 |
 | `{admin_3}` | 昆山市 |
 | `{admin_4}` | 周市镇 |
 | `{admin_2} {admin_3}` | 苏州市 昆山市 |
@@ -190,7 +190,7 @@ release.yml ──► 手动创建语义化版本 Release
 ## 文档
 
 - [架构设计](docs/architecture.md)
-- [制品命名规范 v3](docs/artifact-spec.md)
+- [制品命名规范 v4](docs/artifact-spec.md)
 - [项目命名规范](docs/naming-conventions.md)
 - [规范数据格式](docs/data-format.md)
 - [数据源与处理流程](docs/data-sources.md)

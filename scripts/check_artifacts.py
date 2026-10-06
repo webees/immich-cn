@@ -48,8 +48,8 @@ def check_manifest(dist: Path, errors: list[str]) -> None:
     except (OSError, json.JSONDecodeError) as error:
         errors.append(f"{MANIFEST_FILE} 无法解析：{error}")
         return
-    if manifest.get("artifactSpecVersion") != 3:
-        errors.append(f"{MANIFEST_FILE} 的 artifactSpecVersion 不是 3")
+    if manifest.get("artifactSpecVersion") != 4:
+        errors.append(f"{MANIFEST_FILE} 的 artifactSpecVersion 不是 4")
 
     artifacts = manifest.get("artifacts")
     if not isinstance(artifacts, list) or not artifacts:
@@ -285,8 +285,8 @@ def check_checksums(dist: Path, errors: list[str]) -> int:
 
 def check_required_files(dist: Path, errors: list[str]) -> None:
     required = (
-        "immich-cn-geodata-immich-admin2-default-v1.zip",
-        "immich-cn-geodata-immich-admin2-full-v1.zip",
+        "immich-cn-geodata-admin2-default-v1.zip",
+        "immich-cn-geodata-admin2-full-v1.zip",
         DATASET_FILE,
         PATTERNS_FILE,
         I18N_FILE,

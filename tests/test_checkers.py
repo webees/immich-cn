@@ -451,8 +451,8 @@ def _make_dist(root: Path) -> Path:
     dist = root / "dist"
     dist.mkdir()
     lines = "\t".join(["1"] + ["x"] * 18) + "\n"
-    geodata_default = dist / "immich-cn-geodata-immich-admin2-default-v1.zip"
-    geodata_full = dist / "immich-cn-geodata-immich-admin2-full-v1.zip"
+    geodata_default = dist / "immich-cn-geodata-admin2-default-v1.zip"
+    geodata_full = dist / "immich-cn-geodata-admin2-full-v1.zip"
     for name in (geodata_default.name, geodata_full.name):
         with zipfile.ZipFile(dist / name, "w") as archive:
             archive.writestr("geodata/cities500.txt", lines)
@@ -506,18 +506,18 @@ def _make_dist(root: Path) -> Path:
 
     artifact_spec = [
         {
-            "id": "geodata.immich.admin2.default.v1",
+            "id": "immich-cn.geodata.admin2.default.v1",
             "file": geodata_default.name,
-            "canonicalFile": "immich-cn-geodata-immich-admin2-default-v1.zip",
+            "canonicalFile": "immich-cn-geodata-admin2-default-v1.zip",
             "profile": "admin2",
             "scope": "default",
             "sizeBytes": geodata_default.stat().st_size,
             "sha256": hashlib.sha256(geodata_default.read_bytes()).hexdigest(),
         },
         {
-            "id": "geodata.immich.admin2.full.v1",
+            "id": "immich-cn.geodata.admin2.full.v1",
             "file": geodata_full.name,
-            "canonicalFile": "immich-cn-geodata-immich-admin2-full-v1.zip",
+            "canonicalFile": "immich-cn-geodata-admin2-full-v1.zip",
             "profile": "admin2",
             "scope": "full",
             "sizeBytes": geodata_full.stat().st_size,
@@ -535,7 +535,7 @@ def _make_dist(root: Path) -> Path:
     manifest_path.write_text(
         json.dumps(
             {
-                "artifactSpecVersion": 3,
+                "artifactSpecVersion": 4,
                 "artifacts": artifact_spec,
                 "assets": assets,
                 "patternsTable": patterns.name,
@@ -600,7 +600,7 @@ def test_check_artifacts_checksums_layer(tmp_path: Path) -> None:
 
 def test_check_artifacts_rejects_zip_path_traversal(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
-    with zipfile.ZipFile(dist / "immich-cn-geodata-immich-admin2-default-v1.zip", "a") as archive:
+    with zipfile.ZipFile(dist / "immich-cn-geodata-admin2-default-v1.zip", "a") as archive:
         archive.writestr("../escape.txt", "escape")
 
     errors: list[str] = []
@@ -610,7 +610,7 @@ def test_check_artifacts_rejects_zip_path_traversal(tmp_path: Path) -> None:
 
 def test_check_artifacts_rejects_zip_symlink(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
-    with zipfile.ZipFile(dist / "immich-cn-geodata-immich-admin2-default-v1.zip", "a") as archive:
+    with zipfile.ZipFile(dist / "immich-cn-geodata-admin2-default-v1.zip", "a") as archive:
         info = zipfile.ZipInfo("geodata/link")
         info.external_attr = 0o120777 << 16
         archive.writestr(info, "../escape.txt")
@@ -622,7 +622,7 @@ def test_check_artifacts_rejects_zip_symlink(tmp_path: Path) -> None:
 
 def test_check_artifacts_rejects_zip_compression_bomb(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
-    with zipfile.ZipFile(dist / "immich-cn-geodata-immich-admin2-default-v1.zip", "a") as archive:
+    with zipfile.ZipFile(dist / "immich-cn-geodata-admin2-default-v1.zip", "a") as archive:
         archive.writestr(
             "geodata/bomb.bin",
             b"\0" * (2 * 1024 * 1024),
@@ -637,7 +637,7 @@ def test_check_artifacts_rejects_zip_compression_bomb(tmp_path: Path) -> None:
 def test_check_artifacts_rejects_archive_uncompressed_budget(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     dist = _make_dist(tmp_path)
     monkeypatch.setattr(check_artifacts, "MAX_ARCHIVE_UNCOMPRESSED_BYTES", 1024)
-    with zipfile.ZipFile(dist / "immich-cn-geodata-immich-admin2-default-v1.zip", "a") as archive:
+    with zipfile.ZipFile(dist / "immich-cn-geodata-admin2-default-v1.zip", "a") as archive:
         archive.writestr("geodata/large.bin", b"\0" * 2048)
 
     errors: list[str] = []
@@ -657,7 +657,7 @@ def test_check_artifacts_requires_i18n_license(tmp_path: Path) -> None:
 
 def test_check_artifacts_requires_geodata_attribution(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
-    with zipfile.ZipFile(dist / "immich-cn-geodata-immich-admin2-default-v1.zip", "w") as archive:
+    with zipfile.ZipFile(dist / "immich-cn-geodata-admin2-default-v1.zip", "w") as archive:
         archive.writestr("geodata/cities500.txt", "\t".join(["1"] + ["x"] * 18) + "\n")
 
     errors: list[str] = []
@@ -668,7 +668,7 @@ def test_check_artifacts_requires_geodata_attribution(tmp_path: Path) -> None:
 def test_check_artifacts_reports_corrupt_zip_without_traceback(tmp_path: Path) -> None:
     """损坏的 zip 必须以校验错误呈现，而不是抛栈崩掉。"""
     dist = _make_dist(tmp_path)
-    (dist / "immich-cn-geodata-immich-admin2-default-v1.zip").write_bytes(b"this is not a zip file")
+    (dist / "immich-cn-geodata-admin2-default-v1.zip").write_bytes(b"this is not a zip file")
     result = run_checker(tmp_path, "check_artifacts.py", str(dist))
     assert result.returncode == 1
     assert "无法作为 zip 读取" in result.stdout

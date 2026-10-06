@@ -1,4 +1,4 @@
-"""制品命名规范 v3：canonical 文件名是唯一发布格式。"""
+"""制品命名规范 v4：项目命名空间只出现一次。"""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from typing import Any
 from immich_cn.display import pattern_keys
 from immich_cn.errors import ConfigError
 
-ARTIFACT_ID_PATTERN = re.compile(r"^geodata\.immich\.[a-z0-9-]+\.(default|full)\.v[0-9]+$")
-CANONICAL_FILE_PATTERN = re.compile(r"^immich-cn-geodata-immich-[a-z0-9-]+-(default|full)-v[0-9]+\.zip$")
+ARTIFACT_ID_PATTERN = re.compile(r"^immich-cn\.geodata\.[a-z0-9-]+\.(default|full)\.v[0-9]+$")
+CANONICAL_FILE_PATTERN = re.compile(r"^immich-cn-geodata-[a-z0-9-]+-(default|full)-v[0-9]+\.zip$")
 MANIFEST_FILE = "immich-cn-manifest-json-v1.json"
 CHECKSUMS_FILE = "immich-cn-checksums-sha256-v1.txt"
 PATTERNS_FILE = "immich-cn-patterns-tsv-v1.gz"
@@ -31,11 +31,11 @@ def scope_name(full: bool) -> str:
 
 
 def artifact_id(pattern: str, full: bool, *, schema_version: int = 1) -> str:
-    return f"geodata.immich.{profile_id(pattern)}.{scope_name(full)}.v{schema_version}"
+    return f"immich-cn.geodata.{profile_id(pattern)}.{scope_name(full)}.v{schema_version}"
 
 
 def canonical_filename(pattern: str, full: bool, *, schema_version: int = 1) -> str:
-    return f"immich-cn-geodata-immich-{profile_id(pattern)}-{scope_name(full)}-v{schema_version}.zip"
+    return f"immich-cn-geodata-{profile_id(pattern)}-{scope_name(full)}-v{schema_version}.zip"
 
 
 def validate_artifact_id(value: str) -> bool:
@@ -53,9 +53,9 @@ def resolve_artifact(
     profile: str | None = None,
     scope: str | None = None,
 ) -> dict[str, Any]:
-    """从 v3 manifest 解析一个 canonical artifact。"""
-    if manifest.get("artifactSpecVersion") != 3:
-        raise ConfigError("manifest 的 artifactSpecVersion 不是 3")
+    """从 v4 manifest 解析一个 canonical artifact。"""
+    if manifest.get("artifactSpecVersion") != 4:
+        raise ConfigError("manifest 的 artifactSpecVersion 不是 4")
     artifacts = manifest.get("artifacts")
     if not isinstance(artifacts, list) or not artifacts:
         raise ConfigError("manifest 没有 artifacts")

@@ -102,7 +102,7 @@ def build_parser() -> argparse.ArgumentParser:
     fingerprint = sub.add_parser("fingerprint", help="打印 immich-cn-manifest-json-v1.json 的发布指纹")
     fingerprint.add_argument("manifest", type=Path, help="immich-cn-manifest-json-v1.json 路径")
 
-    artifact = sub.add_parser("artifact", help="解析 v3 manifest 中的 canonical 制品")
+    artifact = sub.add_parser("artifact", help="解析 v4 manifest 中的 canonical 制品")
     artifact_sub = artifact.add_subparsers(dest="artifact_command", required=True)
     resolve = artifact_sub.add_parser("resolve", help="按 ID 或 profile/scope 解析制品")
     resolve.add_argument("--manifest", type=Path, required=True, help="immich-cn-manifest-json-v1.json 路径")

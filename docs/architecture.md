@@ -90,8 +90,8 @@
 
 ### 3. full 与非 full
 
-- 非 full（默认，`immich-cn-geodata-immich-admin2-default-v1.zip`）：`cities500.txt` + 国家 dump 中人口 ≥ 100 的记录 + 四个直辖市下辖全部记录。
-- full（`immich-cn-geodata-immich-admin2-full-v1.zip`）：额外包含人口为 0 的行政要素，边界识别更准、导入更慢。
+- 非 full（默认，`immich-cn-geodata-admin2-default-v1.zip`）：`cities500.txt` + 国家 dump 中人口 ≥ 100 的记录 + 四个直辖市下辖全部记录。
+- full（`immich-cn-geodata-admin2-full-v1.zip`）：额外包含人口为 0 的行政要素，边界识别更准、导入更慢。
 
 两者共用同一份 `levels.tsv`，打包时按人口阈值过滤，避免重复解析国家 dump。
 

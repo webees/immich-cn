@@ -34,7 +34,7 @@ Immich 直接从固定路径读取反向地理编码数据。文件名、制表�
 ## 结果
 
 - `immich-cn-dataset-sqlite-v1.zip` 可用于 SQL、DuckDB、BI 或自定义程序。
-- `immich-cn-geodata-immich-admin2-default-v1.zip`、镜像中的 `geodata/` 以及 `data-*` Release 资产继续可直接使用。
+- `immich-cn-geodata-admin2-default-v1.zip`、镜像中的 `geodata/` 以及 `data-*` Release 资产继续可直接使用。
 - 规范字段变化必须提升 schema 版本并提供迁移方案；Immich 适配器仍需通过制品契约校验。
 
 ## 未选择的方案
