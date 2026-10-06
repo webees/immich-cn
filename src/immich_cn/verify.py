@@ -36,6 +36,7 @@ def verify_geodata(
     min_cn_cjk_ratio: float = 0.90,
     min_cn_admin_ratio: float = 0.95,
     min_cn_admin2_code_ratio: float = 0.90,
+    min_cn_admin2_resolved_ratio: float = 0.99,
 ) -> list[CheckResult]:
     """校验一个 geodata 目录。"""
     results: list[CheckResult] = []
@@ -63,14 +64,27 @@ def verify_geodata(
     )
     results.append(_check_country_info(directory / "countryInfo.txt"))
     results.append(_check_geojson(directory / "ne_10m_admin_0_countries.geojson"))
+    admin2_codes = set(_load_admin_codes(directory / "admin2Codes.txt"))
     results.extend(
         _check_cities500(
             directory / "cities500.txt",
             min_cn_cjk_ratio=min_cn_cjk_ratio,
             min_cn_admin2_code_ratio=min_cn_admin2_code_ratio,
+            min_cn_admin2_resolved_ratio=min_cn_admin2_resolved_ratio,
+            admin2_codes=admin2_codes,
         )
     )
     return results
+
+
+def _load_admin_codes(path: Path) -> dict[str, str]:
+    codes: dict[str, str] = {}
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) >= 4:
+                codes[fields[0]] = fields[1]
+    return codes
 
 
 def assert_valid(results: list[CheckResult]) -> None:
@@ -185,6 +199,8 @@ def _check_cities500(
     *,
     min_cn_cjk_ratio: float,
     min_cn_admin2_code_ratio: float,
+    min_cn_admin2_resolved_ratio: float = 0.99,
+    admin2_codes: set[str] | None = None,
 ) -> list[CheckResult]:
     total = 0
     bad = 0
@@ -193,6 +209,7 @@ def _check_cities500(
     cn_total = 0
     cn_chinese = 0
     cn_with_admin2 = 0
+    cn_admin2_resolved = 0
     with path.open("r", encoding="utf-8") as handle:
         for line in handle:
             fields = line.rstrip("\n").split("\t")
@@ -214,6 +231,8 @@ def _check_cities500(
                     cn_chinese += 1
                 if fields[11]:
                     cn_with_admin2 += 1
+                    if admin2_codes is None or f"CN.{fields[10]}.{fields[11]}" in admin2_codes:
+                        cn_admin2_resolved += 1
     results = [
         CheckResult("cities500", bad == 0, f"{total} 条记录，字段异常 {bad} 条"),
         CheckResult("cities500-duplicates", duplicates == 0, f"重复 GeoNames ID {duplicates} 条"),
@@ -233,6 +252,17 @@ def _check_cities500(
                 "cities500-cn-admin2",
                 admin_ratio >= min_cn_admin2_code_ratio,
                 f"中国记录 {cn_total} 条，带 admin2 代码 {cn_with_admin2} 条（{admin_ratio:.1%}）",
+            )
+        )
+        # 仅"代码非空"并不足以说明数据可用：代码还必须在 admin2Codes.txt 中能解析出名称，
+        # 否则 Immich 的 admin2Name 会是空值。这里做引用完整性检查。
+        resolved_ratio = cn_admin2_resolved / max(cn_with_admin2, 1)
+        results.append(
+            CheckResult(
+                "cities500-cn-admin2-resolvable",
+                resolved_ratio >= min_cn_admin2_resolved_ratio,
+                f"带 admin2 代码的中国记录 {cn_with_admin2} 条，可在 admin2Codes 解析 "
+                f"{cn_admin2_resolved} 条（{resolved_ratio:.2%}）",
             )
         )
     return results
