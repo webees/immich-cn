@@ -44,6 +44,28 @@ ABSOLUTE_CLAIMS = {
     "不会发布坏数据": "改为已实现检查失败会阻断发布，不声称覆盖所有潜在缺陷",
     "零密钥": "改为“无需 API Key”，并说明默认 provider 的依赖",
 }
+
+#: 独立性声明只能写“当前树可核查事实”与“项目声明”。下面这些说法描述的是
+#: 历史过程或法律状态，无法由当前提交验证，出现即视为文档缺陷。
+PROCESS_OR_LEGAL_CLAIMS: dict[str, str] = {
+    "也未从同类项目移植实现": "历史过程无法由当前树验证；改为限定扫描范围的核查结果",
+    "未从同类项目移植": "历史过程无法由当前树验证；改为限定扫描范围的核查结果",
+    "不是任何同类项目的重写版本": "历史过程且“任何”无法穷举；改为项目声明",
+    "不是同类项目的重写版本": "历史过程无法由当前树验证；改为项目声明",
+    "不包含、改写或复用": "过程断言；改为限定扫描范围的核查结果",
+    "不包含任何同类项目": "“任何”无法穷举；改为限定扫描范围的核查结果",
+    "不构成代码、数据或格式继承": "法律结论；改为描述消费者接口适配事实",
+    "不构成任何格式继承": "法律结论；改为描述消费者接口适配事实",
+    "不构成继承": "法律结论；改为描述消费者接口适配事实",
+}
+
+#: README 独立性段落的锚点；正文改写时需同步更新本契约。
+INDEPENDENCE_ANCHOR = "本项目按独立实现组织"
+INDEPENDENCE_SECTION_END = "## 数据模型与使用方式"
+
+#: 时间承诺（“会在 N 天内回复”）无法保证，必须改为“通常”并注明不是承诺。
+#: 已经带“通常”的句式视为合规，不再重复报警（否则护栏会自相矛盾）。
+SLA_PROMISE = re.compile(r"(?<!通常)会\s*在\s*\d+\s*(?:个)?(?:天|日|小时|周|工作日)内")
 ASSET_TOKEN = re.compile(r"\bimmich-cn-[A-Za-z0-9._<>-]+")
 CANONICAL_GEODATA = re.compile(r"^immich-cn-geodata-[a-z0-9-]+-(default|full)-v[0-9]+\.zip$")
 INTERNAL_FILES = {"immich-cn-patterns-v1.tsv"}
@@ -282,6 +304,38 @@ def check_absolute_claims(paths: list[Path], errors: list[str]) -> None:
                 errors.append(f"{path} 使用绝对化表述 {phrase!r}；{replacement}")
 
 
+def check_process_or_legal_claims(paths: list[Path], errors: list[str]) -> None:
+    """拒绝无法从当前树验证的历史过程断言与法律结论。"""
+    for path in paths:
+        if path.name == "documentation-policy.md":
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase, replacement in PROCESS_OR_LEGAL_CLAIMS.items():
+            if phrase in text:
+                errors.append(f"{path} 出现不可验证或越界声明 {phrase!r}；{replacement}")
+
+
+def check_independence_guidance(errors: list[str]) -> None:
+    """README 的独立性声明必须标注为项目声明，并指向核查范围与边界。"""
+    readme = Path("README.md").read_text(encoding="utf-8")
+    head, _, _ = readme.partition(INDEPENDENCE_SECTION_END)
+    if INDEPENDENCE_ANCHOR not in head:
+        errors.append(f"README 独立性声明缺少锚点短语：{INDEPENDENCE_ANCHOR}")
+    if "docs/documentation-policy.md" not in head:
+        errors.append("README 独立性声明必须链接 docs/documentation-policy.md 的核查范围与边界")
+
+
+def check_sla_promises(paths: list[Path], errors: list[str]) -> None:
+    """拒绝无法保证的响应时间承诺。"""
+    for path in paths:
+        if path.name == "documentation-policy.md":
+            continue
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            match = SLA_PROMISE.search(line)
+            if match:
+                errors.append(f"{path}:{line_number} 出现时间承诺 {match.group(0)!r}；改为“通常……，不是服务水平承诺”")
+
+
 def check_asset_names(paths: list[Path], errors: list[str]) -> None:
     """文档中的发布资产名必须符合 v4 规范，且不能回退到 legacy 命名。"""
     sys.path.insert(0, str(Path("src").resolve()))
@@ -333,6 +387,9 @@ def main(argv: list[str] | None = None) -> int:
     check_referenced_paths(doc_files, errors)
     check_project_positioning(errors)
     check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
+    check_process_or_legal_claims([*doc_files, Path("CITATION.cff")], errors)
+    check_independence_guidance(errors)
+    check_sla_promises([*doc_files, Path("CITATION.cff")], errors)
     check_asset_names(doc_files, errors)
 
     for error in errors:

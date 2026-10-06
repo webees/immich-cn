@@ -1,6 +1,6 @@
 # 制品命名规范 v4
 
-v4 只发布 canonical 文件名，不生成任何历史别名。Release tag 承载版本与日期，
+v4 只发布 canonical 文件名，不生成历史别名。Release tag 承载版本与日期，
 文件名承载制品类型、adapter、profile、scope 与 schema。
 
 ## Canonical ID

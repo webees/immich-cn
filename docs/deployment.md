@@ -122,7 +122,8 @@ date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./immich-cn/geodata/geodata-date.txt
 
 ### 数据更新频率
 
-上游数据由 GitHub Actions **每天自动更新**（UTC 05:23 / 北京时间 13:23）：
+上游数据由 GitHub Actions 按设计每天自动检查更新（UTC 05:23 / 北京时间 13:23）；
+实际执行取决于仓库权限与上游服务可用性：
 
 - 每天用 ETag 条件请求检查 GeoNames、Natural Earth、i18n-iso-countries；
 - 只有数据、构建配置或发布器修订真正变化时才重新构建、发布 Release 与推送镜像；
@@ -145,7 +146,7 @@ date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./immich-cn/geodata/geodata-date.txt
 
 ## 非官方 Immich 镜像
 
-`imagegenius/immich` 等第三方镜像的目录结构不同，请把 `geodata` 挂载到它实际使用的 geodata 路径，
+`imagegenius/immich` 等第三方镜像的目录结构可能不同（未逐一验证），请把 `geodata` 挂载到它实际使用的 geodata 路径，
 并参考镜像自身的文档。`IMAGES` 目录不一致时，`IMMICH_BUILD_DATA` 也可以显式覆盖。
 
 ## 回滚
