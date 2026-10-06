@@ -15,11 +15,11 @@ Immich 直接从固定路径读取反向地理编码数据。文件名、制表�
 
 ## 决策
 
-1. 规范数据集是 `dataset.sqlite.zip` 中的 SQLite 数据库，定义地点、国家、行政层级、
+1. 规范数据集是 `immich-cn-dataset-sqlite-v1.zip` 中的 SQLite 数据库，定义地点、国家、行政层级、
    四级中文名、来源和构建元数据；字段语义与 schema 版本由本项目维护。
 2. `geodata*.zip` 是面向 Immich 的适配器输出，保持当前可读取的文件名、目录结构、
    列位置和语义，但不反向决定规范模型。
-3. `levels.tsv`、`patterns.tsv.gz`、`manifest.json` 和 provider 缓存是构建与适配中间层，
+3. `levels.tsv`、`immich-cn-patterns-tsv-v1.gz`、`immich-cn-manifest-json-v1.json` 和 provider 缓存是构建与适配中间层，
    可以独立重构。
 4. 新消费者优先新增导出器；使用方式可以是 SQL 查询、CLI、镜像或未来的服务接口，
    不要求沿用 Immich 的目录挂载方式。
@@ -33,8 +33,8 @@ Immich 直接从固定路径读取反向地理编码数据。文件名、制表�
 
 ## 结果
 
-- `dataset.sqlite.zip` 可用于 SQL、DuckDB、BI 或自定义程序。
-- `geodata.zip`、镜像中的 `geodata/` 以及 `data-*` Release 资产继续可直接使用。
+- `immich-cn-dataset-sqlite-v1.zip` 可用于 SQL、DuckDB、BI 或自定义程序。
+- `immich-cn-geodata-immich-admin2-default-v1.zip`、镜像中的 `geodata/` 以及 `data-*` Release 资产继续可直接使用。
 - 规范字段变化必须提升 schema 版本并提供迁移方案；Immich 适配器仍需通过制品契约校验。
 
 ## 未选择的方案

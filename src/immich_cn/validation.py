@@ -8,9 +8,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from immich_cn.chinese import has_cjk
 from immich_cn.errors import VerifyError
-from immich_cn.logging_setup import get_logger
+from immich_cn.localization import has_cjk
+from immich_cn.logging_config import get_logger
 
 logger = get_logger("verify")
 

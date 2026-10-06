@@ -20,7 +20,7 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 | 构建入口 | 可测试的 Python 包 + 统一 CLI |
 | 默认运行 | 零密钥，GeoNames 离线层级表即可完成构建 |
 | 可选增强 | 高德 / Nominatim provider，带限速与磁盘缓存 |
-| 规范数据 | 自有 SQLite 数据集 `dataset.sqlite.zip`，可直接查询、分析或二次开发 |
+| 规范数据 | 自有 SQLite 数据集 `immich-cn-dataset-sqlite-v1.zip`，可直接查询、分析或二次开发 |
 | 兼容导出 | Immich 文本目录与 zip 只是默认适配器，不决定内部模型 |
 | 发布方式 | Release 制品 + GHCR 数据镜像 + 开箱即用的 Immich 覆盖镜像 |
 | 粒度切换 | 同一镜像内用 `IMMICH_CN_PATTERN` 切换，无需重新构建 |
@@ -31,7 +31,7 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 ## 数据模型与使用方式
 
 本项目不以“保留上游相同格式与相同使用方式”为目标。规范数据模型是第一等产物，
-`dataset.sqlite.zip` 内含带索引的 SQLite 数据库，直接表达地点、四级行政名、国家、
+`immich-cn-dataset-sqlite-v1.zip` 内含带索引的 SQLite 数据库，直接表达地点、四级行政名、国家、
 来源哈希与构建元数据；任何 SQLite、DuckDB、BI 或程序都可以直接查询和二次开发，
 不需要先理解 Immich 的文本列约定。
 
@@ -57,10 +57,10 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 | 构建 | 重新生成四级行政层级、汉化 `cities500`、导出 7 种粒度 × full/非 full 共 14 个 geodata 变体与规范数据集 |
 | 校验 | 文件完整性、GeoNames ID 去重、中国与香港记录中文覆盖率、国家名称覆盖率全部通过才允许发布 |
 | 发布 | 更新滚动 Release `auto-release`、创建当日至多一个不可变日期快照 `data-YYYY-MM-DD`（同日后续修订用 `data-YYYY-MM-DD-sha-<短提交>`）、推送两个多架构镜像 |
-| 保留策略 | 自动清理超过 14 个的旧 `data-*` 快照，不会无限堆积 |
+| 保留策略 | 默认只保留最近 3 个 `data-*` 快照，不会无限堆积 |
 | 失败兜底 | 任一环节失败自动创建/更新带 `automation` 标签的 issue，附带运行链接 |
 
-你只需要定期 `docker compose pull`，或使用 Release 的固定地址 `releases/latest/download/geodata.zip`，即可持续获得最新数据。
+你只需要定期 `docker compose pull`，或使用 Release 的固定地址 `releases/latest/download/immich-cn-geodata-immich-admin2-default-v1.zip`，即可持续获得最新数据。
 
 ## 快速开始
 
@@ -101,7 +101,7 @@ docker run --rm -v "$PWD/immich-cn:/out" ghcr.io/webees/immich-cn:latest --targe
 
 ### 方式三：下载 Release 数据
 
-在 [Releases](https://github.com/webees/immich-cn/releases) 页面下载 `geodata.zip`，解压后按下面的路径挂载：
+在 [Releases](https://github.com/webees/immich-cn/releases) 页面下载 `immich-cn-geodata-immich-admin2-default-v1.zip`，解压后按下面的路径挂载：
 
 ```yaml
 volumes:
@@ -124,8 +124,8 @@ pip install -e ".[dev]"
 immich-cn all
 ```
 
-产物位于 `dist/`：规范数据集 `dataset.sqlite.zip`、Immich 默认粒度 `geodata.zip`、
-`geodata_full.zip`（数据增强版）、各粒度变体、`SHA256SUMS` 与 `manifest.json`。
+产物位于 `dist/`：规范数据集 `immich-cn-dataset-sqlite-v1.zip`、Immich 默认粒度 `immich-cn-geodata-immich-admin2-default-v1.zip`、
+`immich-cn-geodata-immich-admin2-full-v1.zip`（数据增强版）、各粒度变体、`immich-cn-checksums-sha256-v1.txt` 与 `immich-cn-manifest-json-v1.json`。
 
 ### 生效与刷新
 
@@ -139,7 +139,7 @@ immich-cn all
 
 | `IMMICH_CN_PATTERN` / 文件名 | 展示结果 |
 |:--|:--|
-| `{admin_2}`（默认，`geodata.zip`） | 苏州市 |
+| `{admin_2}`（默认，`immich-cn-geodata-immich-admin2-default-v1.zip`） | 苏州市 |
 | `{admin_3}` | 昆山市 |
 | `{admin_4}` | 周市镇 |
 | `{admin_2} {admin_3}` | 苏州市 昆山市 |
@@ -176,7 +176,7 @@ immich-cn all
         │                    ├─ 发布指纹对比（无变化 → 跳过发布）
         │                    └─ 推送多架构镜像
         │
-        └──► Release：auto-release（滚动）+ data-*（不可变快照，保留 14 个）
+        └──► Release：auto-release（滚动）+ data-*（不可变快照，保留 3 个）
 
 ci.yml ──► ruff + mypy + pytest + 容器入口脚本校验 + Docker 冒烟构建
 release.yml ──► 手动创建语义化版本 Release
@@ -190,7 +190,8 @@ release.yml ──► 手动创建语义化版本 Release
 ## 文档
 
 - [架构设计](docs/architecture.md)
-- [制品命名规范 v2](docs/artifact-spec.md)
+- [制品命名规范 v3](docs/artifact-spec.md)
+- [项目命名规范](docs/naming-conventions.md)
 - [规范数据格式](docs/data-format.md)
 - [数据源与处理流程](docs/data-sources.md)
 - [部署指南](docs/deployment.md)

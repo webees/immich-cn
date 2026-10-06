@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from immich_cn.chinese import ChineseNameIndex, NameOverrides
+from immich_cn.domain import AdminEntry, Place
 from immich_cn.hierarchy import (
     Hierarchy,
     finalize_place_names,
@@ -10,7 +10,7 @@ from immich_cn.hierarchy import (
     translate_admin_codes,
     translate_admin_units,
 )
-from immich_cn.models import AdminEntry, Place
+from immich_cn.localization import ChineseNameIndex, NameOverrides
 from tests.synthetic import geo_row
 
 

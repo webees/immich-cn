@@ -6,7 +6,7 @@ build_root="${IMMICH_BUILD_DATA:-/build}"
 target="${build_root%/}/geodata"
 source_dir="${IMMICH_CN_GEODATA_DIR:-/opt/immich-cn/geodata}"
 langs_dir="${IMMICH_CN_LANGS_DIR:-/opt/immich-cn/i18n-iso-countries/langs}"
-patterns_table="${IMMICH_CN_PATTERNS_TABLE:-/opt/immich-cn/patterns.tsv.gz}"
+patterns_table="${IMMICH_CN_PATTERNS_TABLE:-/opt/immich-cn/immich-cn-patterns-tsv-v1.gz}"
 # 注意：默认值里不要直接写 {admin_2}，bash 会在第一个 } 处结束参数展开，
 # 导致显式设置 IMMICH_CN_PATTERN 时多出一个右花括号。
 pattern="${IMMICH_CN_PATTERN:-}"

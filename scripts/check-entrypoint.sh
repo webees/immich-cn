@@ -26,7 +26,7 @@ run_case() {
     IMMICH_BUILD_DATA="$work/build" \
     IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
     IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
-    IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/patterns.tsv.gz" \
+    IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
     IMMICH_CN_PATTERN="$pattern" \
     IMMICH_CN_FORCE_RELOAD="$force_reload" \
     bash "$repo_root/docker/entrypoint.sh" true 2>&1)"
@@ -80,7 +80,7 @@ missing_source_case() {
   if output="$(IMMICH_BUILD_DATA="$work/missing/build" \
       IMMICH_CN_GEODATA_DIR="$work/does-not-exist" \
       IMMICH_CN_LANGS_DIR="$work/does-not-exist-langs" \
-      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/patterns.tsv.gz" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
       bash "$repo_root/docker/entrypoint.sh" true 2>&1)"; then
     echo "失败：源目录缺失时不应成功" >&2
     exit 1
@@ -109,7 +109,7 @@ unwritable_target_case() {
   if output="$(IMMICH_BUILD_DATA="$root" \
       IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
       IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
-      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/patterns.tsv.gz" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
       bash "$repo_root/docker/entrypoint.sh" true 2>&1)"; then
     chmod 0755 "$root/geodata"
     echo "失败：目标不可写且无数据时不应成功" >&2
@@ -139,7 +139,7 @@ mismatch_case() {
       IMMICH_BUILD_DATA="$work/mismatch/build" \
       IMMICH_CN_GEODATA_DIR="$data" \
       IMMICH_CN_LANGS_DIR="$work/mismatch/langs" \
-      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/patterns.tsv.gz" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
       IMMICH_CN_PATTERN='{admin_2} {admin_3}' \
       bash "$repo_root/docker/entrypoint.sh" true 2>&1)"; then
     echo "失败：变体表与数据不匹配时不应成功" >&2
@@ -159,7 +159,7 @@ partial_match_case() {
   local data="$work/partial/geodata"
   mkdir -p "$data"
   cp "$repo_root/build/geodata/cities500.txt" "$data/cities500.txt"
-  gzip -dc "$repo_root/dist/patterns.tsv.gz" | head -n 2 > "$work/partial-table.tsv"
+  gzip -dc "$repo_root/dist/immich-cn-patterns-tsv-v1.gz" | head -n 2 > "$work/partial-table.tsv"
 
   local output
   if output="$(PATH="$work/bin:$PATH" \
@@ -188,7 +188,7 @@ incomplete_source_case() {
   if output="$(IMMICH_BUILD_DATA="$work/incomplete/build" \
       IMMICH_CN_GEODATA_DIR="$partial" \
       IMMICH_CN_LANGS_DIR="$work/incomplete/langs" \
-      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/patterns.tsv.gz" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
       bash "$repo_root/docker/entrypoint.sh" true 2>&1)"; then
     echo "失败：源数据不完整时不应成功" >&2
     exit 1
@@ -261,7 +261,7 @@ root_target_case() {
 
   if output="$(sh "$repo_root/docker/apply-pattern.sh" \
       --source / \
-      --table "$repo_root/dist/patterns.tsv.gz" \
+      --table "$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
       --pattern '{admin_2}' 2>&1)"; then
     echo "失败：根目录 source 必须被拒绝" >&2
     exit 1
@@ -286,7 +286,7 @@ symlink_target_case() {
   IMMICH_BUILD_DATA="$root" \
     IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
     IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
-    IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/patterns.tsv.gz" \
+    IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
     bash "$repo_root/docker/entrypoint.sh" true >/dev/null
 
   if [ "$(cat "$root/outside.txt")" != "sentinel" ]; then
@@ -312,7 +312,7 @@ source_symlink_force_reload_case() {
   IMMICH_BUILD_DATA="$root/build" \
     IMMICH_CN_GEODATA_DIR="$root/source" \
     IMMICH_CN_LANGS_DIR="$root/langs" \
-    IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/patterns.tsv.gz" \
+    IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
     IMMICH_CN_FORCE_RELOAD=1 \
     bash "$repo_root/docker/entrypoint.sh" true >/dev/null
 

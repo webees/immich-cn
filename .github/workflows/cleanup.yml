@@ -17,7 +17,7 @@ on:
       release-retention:
         description: 保留最近多少个 data-* Release 快照
         type: number
-        default: 14
+        default: 3
       run-retention-days:
         description: Actions 运行记录至少保留多少天
         type: number
@@ -61,7 +61,7 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
           APPLY: ${{ github.event_name == 'schedule' || inputs.apply }}
           PRUNE_ALL: ${{ inputs.prune-all || false }}
-          RELEASE_RETENTION: ${{ inputs.release-retention || 14 }}
+          RELEASE_RETENTION: ${{ inputs.release-retention || 3 }}
           RUN_RETENTION_DAYS: ${{ inputs.run-retention-days || 30 }}
           RUN_KEEP_PER_WORKFLOW: ${{ inputs.run-keep-per-workflow || 20 }}
           PACKAGE_RETENTION: ${{ inputs.package-retention || 20 }}

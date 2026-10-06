@@ -8,12 +8,12 @@
 
 | 需求 | 文件 |
 |:--|:--|
-| 默认（城市级） | `geodata.zip` |
-| 数据增强、边界更准 | `geodata_full.zip` |
-| 城市 + 区县 | `geodata_admin_2_admin_3.zip` |
-| 到乡镇 | `geodata_admin_2_admin_3_admin_4.zip` |
+| 默认（城市级） | `immich-cn-geodata-immich-admin2-default-v1.zip` |
+| 数据增强、边界更准 | `immich-cn-geodata-immich-admin2-full-v1.zip` |
+| 城市 + 区县 | `immich-cn-geodata-immich-admin2-admin3-default-v1.zip` |
+| 到乡镇 | `immich-cn-geodata-immich-admin2-admin3-admin4-default-v1.zip` |
 
-完整变体列表见 `manifest.json`，文件校验值见 `SHA256SUMS`。
+完整变体列表见 `immich-cn-manifest-json-v1.json`，文件校验值见 `immich-cn-checksums-sha256-v1.txt`。
 
 ## 使用方式
 

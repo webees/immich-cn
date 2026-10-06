@@ -22,7 +22,7 @@ make typecheck   # mypy
 make test        # pytest + 覆盖率
 make check       # lint + typecheck + test + docs
 make smoke       # 用合成数据跑完整流水线（不访问外网）
-make artifacts   # 校验 dist/ 制品（zip / manifest / SHA256SUMS）
+make artifacts   # 校验 dist/ 制品（zip / manifest / immich-cn-checksums-sha256-v1.txt）
 make entrypoint  # 校验容器入口脚本对 IMMICH_CN_PATTERN 的处理
 make build       # 真实构建（首次下载约 260 MiB 压缩数据）
 make clean       # 清理 build/ dist/ 与各类缓存
@@ -41,7 +41,7 @@ python scripts/cleanup.py --help  # 查看 Release/Actions/GHCR 清理参数（�
 | GitHub Actions 完整流程 | 约 8~25 min（含 runner 缓存恢复与镜像推送） |
 
 构建结束后会自动删除不再需要的中间产物（解压出的上游原始文件等，合计约 1.1 GiB）。
-明文变体表 `patterns.tsv` 默认不会生成，只有加 `--keep-raw` 时才会保留并需要自行清理。
+明文变体表 `immich-cn-patterns-v1.tsv` 默认不会生成，只有加 `--keep-raw` 时才会保留并需要自行清理。
 
 zip 压缩级别实测（对 44.8 MiB 的 cities500 片段）：
 
@@ -63,7 +63,7 @@ immich-cn all                          # 全流程 + 校验
 immich-cn all --provider amap          # 使用高德增强（需要 AMAP_API_KEY）
 immich-cn all --chinese-variant hant   # 输出繁体
 immich-cn verify build/geodata         # 校验已有产物
-immich-cn fingerprint dist/manifest.json  # 打印发布指纹（判断是否需要重新发布）
+immich-cn fingerprint dist/immich-cn-manifest-json-v1.json  # 打印发布指纹（判断是否需要重新发布）
 ```
 
 ### CLI 参数
@@ -80,7 +80,7 @@ immich-cn fingerprint dist/manifest.json  # 打印发布指纹（判断是否需
 | `--revalidate` | 关 | 用 ETag/Last-Modified 校验上游，未变化不下载（每日自动更新使用） |
 | `--force` | 关 | 强制重新下载全部数据源 |
 | `--skip-fetch` | 关 | 直接用 `--work-dir/sources` 中已有数据源 |
-| `--keep-raw` | 关 | 保留解压后的原始大文件和明文 `patterns.tsv`（默认不生成明文表） |
+| `--keep-raw` | 关 | 保留解压后的原始大文件和明文 `immich-cn-patterns-v1.tsv`（默认不生成明文表） |
 | `--clean` | 关 | 执行前清空 work/dist |
 | `--quiet` | 关 | 只输出警告与错误 |
 
@@ -101,16 +101,20 @@ immich-cn fingerprint dist/manifest.json  # 打印发布指纹（判断是否需
 ```
 src/immich_cn/        Python 包
   cli.py              命令行入口
-  config.py           数据源清单与构建配置
-  http.py             下载、缓存、重试
+  settings.py         数据源清单与构建配置
+  fetching.py         下载、缓存、重试
   geonames.py         GeoNames 解析
-  chinese.py          中文名解析与覆盖表
+  localization.py     中文名解析与覆盖表
   hierarchy.py        行政层级表
   providers/          offline / amap / nominatim
-  build.py            流水线编排
-  canonical.py        规范 SQLite 数据集导出
-  package.py          打包与 manifest
-  verify.py           校验
+  pipeline.py         流水线编排
+  dataset.py          规范 SQLite 数据集导出
+  packaging.py        打包与 manifest
+  validation.py       校验
+  artifact_spec.py    制品命名规范与解析
+  domain.py           领域数据模型
+  logging_config.py   日志配置
+  rate_limit.py       限速器
 config/overrides.toml 人工覆盖表
 docker/               镜像定义与容器脚本
 scripts/smoke_data.py 合成数据冒烟构建
@@ -161,7 +165,7 @@ PYTHONPYCACHEPREFIX=$(mktemp -d) .venv/bin/python -m pytest -q -x
 
 1. 确认新 pattern 只用 `{admin_1}` ~ `{admin_4}` / `{country}` 占位符；
 2. 在 `--patterns` 中追加，例如 `--patterns '{admin_1} {admin_2}'`；
-3. 组合规则与去重逻辑在 `src/immich_cn/patterns.py`，无需改打包代码。
+3. 组合规则与去重逻辑在 `src/immich_cn/display.py`，无需改打包代码。
 
 ## 新增一个国家/地区
 

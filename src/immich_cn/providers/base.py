@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Protocol, runtime_checkable
 
-from immich_cn.logging_setup import get_logger
-from immich_cn.models import Place, PlaceNames
+from immich_cn.domain import Place, PlaceNames
+from immich_cn.logging_config import get_logger
 
 logger = get_logger("providers")
 

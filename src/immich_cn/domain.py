@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from immich_cn.artifact_spec import canonical_filename, profile_id, scope_name
+
 # GeoNames 列索引（0 基），命名与 https://download.geonames.org/export/dump/readme.txt 一致。
 GEO_COLUMNS = 19
 IDX_GEONAMEID = 0
@@ -166,13 +168,19 @@ class Variant:
     """一个可发布的展示粒度变体。"""
 
     pattern: str
-    slug: str
     full: bool
 
     @property
+    def profile(self) -> str:
+        return profile_id(self.pattern)
+
+    @property
+    def scope(self) -> str:
+        return scope_name(self.full)
+
+    @property
     def filename(self) -> str:
-        suffix = "_full" if self.full else ""
-        return f"geodata_{self.slug}{suffix}.zip"
+        return canonical_filename(self.pattern, self.full)
 
 
 @dataclass(slots=True)

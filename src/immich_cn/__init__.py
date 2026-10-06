@@ -10,4 +10,4 @@ __version__ = "1.0.4"
 SCHEMA_VERSION = 1
 
 #: 制品命名规范版本；与文件格式和项目版本解耦。
-ARTIFACT_SPEC_VERSION = 2
+ARTIFACT_SPEC_VERSION = 3

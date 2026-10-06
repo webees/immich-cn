@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from immich_cn.chinese import (
+from immich_cn.domain import AdminEntry, Place, PlaceNames
+from immich_cn.geonames import admin_code
+from immich_cn.localization import (
     SPECIAL_ADMIN_TOP_LEVEL,
     ChineseNameIndex,
     NameOverrides,
@@ -12,10 +14,8 @@ from immich_cn.chinese import (
     strip_suffix,
     to_variant,
 )
-from immich_cn.config import ChineseVariant
-from immich_cn.geonames import admin_code
-from immich_cn.logging_setup import get_logger
-from immich_cn.models import AdminEntry, Place, PlaceNames
+from immich_cn.logging_config import get_logger
+from immich_cn.settings import ChineseVariant
 
 logger = get_logger("hierarchy")
 

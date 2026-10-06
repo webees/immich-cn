@@ -54,7 +54,7 @@ def data_fingerprint(manifest: Mapping[str, Any]) -> str:
 
 
 def fingerprint_from_file(path: str | Path) -> str:
-    """从 manifest.json 文件读取并计算指纹。"""
+    """从 immich-cn-manifest-json-v1.json 文件读取并计算指纹。"""
     manifest_path = Path(path)
     with manifest_path.open(encoding="utf-8") as handle:
         manifest = json.load(handle)

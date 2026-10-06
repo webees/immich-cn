@@ -14,9 +14,9 @@ import pytest
 
 from immich_cn import __version__
 from immich_cn.cli import build_parser
-from immich_cn.config import DEFAULT_EXTRA_COUNTRIES, DEFAULT_PATTERNS, BuildOptions, positive_int_env
 from immich_cn.errors import ConfigError
-from immich_cn.verify import verify_geodata
+from immich_cn.settings import DEFAULT_EXTRA_COUNTRIES, DEFAULT_PATTERNS, BuildOptions, positive_int_env
+from immich_cn.validation import verify_geodata
 
 
 def test_build_options_defaults_match_cli() -> None:

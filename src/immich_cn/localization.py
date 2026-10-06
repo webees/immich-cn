@@ -11,9 +11,9 @@ from typing import cast
 
 import zhconv
 
-from immich_cn.config import ChineseVariant
 from immich_cn.errors import ConfigError
-from immich_cn.logging_setup import get_logger
+from immich_cn.logging_config import get_logger
+from immich_cn.settings import ChineseVariant
 
 logger = get_logger("chinese")
 

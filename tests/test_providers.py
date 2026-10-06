@@ -7,13 +7,13 @@ from pathlib import Path
 import httpx
 import pytest
 
-from immich_cn.config import BuildOptions
+from immich_cn.domain import Place, PlaceNames
 from immich_cn.errors import ConfigError
-from immich_cn.logging_setup import get_logger
-from immich_cn.models import Place, PlaceNames
+from immich_cn.logging_config import get_logger
 from immich_cn.providers.amap import AMAP_ENDPOINT, AmapEnricher, AmapOptions, _parse_regeocode
 from immich_cn.providers.geo import out_of_china, wgs84_to_gcj02
 from immich_cn.providers.nominatim import NOMINATIM_ENDPOINT, NominatimEnricher, NominatimOptions, _parse
+from immich_cn.settings import BuildOptions
 from tests.synthetic import geo_row
 
 

@@ -7,9 +7,7 @@ from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
-from immich_cn.errors import ParseError
-from immich_cn.logging_setup import get_logger
-from immich_cn.models import (
+from immich_cn.domain import (
     IDX_ADMIN1,
     IDX_ADMIN2,
     IDX_ADMIN3,
@@ -18,6 +16,8 @@ from immich_cn.models import (
     AdminEntry,
     Place,
 )
+from immich_cn.errors import ParseError
+from immich_cn.logging_config import get_logger
 
 logger = get_logger("geonames")
 

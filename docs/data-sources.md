@@ -13,14 +13,14 @@
 | `ne_10m_admin_0_countries.geojson` | Natural Earth v5.1.2 | Public Domain | 国家边界回退 |
 | `i18n-iso-countries@7.0.0` | npm | MIT | 国家名称中文覆盖（旧版 Immich） |
 
-所有版本都在 `src/immich_cn/config.py` 中固定，Natural Earth 与 i18n-iso-countries 使用不可变标签/版本号，
-GeoNames 为滚动数据，其指纹会记录在每次构建的 `manifest.json` 中。
+所有版本都在 `src/immich_cn/settings.py` 中固定，Natural Earth 与 i18n-iso-countries 使用不可变标签/版本号，
+GeoNames 为滚动数据，其指纹会记录在每次构建的 `immich-cn-manifest-json-v1.json` 中。
 
 ## 处理流程
 
 ### 1. 下载与缓存
 
-`immich_cn.http.Fetcher` 负责：
+`immich_cn.fetching.Fetcher` 负责：
 
 - 下载到 `.cache/immich-cn/`，支持断点续传（`Range`）；
 - 指数退避重试（默认 4 次，覆盖 408/425/429/5xx）；
@@ -94,7 +94,7 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，
 ### 6. 规范数据集
 
 构建阶段先把全部地点、国家、行政层级、中文名、来源和统计写入 `dataset.sqlite`，
-再打包为 `dataset.sqlite.zip`。该 SQLite 数据库使用主键、外键、边界约束和索引，
+再打包为 `immich-cn-dataset-sqlite-v1.zip`。该 SQLite 数据库使用主键、外键、边界约束和索引，
 并提供 `localized_places` 查询视图；它不依赖 Immich 的制表符列布局。完整结构见
 [数据格式](data-format.md)。
 
@@ -107,10 +107,10 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，
 3. 直接写进 zip（不在磁盘上落中间文件），zip 内目录结构为 `geodata/`，与 Immich 读取约定一致；
 4. 追加 `geodata/build-info.json` 说明该变体的 pattern 与 full 状态。
 
-最后生成 `manifest.json`、`SHA256SUMS`、`patterns.tsv.gz` 与 `i18n-iso-countries.zip`。
-130 MiB 级的明文 `patterns.tsv` 默认不会生成；需要排查时可用 `--keep-raw` 同时保留明文表，
-镜像构建使用直接流式生成的压缩表 `patterns.tsv.gz`。
+最后生成 `immich-cn-manifest-json-v1.json`、`immich-cn-checksums-sha256-v1.txt`、`immich-cn-patterns-tsv-v1.gz` 与 `immich-cn-i18n-json-v1.zip`。
+130 MiB 级的明文 `immich-cn-patterns-v1.tsv` 默认不会生成；需要排查时可用 `--keep-raw` 同时保留明文表，
+镜像构建使用直接流式生成的压缩表 `immich-cn-patterns-tsv-v1.gz`。
 
-`dataset.sqlite.zip` 自带 `NOTICE.txt`；`i18n-iso-countries.zip` 与 `build/langs/` 保留上游
+`immich-cn-dataset-sqlite-v1.zip` 自带 `NOTICE.txt`；`immich-cn-i18n-json-v1.zip` 与 `build/langs/` 保留上游
 `LICENSE`，避免再分发语言文件时丢失 MIT 版权声明；每个 geodata zip 和镜像数据目录同时包含
 `NOTICE.txt`，保留 GeoNames 等数据源署名。

@@ -1,6 +1,6 @@
 # 规范数据格式
 
-本项目的第一等数据制品是 `dataset.sqlite.zip`。它是一个可查询的 SQLite 3 数据库归档，
+本项目的第一等数据制品是 `immich-cn-dataset-sqlite-v1.zip`。它是一个可查询的 SQLite 3 数据库归档，
 用于直接分析、审计、二次开发或给新的消费者编写适配器；Immich 文本目录只是其中一个导出格式。
 
 归档成员固定为：
@@ -37,7 +37,7 @@ SHA256、ETag 与 Last-Modified；`dataset_meta` 保存格式版本、工具版�
 ## 直接查询
 
 ```bash
-unzip dataset.sqlite.zip
+unzip immich-cn-dataset-sqlite-v1.zip
 sqlite3 dataset.sqlite \
   "SELECT geoname_name, country_name, admin1_name, admin2_name, source
    FROM localized_places WHERE geoname_id = 1816670;"
@@ -51,8 +51,8 @@ Immich 的制表符列位置，也不要求把数据挂载到 Immich 目录。
 `schema.json` 与 `dataset_meta` 中的 `schemaVersion` 是规范结构版本；它与项目版本、
 数据日期标签相互独立。规范字段的破坏性变更必须提升该版本。
 
-发布层的 canonical ID、profile/scope 和兼容文件名规则见 [制品命名规范 v2](artifact-spec.md)。
+发布层的 canonical ID、profile/scope 和唯一文件名规则见 [制品命名规范 v3](artifact-spec.md)。
 
-需要 Immich 时，使用同一 Release 中的 `geodata.zip` 或 `geodata_full.zip`。它们由规范模型
+需要 Immich 时，使用同一 Release 中的 `immich-cn-geodata-immich-admin2-default-v1.zip` 或 `immich-cn-geodata-immich-admin2-full-v1.zip`。它们由规范模型
 导出，并通过 `docs/architecture.md` 中的制品契约校验；不能反过来要求规范模型复制 Immich
 的文本列布局。

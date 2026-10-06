@@ -11,12 +11,12 @@ from typing import Any
 
 import httpx
 
-from immich_cn.config import USER_AGENT, BuildOptions, positive_int_env
-from immich_cn.http import retry_delay
-from immich_cn.logging_setup import get_logger
-from immich_cn.models import Place, PlaceNames
+from immich_cn.domain import Place, PlaceNames
+from immich_cn.fetching import retry_delay
+from immich_cn.logging_config import get_logger
 from immich_cn.providers.cache import JsonlCache
-from immich_cn.ratelimit import RateLimiter
+from immich_cn.rate_limit import RateLimiter
+from immich_cn.settings import USER_AGENT, BuildOptions, positive_int_env
 
 logger = get_logger("nominatim")
 

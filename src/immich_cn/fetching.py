@@ -13,10 +13,10 @@ from pathlib import Path
 
 import httpx
 
-from immich_cn.config import USER_AGENT, SourceSpec
+from immich_cn.domain import SourceRecord
 from immich_cn.errors import SourceError
-from immich_cn.logging_setup import get_logger
-from immich_cn.models import SourceRecord
+from immich_cn.logging_config import get_logger
+from immich_cn.settings import USER_AGENT, SourceSpec
 
 logger = get_logger("http")
 

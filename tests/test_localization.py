@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from immich_cn.chinese import (
+from immich_cn.localization import (
     ChineseNameIndex,
     NameOverrides,
     build_name_index,

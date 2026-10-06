@@ -9,8 +9,22 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from immich_cn import ARTIFACT_SPEC_VERSION
-from immich_cn.artifacts import artifact_id, canonical_filename, profile_id, scope_name
-from immich_cn.build import (
+from immich_cn.artifact_spec import (
+    CHECKSUMS_FILE,
+    DATASET_FILE,
+    I18N_FILE,
+    MANIFEST_FILE,
+    PATTERNS_FILE,
+    artifact_id,
+    canonical_filename,
+)
+from immich_cn.dataset import DATASET_ARCHIVE, DATASET_FORMAT, DATASET_SCHEMA_VERSION, write_canonical_dataset
+from immich_cn.display import validate_pattern
+from immich_cn.domain import Variant
+from immich_cn.errors import ParseError
+from immich_cn.fetching import sha256_file
+from immich_cn.logging_config import get_logger
+from immich_cn.pipeline import (
     BuildResult,
     cleanup_removable,
     display_name,
@@ -19,13 +33,7 @@ from immich_cn.build import (
     write_pattern_rows,
     write_patterns_table,
 )
-from immich_cn.canonical import DATASET_ARCHIVE, DATASET_FORMAT, DATASET_SCHEMA_VERSION, write_canonical_dataset
-from immich_cn.config import DEFAULT_PATTERN, BuildOptions
-from immich_cn.errors import ParseError
-from immich_cn.http import sha256_file
-from immich_cn.logging_setup import get_logger
-from immich_cn.models import Variant
-from immich_cn.patterns import slugify, validate_pattern
+from immich_cn.settings import BuildOptions
 
 logger = get_logger("package")
 
@@ -50,9 +58,8 @@ def build_variants(patterns: tuple[str, ...]) -> list[Variant]:
     variants: list[Variant] = []
     for pattern in patterns:
         validate_pattern(pattern)
-        slug = slugify(pattern)
-        variants.append(Variant(pattern=pattern, slug=slug, full=False))
-        variants.append(Variant(pattern=pattern, slug=slug, full=True))
+        variants.append(Variant(pattern=pattern, full=False))
+        variants.append(Variant(pattern=pattern, full=True))
     return variants
 
 
@@ -82,12 +89,11 @@ def package_all(options: BuildOptions, result: BuildResult) -> PackageResult:
             package_result.variants.append(
                 {
                     "pattern": variant.pattern,
-                    "slug": variant.slug,
                     "full": variant.full,
                     "file": path.name,
                     "id": artifact_id(variant.pattern, variant.full),
-                    "profile": profile_id(variant.pattern),
-                    "scope": scope_name(variant.full),
+                    "profile": variant.profile,
+                    "scope": variant.scope,
                     "schemaVersion": 1,
                     "canonicalFile": canonical_filename(variant.pattern, variant.full),
                     "sizeBytes": path.stat().st_size,
@@ -95,16 +101,12 @@ def package_all(options: BuildOptions, result: BuildResult) -> PackageResult:
                 }
             )
 
-    default_slug = slugify(DEFAULT_PATTERN)
-    _write_alias(options.dist_dir, "geodata.zip", f"geodata_{default_slug}.zip")
-    _write_alias(options.dist_dir, "geodata_full.zip", f"geodata_{default_slug}_full.zip")
-
     legacy_zip = _write_i18n_archive(options.dist_dir, result)
     package_result.artifacts.append(legacy_zip)
 
     # 默认直接流式写 gzip，避免为 121 MiB 明文中间表额外写盘再读回。
-    patterns_table = options.work_dir / "patterns.tsv"
-    compressed = options.dist_dir / "patterns.tsv.gz"
+    patterns_table = options.work_dir / "immich-cn-patterns-v1.tsv"
+    compressed = options.dist_dir / PATTERNS_FILE
     if options.keep_raw:
         rows = write_patterns_table(patterns_table, levels=levels, patterns=options.patterns)
         package_result.patterns_table = patterns_table
@@ -214,7 +216,7 @@ def _zip_bytes(
 
 
 def _write_i18n_archive(dist_dir: Path, result: BuildResult) -> Path:
-    target = dist_dir / "i18n-iso-countries.zip"
+    target = dist_dir / I18N_FILE
     license_path = result.langs_dir / "LICENSE"
     if not license_path.exists():
         raise ParseError(f"缺少 {license_path}，拒绝生成不含版权声明的语言包")
@@ -227,29 +229,32 @@ def _write_i18n_archive(dist_dir: Path, result: BuildResult) -> Path:
     return target
 
 
-def _write_alias(dist_dir: Path, alias: str, target: str) -> None:
-    source = dist_dir / target
-    if not source.exists():
-        return
-    destination = dist_dir / alias
-    if destination.exists():
-        destination.unlink()
-    destination.hardlink_to(source)
+def _asset_kind(name: str) -> str:
+    if name.startswith("immich-cn-geodata-"):
+        return "geodata"
+    if name == DATASET_FILE:
+        return "dataset"
+    if name == PATTERNS_FILE:
+        return "patterns"
+    if name == I18N_FILE:
+        return "i18n"
+    return "other"
 
 
 def _write_manifest(options: BuildOptions, result: BuildResult, package_result: PackageResult) -> Path:
     manifest = result.as_manifest()
     manifest["artifactSpecVersion"] = ARTIFACT_SPEC_VERSION
     manifest["artifacts"] = sorted(package_result.variants, key=lambda item: str(item["id"]))
-    manifest["variants"] = sorted(package_result.variants, key=lambda item: str(item["file"]))
-    aliases = {}
-    if (options.dist_dir / "geodata.zip").exists():
-        aliases["geodata.zip"] = artifact_id(DEFAULT_PATTERN, False)
-    if (options.dist_dir / "geodata_full.zip").exists():
-        aliases["geodata_full.zip"] = artifact_id(DEFAULT_PATTERN, True)
-    manifest["aliases"] = aliases
-    manifest["legacyAliases"] = {str(item["file"]): str(item["id"]) for item in package_result.variants}
-    manifest["patternsTable"] = "patterns.tsv.gz"
+    manifest["assets"] = [
+        {
+            "file": path.name,
+            "kind": _asset_kind(path.name),
+            "sizeBytes": path.stat().st_size,
+            "sha256": sha256_file(path),
+        }
+        for path in sorted(package_result.artifacts, key=lambda item: item.name)
+    ]
+    manifest["patternsTable"] = PATTERNS_FILE
     if package_result.dataset is not None:
         manifest["dataset"] = {
             "file": DATASET_ARCHIVE,
@@ -262,16 +267,16 @@ def _write_manifest(options: BuildOptions, result: BuildResult, package_result: 
         "code": "MIT",
         "data": "见 NOTICE 与 docs/licensing.md",
     }
-    path = options.dist_dir / "manifest.json"
+    path = options.dist_dir / MANIFEST_FILE
     path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return path
 
 
 def _write_checksums(dist_dir: Path) -> Path:
-    path = dist_dir / "SHA256SUMS"
+    path = dist_dir / CHECKSUMS_FILE
     entries: list[tuple[str, str]] = []
     for item in sorted(dist_dir.iterdir()):
-        if not item.is_file() or item.name in {"SHA256SUMS"}:
+        if not item.is_file() or item.name in {CHECKSUMS_FILE}:
             continue
         entries.append((sha256_file(item), item.name))
     path.write_text("".join(f"{digest}  {name}\n" for digest, name in entries), encoding="utf-8")

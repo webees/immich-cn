@@ -31,7 +31,7 @@ on:
       snapshot-retention:
         description: 保留最近多少个 data-* 快照（其余自动清理）
         type: number
-        default: 14
+        default: 3
 
 permissions:
   contents: read
@@ -64,7 +64,7 @@ jobs:
     permissions:
       contents: write
     env:
-      SNAPSHOT_RETENTION: ${{ inputs.snapshot-retention || 14 }}
+      SNAPSHOT_RETENTION: ${{ inputs.snapshot-retention || 3 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -82,12 +82,12 @@ jobs:
             gh release upload auto-release dist/* --clobber
             gh release edit auto-release \
               --repo "$GITHUB_REPOSITORY" \
-              --title "自动更新数据 ${DATE}" \
+              --title "滚动数据 ${DATE}" \
               --notes-file .github/auto_release_note.md
           else
             gh release create auto-release dist/* \
               --repo "$GITHUB_REPOSITORY" \
-              --title "自动更新数据 ${DATE}" \
+              --title "滚动数据 ${DATE}" \
               --notes-file .github/auto_release_note.md
           fi
 
@@ -106,7 +106,7 @@ jobs:
             fi
             gh release create "$revision_tag" dist/* \
               --repo "$GITHUB_REPOSITORY" \
-              --title "数据修订 ${DATE} ${short_sha}" \
+              --title "数据快照修订 ${DATE} ${short_sha}" \
               --notes "该 Release 为同日后续不可变修订；提交 \`${SHORT_SHA}\`，内容与本次 auto-release 一致。"
             exit 0
           fi
@@ -143,7 +143,7 @@ jobs:
             echo "- 上游数据：**已变化**，已重新构建并发布"
             echo "- 数据镜像摘要：\`${DIGEST:-未推送}\`"
             echo "- Immich 覆盖镜像：\`ghcr.io/${GITHUB_REPOSITORY}-server:${DATE}\`"
-            echo "- data-* 快照保留：${SNAPSHOT_RETENTION:-14} 个"
+            echo "- data-* 快照保留：${SNAPSHOT_RETENTION:-3} 个"
           } >> "$GITHUB_STEP_SUMMARY"
 
   no-change:

@@ -14,18 +14,19 @@ import zipfile
 from collections.abc import Mapping
 from pathlib import Path
 
-from immich_cn.build import BuildResult, is_fine_grained
+from immich_cn.artifact_spec import DATASET_FILE, DATASET_MEMBER
+from immich_cn.domain import Place
 from immich_cn.errors import ParseError
 from immich_cn.geonames import iter_places
-from immich_cn.logging_setup import get_logger
-from immich_cn.models import Place
+from immich_cn.logging_config import get_logger
+from immich_cn.pipeline import BuildResult, is_fine_grained
 
 logger = get_logger("canonical")
 
 DATASET_SCHEMA_VERSION = 1
 DATASET_FORMAT = "immich-cn.dataset/1"
-DATASET_ARCHIVE = "dataset.sqlite.zip"
-SQLITE_MEMBER = "dataset.sqlite"
+DATASET_ARCHIVE = DATASET_FILE
+SQLITE_MEMBER = DATASET_MEMBER
 SCHEMA_MEMBER = "schema.json"
 NOTICE_MEMBER = "NOTICE.txt"
 README_MEMBER = "README.txt"
@@ -42,7 +43,7 @@ def write_canonical_dataset(
     levels: Mapping[int, tuple[str, str, str, str, str]],
     min_population: int,
 ) -> Path:
-    """生成可查询的规范数据集归档 ``dataset.sqlite.zip``。"""
+    """生成可查询的规范数据集归档 ``immich-cn-dataset-sqlite-v1.zip``。"""
     dist_dir.mkdir(parents=True, exist_ok=True)
     database = work_dir / "dataset.sqlite"
     database.unlink(missing_ok=True)
@@ -335,11 +336,11 @@ def _schema_payload() -> bytes:
 
 def _readme_payload() -> bytes:
     return (
-        "immich-cn canonical dataset\n"
+        "immich-cn canonical dataset\n"  # noqa: S608 - 只拼接固定成员名，不接受外部 SQL
         "===========================\n\n"
-        "dataset.sqlite 是可查询的 SQLite 3 数据库，不是 Immich 文本格式。\n"
+        f"{SQLITE_MEMBER} 是可查询的 SQLite 3 数据库，不是 Immich 文本格式。\n"
         "示例：\n"
-        '  sqlite3 dataset.sqlite "SELECT geoname_name, country_name, admin1_name, admin2_name, source '
+        f'  sqlite3 {SQLITE_MEMBER} "SELECT geoname_name, country_name, admin1_name, admin2_name, source '
         'FROM localized_places WHERE geoname_id = 1816670;"\n\n'
         "Immich 兼容输出请使用同目录的 geodata*.zip。\n"
     ).encode()

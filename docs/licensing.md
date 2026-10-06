@@ -12,7 +12,7 @@
 
 ## 数据制品
 
-**数据制品不适用 MIT。** `dist/*.zip`（包括规范数据集 `dataset.sqlite.zip`）、镜像中的
+**数据制品不适用 MIT。** `dist/*.zip`（包括规范数据集 `immich-cn-dataset-sqlite-v1.zip`）、镜像中的
 `geodata` 目录等产物来自多个上游数据源，再分发时必须遵守各自的许可：
 
 | 来源 | 许可 | 要求 |

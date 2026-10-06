@@ -8,11 +8,11 @@ from pathlib import Path
 import httpx
 import pytest
 
-from immich_cn.build import _materialize
-from immich_cn.config import BuildOptions, SourceSpec
+from immich_cn.domain import SourceRecord
 from immich_cn.errors import SourceError
-from immich_cn.http import Fetcher, retry_delay, sha256_bytes
-from immich_cn.models import SourceRecord
+from immich_cn.fetching import Fetcher, retry_delay, sha256_bytes
+from immich_cn.pipeline import _materialize
+from immich_cn.settings import BuildOptions, SourceSpec
 
 # 以 root 运行时文件权限不生效，无法构造只读目录场景
 requires_real_permissions = pytest.mark.skipif(
@@ -464,7 +464,7 @@ def test_fetcher_rejects_206_without_content_range_and_redownloads(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """206 缺少 Content-Range 时不能拼接；正常服务端应能随后完整重下。"""
-    monkeypatch.setattr("immich_cn.http.time.sleep", lambda _seconds: None)
+    monkeypatch.setattr("immich_cn.fetching.time.sleep", lambda _seconds: None)
     payload = b"A" * 20
     calls: list[str | None] = []
     cache = tmp_path / "cache"
@@ -499,7 +499,7 @@ def test_fetcher_rejects_partial_content_range_and_redownloads(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """206 只返回中间片段而不是完整尾部时，必须丢弃并完整重下。"""
-    monkeypatch.setattr("immich_cn.http.time.sleep", lambda _seconds: None)
+    monkeypatch.setattr("immich_cn.fetching.time.sleep", lambda _seconds: None)
     payload = b"A" * 20
     calls: list[str | None] = []
     cache = tmp_path / "cache"
@@ -584,7 +584,7 @@ def test_fetcher_does_not_retry_permanent_client_errors(tmp_path: Path) -> None:
 
 def test_fetcher_retries_retryable_status(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """503 属于可重试状态，应当重试到上限。"""
-    monkeypatch.setattr("immich_cn.http.time.sleep", lambda _seconds: None)
+    monkeypatch.setattr("immich_cn.fetching.time.sleep", lambda _seconds: None)
     calls: list[int] = []
 
     def unavailable(_request: httpx.Request) -> httpx.Response:

@@ -1,7 +1,7 @@
 #!/bin/sh
 # 在容器内按指定展示粒度重写 geodata/cities500.txt 的第 1、2 列。
 #
-# 用法：immich-cn-apply-pattern --source <geodata 目录> --table <patterns.tsv[.gz]> --pattern '{admin_2} {admin_3}'
+# 用法：immich-cn-apply-pattern --source <geodata 目录> --table <immich-cn-patterns-v1.tsv[.gz]> --pattern '{admin_2} {admin_3}'
 set -eu
 
 source_dir=""
@@ -57,18 +57,18 @@ status=0
 trap 'status=$?; rm -rf "$work"; exit $status' EXIT INT TERM
 
 case "$table" in
-  *.gz) gzip -dc "$table" > "$work/patterns.tsv" ;;
-  *)    cp "$table" "$work/patterns.tsv" ;;
+  *.gz) gzip -dc "$table" > "$work/immich-cn-patterns-v1.tsv" ;;
+  *)    cp "$table" "$work/immich-cn-patterns-v1.tsv" ;;
 esac
 
 column="$(awk -F'\t' -v wanted="$pattern" '
   NR == 1 { for (i = 1; i <= NF; i++) if ($i == wanted) found = i }
   END { print found }
-' "$work/patterns.tsv")"
+' "$work/immich-cn-patterns-v1.tsv")"
 
 if [ -z "$column" ]; then
   echo "未知展示粒度：$pattern" >&2
-  echo "可用粒度：$(head -n 1 "$work/patterns.tsv")" >&2
+  echo "可用粒度：$(head -n 1 "$work/immich-cn-patterns-v1.tsv")" >&2
   exit 2
 fi
 
@@ -91,7 +91,7 @@ awk -F'\t' -v OFS='\t' -v column="$column" -v countfile="$work/matched" -v total
     print matched + 0 > countfile
     print total + 0 > totalfile
   }
-' "$work/patterns.tsv" "$cities" > "$work/cities500.txt"
+' "$work/immich-cn-patterns-v1.tsv" "$cities" > "$work/cities500.txt"
 
 matched="$(cat "$work/matched")"
 total="$(cat "$work/total")"

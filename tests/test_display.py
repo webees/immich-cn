@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from immich_cn.errors import ConfigError
-from immich_cn.patterns import (
+from immich_cn.display import (
     ALLOWED_KEYS,
     compose,
     normalize_level,
@@ -11,6 +10,7 @@ from immich_cn.patterns import (
     slugify,
     validate_pattern,
 )
+from immich_cn.errors import ConfigError
 
 
 def test_compose_deduplicates_adjacent_levels() -> None:

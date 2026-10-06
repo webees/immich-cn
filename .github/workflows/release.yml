@@ -107,5 +107,5 @@ jobs:
           fi
           gh release create "$tag" dist/* \
             --repo "$GITHUB_REPOSITORY" \
-            --title "$tag" \
+            --title "代码版本 $tag" \
             --generate-notes
