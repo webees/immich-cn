@@ -8,6 +8,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from immich_cn import ARTIFACT_SPEC_VERSION
+from immich_cn.artifacts import artifact_id, canonical_filename, profile_id, scope_name
 from immich_cn.build import (
     BuildResult,
     cleanup_removable,
@@ -83,6 +85,11 @@ def package_all(options: BuildOptions, result: BuildResult) -> PackageResult:
                     "slug": variant.slug,
                     "full": variant.full,
                     "file": path.name,
+                    "id": artifact_id(variant.pattern, variant.full),
+                    "profile": profile_id(variant.pattern),
+                    "scope": scope_name(variant.full),
+                    "schemaVersion": 1,
+                    "canonicalFile": canonical_filename(variant.pattern, variant.full),
                     "sizeBytes": path.stat().st_size,
                     "sha256": sha256_file(path),
                 }
@@ -232,7 +239,15 @@ def _write_alias(dist_dir: Path, alias: str, target: str) -> None:
 
 def _write_manifest(options: BuildOptions, result: BuildResult, package_result: PackageResult) -> Path:
     manifest = result.as_manifest()
+    manifest["artifactSpecVersion"] = ARTIFACT_SPEC_VERSION
+    manifest["artifacts"] = sorted(package_result.variants, key=lambda item: str(item["id"]))
     manifest["variants"] = sorted(package_result.variants, key=lambda item: str(item["file"]))
+    aliases = {}
+    if (options.dist_dir / "geodata.zip").exists():
+        aliases["geodata.zip"] = artifact_id(DEFAULT_PATTERN, False)
+    if (options.dist_dir / "geodata_full.zip").exists():
+        aliases["geodata_full.zip"] = artifact_id(DEFAULT_PATTERN, True)
+    manifest["aliases"] = aliases
     manifest["patternsTable"] = "patterns.tsv.gz"
     if package_result.dataset is not None:
         manifest["dataset"] = {

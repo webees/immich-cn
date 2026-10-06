@@ -17,6 +17,8 @@ import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
+from immich_cn.artifacts import validate_artifact_id, validate_canonical_filename
+
 GEO_COLUMNS = 19
 MAX_ARCHIVE_UNCOMPRESSED_BYTES = 2 * 1024**3
 MAX_ENTRY_UNCOMPRESSED_BYTES = 1024**3
@@ -37,21 +39,65 @@ def check_manifest(dist: Path, errors: list[str]) -> None:
         errors.append("缺少 manifest.json")
         return
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    variants = manifest.get("variants")
-    if not isinstance(variants, list) or not variants:
-        errors.append("manifest.json 没有 variants")
+    if manifest.get("artifactSpecVersion") != 2:
+        errors.append("manifest.json 的 artifactSpecVersion 不是 2")
+    artifacts = manifest.get("artifacts")
+    if not isinstance(artifacts, list) or not artifacts:
+        errors.append("manifest.json 没有 canonical artifacts")
         return
 
-    for variant in variants:
-        name = str(variant.get("file", ""))
+    variants = manifest.get("variants")
+    if not isinstance(variants, list) or not variants:
+        errors.append("manifest.json 没有 legacy variants")
+    else:
+        for variant in variants:
+            if not isinstance(variant, dict):
+                errors.append("manifest.json 的 variants 含非对象条目")
+                continue
+            name = str(variant.get("file", ""))
+            path = dist / name
+            if not path.exists():
+                errors.append(f"manifest 列出但文件不存在：{name}")
+                continue
+            if path.stat().st_size != int(variant.get("sizeBytes", -1)):
+                errors.append(f"{name} 大小与 manifest 不一致")
+            if sha256_file(path) != variant.get("sha256"):
+                errors.append(f"{name} SHA256 与 manifest 不一致")
+
+    artifact_ids: set[str] = set()
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            errors.append("manifest.json 的 artifacts 含非对象条目")
+            continue
+        artifact_id = str(artifact.get("id", ""))
+        canonical_file = str(artifact.get("canonicalFile", ""))
+        profile = str(artifact.get("profile", ""))
+        if not validate_artifact_id(artifact_id):
+            errors.append(f"manifest.json 含非法 artifact ID：{artifact_id!r}")
+        if not validate_canonical_filename(canonical_file):
+            errors.append(f"manifest.json 含非法 canonical 文件名：{canonical_file!r}")
+        if "{" in profile or "}" in profile or "_" in profile:
+            errors.append(f"manifest.json 的 profile 不稳定：{profile!r}")
+        artifact_ids.add(artifact_id)
+        name = str(artifact.get("file", ""))
         path = dist / name
         if not path.exists():
             errors.append(f"manifest 列出但文件不存在：{name}")
             continue
-        if path.stat().st_size != int(variant.get("sizeBytes", -1)):
+        if path.stat().st_size != int(artifact.get("sizeBytes", -1)):
             errors.append(f"{name} 大小与 manifest 不一致")
-        if sha256_file(path) != variant.get("sha256"):
+        if sha256_file(path) != artifact.get("sha256"):
             errors.append(f"{name} SHA256 与 manifest 不一致")
+
+    aliases = manifest.get("aliases")
+    if not isinstance(aliases, dict):
+        errors.append("manifest.json 没有 aliases 映射")
+        return
+    for alias, target in aliases.items():
+        if not isinstance(alias, str) or target not in artifact_ids:
+            errors.append(f"manifest.json 的 alias 无效：{alias!r} -> {target!r}")
+        if not (dist / str(alias)).exists():
+            errors.append(f"manifest.json 的 alias 文件不存在：{alias}")
 
 
 def check_zips(dist: Path, errors: list[str]) -> int:
