@@ -641,6 +641,31 @@ def check_dataset_member_doc(errors: list[str]) -> None:
             errors.append(f"{path} 的 sqlite3 示例使用 {name!r}，与归档成员 {DATASET_MEMBER!r} 不一致")
 
 
+def check_i18n_asset_documented(paths: list[Path], errors: list[str]) -> None:
+    """面向 Release 下载的文档必须说明 i18n 覆盖包是独立资产。
+
+    `immich-cn-i18n-json-v1.zip` 与 geodata zip 分开发布，geodata zip 里没有 `langs/`；
+    只下载 geodata 会让 Immich 1.136.0 ~ 3.2.x 缺少国家名覆盖。
+    """
+    required = {"README.md", "docs/deployment.md"}
+    seen: set[str] = set()
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        # 同时接受仓库相对路径与绝对路径（便于单元测试直接传入临时文件）
+        label = "README.md" if path.name == "README.md" else "docs/deployment.md"
+        if "i18n-iso-countries/langs" not in text:
+            continue
+        if label in required and (path.name == "README.md" or path.as_posix().endswith("docs/deployment.md")):
+            seen.add(label)
+            if "immich-cn-i18n-json-v1.zip" not in text:
+                errors.append(
+                    f"{path} 要求挂载 i18n-iso-countries/langs，但未说明需单独下载 immich-cn-i18n-json-v1.zip"
+                )
+    missing = sorted(required - seen)
+    if missing:
+        errors.append(f"以下文档未提及 i18n 挂载契约，护栏可能已失效：{'、'.join(missing)}")
+
+
 def check_asset_names(paths: list[Path], errors: list[str]) -> None:
     """文档中的发布资产名必须符合 v4 规范，且不能回退到 legacy 命名。"""
     sys.path.insert(0, str(Path("src").resolve()))
@@ -707,6 +732,7 @@ def main(argv: list[str] | None = None) -> int:
     check_dataset_member_doc(errors)
     check_immich_countryinfo_boundary(render_files, errors)
     check_adm4_coverage_wording(render_files, errors)
+    check_i18n_asset_documented(render_files, errors)
     check_asset_names(render_files, errors)
 
     for error in errors:
