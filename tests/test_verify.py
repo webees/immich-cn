@@ -49,6 +49,24 @@ def test_admin2_ascii_names_are_rejected(build_options: BuildOptions) -> None:
     assert "admin2" in failures, failures
 
 
+def test_japan_admin2_ascii_names_are_rejected(build_options: BuildOptions) -> None:
+    result = run_build(build_options)
+    admin2 = result.geodata_dir / "admin2Codes.txt"
+
+    def strip_japan(lines: list[str]) -> list[str]:
+        out = []
+        for line in lines:
+            fields = line.split("\t")
+            if fields[0].startswith("JP."):
+                fields[1] = fields[2] = "Sapporo"
+            out.append("\t".join(fields))
+        return out
+
+    admin2.write_text("\n".join(strip_japan(admin2.read_text(encoding="utf-8").splitlines())) + "\n", encoding="utf-8")
+    failures = _failures(result.geodata_dir)
+    assert "admin2" in failures, failures
+
+
 def test_admin1_ascii_names_are_rejected(build_options: BuildOptions) -> None:
     result = run_build(build_options)
     admin1 = result.geodata_dir / "admin1CodesASCII.txt"

@@ -64,6 +64,8 @@ def verify_geodata(
             "admin2",
             min_overall_ratio=0.0,
             min_country_ratio=min_cn_admin_ratio,
+            regions=("CN.", "TW.", "JP."),
+            region_min_ratios={"JP.": 0.90},
         )
     )
     results.append(_check_country_info(directory / "countryInfo.txt"))
