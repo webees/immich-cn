@@ -44,6 +44,10 @@ ABSOLUTE_CLAIMS = {
     "不会发布坏数据": "改为已实现检查失败会阻断发布，不声称覆盖所有潜在缺陷",
     "零密钥": "改为“无需 API Key”，并说明默认 provider 的依赖",
 }
+ASSET_TOKEN = re.compile(r"\bimmich-cn-[A-Za-z0-9._<>-]+")
+CANONICAL_GEODATA = re.compile(r"^immich-cn-geodata-[a-z0-9-]+-(default|full)-v[0-9]+\.zip$")
+INTERNAL_FILES = {"immich-cn-patterns-v1.tsv"}
+LEGACY_ASSET_PREFIXES = ("geodata_admin_", "geodata_full", "geodata.zip")
 
 #: 价值完全依赖"能被找到"的文件：必须在 README 或 docs 中被引用，否则等于隐藏文件。
 DISCOVERABLE_GLOBS = ("NOTICE", "examples/*.yml", "docs/*.md")
@@ -278,6 +282,37 @@ def check_absolute_claims(paths: list[Path], errors: list[str]) -> None:
                 errors.append(f"{path} 使用绝对化表述 {phrase!r}；{replacement}")
 
 
+def check_asset_names(paths: list[Path], errors: list[str]) -> None:
+    """文档中的发布资产名必须符合 v4 规范，且不能回退到 legacy 命名。"""
+    sys.path.insert(0, str(Path("src").resolve()))
+    from immich_cn.artifact_spec import (
+        CHECKSUMS_FILE,
+        DATASET_FILE,
+        I18N_FILE,
+        MANIFEST_FILE,
+        PATTERNS_FILE,
+    )
+
+    allowed = {CHECKSUMS_FILE, DATASET_FILE, I18N_FILE, MANIFEST_FILE, PATTERNS_FILE, *INTERNAL_FILES}
+    suffixes = (".zip", ".gz", ".json", ".txt")
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        for token in ASSET_TOKEN.findall(text):
+            token = token.rstrip("。，,.)")
+            if not token.endswith(suffixes):
+                continue
+            if "<" in token or ">" in token:
+                continue
+            if token.startswith("immich-cn-geodata-immich-"):
+                errors.append(f"{path} 的资产名重复项目命名空间：{token}")
+            elif any(legacy in token for legacy in LEGACY_ASSET_PREFIXES):
+                errors.append(f"{path} 仍引用 legacy 资产名：{token}")
+            elif token in allowed or CANONICAL_GEODATA.fullmatch(token):
+                continue
+            else:
+                errors.append(f"{path} 使用未登记的发布资产名：{token}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--quiet", action="store_true")
@@ -298,6 +333,7 @@ def main(argv: list[str] | None = None) -> int:
     check_referenced_paths(doc_files, errors)
     check_project_positioning(errors)
     check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
+    check_asset_names(doc_files, errors)
 
     for error in errors:
         print(f"[!!] {error}")
