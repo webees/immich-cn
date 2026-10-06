@@ -158,6 +158,11 @@ class Fetcher:
             return None
         if not isinstance(payload, dict) or payload.get("url") != spec.url:
             return None
+        if not isinstance(payload.get("sha256"), str) or not payload["sha256"]:
+            return None
+        size_bytes = payload.get("sizeBytes")
+        if not isinstance(size_bytes, int) or isinstance(size_bytes, bool) or size_bytes < 0:
+            return None
         return payload
 
     def fetch(self, spec: SourceSpec) -> FetchedSource:
