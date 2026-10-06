@@ -176,6 +176,56 @@ def test_fetcher_revalidate_ignores_empty_body(tmp_path: Path) -> None:
     assert (tmp_path / "cache" / "demo.txt").read_bytes() == b"v1"
 
 
+def test_fetcher_revalidate_keeps_cache_on_truncated_body(tmp_path: Path) -> None:
+    """强制校验时，Content-Length 与正文不一致不能覆盖健康缓存。"""
+
+    def ok(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"A" * 20, headers={"content-length": "20", "etag": '"e1"'})
+
+    def truncated(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"A" * 10, headers={"content-length": "20", "etag": '"e2"'})
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.bin", filename="demo.bin")
+    with Fetcher(tmp_path / "cache", client=httpx.Client(transport=httpx.MockTransport(ok))) as fetcher:
+        cached = fetcher.fetch(spec)
+    with Fetcher(
+        tmp_path / "cache",
+        revalidate=True,
+        client=httpx.Client(transport=httpx.MockTransport(truncated)),
+    ) as fetcher:
+        result = fetcher.fetch(spec)
+
+    assert result.record.sha256 == cached.record.sha256
+    assert result.path.read_bytes() == b"A" * 20
+
+
+def test_fetcher_revalidate_keeps_cache_on_unsolicited_206(tmp_path: Path) -> None:
+    """强制校验没有请求 Range，收到 206 时不能把片段当成完整新版本。"""
+
+    def ok(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"A" * 20, headers={"content-length": "20", "etag": '"e1"'})
+
+    def partial(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            206,
+            content=b"A" * 10,
+            headers={"content-length": "10", "etag": '"e2"', "content-range": "bytes 0-9/20"},
+        )
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.bin", filename="demo.bin")
+    with Fetcher(tmp_path / "cache", client=httpx.Client(transport=httpx.MockTransport(ok))) as fetcher:
+        cached = fetcher.fetch(spec)
+    with Fetcher(
+        tmp_path / "cache",
+        revalidate=True,
+        client=httpx.Client(transport=httpx.MockTransport(partial)),
+    ) as fetcher:
+        result = fetcher.fetch(spec)
+
+    assert result.record.sha256 == cached.record.sha256
+    assert result.path.read_bytes() == b"A" * 20
+
+
 def test_fetcher_rejects_truncated_download(tmp_path: Path) -> None:
     """Content-Length 与实际字节不一致时必须失败，避免把截断内容当成成功。"""
 
@@ -209,7 +259,15 @@ def test_fetcher_does_not_mix_versions_on_resume(tmp_path: Path) -> None:
         if request.headers.get("range") is not None:
             state["phase"] = 3
             # 上游已换成 v2，但服务端照旧返回 206
-            return httpx.Response(206, content=v2, headers={"content-length": str(len(v2)), "etag": '"v2"'})
+            return httpx.Response(
+                206,
+                content=v2[10:],
+                headers={
+                    "content-length": str(len(v2) - 10),
+                    "etag": '"v2"',
+                    "content-range": "bytes 10-19/20",
+                },
+            )
         return httpx.Response(200, content=v2, headers={"content-length": str(len(v2)), "etag": '"v2"'})
 
     spec = SourceSpec(name="demo", url="https://example.com/demo.bin", filename="demo.bin")
@@ -241,7 +299,11 @@ def test_fetcher_resumes_when_validator_matches(tmp_path: Path) -> None:
         if state["phase"] == 1:
             state["phase"] = 2
             return httpx.Response(200, content=total[:10], headers={"content-length": "20", "etag": '"v1"'})
-        return httpx.Response(206, content=total[10:], headers={"content-length": "10", "etag": '"v1"'})
+        return httpx.Response(
+            206,
+            content=total[10:],
+            headers={"content-length": "10", "etag": '"v1"', "content-range": "bytes 10-19/20"},
+        )
 
     spec = SourceSpec(name="demo", url="https://example.com/demo.bin", filename="demo.bin")
     client = httpx.Client(transport=httpx.MockTransport(handler))
@@ -338,6 +400,84 @@ def test_fetcher_rejects_mismatched_content_range(tmp_path: Path) -> None:
         fetcher.fetch(spec)
     assert "Content-Range 起点" in str(excinfo.value)
     assert not (tmp_path / "cache" / "demo.bin.part").exists(), "起点不符时必须丢弃分片"
+
+
+def test_fetcher_rejects_206_without_content_range_and_redownloads(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """206 缺少 Content-Range 时不能拼接；正常服务端应能随后完整重下。"""
+    monkeypatch.setattr("immich_cn.http.time.sleep", lambda _seconds: None)
+    payload = b"A" * 20
+    calls: list[str | None] = []
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    part = cache / "demo.bin.part"
+    part.write_bytes(payload[:10])
+    (cache / "demo.bin.part.meta").write_text(
+        json.dumps({"url": "https://example.com/demo.bin", "etag": '"v1"', "lastModified": ""}),
+        encoding="utf-8",
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.headers.get("range"))
+        if request.headers.get("range") is not None:
+            return httpx.Response(206, content=payload[10:], headers={"content-length": "10", "etag": '"v1"'})
+        return httpx.Response(200, content=payload, headers={"content-length": "20", "etag": '"v1"'})
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.bin", filename="demo.bin")
+    with Fetcher(
+        cache,
+        retries=2,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    ) as fetcher:
+        result = fetcher.fetch(spec)
+
+    assert calls == ["bytes=10-", None]
+    assert result.path.read_bytes() == payload
+
+
+def test_fetcher_rejects_partial_content_range_and_redownloads(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """206 只返回中间片段而不是完整尾部时，必须丢弃并完整重下。"""
+    monkeypatch.setattr("immich_cn.http.time.sleep", lambda _seconds: None)
+    payload = b"A" * 20
+    calls: list[str | None] = []
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    part = cache / "demo.bin.part"
+    part.write_bytes(payload[:10])
+    (cache / "demo.bin.part.meta").write_text(
+        json.dumps({"url": "https://example.com/demo.bin", "etag": '"v1"', "lastModified": ""}),
+        encoding="utf-8",
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.headers.get("range"))
+        if request.headers.get("range") is not None:
+            return httpx.Response(
+                206,
+                content=b"B" * 5,
+                headers={
+                    "content-length": "5",
+                    "etag": '"v1"',
+                    "content-range": "bytes 10-14/20",
+                },
+            )
+        return httpx.Response(200, content=payload, headers={"content-length": "20", "etag": '"v1"'})
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.bin", filename="demo.bin")
+    with Fetcher(
+        cache,
+        retries=2,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    ) as fetcher:
+        result = fetcher.fetch(spec)
+
+    assert calls == ["bytes=10-", None]
+    assert result.path.read_bytes() == payload
 
 
 def test_fetcher_accepts_correct_content_range(tmp_path: Path) -> None:
