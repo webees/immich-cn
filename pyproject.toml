@@ -74,7 +74,8 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S603", "S607", "ARG001", "ARG002"]
+# 测试中会刻意使用"假密钥"来验证脱敏逻辑
+"tests/**" = ["S101", "S105", "S603", "S607", "ARG001", "ARG002"]
 
 [tool.ruff.format]
 quote-style = "double"
