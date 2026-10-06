@@ -231,6 +231,29 @@ def test_traditional_variant_translates_country_names(build_options: BuildOption
     assert "美國" in legacy
 
 
+def test_traditional_variant_converts_hong_kong_and_macao_names(build_options: BuildOptions) -> None:
+    traditional = BuildOptions(
+        work_dir=build_options.work_dir,
+        dist_dir=build_options.dist_dir,
+        cache_dir=build_options.cache_dir,
+        config_dir=build_options.config_dir,
+        extra_countries=build_options.extra_countries,
+        patterns=build_options.patterns,
+        provider="offline",
+        chinese_variant="hant",
+        skip_fetch=True,
+    )
+    result = run_build(traditional)
+
+    admin1 = (result.geodata_dir / "admin1CodesASCII.txt").read_text(encoding="utf-8")
+    assert "HK.NYL\t香港特別行政區\t香港特別行政區\t" in admin1
+    assert "MO.11875154\t澳門特別行政區\t澳門特別行政區\t" in admin1
+
+    cities = (result.geodata_dir / "cities500.txt").read_text(encoding="utf-8").splitlines()
+    hk = next(line.split("\t") for line in cities if line.startswith("1819729\t"))
+    assert hk[1] == "元朗區", hk
+
+
 # --------------------------------------------------------------------------
 # 阈值边界（M2 阈值反演）：刚好等于阈值必须通过，低一点必须失败
 # --------------------------------------------------------------------------
