@@ -154,7 +154,7 @@ jobs:
 
   notify-failure:
     name: 失败通知
-    needs: [build, release]
+    needs: [build, release, no-change, resolve-previous-failure]
     if: failure()
     runs-on: ubuntu-latest
     timeout-minutes: 10

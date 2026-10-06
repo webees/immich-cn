@@ -248,6 +248,19 @@ def test_check_workflows_detects_unscoped_automation_issue_search(repo_copy: Pat
     assert "未限定 automation 标签" in result.stdout
 
 
+def test_check_workflows_detects_incomplete_failure_notifier(repo_copy: Path) -> None:
+    """失败通知必须覆盖 no-change 与告警收敛 job，否则它们失败时静默无告警。"""
+    workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
+    mutate(
+        workflow,
+        "  notify-failure:\n    name: 失败通知\n    needs: [build, release, no-change, resolve-previous-failure]\n",
+        "  notify-failure:\n    name: 失败通知\n    needs: [build, release, no-change]\n",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "notify-failure 的 needs 未覆盖" in result.stdout
+
+
 def test_check_workflows_detects_illegal_key_on_reusable_job(repo_copy: Path) -> None:
     """这次修复过的真实事故：reusable 调用 job 上出现 timeout-minutes。"""
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"

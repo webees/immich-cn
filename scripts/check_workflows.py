@@ -196,6 +196,27 @@ def check_issue_search_scope(path: Path, workflow: dict[str, Any], errors: list[
                 )
 
 
+def check_failure_notifier_coverage(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """failure() 通知必须覆盖所有不会反向依赖它的 job。"""
+    jobs = workflow.get("jobs") or {}
+    notifier = jobs.get("notify-failure")
+    if not isinstance(notifier, dict) or "failure()" not in str(notifier.get("if", "")):
+        return
+    raw_needs = notifier.get("needs")
+    needs = {raw_needs} if isinstance(raw_needs, str) else set(raw_needs or [])
+    expected: set[str] = set()
+    for name, job in jobs.items():
+        if name == "notify-failure" or not isinstance(job, dict):
+            continue
+        job_needs = job.get("needs")
+        downstream = {job_needs} if isinstance(job_needs, str) else set(job_needs or [])
+        if "notify-failure" not in downstream:
+            expected.add(name)
+    missing = sorted(expected - needs)
+    if missing:
+        errors.append(f"{path}:notify-failure 的 needs 未覆盖 {missing}，这些 job 失败时不会创建告警")
+
+
 def _workflow_call_outputs(workflow: dict[str, Any]) -> set[str]:
     triggers = workflow.get("on")
     if not isinstance(triggers, dict):
@@ -269,6 +290,7 @@ def main() -> int:
         check_concurrency(path, workflow, errors)
         check_needs_coverage(path, workflow, errors)
         check_issue_search_scope(path, workflow, errors)
+        check_failure_notifier_coverage(path, workflow, errors)
         check_references(path, workflow, errors, outputs_by_workflow)
 
     for error in errors:
