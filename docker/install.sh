@@ -11,8 +11,12 @@ langs_root="${IMMICH_CN_LANGS_DIR:-/opt/immich-cn/i18n-iso-countries}"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --target) target="$2"; shift 2 ;;
-    --pattern) pattern="$2"; shift 2 ;;
+    --target)
+      [ "$#" -ge 2 ] || { echo "缺少 --target 参数" >&2; exit 2; }
+      target="$2"; shift 2 ;;
+    --pattern)
+      [ "$#" -ge 2 ] || { echo "缺少 --pattern 参数" >&2; exit 2; }
+      pattern="$2"; shift 2 ;;
     --geodata-only) langs_root=""; shift ;;
     -h|--help)
       sed -n '2,5p' "$0"
@@ -21,6 +25,11 @@ while [ "$#" -gt 0 ]; do
     *) echo "未知参数：$1" >&2; exit 2 ;;
   esac
 done
+
+if [ -z "$target" ] || [ -z "$(printf '%s' "$target" | tr -d '/')" ]; then
+  echo "错误：--target 不能为空或根目录（收到：${target:-空}）" >&2
+  exit 2
+fi
 
 mkdir -p "$target"
 
