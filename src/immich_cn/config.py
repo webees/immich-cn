@@ -185,10 +185,6 @@ class BuildOptions:
     def geodata_dir(self) -> Path:
         return self.work_dir / "geodata"
 
-    @property
-    def variants_dir(self) -> Path:
-        return self.work_dir / "variants"
-
     def ensure_dirs(self) -> None:
         for path in (self.work_dir, self.dist_dir, self.cache_dir, self.sources_dir):
             path.mkdir(parents=True, exist_ok=True)
