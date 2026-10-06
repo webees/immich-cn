@@ -563,6 +563,31 @@ def test_check_artifacts_rejects_zip_symlink(tmp_path: Path) -> None:
     assert any("符号链接" in error for error in errors), errors
 
 
+def test_check_artifacts_rejects_zip_compression_bomb(tmp_path: Path) -> None:
+    dist = _make_dist(tmp_path)
+    with zipfile.ZipFile(dist / "geodata.zip", "a") as archive:
+        archive.writestr(
+            "geodata/bomb.bin",
+            b"\0" * (2 * 1024 * 1024),
+            compress_type=zipfile.ZIP_DEFLATED,
+        )
+
+    errors: list[str] = []
+    check_artifacts.check_zips(dist, errors)
+    assert any("压缩比" in error for error in errors), errors
+
+
+def test_check_artifacts_rejects_archive_uncompressed_budget(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    dist = _make_dist(tmp_path)
+    monkeypatch.setattr(check_artifacts, "MAX_ARCHIVE_UNCOMPRESSED_BYTES", 1024)
+    with zipfile.ZipFile(dist / "geodata.zip", "a") as archive:
+        archive.writestr("geodata/large.bin", b"\0" * 2048)
+
+    errors: list[str] = []
+    check_artifacts.check_zips(dist, errors)
+    assert any("解压总量" in error for error in errors), errors
+
+
 def test_check_artifacts_requires_i18n_license(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
     with zipfile.ZipFile(dist / "i18n-iso-countries.zip", "w") as archive:
