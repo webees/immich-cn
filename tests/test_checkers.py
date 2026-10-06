@@ -316,6 +316,28 @@ def test_check_docs_detects_citation_punct_space(repo_copy: Path) -> None:
     assert "中文标点后出现空格" in result.stdout
 
 
+def test_check_docs_rejects_misleading_adm4_wording(repo_copy: Path) -> None:
+    """把 73 条说成 GeoNames 的 ADM4 总数会被严重误读，必须拦下。"""
+    readme = repo_copy / "README.md"
+    mutate(
+        readme,
+        "拼不出第四级层级。",
+        "拼不出第四级层级。因为 GeoNames 几乎没有乡镇级 `ADM4` 记录。",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "会被误读的 ADM4 表述" in result.stdout
+
+
+def test_check_docs_requires_adm4_code_explanation(repo_copy: Path) -> None:
+    """提到 73 条时必须说明那是「带 admin4 代码的数量」。"""
+    readme = repo_copy / "README.md"
+    mutate(readme, "带 `admin4` 代码的只有 73 条", "只有 73 条")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "未说明这是「带 admin4 代码的数量」" in result.stdout
+
+
 def test_check_docs_rejects_stale_immich_countryinfo_boundary(repo_copy: Path) -> None:
     """Immich 的分界点是 3.3.0：写回 3.0 必须被拦下（上游 v3.0.0~v3.2.4 仍用 i18n-iso-countries）。"""
     readme = repo_copy / "README.md"
