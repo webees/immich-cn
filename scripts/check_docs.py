@@ -167,6 +167,8 @@ def check_numeric_contracts(errors: list[str]) -> None:
 
     if "镜像内置的是 full 数据集" in doc_text:
         errors.append("文档错误：镜像使用非 full 的 build/geodata，不能声称内置 full 数据集")
+    if "默认在打包完成后删除" in doc_text:
+        errors.append("文档错误：默认构建直接流式写 patterns.tsv.gz，不生成明文 patterns.tsv")
 
     expected_variants = len(build_variants(DEFAULT_PATTERNS))
     for match in re.finditer(r"(\d+)\s*个制品", doc_text):

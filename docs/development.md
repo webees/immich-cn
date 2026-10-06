@@ -39,8 +39,8 @@ make clean       # 清理 build/ dist/ 与各类缓存
 | 打包 14 个变体（名称组合 + zip 压缩） | ≈1.5 min |
 | GitHub Actions 完整流程 | 约 8~25 min（含 runner 缓存恢复与镜像推送） |
 
-构建结束后会自动删除不再需要的中间产物（解压出的上游原始文件、明文变体表 `patterns.tsv` 等，
-合计约 1.1 GiB）；需要保留它们做调试时加 `--keep-raw`。
+构建结束后会自动删除不再需要的中间产物（解压出的上游原始文件等，合计约 1.1 GiB）。
+明文变体表 `patterns.tsv` 默认不会生成，只有加 `--keep-raw` 时才会保留并需要自行清理。
 
 zip 压缩级别实测（对 44.8 MiB 的 cities500 片段）：
 
@@ -79,7 +79,7 @@ immich-cn fingerprint dist/manifest.json  # 打印数据指纹（判断是否需
 | `--revalidate` | 关 | 用 ETag/Last-Modified 校验上游，未变化不下载（每日自动更新使用） |
 | `--force` | 关 | 强制重新下载全部数据源 |
 | `--skip-fetch` | 关 | 直接用 `--work-dir/sources` 中已有数据源 |
-| `--keep-raw` | 关 | 保留解压后的原始大文件（默认发布后清理） |
+| `--keep-raw` | 关 | 保留解压后的原始大文件和明文 `patterns.tsv`（默认不生成明文表） |
 | `--clean` | 关 | 执行前清空 work/dist |
 | `--quiet` | 关 | 只输出警告与错误 |
 
