@@ -2,7 +2,7 @@ PYTHON ?= python3
 VENV ?= .venv
 BIN := $(VENV)/bin
 
-.PHONY: help venv install lint format typecheck test check smoke entrypoint build clean
+.PHONY: help venv install lint format typecheck test check smoke artifacts entrypoint build clean
 
 help: ## 显示可用目标
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -32,6 +32,9 @@ check: lint typecheck test ## 全部检查
 
 smoke: ## 用合成数据跑完整流水线（不访问外网）
 	$(BIN)/python -m scripts.smoke_data --work-dir build --dist-dir dist
+
+artifacts: ## 校验发布制品（依赖 dist/ 已生成）
+	$(BIN)/python scripts/check_artifacts.py dist
 
 entrypoint: smoke ## 校验容器入口脚本
 	bash scripts/check-entrypoint.sh
