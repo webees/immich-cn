@@ -152,6 +152,43 @@ def check_release_update_order(path: Path, workflow: dict[str, Any], errors: lis
                     )
 
 
+def check_snapshot_immutability(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """同日后续发布不得覆盖 data-YYYY-MM-DD，必须落到不可变 revision tag。"""
+    if path.name != "update-data.yml":
+        return
+    for job_name, job in (workflow.get("jobs") or {}).items():
+        if not isinstance(job, dict):
+            continue
+        for index, step in enumerate(job.get("steps") or [], start=1):
+            if not isinstance(step, dict) or "run" not in step:
+                continue
+            script = str(step["run"])
+            if 'gh release view "data-${DATE}"' not in script:
+                continue
+            if "-sha-${short_sha}" not in script:
+                errors.append(
+                    f"{path}:{job_name}/step#{index} 的日期快照冲突分支未创建 data-DATE-sha-短提交；"
+                    "同日修订会丢失或覆盖不可变快照"
+                )
+            if re.search(r"gh release upload\s+\"data-\$\{DATE\}\"[^\n]*--clobber", script):
+                errors.append(
+                    f"{path}:{job_name}/step#{index} 使用 --clobber 覆盖 data-${{DATE}}；不可变日期快照不能被改写"
+                )
+
+
+def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """镜像发布必须保留 digest 冒烟、Trivy 扫描和 keyless 签名。"""
+    if path.name != "_build-data.yml":
+        return
+    text = yaml.safe_dump(workflow, allow_unicode=True)
+    if text.count("docker pull") < 2:
+        errors.append(f"{path} 缺少数据或 server 镜像的最终 digest 冒烟验证")
+    if text.count("aquasecurity/trivy-action@") < 2:
+        errors.append(f"{path} 缺少数据或 server 镜像的 Trivy 扫描")
+    if text.count("cosign sign --yes") < 2:
+        errors.append(f"{path} 缺少数据或 server 镜像的 Cosign keyless 签名")
+
+
 def check_concurrency(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
     triggers = workflow.get("on")
     scheduled = isinstance(triggers, dict) and any(key in triggers for key in SCHEDULED)
@@ -297,6 +334,8 @@ def main() -> int:
         check_action_pins(path, workflow, errors)
         check_release_replacements(path, workflow, errors)
         check_release_update_order(path, workflow, errors)
+        check_snapshot_immutability(path, workflow, errors)
+        check_image_supply_chain(path, workflow, errors)
         check_concurrency(path, workflow, errors)
         check_needs_coverage(path, workflow, errors)
         check_issue_search_scope(path, workflow, errors)

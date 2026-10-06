@@ -41,7 +41,7 @@ services:
 |:--|:--|
 | `latest` | 最近一次成功构建的数据 + `release` 版 Immich |
 | `release` | 与 Immich `release` 标签对齐 |
-| `release-<日期>` | 固定到某个数据快照 |
+| `release-<日期>` | 当日最新数据，同日重跑可更新；长期固定请使用 digest |
 
 ### 环境变量
 
@@ -149,5 +149,6 @@ date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./immich-cn/geodata/geodata-date.txt
 
 ## 回滚
 
-- 镜像方案：`docker compose pull ghcr.io/webees/immich-cn-server:release-<日期>`；
-- 数据方案：从 [Releases](https://github.com/webees/immich-cn/releases) 下载对应日期的 `data-<日期>` 快照。
+- 镜像方案：优先固定到 `sha-<短提交>` 或 digest；`release-<日期>` 只适合当日跟踪；
+- 数据方案：从 [Releases](https://github.com/webees/immich-cn/releases) 下载 `data-<日期>` 或
+  `data-<日期>-sha-<短提交>` 不可变快照。

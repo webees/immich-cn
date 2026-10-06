@@ -34,8 +34,8 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 | 变化判断 | 用「上游文件 SHA256 + 构建配置 + 发布器修订」计算发布指纹，与上一次发布对比；无变化则跳过发布，避免无意义的版本和重复导入 |
 | 构建 | 重新生成四级行政层级、汉化 `cities500`、打包 7 种粒度 × full/非 full 共 14 个制品 |
 | 校验 | 文件完整性、GeoNames ID 去重、中国与香港记录中文覆盖率、国家名称覆盖率全部通过才允许发布 |
-| 发布 | 更新滚动 Release `auto-release`、创建当日不可变快照 `data-YYYY-MM-DD`、推送 `ghcr.io/webees/immich-cn` 与 `ghcr.io/webees/immich-cn-server` 多架构镜像 |
-| 保留策略 | 自动清理超过 14 个的旧日期快照，不会无限堆积 |
+| 发布 | 更新滚动 Release `auto-release`、创建当日至多一个不可变日期快照 `data-YYYY-MM-DD`（同日后续修订用 `data-YYYY-MM-DD-sha-<短提交>`）、推送两个多架构镜像 |
+| 保留策略 | 自动清理超过 14 个的旧 `data-*` 快照，不会无限堆积 |
 | 失败兜底 | 任一环节失败自动创建/更新带 `automation` 标签的 issue，附带运行链接 |
 
 你只需要定期 `docker compose pull`，或使用 Release 的固定地址 `releases/latest/download/geodata.zip`，即可持续获得最新数据。
@@ -153,7 +153,7 @@ immich-cn all
         │                    ├─ 发布指纹对比（无变化 → 跳过发布）
         │                    └─ 推送多架构镜像
         │
-        └──► Release：auto-release（滚动）+ data-YYYY-MM-DD（快照，保留 14 个）
+        └──► Release：auto-release（滚动）+ data-*（不可变快照，保留 14 个）
 
 ci.yml ──► ruff + mypy + pytest + 容器入口脚本校验 + Docker 冒烟构建
 release.yml ──► 手动创建语义化版本 Release
@@ -168,6 +168,7 @@ release.yml ──► 手动创建语义化版本 Release
 - [架构设计](docs/architecture.md)
 - [数据源与处理流程](docs/data-sources.md)
 - [部署指南](docs/deployment.md)
+- [Packages 与供应链](docs/packages.md)
 - [本地开发](docs/development.md)
 - [许可与署名](docs/licensing.md)
 - [常见问题](docs/faq.md)
