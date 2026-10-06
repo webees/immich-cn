@@ -496,7 +496,9 @@ def test_check_workflows_requires_release_preflight_checkout(repo_copy: Path) ->
         "    permissions:\n"
         "      contents: read\n"
         "    steps:\n"
-        "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n",
+        "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n"
+        "        with:\n"
+        "          persist-credentials: false\n",
         "  validate:\n"
         "    name: 检查版本可用性\n"
         "    runs-on: ubuntu-latest\n"
@@ -601,6 +603,47 @@ def test_check_workflows_allows_hash_files_globs(repo_copy: Path) -> None:
     )
     result = run_checker(repo_copy, "check_workflows.py")
     assert result.returncode == 0, result.stdout
+
+
+def test_check_workflows_requires_checkout_credential_isolation(repo_copy: Path) -> None:
+    """checkout 默认把 token 写进 .git/config，缺少 persist-credentials: false 必须被拦下。"""
+    workflow = repo_copy / ".github" / "workflows" / "cleanup.yml"
+    mutate(
+        workflow,
+        "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n"
+        "        with:\n"
+        "          persist-credentials: false\n",
+        "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "persist-credentials" in result.stdout
+
+
+def test_check_workflows_rejects_vacuous_checkout_guard(repo_copy: Path) -> None:
+    """全部 checkout 步骤消失时必须报错，避免护栏静默失效。"""
+    pattern = (
+        "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n"
+        "        with:\n"
+        "          persist-credentials: false\n"
+    )
+    removed = 0
+    for workflow in sorted((repo_copy / ".github" / "workflows").glob("*.yml")):
+        text = workflow.read_text(encoding="utf-8")
+        if pattern not in text:
+            continue
+        removed += text.count(pattern)
+        workflow.write_text(text.replace(pattern, ""), encoding="utf-8")
+    assert removed > 0, "实验前提：仓库中应存在 checkout 步骤"
+    remaining = [
+        path
+        for path in sorted((repo_copy / ".github" / "workflows").glob("*.yml"))
+        if "actions/checkout@" in path.read_text(encoding="utf-8")
+    ]
+    assert not remaining, f"实验前提：checkout 应被全部移除，仍剩 {remaining}"
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "凭据持久化护栏可能已失效" in result.stdout
 
 
 # --------------------------------------------------------------------------

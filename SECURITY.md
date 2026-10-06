@@ -25,6 +25,8 @@
 
 - 镜像构建与推送全部在 GitHub Actions 中完成，使用最小权限的 `GITHUB_TOKEN`；
 - 仓库当前工作流中的外部 Action 固定到完整 commit SHA，版本标签仅作为注释保留；更新依赖 Dependabot 或人工审查；
+- 所有 `actions/checkout` 显式设置 `persist-credentials: false`，token 不会留在 `.git/config` 供后续步骤读取；
+  工作流统一用 `gh` + `GH_TOKEN` 访问 GitHub API，`scripts/check_workflows.py` 会拒绝缺少该设置的 checkout；
 - `docker/build-push-action` 开启 `provenance` 与 `sbom`；
 - 推送后的两个镜像均按最终 digest 执行 Trivy 漏洞与许可证扫描；在当次扫描数据库和扫描范围内，
   数据镜像的 `HIGH`/`CRITICAL` 会阻断，Immich 覆盖镜像只阻断相对官方基础镜像“新增”的漏洞；

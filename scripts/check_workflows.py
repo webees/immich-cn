@@ -7,7 +7,9 @@
 3. 工作流必须声明顶层 `permissions`，保持最小权限；
 4. 定时工作流必须设置 `concurrency`，防止重叠执行；
 5. `hashFiles('...')` 里的固定路径必须真实存在——`hashFiles` 对不存在的路径返回空字符串，
-   会让缓存键的该维度静默消失（真实事故：`config.py` 改名 `settings.py` 后缓存键出现 `--`）。
+   会让缓存键的该维度静默消失（真实事故：`config.py` 改名 `settings.py` 后缓存键出现 `--`）；
+6. `actions/checkout` 必须设置 `persist-credentials: false`，避免 token 留在 `.git/config`
+   被后续步骤读取。
 """
 
 from __future__ import annotations
@@ -374,6 +376,35 @@ def _iter_strings(value: Any) -> Iterator[str]:
             yield from _iter_strings(item)
 
 
+def check_checkout_credentials(path: Path, workflow: dict[str, Any], errors: list[str]) -> int:
+    """每个 actions/checkout 都必须关闭凭据持久化，返回发现的 checkout 数量。
+
+    checkout 默认把 token 写入 `.git/config`，后续任意步骤（含第三方 Action）都能读到；
+    这些工作流全部通过 `gh` + `GH_TOKEN` 访问 GitHub API，不需要本地 git 凭据。
+    """
+    found = 0
+    for job_name, job in (workflow.get("jobs") or {}).items():
+        if not isinstance(job, dict):
+            continue
+        for index, step in enumerate(job.get("steps") or [], start=1):
+            if not isinstance(step, dict):
+                continue
+            if not str(step.get("uses") or "").startswith("actions/checkout@"):
+                continue
+            found += 1
+            options = step.get("with")
+            value = options.get("persist-credentials") if isinstance(options, dict) else None
+            # YAML `false` 与字符串 "false"（actions/getBooleanInput 均接受）都算合规
+            if value is False or (isinstance(value, str) and value.strip().lower() == "false"):
+                continue
+            name = step.get("name", f"step#{index}")
+            errors.append(
+                f"{path}:{job_name}/{name} 的 actions/checkout 未设置 persist-credentials: false，"
+                "token 会被写入 .git/config 供后续步骤读取"
+            )
+    return found
+
+
 def check_hash_files_paths(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
     """`hashFiles('...')` 里的固定路径必须存在。
 
@@ -411,6 +442,7 @@ def main() -> int:
         loaded[path.name] = workflow
     outputs_by_workflow = {name: _workflow_call_outputs(workflow) for name, workflow in loaded.items()}
 
+    checkout_total = 0
     for path in files:
         workflow = loaded.get(path.name)
         if workflow is None:
@@ -431,6 +463,10 @@ def main() -> int:
         check_failure_notifier_coverage(path, workflow, errors)
         check_references(path, workflow, errors, outputs_by_workflow)
         check_hash_files_paths(path, workflow, errors)
+        checkout_total += check_checkout_credentials(path, workflow, errors)
+
+    if checkout_total == 0:
+        errors.append("未在任何工作流中找到 actions/checkout 步骤，凭据持久化护栏可能已失效")
 
     for error in errors:
         print(f"[!!] {error}")

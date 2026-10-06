@@ -73,6 +73,8 @@ jobs:
       changed: ${{ steps.change.outputs.changed }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       # 数据构建 + 双镜像推送对磁盘压力较大，先释放 runner 上用不到的工具链
       - name: 释放磁盘空间
