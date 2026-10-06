@@ -26,6 +26,10 @@ _RETRY_STATUS = {408, 425, 429, 500, 502, 503, 504}
 _MAX_RETRY_DELAY = 120.0
 
 
+class _RangeNotSatisfiableError(SourceError):
+    """本地分片使 Range 越界，需要改为完整下载。"""
+
+
 def _retry_delay(attempt: int, error: Exception) -> float:
     """计算退避时间：优先遵循上游的 ``Retry-After``，否则指数退避。"""
     response = getattr(error, "response", None)
@@ -257,9 +261,18 @@ class Fetcher:
                 _part_meta_path(part).unlink(missing_ok=True)
 
         last_error: Exception | None = None
-        for attempt in range(1, self._retries + 1):
+        attempt = 1
+        while attempt <= self._retries:
             try:
                 return self._stream_to_file(spec, target, part, headers, expected_etag=expected_etag)
+            except _RangeNotSatisfiableError:
+                logger.warning("分片 %s 的 Range 已越界，丢弃后完整重下", spec.name)
+                part.unlink(missing_ok=True)
+                _part_meta_path(part).unlink(missing_ok=True)
+                headers.pop("Range", None)
+                headers.pop("If-Range", None)
+                expected_etag = ""
+                continue
             except (httpx.HTTPError, SourceError) as error:
                 last_error = error
                 if isinstance(error, httpx.HTTPStatusError) and error.response.status_code not in _RETRY_STATUS:
@@ -274,6 +287,7 @@ class Fetcher:
                 delay = _retry_delay(attempt, error)
                 logger.warning("下载 %s 失败（第 %d 次）：%s；%.0fs 后重试", spec.name, attempt, error, delay)
                 time.sleep(delay)
+                attempt += 1
             except OSError as error:
                 # 本地 I/O 故障（权限、磁盘满、路径不存在）重试无益，直接给出可读错误
                 raise SourceError(f"写入缓存失败（{spec.name}）：{error}") from error
@@ -299,7 +313,8 @@ class Fetcher:
 
         with self._client.stream("GET", spec.url, headers=headers) as response:
             if response.status_code == 416:
-                # Range 越界说明本地已有完整文件，直接校验。
+                if resume_from:
+                    raise _RangeNotSatisfiableError(f"{spec.name} 的本地分片已使 Range 越界")
                 response.raise_for_status()
             response.raise_for_status()
             if resume_from and response.status_code != 206:

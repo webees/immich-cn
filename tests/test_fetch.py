@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import zipfile
 from pathlib import Path
@@ -224,6 +225,39 @@ def test_fetcher_resumes_when_validator_matches(tmp_path: Path) -> None:
     assert seen[-1] == ("bytes=10-", '"v1"')
     assert result.path.read_bytes() == total
     assert result.record.size_bytes == len(total)
+
+
+def test_fetcher_recovers_from_stale_complete_part(tmp_path: Path) -> None:
+    """残留完整分片触发 416 时，应丢弃 Range 并重新完整下载。"""
+    payload = b"A" * 20
+    calls: list[str | None] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.headers.get("range"))
+        if request.headers.get("range") is not None:
+            return httpx.Response(416, headers={"content-range": f"bytes */{len(payload)}"})
+        return httpx.Response(200, content=payload, headers={"etag": '"e2"'})
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    part = cache / "demo.bin.part"
+    part.write_bytes(payload)
+    (cache / "demo.bin.part.meta").write_text(
+        json.dumps({"url": "https://example.com/demo.bin", "etag": '"e1"', "lastModified": ""}),
+        encoding="utf-8",
+    )
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.bin", filename="demo.bin")
+    with Fetcher(
+        cache,
+        retries=1,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    ) as fetcher:
+        result = fetcher.fetch(spec)
+
+    assert calls == ["bytes=20-", None]
+    assert result.path.read_bytes() == payload
+    assert not part.exists()
 
 
 def test_fetcher_rejects_unsolicited_206(tmp_path: Path) -> None:
