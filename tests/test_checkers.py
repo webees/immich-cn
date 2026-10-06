@@ -330,6 +330,28 @@ def test_check_artifacts_checksums_layer(tmp_path: Path) -> None:
     assert any("patterns.tsv.gz" in error for error in errors), errors
 
 
+def test_check_artifacts_rejects_zip_path_traversal(tmp_path: Path) -> None:
+    dist = _make_dist(tmp_path)
+    with zipfile.ZipFile(dist / "geodata.zip", "a") as archive:
+        archive.writestr("../escape.txt", "escape")
+
+    errors: list[str] = []
+    check_artifacts.check_zips(dist, errors)
+    assert any("路径越界" in error for error in errors), errors
+
+
+def test_check_artifacts_rejects_zip_symlink(tmp_path: Path) -> None:
+    dist = _make_dist(tmp_path)
+    with zipfile.ZipFile(dist / "geodata.zip", "a") as archive:
+        info = zipfile.ZipInfo("geodata/link")
+        info.external_attr = 0o120777 << 16
+        archive.writestr(info, "../escape.txt")
+
+    errors: list[str] = []
+    check_artifacts.check_zips(dist, errors)
+    assert any("符号链接" in error for error in errors), errors
+
+
 def test_check_artifacts_reports_corrupt_zip_without_traceback(tmp_path: Path) -> None:
     """损坏的 zip 必须以校验错误呈现，而不是抛栈崩掉。"""
     dist = _make_dist(tmp_path)
