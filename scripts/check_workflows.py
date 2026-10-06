@@ -9,7 +9,9 @@
 5. `hashFiles('...')` 里的固定路径必须真实存在——`hashFiles` 对不存在的路径返回空字符串，
    会让缓存键的该维度静默消失（真实事故：`config.py` 改名 `settings.py` 后缓存键出现 `--`）；
 6. `actions/checkout` 必须设置 `persist-credentials: false`，避免 token 留在 `.git/config`
-   被后续步骤读取。
+   被后续步骤读取；
+7. CONTRIBUTING.md 声明的 required check 必须是某个 pull_request 工作流真实产生的 job 名，
+   且不能由多个工作流同名产生。
 """
 
 from __future__ import annotations
@@ -41,6 +43,9 @@ HASH_FILES_CALL = re.compile(r"hashFiles\(([^)]*)\)")
 HASH_FILES_ARG = re.compile(r"['\"]([^'\"]+)['\"]")
 #: 含这些字符的参数按 glob 处理，不要求字面路径存在。
 GLOB_CHARS = "*?[]"
+#: CONTRIBUTING.md 中列出 required check 的引导语与 job 名里的 matrix 占位符。
+REQUIRED_CHECK_HEADER = "必须通过以下状态检查"
+NAME_MATRIX_EXPR = re.compile(r"\$\{\{\s*matrix\.([A-Za-z0-9_-]+)\s*\}\}")
 
 
 def load(path: Path) -> dict[str, Any] | None:
@@ -376,6 +381,84 @@ def _iter_strings(value: Any) -> Iterator[str]:
             yield from _iter_strings(item)
 
 
+def _job_names(workflow: dict[str, Any]) -> list[str]:
+    """展开 job 名称中的 matrix 模板，得到会真实出现在 check 列表里的名字。"""
+    names: list[str] = []
+    for job in (workflow.get("jobs") or {}).values():
+        if not isinstance(job, dict):
+            continue
+        raw = job.get("name")
+        if not isinstance(raw, str):
+            continue
+        strategy = job.get("strategy")
+        matrix = (strategy or {}).get("matrix") if isinstance(strategy, dict) else None
+        placeholders = NAME_MATRIX_EXPR.findall(raw)
+        if not placeholders:
+            names.append(raw)
+            continue
+        values = [raw]
+        for key in placeholders:
+            options = matrix.get(key) if isinstance(matrix, dict) else None
+            if not isinstance(options, list) or not options:
+                values = []
+                break
+            pattern = re.compile(r"\$\{\{\s*matrix\." + re.escape(key) + r"\s*\}\}")
+            values = [pattern.sub(str(option), value) for value in values for option in options]
+        names.extend(values)
+    return names
+
+
+def _documented_required_checks() -> list[str]:
+    """读取 CONTRIBUTING.md 中"必须通过以下状态检查"下的列表项。"""
+    text = Path("CONTRIBUTING.md").read_text(encoding="utf-8")
+    if REQUIRED_CHECK_HEADER not in text:
+        return []
+    items: list[str] = []
+    for line in text.split(REQUIRED_CHECK_HEADER, 1)[1].splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("- "):
+            if items:
+                break
+            continue
+        value = stripped[2:].strip().strip("`")
+        if value:
+            items.append(value)
+    return items
+
+
+def check_required_check_names(
+    loaded: dict[str, dict[str, Any]],
+    errors: list[str],
+) -> None:
+    """required check 名必须是真实存在、唯一、且由 pull_request 工作流产生。"""
+    produced: dict[str, list[str]] = {}
+    pr_workflows: set[str] = set()
+    for name, workflow in loaded.items():
+        triggers = workflow.get("on")
+        if not isinstance(triggers, dict):
+            legacy = workflow.get(True)
+            triggers = legacy if isinstance(legacy, dict) else {}
+        if "pull_request" in triggers:
+            pr_workflows.add(name)
+        for job_name in _job_names(workflow):
+            produced.setdefault(job_name, []).append(name)
+
+    documented = _documented_required_checks()
+    if not documented:
+        errors.append(f"CONTRIBUTING.md 未列出任何 required check（缺少“{REQUIRED_CHECK_HEADER}”列表），护栏可能已失效")
+        return
+    for item in documented:
+        owners = produced.get(item, [])
+        if not owners:
+            errors.append(f"CONTRIBUTING.md 声明的 required check {item!r} 没有任何工作流 job 会产生")
+        elif len(owners) > 1:
+            errors.append(f"required check {item!r} 由多个工作流产生：{', '.join(sorted(owners))}，存在同名混淆风险")
+        elif owners[0] not in pr_workflows:
+            errors.append(
+                f"required check {item!r} 由 {owners[0]} 产生，但该工作流没有 pull_request 触发，PR 上不会出现"
+            )
+
+
 def check_checkout_credentials(path: Path, workflow: dict[str, Any], errors: list[str]) -> int:
     """每个 actions/checkout 都必须关闭凭据持久化，返回发现的 checkout 数量。
 
@@ -467,6 +550,7 @@ def main() -> int:
 
     if checkout_total == 0:
         errors.append("未在任何工作流中找到 actions/checkout 步骤，凭据持久化护栏可能已失效")
+    check_required_check_names(loaded, errors)
 
     for error in errors:
         print(f"[!!] {error}")

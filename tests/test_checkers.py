@@ -646,6 +646,37 @@ def test_check_workflows_rejects_vacuous_checkout_guard(repo_copy: Path) -> None
     assert "凭据持久化护栏可能已失效" in result.stdout
 
 
+def test_check_workflows_detects_unknown_required_check(repo_copy: Path) -> None:
+    """CONTRIBUTING 声明的 required check 必须真的有 job 会产生。"""
+    contributing = repo_copy / "CONTRIBUTING.md"
+    mutate(contributing, "`静态检查与单元测试 (Python 3.11)`", "`静态检查与单元测试 (Python 3.10)`")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "没有任何工作流 job 会产生" in result.stdout
+
+
+def test_check_workflows_detects_required_check_matrix_drift(repo_copy: Path) -> None:
+    """matrix 值变化会让 required check 名消失，护栏必须展开模板而不是比对字面量。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    mutate(
+        workflow,
+        'python-version: ["3.11", "3.12", "3.13"]',
+        'python-version: ["3.10", "3.12", "3.13"]',
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "Python 3.11" in result.stdout
+
+
+def test_check_workflows_detects_duplicate_required_check(repo_copy: Path) -> None:
+    """同名 job 由第二个工作流产生时存在混淆风险，必须报出。"""
+    workflow = repo_copy / ".github" / "workflows" / "cleanup.yml"
+    mutate(workflow, "    name: 清理 Release / Actions / GHCR\n", "    name: Docker 冒烟构建\n")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "同名混淆风险" in result.stdout
+
+
 # --------------------------------------------------------------------------
 # check_shell.py
 # --------------------------------------------------------------------------
