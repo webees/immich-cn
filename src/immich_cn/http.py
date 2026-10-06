@@ -143,8 +143,14 @@ class Fetcher:
                         handle.write(chunk)
                 etag = response.headers.get("etag")
                 last_modified = response.headers.get("last-modified")
-        except (httpx.HTTPError, OSError) as error:
+        except (httpx.HTTPError, OSError, SourceError) as error:
             logger.warning("校验 %s 失败，继续使用本地缓存：%s", spec.name, error)
+            return FetchedSource(spec=spec, path=target, record=cached)
+
+        if part.stat().st_size == 0 and target.stat().st_size > 0:
+            # 空正文通常意味着上游异常，绝不能覆盖已有的健康缓存。
+            part.unlink(missing_ok=True)
+            logger.warning("校验 %s 返回空内容，保留本地缓存", spec.name)
             return FetchedSource(spec=spec, path=target, record=cached)
 
         part.replace(target)
@@ -212,6 +218,17 @@ class Fetcher:
                     handle.write(chunk)
             etag = response.headers.get("etag")
             last_modified = response.headers.get("last-modified")
+            expected_raw = response.headers.get("content-length")
+            encoding = (response.headers.get("content-encoding") or "identity").lower()
+            status_code = response.status_code
+
+        # 校验实际写入的字节数，避免把被截断的响应当成成功结果缓存下来。
+        # 服务端启用了内容编码时 iter_bytes 返回的是解码后数据，长度不可比，直接跳过。
+        if encoding == "identity" and expected_raw and expected_raw.isdigit():
+            expected = int(expected_raw) + (resume_from if status_code == 206 else 0)
+            actual = part.stat().st_size
+            if actual != expected:
+                raise SourceError(f"{spec.name} 下载不完整：收到 {actual} 字节，预期 {expected} 字节")
 
         part.replace(target)
         record = SourceRecord(

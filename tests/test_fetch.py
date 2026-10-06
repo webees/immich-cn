@@ -4,9 +4,11 @@ import zipfile
 from pathlib import Path
 
 import httpx
+import pytest
 
 from immich_cn.build import _materialize
 from immich_cn.config import BuildOptions, SourceSpec
+from immich_cn.errors import SourceError
 from immich_cn.http import Fetcher, sha256_bytes
 from immich_cn.models import SourceRecord
 
@@ -113,6 +115,49 @@ def test_fetcher_revalidate_falls_back_to_cache_on_error(tmp_path: Path) -> None
 
     assert fallback.record.sha256 == cached.record.sha256
     assert (tmp_path / "cache" / "demo.txt").read_bytes() == b"v1"
+
+
+def test_fetcher_revalidate_ignores_empty_body(tmp_path: Path) -> None:
+    """上游返回 200 但正文为空时必须保留本地缓存，不能被"假成功"覆盖。"""
+
+    def ok(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"v1", headers={"etag": '"e1"'})
+
+    def empty(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"", headers={"etag": '"e2"'})
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.txt", filename="demo.txt")
+    with Fetcher(tmp_path / "cache", client=httpx.Client(transport=httpx.MockTransport(ok))) as fetcher:
+        cached = fetcher.fetch(spec)
+    with Fetcher(
+        tmp_path / "cache",
+        revalidate=True,
+        client=httpx.Client(transport=httpx.MockTransport(empty)),
+    ) as fetcher:
+        result = fetcher.fetch(spec)
+
+    assert result.record.sha256 == cached.record.sha256
+    assert (tmp_path / "cache" / "demo.txt").read_bytes() == b"v1"
+
+
+def test_fetcher_rejects_truncated_download(tmp_path: Path) -> None:
+    """Content-Length 与实际字节不一致时必须失败，避免把截断内容当成成功。"""
+
+    def truncated(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"short", headers={"content-length": "100"})
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.txt", filename="demo.txt")
+    with (
+        Fetcher(
+            tmp_path / "cache",
+            retries=1,
+            client=httpx.Client(transport=httpx.MockTransport(truncated)),
+        ) as fetcher,
+        pytest.raises(SourceError) as excinfo,
+    ):
+        fetcher.fetch(spec)
+    assert "下载不完整" in str(excinfo.value)
+    assert not (tmp_path / "cache" / "demo.txt").exists()
 
 
 class _StubFetched:

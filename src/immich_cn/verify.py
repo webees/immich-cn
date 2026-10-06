@@ -30,7 +30,13 @@ class CheckResult:
     detail: str
 
 
-def verify_geodata(directory: Path, *, min_cn_cjk_ratio: float = 0.90) -> list[CheckResult]:
+def verify_geodata(
+    directory: Path,
+    *,
+    min_cn_cjk_ratio: float = 0.90,
+    min_cn_admin_ratio: float = 0.95,
+    min_cn_admin2_code_ratio: float = 0.90,
+) -> list[CheckResult]:
     """校验一个 geodata 目录。"""
     results: list[CheckResult] = []
     missing = [name for name in REQUIRED_FILES if not (directory / name).exists()]
@@ -39,11 +45,31 @@ def verify_geodata(directory: Path, *, min_cn_cjk_ratio: float = 0.90) -> list[C
         return results
 
     results.append(_check_date(directory / "geodata-date.txt"))
-    results.append(_check_admin(directory / "admin1CodesASCII.txt", "admin1", expect_chinese=True))
-    results.append(_check_admin(directory / "admin2Codes.txt", "admin2", expect_chinese=False))
+    results.append(
+        _check_admin(
+            directory / "admin1CodesASCII.txt",
+            "admin1",
+            min_overall_ratio=0.5,
+            min_country_ratio=min_cn_admin_ratio,
+        )
+    )
+    results.append(
+        _check_admin(
+            directory / "admin2Codes.txt",
+            "admin2",
+            min_overall_ratio=0.0,
+            min_country_ratio=min_cn_admin_ratio,
+        )
+    )
     results.append(_check_country_info(directory / "countryInfo.txt"))
     results.append(_check_geojson(directory / "ne_10m_admin_0_countries.geojson"))
-    results.extend(_check_cities500(directory / "cities500.txt", min_cn_cjk_ratio=min_cn_cjk_ratio))
+    results.extend(
+        _check_cities500(
+            directory / "cities500.txt",
+            min_cn_cjk_ratio=min_cn_cjk_ratio,
+            min_cn_admin2_code_ratio=min_cn_admin2_code_ratio,
+        )
+    )
     return results
 
 
@@ -70,10 +96,25 @@ def _check_date(path: Path) -> CheckResult:
     return CheckResult("geodata-date", True, raw)
 
 
-def _check_admin(path: Path, label: str, *, expect_chinese: bool) -> CheckResult:
+def _check_admin(
+    path: Path,
+    label: str,
+    *,
+    min_overall_ratio: float,
+    min_country_ratio: float,
+    country: str = "CN",
+) -> CheckResult:
+    """校验行政层级表。
+
+    除了整体中文覆盖率，还会单独校验 ``country`` 前缀下条目的中文覆盖率——
+    否则当该国家条目只占全表很小比例时，整体比例无法发现汉化整体失效。
+    """
     total = 0
     chinese = 0
+    country_total = 0
+    country_chinese = 0
     bad = 0
+    prefix = f"{country}."
     with path.open("r", encoding="utf-8") as handle:
         for line in handle:
             fields = line.rstrip("\n").split("\t")
@@ -81,16 +122,27 @@ def _check_admin(path: Path, label: str, *, expect_chinese: bool) -> CheckResult
                 bad += 1
                 continue
             total += 1
-            if has_cjk(fields[1]):
+            is_chinese = has_cjk(fields[1])
+            if is_chinese:
                 chinese += 1
+            if fields[0].startswith(prefix):
+                country_total += 1
+                if is_chinese:
+                    country_chinese += 1
     if bad:
         return CheckResult(label, False, f"{bad} 行字段不足")
     if total == 0:
         return CheckResult(label, False, "文件为空")
-    ratio = chinese / total
-    detail = f"{total} 条，中文 {chinese} 条（{ratio:.1%}）"
-    if expect_chinese and ratio < 0.5:
-        return CheckResult(label, False, detail + "，中文覆盖过低")
+    overall = chinese / total
+    detail = f"{total} 条，中文 {chinese} 条（{overall:.1%}）"
+    if overall < min_overall_ratio:
+        return CheckResult(label, False, f"{detail}，整体中文覆盖率低于 {min_overall_ratio:.0%}")
+    if country_total == 0:
+        return CheckResult(label, False, f"{detail}，未找到 {prefix}* 条目")
+    country_ratio = country_chinese / country_total
+    detail += f"；{country} 条目 {country_total} 条，中文 {country_chinese} 条（{country_ratio:.1%}）"
+    if country_ratio < min_country_ratio:
+        return CheckResult(label, False, f"{detail}，低于 {min_country_ratio:.0%}")
     return CheckResult(label, True, detail)
 
 
@@ -128,7 +180,12 @@ def _check_geojson(path: Path) -> CheckResult:
     return CheckResult("natural-earth", True, f"{len(features)} 个要素")
 
 
-def _check_cities500(path: Path, *, min_cn_cjk_ratio: float) -> list[CheckResult]:
+def _check_cities500(
+    path: Path,
+    *,
+    min_cn_cjk_ratio: float,
+    min_cn_admin2_code_ratio: float,
+) -> list[CheckResult]:
     total = 0
     bad = 0
     seen: set[int] = set()
@@ -168,6 +225,14 @@ def _check_cities500(path: Path, *, min_cn_cjk_ratio: float) -> list[CheckResult
                 "cities500-cn-cjk",
                 ratio >= min_cn_cjk_ratio,
                 f"中国记录 {cn_total} 条，中文名称 {cn_chinese} 条（{ratio:.1%}）",
+            )
+        )
+        admin_ratio = cn_with_admin2 / cn_total
+        results.append(
+            CheckResult(
+                "cities500-cn-admin2",
+                admin_ratio >= min_cn_admin2_code_ratio,
+                f"中国记录 {cn_total} 条，带 admin2 代码 {cn_with_admin2} 条（{admin_ratio:.1%}）",
             )
         )
     return results

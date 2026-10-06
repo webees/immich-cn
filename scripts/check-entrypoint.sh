@@ -16,6 +16,7 @@ ln -sf "$repo_root/docker/apply-pattern.sh" "$work/bin/immich-cn-apply-pattern"
 run_case() {
   local pattern="$1"
   local expected="$2"
+  local force_reload="${3:-1}"
 
   rm -rf "$work/build/geodata"
   mkdir -p "$work/build/geodata"
@@ -26,7 +27,7 @@ run_case() {
     IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
     IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/patterns.tsv.gz" \
     IMMICH_CN_PATTERN="$pattern" \
-    IMMICH_CN_FORCE_RELOAD=1 \
+    IMMICH_CN_FORCE_RELOAD="$force_reload" \
     bash "$repo_root/docker/entrypoint.sh" true
 
   local actual
@@ -35,15 +36,30 @@ run_case() {
     echo "失败：pattern='$pattern' 期望 '$expected'，实际 '$actual'" >&2
     exit 1
   fi
-  if ! grep -q . "$work/build/geodata/geodata-date.txt"; then
-    echo "失败：未写入 geodata-date.txt" >&2
-    exit 1
+
+  local written expected_date
+  written="$(cat "$work/build/geodata/geodata-date.txt")"
+  if [ "$force_reload" = "1" ]; then
+    # 强制刷新时必须写成当前时间（比较到分钟，避免跨秒误差）
+    expected_date="$(date -u +%Y-%m-%dT%H:%M)"
+    if [ "${written:0:16}" != "$expected_date" ]; then
+      echo "失败：geodata-date.txt 未刷新为当前时间，实际 '$written'" >&2
+      exit 1
+    fi
+  else
+    # 未开启强制刷新时必须保留镜像内的原始时间
+    local source_date
+    source_date="$(cat "$repo_root/build/geodata/geodata-date.txt")"
+    if [ "$written" != "$source_date" ]; then
+      echo "失败：未开启强制刷新却改写了 geodata-date.txt（'$written' != '$source_date'）" >&2
+      exit 1
+    fi
   fi
-  echo "通过：pattern='$pattern' -> $actual"
+  echo "通过：pattern='$pattern' force_reload=${force_reload} -> $actual"
 }
 
-run_case "" "苏州市"
-run_case "{admin_2}" "苏州市"
-run_case "{admin_2} {admin_3}" "苏州市 昆山市"
+run_case "" "苏州市" 1
+run_case "{admin_2}" "苏州市" 0
+run_case "{admin_2} {admin_3}" "苏州市 昆山市" 1
 
 echo "入口脚本校验通过"

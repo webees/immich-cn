@@ -15,10 +15,6 @@ class ParseError(ImmichCnError):
     """上游数据格式不符合预期。"""
 
 
-class ProviderError(ImmichCnError):
-    """反向地理编码 provider 调用失败。"""
-
-
 class ConfigError(ImmichCnError):
     """配置或参数不合法。"""
 

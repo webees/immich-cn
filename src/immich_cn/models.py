@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 # GeoNames 列索引（0 基），命名与 https://download.geonames.org/export/dump/readme.txt 一致。
@@ -207,11 +206,3 @@ class BuildStats:
             },
             "perCountry": dict(sorted(self.per_country.items())),
         }
-
-
-def iter_place_lines(lines: Iterable[str]) -> Iterable[Place]:
-    """把文本行转换为 :class:`Place`，自动跳过格式不完整的行。"""
-    for line in lines:
-        place = Place.from_line(line)
-        if place is not None:
-            yield place
