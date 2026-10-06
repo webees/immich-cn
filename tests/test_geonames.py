@@ -68,7 +68,7 @@ def test_admin_code_builds_incrementally() -> None:
 
 def test_read_country_info(synthetic_sources: Path) -> None:
     rows = read_country_info(synthetic_sources / "countryInfo.txt")
-    assert [row.alpha2 for row in rows] == ["CN", "HK", "TW", "JP", "US"]
+    assert [row.alpha2 for row in rows] == ["CN", "HK", "TW", "JP", "US", "CS", "AN"]
     assert rows[0].with_name("中国").name == "中国"
 
 

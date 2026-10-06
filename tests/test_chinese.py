@@ -131,3 +131,9 @@ def test_name_overrides_win(tmp_path: Path) -> None:
 def test_traditional_variant_outputs_traditional() -> None:
     index = ChineseNameIndex(names={1: "台北市"}, variant="hant")
     assert index.get(1) == "臺北市"
+
+
+def test_historical_country_overrides_are_present() -> None:
+    overrides = NameOverrides.load(Path(__file__).resolve().parent.parent / "config" / "overrides.toml")
+    assert overrides.countries["CS"] == "塞尔维亚和黑山"
+    assert overrides.countries["AN"] == "荷属安的列斯"

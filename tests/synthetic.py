@@ -171,6 +171,8 @@ def create_synthetic_sources(work_dir: Path, langs_dir: Path) -> Path:
             "TW\tTWN\t158\tTW\tTaiwan\tTaipei\t35980\t22894384\tAS\t.tw\tTWD\tDollar\t886\t#####\t\tzh-TW,zh-Hant\t1668284\t",
             "JP\tJPN\t392\tJA\tJapan\tTokyo\t377835\t127288000\tAS\t.jp\tJPY\tYen\t81\t###-####\t\tja\t1861060\t",
             "US\tUSA\t840\tUS\tUnited States\tWashington\t9629091\t310232863\tNA\t.us\tUSD\tDollar\t1\t#####-####\t\ten-US\t6252001\t",
+            "CS\tSCG\t891\tCS\tSerbia and Montenegro\tBelgrade\t102350\t10829175\tEU\t.cs\tRSD\tDinar\t381\t######\t\tsr,hu,bs,sq,hr,ro\t8505033\t",
+            "AN\tANT\t530\tAN\tNetherlands Antilles\tWillemstad\t960\t225369\tNA\t.an\tANG\tGuilder\t599\t######\t\tnl\t8505034\t",
         ],
     )
 

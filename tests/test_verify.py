@@ -248,10 +248,20 @@ def test_country_info_threshold_boundary(tmp_path: Path) -> None:
         )
         return path
 
-    at_threshold = _check_country_info(build(9))  # 9/10 = 0.90
+    at_threshold = _check_country_info(build(10))  # 10/10 = 1.00
     assert at_threshold.passed is True, at_threshold.detail
-    below = _check_country_info(build(8))  # 8/10 = 0.80
+    below = _check_country_info(build(9))  # 9/10 = 0.90
     assert below.passed is False, below.detail
+
+
+def test_country_info_rejects_two_missing_names(tmp_path: Path) -> None:
+    path = tmp_path / "countryInfo-98.txt"
+    write_lines(
+        path,
+        [f"C{i:03d}\tXXX\t000\tXX\t{'中国' if i < 98 else 'Country'}\t\t\t\t\t\t\t\t\t\t\t\t\t\t" for i in range(100)],
+    )
+    result = _check_country_info(path)
+    assert result.passed is False, result.detail
 
 
 def test_admin_country_ratio_threshold_boundary(tmp_path: Path) -> None:

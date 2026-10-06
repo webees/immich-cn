@@ -62,6 +62,9 @@ def test_end_to_end_build(build_options: BuildOptions) -> None:
     assert "MO.11875154\t澳门特别行政区\t" in admin1
     country_info = (geodata / "countryInfo.txt").read_text(encoding="utf-8")
     assert "\t中国\t" in country_info
+    country_rows = {line.split("\t")[0]: line.split("\t") for line in country_info.splitlines()}
+    assert country_rows["CS"][4] == "塞尔维亚和黑山"
+    assert country_rows["AN"][4] == "荷属安的列斯"
 
     levels = load_levels(result.names_file)
     # 元组顺序为 (country, admin_1, admin_2, admin_3, admin_4)

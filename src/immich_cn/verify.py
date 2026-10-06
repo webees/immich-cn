@@ -202,9 +202,10 @@ def _check_country_info(path: Path) -> CheckResult:
     if total == 0:
         return CheckResult("countryInfo", False, "文件为空")
     ratio = chinese / total
+    # 项目已通过 i18n 数据与人工覆盖保证所有当前国家/地区名称可用中文表达。
     return CheckResult(
         "countryInfo",
-        ratio >= 0.9,
+        ratio >= 1.0,
         f"{total} 个国家/地区，中文 {chinese} 条（{ratio:.1%}）",
     )
 
