@@ -7,6 +7,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -78,6 +79,18 @@ class AmapEnricher:
         if self._owns_client:
             self._client.close()
 
+    def _redact(self, value: object) -> str:
+        """抹掉日志中的 API Key。
+
+        httpx 的异常消息会带上完整请求 URL（含 ``key=...``），
+        在公共仓库里 Actions 日志任何人可见，必须避免把密钥写进日志。
+        """
+        text = str(value)
+        secret = self._options.api_key
+        if not secret:
+            return text
+        return text.replace(secret, "***").replace(quote(secret, safe=""), "***")
+
     # ---- prefetch -----------------------------------------------------
 
     def prefetch(self, places: Iterable[Place]) -> None:
@@ -120,11 +133,16 @@ class AmapEnricher:
                 response.raise_for_status()
                 payload = response.json()
             except (httpx.HTTPError, ValueError) as error:
-                logger.warning("高德请求失败（第 %d/%d 次）：%s", attempt, self._options.retries, error)
+                logger.warning(
+                    "高德请求失败（第 %d/%d 次）：%s",
+                    attempt,
+                    self._options.retries,
+                    self._redact(error),
+                )
                 continue
             if isinstance(payload, dict) and payload.get("status") == "1":
                 break
-            logger.warning("高德返回异常状态：%s", payload)
+            logger.warning("高德返回异常状态：%s", self._redact(payload))
             payload = None
 
         if payload is None:

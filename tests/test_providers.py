@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import httpx
 import pytest
 
+from immich_cn.logging_setup import get_logger
 from immich_cn.models import Place, PlaceNames
 from immich_cn.providers.amap import AMAP_ENDPOINT, AmapEnricher, AmapOptions, _parse_regeocode
 from immich_cn.providers.geo import out_of_china, wgs84_to_gcj02
@@ -204,3 +206,33 @@ def test_amap_requires_api_key(tmp_path: Path) -> None:
 
     with pytest.raises(ConfigError):
         AmapEnricher(AmapOptions(api_key=""), tmp_path / "x.jsonl")
+
+
+def test_amap_does_not_log_api_key_on_failure(tmp_path: Path) -> None:
+    """请求失败时 httpx 异常里带完整 URL（含 key=...），日志必须脱敏。"""
+    secret = "super-secret-amap-key-1234567890"
+    captured: list[str] = []
+
+    class Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            captured.append(record.getMessage())
+
+    logger = get_logger("amap")
+    handler = Capture()
+    logger.addHandler(handler)
+    try:
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda _request: httpx.Response(403, content=b'{"status":"0"}'))
+        )
+        enricher = AmapEnricher(
+            AmapOptions(api_key=secret, retries=1),
+            tmp_path / "amap.jsonl",
+            client=client,
+        )
+        enricher.prefetch([make_place()])
+    finally:
+        logger.removeHandler(handler)
+
+    assert captured, "应至少记录一条失败日志"
+    assert all(secret not in message for message in captured), captured
+    assert any("***" in message for message in captured), captured
