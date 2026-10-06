@@ -354,11 +354,16 @@ def _require(path: Path) -> Path:
     return path
 
 
-def cleanup_removable(result: BuildResult) -> int:
-    """删除不再需要的中间文件，返回释放的字节数。"""
+def cleanup_removable(result: BuildResult, *, work_dir: Path) -> int:
+    """删除工作目录内不再需要的中间文件，返回释放的字节数。"""
     freed = 0
+    root = work_dir.resolve()
     for path in result.removable_paths:
         try:
+            resolved = path.resolve()
+            if resolved == root or root not in resolved.parents:
+                logger.warning("拒绝清理工作目录外的文件 %s -> %s", path, resolved)
+                continue
             freed += path.stat().st_size
             path.unlink()
         except OSError:

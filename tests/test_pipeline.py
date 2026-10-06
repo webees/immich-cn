@@ -5,12 +5,14 @@ import json
 import tarfile
 import zipfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from immich_cn.build import (
     _alternate_stream,
     _extract_i18n,
+    cleanup_removable,
     iter_output_places,
     load_levels,
     run_build,
@@ -174,6 +176,36 @@ def test_package_keeps_plain_patterns_table_with_keep_raw(tmp_path: Path) -> Non
     package_all(keep, result)
 
     assert (keep.work_dir / "patterns.tsv").exists()
+
+
+def test_cleanup_removable_does_not_follow_sources_symlink(tmp_path: Path) -> None:
+    work = tmp_path / "work"
+    outside = tmp_path / "outside"
+    work.mkdir()
+    outside.mkdir()
+    victim = outside / "alternateNamesV2.txt"
+    victim.write_bytes(b"external")
+    (work / "sources").symlink_to(outside, target_is_directory=True)
+
+    result = SimpleNamespace(removable_paths=[work / "sources" / victim.name])
+    freed = cleanup_removable(result, work_dir=work)  # type: ignore[arg-type]
+
+    assert freed == 0
+    assert victim.read_bytes() == b"external"
+
+
+def test_cleanup_removable_deletes_only_inside_work_dir(tmp_path: Path) -> None:
+    work = tmp_path / "work"
+    sources = work / "sources"
+    sources.mkdir(parents=True)
+    removable = sources / "country.txt"
+    removable.write_bytes(b"internal")
+
+    result = SimpleNamespace(removable_paths=[removable])
+    freed = cleanup_removable(result, work_dir=work)  # type: ignore[arg-type]
+
+    assert freed == len(b"internal")
+    assert not removable.exists()
 
 
 def test_patterns_table_covers_all_levels(build_options: BuildOptions) -> None:
