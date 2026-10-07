@@ -90,7 +90,7 @@ OR f_unaccent("alternateNames") %>> f_unaccent($1)
 
 ## 界面语言
 
-Immich 当前 `release` 线 v3.2.4 与 v3.3.0 都已内置 [zh_Hans.json](https://github.com/immich-app/immich/blob/v3.3.0/i18n/zh_Hans.json) 与 [zh_Hant.json](https://github.com/immich-app/immich/blob/v3.3.0/i18n/zh_Hant.json)。Web 端还会把浏览器语言别名映射到内置语言标识：`zh-CN` / `zh-SG` → `zh-Hans`，`zh-TW` / `zh-HK` / `zh-MO` → `zh-Hant`。用户可在**用户设置 → 应用设置 → 语言**中选择语言；这是按用户保存的偏好，上游没有提供统一强制所有用户的服务端环境变量。
+2026-10-08 实测：Immich `release` 线为 v3.3.0；v3.2.4 与 v3.3.0 都已内置 [zh_Hans.json](https://github.com/immich-app/immich/blob/v3.3.0/i18n/zh_Hans.json) 与 [zh_Hant.json](https://github.com/immich-app/immich/blob/v3.3.0/i18n/zh_Hant.json)。Web 端还会把浏览器语言别名映射到内置语言标识：`zh-CN` / `zh-SG` → `zh-Hans`，`zh-TW` / `zh-HK` / `zh-MO` → `zh-Hant`。用户可在**用户设置 → 应用设置 → 语言**中选择语言；这是按用户保存的偏好，上游没有提供统一强制所有用户的服务端环境变量。
 
 本项目不维护 Immich 界面翻译分支，也不通过字符串替换修改前端产物。中文地名、检索与反向地理编码数据同界面语言是两套独立契约：前者由本项目提供，后者由 Immich 上游与用户设置决定。
 
