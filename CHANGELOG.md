@@ -37,6 +37,7 @@
 - Compose 示例对齐 Immich v3.3 官方拓扑：媒体卷改为 `/data`，补齐 machine-learning 与 model-cache，Valkey 升级并固定到官方 9.x digest；发布 smoke 同步使用同一 Valkey 摘要；
 - 修正 timezone 文档残留的无条件 `PUT /api/assets` 描述，明确 PATCH 优先与 404/405 fallback，并增加文档-实现契约护栏；
 - 滚动 Release 的旧资产 prune 现在遇到单个删除失败会继续处理其余资产，并在结束时统一汇总失败，避免一次瞬时 API 错误导致后续旧资产长期残留；
+- 明确 Immich 当前 `release` 线 v3.2.4 与 v3.3.0 均已内置中文 UI locale，避免默认镜像用户误以为必须升级才能获得 `zh_Hans` / `zh_Hant`；
 - 部署示例默认设置 `TZ: Asia/Shanghai`，并补充国内镜像获取、digest 验证、WGS-84/GCJ-02 偏移与故障排查说明；
 - 规范 SQLite 数据集 `immich-cn-dataset-sqlite-v1.zip` 作为一等制品，Immich 文本格式改由适配器导出，详见 `docs/data-format.md` 与 ADR 0001；
 - `immich-cn artifact resolve` CLI：按 canonical ID、profile+scope 或历史别名解析制品；

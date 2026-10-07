@@ -644,6 +644,8 @@ def check_immich_ui_locale_contract(errors: list[str]) -> None:
     localization = CHINA_LOCALIZATION_DOC.read_text(encoding="utf-8")
     if "zh_Hans" not in localization or "zh_Hant" not in localization:
         errors.append(f"{CHINA_LOCALIZATION_DOC} 未记录 Immich 内置的中文 UI locale")
+    if "v3.2.4" not in integration or "v3.3.0" not in integration:
+        errors.append(f"{UPSTREAM_INTEGRATION_DOC} 未覆盖当前 release 线 v3.2.4 与 v3.3.0 的 UI locale 边界")
 
 
 def check_nginx_upstream_contract(errors: list[str]) -> None:
