@@ -436,6 +436,33 @@ def check_numeric_contracts(errors: list[str]) -> None:
         errors.append(f"Makefile 称首次下载约 {make_download.group(1)} MiB，实际压缩下载约 {FIRST_DOWNLOAD_MIB} MiB")
 
 
+def check_pattern_table(errors: list[str]) -> None:
+    """README 的展示粒度表必须覆盖 `DEFAULT_PATTERNS` 的每一种 pattern。
+
+    2026-10-07 实测：默认构建发布 7 种粒度，但 README 表里只有 5 种，
+    `{admin_2} {admin_4}` 与 `{admin_3} {admin_4}` 对应的
+    `immich-cn-geodata-admin2-admin4-*.zip` / `admin3-admin4-*.zip` 已经躺在 Release
+    里，却没有任何文档入口——用户不读源码就不知道它们存在。
+    """
+    sys.path.insert(0, str(Path("src").resolve()))
+    from immich_cn.settings import DEFAULT_PATTERNS
+
+    readme = Path("README.md").read_text(encoding="utf-8")
+    parts = readme.split("## 展示粒度", 1)
+    if len(parts) != 2:
+        errors.append("README 缺少「展示粒度」小节，无法校验 pattern 覆盖")
+        return
+    section = parts[1].split("\n## ", 1)[0]
+    listed = set(re.findall(r"`(\{[^`]+\})`", section))
+    missing = [pattern for pattern in DEFAULT_PATTERNS if pattern not in listed]
+    if missing:
+        errors.append(
+            "README 的展示粒度表未覆盖默认发布的 pattern："
+            + "、".join(f"`{pattern}`" for pattern in missing)
+            + "（这些变体已经发布，缺文档入口会让用户找不到）"
+        )
+
+
 def check_source_contracts(errors: list[str]) -> None:
     """上游数据源清单必须与 docs/data-sources.md 的表格同步。
 
@@ -1227,6 +1254,7 @@ def main(argv: list[str] | None = None) -> int:
     check_langs_mounts(doc_files + _expand(("examples/*.yml",)), errors)
     check_discoverable(errors)
     check_numeric_contracts(errors)
+    check_pattern_table(errors)
     check_source_contracts(errors)
     check_module_name_table(errors)
     check_referenced_paths(doc_files, errors)

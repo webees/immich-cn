@@ -67,6 +67,7 @@
 
 ### 修复
 
+- README 的展示粒度表补齐默认发布的 7 种 pattern（此前只有 5 种，`{admin_2} {admin_4}` 与 `{admin_3} {admin_4}` 对应的 `immich-cn-geodata-admin2-admin4-*.zip` / `admin3-admin4-*.zip` 已在 Release 里发布却无文档入口）；`check_docs` 新增 `check_pattern_table`，要求表格覆盖实现里的 `DEFAULT_PATTERNS`；
 - 补上「固定摘要变化后不得复用旧缓存」的负向控制（`test_fetcher_ignores_cache_when_pinned_digest_changed`）：去掉缓存命中时的 `spec.expected_sha256` 比对后该测试会失败，证明 CI 里很宽的 `actions/cache` `restore-keys` 兜底不会让构建拿着旧内容成功；`docs/data-sources.md` 记录这条兜底为什么安全；
 - `check_workflows` 新增 GHCR 包名护栏：发布路径里自有的 `ghcr.io/${GITHUB_REPOSITORY}` 只允许 `-server` 后缀，写死的引用只允许 `webees/immich-cn` 与 `webees/immich-cn-server`；此前把 `_build-data.yml` 里 18 处包名改成 `-typo` 仍能通过全部门禁与冒烟构建（冒烟只使用本地镜像名），错误包名只会在真实发布时暴露或静默发布到另一个包；
 - `check_artifacts.py` 新增规范数据集与 Immich 适配器的 admin 层级一致性比对：`admin_areas` 与 `admin1CodesASCII.txt`/`admin2Codes.txt` 出现未记录差异即失败，HK/MO 的 level-1 特别行政区覆盖（2026-10-06 发布实测 26 条：HK 18 + MO 8）是唯一允许的例外，覆盖被静默去掉也会失败；`docs/data-format.md` 记录该已知差异；

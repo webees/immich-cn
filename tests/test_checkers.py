@@ -152,6 +152,16 @@ def test_check_docs_detects_missing_notice_reference(repo_copy: Path) -> None:
     assert "NOTICE" in result.stdout
 
 
+def test_check_docs_requires_every_default_pattern_in_readme(repo_copy: Path) -> None:
+    """默认发布的每种 pattern 都要在 README 表里有入口，否则制品存在但用户找不到。"""
+    readme = repo_copy / "README.md"
+    mutate(readme, "| `{admin_3} {admin_4}` | 昆山市 周市镇 |\n", "")
+
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "{admin_3} {admin_4}" in result.stdout
+
+
 def test_check_docs_detects_numeric_drift(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     mutate(readme, "共 14 个 geodata variant", "共 13 个 geodata variant")
