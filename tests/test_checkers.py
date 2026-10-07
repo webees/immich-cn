@@ -1357,6 +1357,32 @@ def test_check_workflows_requires_nginx_config_validation(repo_copy: Path) -> No
     assert "nginx -t" in result.stdout
 
 
+def test_check_workflows_rejects_non_canonical_own_ghcr_suffix(repo_copy: Path) -> None:
+    """错误镜像名必须被 CI 拦住：改成 ...-typo 后冒烟构建仍然会用本地镜像全绿。"""
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(
+        workflow,
+        "ghcr.io/${GITHUB_REPOSITORY}-server:latest",
+        "ghcr.io/${GITHUB_REPOSITORY}-server-typo:latest",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "-server-typo" in result.stdout
+
+
+def test_check_workflows_rejects_non_canonical_hardcoded_package(repo_copy: Path) -> None:
+    """写死 owner 或包名时拼错同样要失败。"""
+    workflow = repo_copy / ".github" / "workflows" / "release.yml"
+    text = workflow.read_text(encoding="utf-8")
+    workflow.write_text(
+        text + "\n# 参考镜像：ghcr.io/weebes/immich-cn:latest\n",
+        encoding="utf-8",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "weebes/immich-cn" in result.stdout
+
+
 def test_check_docs_rejects_v_prefixed_image_tag(repo_copy: Path) -> None:
     """镜像 tag 不带 v 前缀；写成 v1.0.4 会让用户 pull 直接 not found。"""
     packages = repo_copy / "docs" / "packages.md"
