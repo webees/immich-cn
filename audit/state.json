@@ -2,11 +2,11 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 278,
-  "consecutive_clean": 2,
+  "round": 279,
+  "consecutive_clean": 3,
   "totals": {
     "findings": 191,
-    "clean_rounds": 78,
+    "clean_rounds": 79,
     "p0": 0,
     "p1": 30,
     "p2": 116,
@@ -2827,9 +2827,20 @@
       "severity": null,
       "evidence": "对 `data-2026-10-08` 的 admin2/default 包做独立抽样：`cities500` 共 256,658 行，空展示名 0、重复 GeoNames ID 0、非法坐标 0；CN/HK/TW/MO 中文展示名分别为 34,897/342/391/13，均 100% 覆盖。抽中北京 1816670、上海 1796236、广州 1809858、深圳 1795565、苏州 1886760、台北 1668341，以及香港荃湾/离岛、澳门堂区样本，层级代码与中文名正确；admin1 3,865 行、admin2 47,643 行、countryInfo 252 行，CN/HK/TW/MO/JP/US 国家名均为中文。对抗性控制：从内存样本删除北京 1816670 后，同一断言立即失败（exit 1）。本轮未发现 P0-P2 问题，clean_streak=2。",
       "pr": null
+    },
+    {
+      "round": 279,
+      "timestamp": "2026-10-08T04:00:00+08:00",
+      "focus": "工作流、容器脚本与供应链安全",
+      "method": "M10 shell/容器安全审查 + M4 外部供应链对拍",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "全量安全检查未发现 P0-P2：8 个 checkout 全部 `persist-credentials: false`；25 个 Action pin 与上游 tag 一致；危险模式扫描（curl|sh、eval、chmod 777、私钥/token 字面量）0 命中；`scripts/check_shell.py` 与 `check-entrypoint.sh` 全部通过，覆盖根目录 source/target、缺失参数、源目录缺失、只读目标、变体表不匹配、入口与 install 脚本符号链接攻击等负向路径。`make check` 450 passed，`make audit-dead-symbols` 零引用定义 0。本轮 clean_streak=3。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "round 279 的秘密扫描是当前树与历史模式启发式，不能替代 GitHub secret scanning 的 provider 验证；仓库的 non-provider patterns 与 validity checks 仍为 disabled，需 owner 手动开启",
     "round 277 只对发布资产做了下载/哈希/归档校验，没有替代多平台真实 Immich 运行级验证；跨平台差异仍由发布流水线和后续审计覆盖",
     "round 274 已完成真实删除：121 个旧命名 Release 资产与 4 个旧 GHCR 版本不可恢复；固定引用旧文件名或旧镜像 tag 的消费者必须迁移到规范资产名、摘要或新的 data-* 快照",
     "round 276 的 update-data 最终成功，但 Cosign OIDC 首次失败仍是外部环境噪声；未来签名步骤仍可能受 GitHub OIDC 端点瞬时异常影响，需要继续按重试规则区分环境失败与代码失败",
