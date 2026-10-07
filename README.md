@@ -208,6 +208,7 @@ release.yml ──► 手动创建语义化版本 Release
 - [规范数据格式](docs/data-format.md)
 - [Data sources and processing](docs/data-sources.md)
 - [部署指南](docs/deployment.md)
+- [照片拍摄时间与时区](docs/timezone.md)
 - [Packages 与供应链](docs/packages.md)
 - [自动清理与保留策略](docs/maintenance.md)
 - [本地开发](docs/development.md)

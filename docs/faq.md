@@ -66,6 +66,10 @@ Immich 使用"最近的点"做反向地理编码，边界处的误差是原理�
 
 不是。默认构建仍处理全球 `cities500`，但优先级和验证标准面向中国用户：CN/HK/TW/MO 有严格中文零缺失检查，中国大陆的区县、乡镇覆盖率被单独量化。海外地名能否显示中文，取决于 GeoNames 中文别名覆盖率与可选 provider；这不会阻止中国地区的名字正常显示。
 
+## 照片详情里的拍摄时间如何显示成北京时间？
+
+Immich 详情页优先使用 EXIF `dateTimeOriginal` 和 `exifInfo.timeZone`，不会因为 container 设置了 `TZ` 就统一改写。需要统一显示为北京时间时，可使用 [scripts/set_asset_timezone.py](../scripts/set_asset_timezone.py) 的 dry-run，确认后加 `--apply`。该工具通过 Immich 官方 bulk API 更新 metadata，不修改原图；完整边界见 [照片拍摄时间与时区](timezone.md)。
+
 ## 为什么镜像里的数据比 Release zip 大？
 
 镜像内置的是默认非 full 数据集，点位口径与 `immich-cn-geodata-admin2-default-v1.zip` 一致；镜像还附带未压缩的 geodata 文件和用于运行时切换粒度的 `immich-cn-patterns-tsv-v1.gz`，因此不能直接与只下载一个 zip 的体积比较。需要 full 点位时请下载 `immich-cn-geodata-admin2-full-v1.zip`。
