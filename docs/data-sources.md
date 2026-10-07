@@ -99,4 +99,4 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 
 最后生成 `immich-cn-manifest-json-v1.json`、`immich-cn-checksums-sha256-v1.txt`、`immich-cn-patterns-tsv-v1.gz` 与 `immich-cn-i18n-json-v1.zip`。 130 MiB 级的明文 `immich-cn-patterns-v1.tsv` 默认不会生成；需要排查时可用 `--keep-raw` 同时保留明文表，镜像构建使用直接流式生成的压缩表 `immich-cn-patterns-tsv-v1.gz`。
 
-`immich-cn-dataset-sqlite-v1.zip` 自带 `NOTICE.txt`；`immich-cn-i18n-json-v1.zip` 与 `build/langs/` 只保留旧版 Immich 实际读取的 `en.json` 和上游 `LICENSE`，避免把整个语言包塞进制品，同时不丢失 MIT 版权声明；每个 geodata zip 和镜像数据目录同时包含 `NOTICE.txt`，保留 GeoNames 等数据源署名。
+`immich-cn-dataset-sqlite-v1.zip` 自带 `NOTICE.txt`；`immich-cn-i18n-json-v1.zip` 与 `build/langs/` 只保留旧版 Immich 实际读取的 `en.json` 和上游 `LICENSE`（自下一次数据发布起生效，已发布快照仍是整套语言包，见 [Packages 说明](packages.md)），避免把整个语言包塞进制品，同时不丢失 MIT 版权声明；每个 geodata zip 和镜像数据目录同时包含 `NOTICE.txt`，保留 GeoNames 等数据源署名。

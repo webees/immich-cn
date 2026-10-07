@@ -41,7 +41,7 @@ Compose 示例通过 `IMMICH_CN_GHCR_MIRROR` 选择 prefix。2026-10-07 对两�
 
 - 数据镜像使用 Alpine 自带工具，不额外安装 `gzip` 包；
 - Dockerfile 用 `COPY --chmod` 设置脚本权限，避免额外的 `RUN chmod` 层；
-- `build/langs`、Release 的 i18n 包和 Docker 镜像只保留旧版 Immich 实际读取的 `en.json` 与上游 `LICENSE`，不再复制整套语言包；
+- `build/langs`、Release 的 i18n 包和 Docker 镜像只保留旧版 Immich 实际读取的 `en.json` 与上游 `LICENSE`，不再复制整套语言包（**自下一次数据发布起**；已发布的 `data-2026-10-06` 快照与滚动 `auto-release` 仍是 74 个成员、191,847 字节的整套语言包，sha256 与各自 manifest 一致，`check_artifacts` 现在会拒绝新构建里出现多余语言文件）；
 - `.dockerignore` 只放行 `build/geodata`、`build/langs` 和运行时粒度表，源码、缓存、测试和构建中间文件不会进入上下文；
 - CI 对合成构建的两个镜像设置 10 MiB 尺寸预算，并检查镜像内不存在冗余 `zh.json`。
 

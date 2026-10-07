@@ -1789,6 +1789,7 @@ def _make_dist(root: Path) -> Path:
     i18n = dist / "immich-cn-i18n-json-v1.zip"
     with zipfile.ZipFile(i18n, "w") as archive:
         archive.writestr("LICENSE", "MIT License\nCopyright\n")
+        archive.writestr("langs/en.json", '{"locale": "en", "countries": {}}\n')
 
     database = dist / "_dataset.sqlite"
     connection = sqlite3.connect(database)
@@ -2012,6 +2013,30 @@ def test_check_artifacts_rejects_archive_uncompressed_budget(tmp_path: Path, mon
     errors: list[str] = []
     check_artifacts.check_zips(dist, errors)
     assert any("解压总量" in error for error in errors), errors
+
+
+def test_check_artifacts_rejects_oversized_i18n_language_pack(tmp_path: Path) -> None:
+    """语言包必须被裁剪：2026-10-06 的发布里曾含 73 个语言文件。"""
+    dist = _make_dist(tmp_path)
+    with zipfile.ZipFile(dist / "immich-cn-i18n-json-v1.zip", "w") as archive:
+        archive.writestr("LICENSE", "MIT License\nCopyright\n")
+        archive.writestr("langs/en.json", '{"locale": "en", "countries": {}}\n')
+        archive.writestr("langs/zh.json", '{"locale": "zh", "countries": {}}\n')
+
+    errors: list[str] = []
+    check_artifacts.check_zips(dist, errors)
+    assert any("非必需语言文件" in error for error in errors), errors
+
+
+def test_check_artifacts_requires_i18n_en_json(tmp_path: Path) -> None:
+    """只放 LICENSE 不算合格语言包：旧版 Immich 读的是 langs/en.json。"""
+    dist = _make_dist(tmp_path)
+    with zipfile.ZipFile(dist / "immich-cn-i18n-json-v1.zip", "w") as archive:
+        archive.writestr("LICENSE", "MIT License\nCopyright\n")
+
+    errors: list[str] = []
+    check_artifacts.check_zips(dist, errors)
+    assert any("缺少 langs/en.json" in error for error in errors), errors
 
 
 def test_check_artifacts_requires_i18n_license(tmp_path: Path) -> None:
