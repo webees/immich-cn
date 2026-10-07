@@ -88,7 +88,17 @@ CHINA_LOCALIZATION_PHASES = ("阶段 1", "阶段 2", "阶段 3", "阶段 4")
 CHINA_TIMEZONE = "TZ: Asia/Shanghai"
 CHINA_LOCALIZATION_OVERCLAIM = "完整行政区层级"
 CHINA_ACCELERATION_DOC = Path("docs/china-acceleration.md")
-CHINA_ACCELERATION_TOKENS = ("CDN", "jsDelivr", "Release 资产", "Cache-Control", "/_app/immutable/", "/api/")
+CHINA_ACCELERATION_TOKENS = (
+    "CDN",
+    "jsDelivr",
+    "cdn.jsdmirror.com",
+    "IMMICH_CN_JSDELIVR_BASE",
+    "jsdelivr_url.py",
+    "Release 资产",
+    "Cache-Control",
+    "/_app/immutable/",
+    "/api/",
+)
 TERMINOLOGY_DOC = Path("docs/terminology.md")
 TECHNICAL_TERMS = (
     "artifact",
