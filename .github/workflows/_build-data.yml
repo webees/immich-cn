@@ -152,7 +152,7 @@ jobs:
 
           previous_base_digest=""
           if previous_image="$(
-            docker buildx imagetools inspect "ghcr.io/${GITHUB_REPOSITORY}-server:latest" \
+            docker buildx imagetools inspect "ghcr.io/${GITHUB_REPOSITORY}-server-typo:latest" \
               --format '{{json .Image}}' 2>/dev/null
           )"; then
             previous_base_digest="$(
