@@ -682,8 +682,8 @@ def test_check_workflows_detects_top_level_write_permissions(repo_copy: Path) ->
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
     mutate(
         workflow,
-        "permissions:\n  contents: read\n\nconcurrency:",
-        "permissions:\n  contents: write\n\nconcurrency:",
+        "permissions:\n  contents: read\n\nenv:",
+        "permissions:\n  contents: write\n\nenv:",
     )
     result = run_checker(repo_copy, "check_workflows.py")
     assert result.returncode == 1
@@ -900,6 +900,17 @@ def test_check_workflows_requires_image_size_budget(repo_copy: Path) -> None:
     result = run_checker(repo_copy, "check_workflows.py")
     assert result.returncode == 1
     assert "镜像尺寸" in result.stdout or "语言包最小化" in result.stdout
+
+
+def test_check_workflows_requires_china_timezone(repo_copy: Path) -> None:
+    """工作流不能继续依赖 runner 的 UTC 生成中国用户可见日期。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    text = workflow.read_text(encoding="utf-8")
+    assert "TZ: Asia/Shanghai" in text
+    workflow.write_text(text.replace("TZ: Asia/Shanghai", "TZ: UTC"), encoding="utf-8")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "TZ: Asia/Shanghai" in result.stdout
 
 
 def test_check_workflows_detects_illegal_key_on_reusable_job(repo_copy: Path) -> None:

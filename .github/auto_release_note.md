@@ -2,6 +2,8 @@
 
 更新机制：每天用 ETag/Last-Modified 条件校验 GeoNames、Natural Earth 与 i18n-iso-countries；检测到数据、构建配置或发布器修订变化后会自动重新翻译、打包、校验并推送新镜像。如果上游没有变化，本次运行会跳过发布，因此 Release 内容保持稳定。
 
+Release 日期与数据时间统一使用北京时间（Asia/Shanghai，UTC+08:00）。
+
 ## 选择文件
 
 | 需求 | 文件 |

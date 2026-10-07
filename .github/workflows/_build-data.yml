@@ -41,7 +41,7 @@ on:
         default: false
     outputs:
       date:
-        description: 构建日期（UTC）
+        description: 构建日期（北京时间）
         value: ${{ jobs.build.outputs.date }}
       digest:
         description: 数据镜像摘要
@@ -55,6 +55,9 @@ on:
 
 permissions:
   contents: read
+
+env:
+  TZ: Asia/Shanghai
 
 jobs:
   build:
@@ -155,7 +158,7 @@ jobs:
           INPUT_PROVIDER: ${{ inputs.provider }}
           INPUT_PATTERNS: ${{ inputs.patterns }}
         run: |
-          date="$(date -u +%Y-%m-%d)"
+          date="$(date +%Y-%m-%d)"
           short_sha="${GITHUB_SHA::7}"
           echo "date=${date}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
@@ -163,7 +166,7 @@ jobs:
           {
             echo "## immich-cn 数据构建"
             echo ""
-            echo "- 日期：${date}"
+            echo "- 日期：${date}（北京时间）"
             echo "- Provider：${INPUT_PROVIDER}"
             echo "- 展示粒度：\`${INPUT_PATTERNS}\`"
             echo "- 提交：\`${GITHUB_SHA}\`"

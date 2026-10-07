@@ -70,8 +70,16 @@ fi
 if [ "${IMMICH_CN_FORCE_RELOAD:-0}" = "1" ]; then
   # 源数据可能把该文件写成符号链接；写前先删除，避免追随到目标目录之外。
   rm -f "$target/geodata-date.txt"
-  date -u +"%Y-%m-%dT%H:%M:%S+00:00" > "$target/geodata-date.txt"
-  echo "immich-cn: 已将 geodata-date.txt 更新为当前时间，Immich 会重新导入数据"
+  if china_time="$(date -u -d "@$(( $(date +%s) + 28800 ))" +"%Y-%m-%dT%H:%M:%S+08:00" 2>/dev/null)"; then
+    :
+  elif china_time="$(date -u -v+8H +"%Y-%m-%dT%H:%M:%S+08:00" 2>/dev/null)"; then
+    :
+  else
+    echo "immich-cn: 无法生成北京时间戳" >&2
+    exit 1
+  fi
+  printf '%s\n' "$china_time" > "$target/geodata-date.txt"
+  echo "immich-cn: 已将 geodata-date.txt 更新为北京时间，Immich 会重新导入数据"
 fi
 
 exec "$@"

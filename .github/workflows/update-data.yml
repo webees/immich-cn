@@ -7,7 +7,7 @@ name: 全自动更新数据
 #   4. 上游、构建配置与发布器修订都没有变化时跳过发布，避免无意义的版本与重复导入。
 on:
   schedule:
-    # 每天 UTC 05:23（北京时间 13:23）执行；GitHub 的定时任务在高负载时可能延后
+    # 每天北京时间 13:23（UTC 05:23）执行；GitHub 的定时任务在高负载时可能延后
     - cron: "23 5 * * *"
   workflow_dispatch:
     inputs:
@@ -35,6 +35,9 @@ on:
 
 permissions:
   contents: read
+
+env:
+  TZ: Asia/Shanghai
 
 concurrency:
   group: auto-update-data
@@ -217,7 +220,7 @@ jobs:
           gh label create automation --repo "$GITHUB_REPOSITORY" \
             --color B60205 --description "自动化流水线通知" --force >/dev/null 2>&1 || true
 
-          title="自动更新数据失败（$(date -u +%F)）"
+          title="自动更新数据失败（$(date +%F)）"
           body="$(printf '全自动更新数据流程执行失败。\n\n- 运行记录：%s\n- 触发方式：%s\n- 提交：`%s`\n\n修复后可通过 workflow_dispatch 重新执行。\n' \
             "$RUN_URL" "$EVENT_NAME" "$COMMIT_SHA")"
 

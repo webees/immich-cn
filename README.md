@@ -44,7 +44,7 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 
 | 环节 | 行为 |
 |:--|:--|
-| 触发 | `每天 UTC 05:23`（北京时间 13:23）定时执行，也支持手动 `workflow_dispatch` |
+| 触发 | `每天北京时间 13:23`（UTC 05:23）定时执行，也支持手动 `workflow_dispatch` |
 | 上游检查 | 用 `ETag` / `Last-Modified` 条件请求校验 GeoNames、Natural Earth、i18n-iso-countries；未变化时 **304，不传输正文** |
 | 变化判断 | 用「上游文件 SHA256 + 构建配置 + 发布器修订」计算发布指纹，与上一次发布对比；无变化则跳过发布，避免无意义的版本和重复导入 |
 | 构建 | 重新生成四级行政层级、汉化 `cities500`、导出 7 种粒度 × full/非 full 共 14 个 geodata 变体与规范数据集 |
@@ -175,7 +175,7 @@ jsDelivr 等免费 CDN 只作为 GitHub 分支、tag 或提交中静态文件的
 ## 自动化工作流
 
 ```
-每天 05:23 UTC（cron）
+每天 13:23 北京时间（cron）
         │
         ▼
   update-data.yml ──► _build-data.yml（可复用）

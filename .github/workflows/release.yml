@@ -24,6 +24,9 @@ on:
 permissions:
   contents: read
 
+env:
+  TZ: Asia/Shanghai
+
 concurrency:
   group: release
   cancel-in-progress: false

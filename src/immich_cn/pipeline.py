@@ -17,7 +17,7 @@ import shutil
 import tarfile
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import TextIO
@@ -71,6 +71,9 @@ from immich_cn.settings import (
 logger = get_logger("build")
 
 PROGRESS_EVERY = 500_000
+
+#: 项目面向中国用户，构建日期与 manifest 时间统一写北京时间。
+CHINA_TIMEZONE = timezone(timedelta(hours=8))
 
 GEODATA_NOTICE = """immich-cn data attribution
 
@@ -234,7 +237,7 @@ def run_build(options: BuildOptions) -> BuildResult:
         chain.close()
 
     langs_dir = _write_langs(paths.langs_dir, options)
-    generated_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    generated_at = datetime.now(CHINA_TIMEZONE).strftime("%Y-%m-%dT%H:%M:%S+08:00")
     _emit_geodata(
         options.geodata_dir,
         cities500=cities500_file,

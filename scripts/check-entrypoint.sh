@@ -50,7 +50,7 @@ run_case() {
   written="$(cat "$work/build/geodata/geodata-date.txt")"
   if [ "$force_reload" = "1" ]; then
     # 强制刷新时必须写成当前时间（比较到分钟，避免跨秒误差）
-    expected_date="$(date -u +%Y-%m-%dT%H:%M)"
+    expected_date="$(TZ=Asia/Shanghai date +%Y-%m-%dT%H:%M)"
     if [ "${written:0:16}" != "$expected_date" ]; then
       echo "失败：geodata-date.txt 未刷新为当前时间，实际 '$written'" >&2
       exit 1
