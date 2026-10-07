@@ -360,6 +360,25 @@ def test_check_docs_rejects_stale_geodata_import_wording(repo_copy: Path) -> Non
     assert "不准确的导入条件" in result.stdout
 
 
+def test_check_docs_detects_license_field_drift(repo_copy: Path) -> None:
+    """pyproject 的 license 与 LICENSE/CITATION 不一致时必须报错。"""
+    pyproject = repo_copy / "pyproject.toml"
+    mutate(pyproject, 'license = "MIT"', 'license = "Apache-2.0"')
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "许可声明不一致" in result.stdout
+    assert "pyproject.toml 的 license" in result.stdout
+
+
+def test_check_docs_detects_missing_data_license_exception(repo_copy: Path) -> None:
+    """NOTICE 丢掉「数据制品不属于 MIT」的例外说明时必须报错。"""
+    notice = repo_copy / "NOTICE"
+    mutate(notice, "并不属于 MIT 许可范围", "属于 MIT 许可范围")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "数据制品不适用纯 MIT" in result.stdout
+
+
 def test_check_docs_detects_version_drift(repo_copy: Path) -> None:
     """pyproject / __init__ / CITATION 三处版本号必须一致。"""
     citation = repo_copy / "CITATION.cff"
