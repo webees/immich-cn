@@ -1,0 +1,103 @@
+name: 更新监控
+
+# Auto Data Update 的 schedule 事件会被 GitHub 延迟甚至整轮跳过。没有外部观测时
+# 「定时任务没跑」和「跑了但上游无变化」在 Actions 页面上完全一样，静默停摆可以持续
+# 很久。本工作流定期检查最近一次运行的时间与结论，把停摆变成可告警的事实。
+on:
+  schedule:
+    # 每 6 小时一次，避开整点高负载；每天最多比调度晚 6 小时发现停摆。
+    - cron: "41 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      max-age-hours:
+        description: 最近一次运行允许的最大年龄（小时）
+        type: number
+        default: 30
+      stall-grace-hours:
+        description: 未完成运行允许停留的时间（小时）
+        type: number
+        default: 3
+
+permissions:
+  contents: read
+
+env:
+  TZ: Asia/Shanghai
+
+concurrency:
+  group: monitor-update
+  cancel-in-progress: false
+
+jobs:
+  freshness:
+    name: 检查自动更新新鲜度
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: 检查 Auto Data Update 是否按计划执行
+        id: freshness
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          # 通过 env 传值，避免把 workflow_dispatch 输入直接插值进 shell
+          MAX_AGE_HOURS: ${{ inputs.max-age-hours || 30 }}
+          STALL_GRACE_HOURS: ${{ inputs.stall-grace-hours || 3 }}
+        run: |
+          python -m scripts.check_update_freshness \
+            --workflow update-data.yml \
+            --max-age-hours "$MAX_AGE_HOURS" \
+            --stall-grace-hours "$STALL_GRACE_HOURS"
+      - name: 创建或更新告警 issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          STATE: ${{ steps.freshness.outputs.state }}
+          DETAIL: ${{ steps.freshness.outputs.detail }}
+        run: |
+          set -euo pipefail
+          # 标签 upsert 是尽力而为：失败不阻塞告警本身，但必须留下可见的 warning
+          if ! gh label create automation --repo "$GITHUB_REPOSITORY" \
+            --color B60205 --description "自动化流水线通知" --force >/dev/null 2>&1; then
+            echo "::warning::无法创建或更新 automation 标签，继续创建 issue"
+          fi
+
+          title="自动更新停摆（$(date +%F)）"
+          body="$(printf 'Auto Data Update 新鲜度检查未通过。\n\n- 状态：%s\n- 详情：%s\n- 检查记录：%s\n\n先确认 GitHub 是否真的触发了定时任务，再决定手动 workflow_dispatch 还是修复工作流。\n' \
+            "${STATE:-unknown}" "${DETAIL:-未取得检查详情}" "$RUN_URL")"
+
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --label automation --search '自动更新停摆 in:title' \
+            --json number --jq '.[0].number // empty')"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "$title" --label automation --body "$body"
+          fi
+      - name: 关闭历史告警 issue
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --label automation --search '自动更新停摆 in:title' \
+            --json number --jq '.[0].number // empty')"
+          if [ -z "$number" ]; then
+            echo "没有未关闭的停摆告警"
+            exit 0
+          fi
+          gh issue comment "$number" --repo "$GITHUB_REPOSITORY" \
+            --body "新鲜度检查已恢复：最近一次 Auto Data Update 在阈值内。"
+          gh issue close "$number" --repo "$GITHUB_REPOSITORY"

@@ -197,6 +197,7 @@ release.yml ──► 手动创建语义化版本 Release
 - `ci.yml`：每次提交执行 static check、unit test 与 image smoke build。
 - `release.yml`：手动创建语义化版本 Release（总是强制重新构建与推送）。
 - `cleanup.yml`：每周清理旧 `data-*` 快照、Actions 历史与 GHCR 版本；稳定前可启用 `prune-all`。
+- `monitor-update.yml`：每 6 小时检查 **Auto Data Update** 的新鲜度；定时任务未触发、运行卡住、最近一次失败或长期没有成功时创建 `automation` 告警 issue，恢复后自动关闭。
 
 ## 文档
 

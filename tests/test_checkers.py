@@ -1347,6 +1347,32 @@ def test_check_workflows_requires_nginx_config_validation(repo_copy: Path) -> No
     assert "nginx -t" in result.stdout
 
 
+def test_check_workflows_requires_update_monitor(repo_copy: Path) -> None:
+    """缺少更新监控时，定时任务停摆将无人发现，必须直接失败。"""
+    (repo_copy / ".github" / "workflows" / "monitor-update.yml").unlink()
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "monitor-update.yml" in result.stdout
+
+
+def test_check_workflows_requires_update_monitor_schedule(repo_copy: Path) -> None:
+    """监控没有 schedule 触发就永远只在手动执行时才检查。"""
+    workflow = repo_copy / ".github" / "workflows" / "monitor-update.yml"
+    mutate(workflow, "\n  schedule:\n", "\n  schedule-disabled:\n")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "schedule" in result.stdout
+
+
+def test_check_workflows_requires_monitor_target(repo_copy: Path) -> None:
+    """监控必须盯住真实的 update-data.yml，否则只会在错误的空集合上判健康。"""
+    workflow = repo_copy / ".github" / "workflows" / "monitor-update.yml"
+    mutate(workflow, "--workflow update-data.yml", "--workflow some-other.yml")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "update-data.yml" in result.stdout
+
+
 def test_check_workflows_requires_immich_search_predicate(repo_copy: Path) -> None:
     """地点搜索 smoke 必须用 Immich 的 %>> 谓词，缺失即失败。"""
     workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
