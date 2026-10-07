@@ -106,7 +106,6 @@ class Place:
 class AdminEntry:
     """adminNCodes / 自建行政级别表中的一条记录。"""
 
-    code: str
     name: str
     geoname_id: int | None = None
 

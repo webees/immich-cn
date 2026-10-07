@@ -83,13 +83,13 @@ def test_overrides_load_rejects_bad_key(tmp_path: Path) -> None:
 
 
 def test_admin_entry_is_exported() -> None:
-    assert AdminEntry(code="CN.04", name="Jiangsu").geoname_id is None
+    assert AdminEntry(name="Jiangsu").geoname_id is None
 
 
 def test_kanji_fallback_is_restricted_to_japan() -> None:
     entries = {
-        "JP.13": AdminEntry(code="JP.13", name="Tokyo", geoname_id=1),
-        "US.NY": AdminEntry(code="US.NY", name="New York", geoname_id=2),
+        "JP.13": AdminEntry(name="Tokyo", geoname_id=1),
+        "US.NY": AdminEntry(name="New York", geoname_id=2),
     }
     index = ChineseNameIndex(kanji_names={1: "東京都", 2: "紐約州"})
     translated = translate_admin_codes(entries, index, fallback_to_ascii=False)
