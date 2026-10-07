@@ -296,6 +296,17 @@ def _check_cities500(
             f"中国记录 {cn_total} 条，中文名称 {cn_chinese} 条（{cn_ratio:.1%}）",
         )
     )
+    # 阈值检查允许少量缺失（可用 --min-cn-ratio 调整），但打包阶段对 CN/HK/TW/MO 是
+    # 零容忍：只要有一条展示名不含中文就拒绝发布。verify 必须给出同样的结论，
+    # 否则「篡改一行中文名」这类回归会在验证阶段假通过。
+    missing_cn = cn_total - cn_chinese
+    detail = (
+        f"中国记录 {cn_total} 条，全部含中文"
+        if missing_cn == 0
+        else f"中国记录 {cn_total} 条，其中 {missing_cn} 条不含中文；"
+        "打包阶段会拒绝这类制品，若为上游缺别名请补 config/overrides.toml"
+    )
+    results.append(CheckResult("cities500-cn-cjk-strict", cn_total > 0 and missing_cn == 0, detail))
     if cn_total:
         admin_ratio = cn_with_admin2 / cn_total
         results.append(
