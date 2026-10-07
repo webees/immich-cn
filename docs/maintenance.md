@@ -108,3 +108,20 @@ make audit-ledger
 ```
 
 2026-10-07 的复核发现过两类真实漂移：声明的 `findings` 是 184 而明细只有 170；以及三轮记录了确认的 P3 却仍标为 `clean`。前者按上述口径重算并把旧值保留在账本的 `totalsSuperseded`；后者按「clean 须无 P0-P3 已确认缺陷」改判为 `findings`，并在条目里写入 `reclassifiedFrom` 与理由。这类调整只会让 clean 变少，方向是收紧而不是放宽。
+
+## Action pin 校验
+
+`scripts/check_workflows.py` 只能离线校验 `uses:` 是否带 40 位十六进制 SHA，发现不了「SHA 存在但与注释里的版本不一致」——例如 pin 停在旧版本，或指到同名仓库的另一个提交，此时文件看起来完全合规。`scripts/check_action_pins.py` 用 GitHub API 把每个 pin 与注释里的 tag 对拍：
+
+- 非本地 `uses:` 缺少 40 位 SHA → 失败；
+- pin 没有 `# <version>` 注释 → 失败（无法复核版本含义）；
+- 注释里的 tag 在上游不存在 → 失败；
+- tag 解析出的 commit 与 pin 不一致 → 失败。
+
+该检查需要网络与 token，因此不进 `make check`，按需执行：
+
+```bash
+make audit-pins
+```
+
+2026-10-07 实测：6 个工作流共 25 个固定引用，全部与上游 tag 一致（11 个不同 action，含 `actions/*`、`docker/*`、`aquasecurity/setup-trivy`、`sigstore/cosign-installer`）。
