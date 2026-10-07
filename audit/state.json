@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 308,
-  "consecutive_clean": 2,
+  "round": 309,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 202,
+    "findings": 203,
     "clean_rounds": 96,
     "p0": 0,
     "p1": 32,
-    "p2": 125,
+    "p2": 126,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M3 负向制品实验",
+  "last_method": "M4 契约快照",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3127,6 +3127,16 @@
       "severity": null,
       "evidence": "复制合成 geodata 后注入两类坏数据：重复一条 `cities500.txt` 记录，并把 `countryInfo.txt` 的中国名称改为英文。`verify_geodata` 同时返回 `cities500-duplicates: 重复 GeoNames ID 1 条` 与 `countryInfo: 中文 6/7（85.7%）`，两项断言均触发。当前 `main=0cceb66` 的 `make check` 453 passed 仍有效。本轮未发现 P0-P2 问题，clean_streak=2。",
       "pr": null
+    },
+    {
+      "round": 309,
+      "timestamp": "2026-10-06T04:05:00+08:00",
+      "focus": "安全契约：GitHub API 传输说明",
+      "method": "M4 契约快照",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`SECURITY.md` 声称工作流统一用 `gh` 访问 GitHub API，但 `scripts/cleanup.py` 实际使用 `urllib.request`。已改为准确描述：工作流优先使用 `gh`，Python 脚本直接 HTTP 时使用 `urllib` 并从 `GITHUB_TOKEN` / `GH_TOKEN` 读取令牌。新增文档护栏与负向测试；`make check` 454 passed；PR #229 合并 main 9a18f0b，四项 required checks 全绿；clean_streak 归零。",
+      "pr": "https://github.com/webees/immich-cn/pull/229"
     }
   ],
   "residual_risks": [
@@ -3290,7 +3300,8 @@
     "第 305 轮只验证了 release.yml 的四段式版本正则；其他工作流条件、权限与失败路径没有在本轮逐一重新注入",
     "第 306 轮只拒绝 0 字节必需文件；只包含空白或结构上不可解析的非空文件仍由后续 Immich 导入/构建校验负责，不在入口脚本内做完整语义解析",
     "第 307 轮只反演了 Retry-After 的 120 秒上限；指数退避上限、HTTP 状态重试集合与网络异常分支由既有测试覆盖，但本轮没有逐一反演",
-    "第 308 轮只注入了重复 GeoNames ID 与英文国家名；列宽、坐标越界、admin2 引用完整性等其它数据错误没有在本轮逐一注入"
+    "第 308 轮只注入了重复 GeoNames ID 与英文国家名；列宽、坐标越界、admin2 引用完整性等其它数据错误没有在本轮逐一注入",
+    "第 309 轮只校验了 urllib 传输说明的存在性；安全策略的其他声明与工作流权限仍未逐条自动对拍"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
