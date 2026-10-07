@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 283,
+  "round": 284,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 193,
+    "findings": 194,
     "clean_rounds": 81,
     "p0": 0,
     "p1": 30,
-    "p2": 118,
+    "p2": 119,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M9 文档-实现逐条核对",
+  "last_method": "M4 契约快照",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -2877,6 +2877,16 @@
       "severity": "P2",
       "evidence": "README「快速开始」此前只展示 3 个服务端变量和 1 个 GHCR 镜像变量，未集中说明数据镜像、CDN、提供方、照片时区与上游 Immich 配置；用户按 README 无法发现完整配置入口。修复后新增配置总览，覆盖 7 个服务端变量、5 个数据镜像变量与 3 个入口参数、3 个网络与加速项、7 个构建提供方变量、16 个常用构建参数、4 个照片时区项与 9 个上游 Immich 变量；`scripts/check_docs.py` 通过，`make check` 453 passed。PR #218 合并 main fe75494，四项 required checks 全绿；clean_streak 归零。",
       "pr": "https://github.com/webees/immich-cn/pull/218"
+    },
+    {
+      "round": 284,
+      "timestamp": "2026-10-08T17:10:00+08:00",
+      "focus": "文档与实现一致性：Immich release 线",
+      "method": "M4 契约快照",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "上游 `releases/latest` 为 v3.3.0；`ghcr.io/immich-app/immich-server:release` 与 `:v3.3.0` 的 manifest digest 均为 `sha256:be56bc12c17a84617a979ad1eab1d9105bbec1955ffa7da09b3f9cf79d3bd09d`，本仓库 `immich-cn-server:latest` 的 OCI base digest 也一致。文档仍写成「当前 release 线 v3.2.4 与 v3.3.0」，属于事实漂移；已改为带日期的 v3.3.0 当前线，同时保留 v3.2.4 兼容边界，并更新护栏错误文案与负向测试替换锚点。`make check` 453 passed；PR #219 合并 main 29fb0fa，四项 required checks 全绿；clean_streak 仍为 0。",
+      "pr": "https://github.com/webees/immich-cn/pull/219"
     }
   ],
   "residual_risks": [
@@ -3015,7 +3025,8 @@
     "护栏对 `${GITHUB_REPOSITORY}` 形式只能校验后缀；owner 写错这类问题只对写死的 `ghcr.io/<owner>/immich-cn*` 生效（当前 workflows 里没有写死的自有引用）",
     "objective 点名的 required-check 负向控制还剩「空数据」「陈旧缓存」「过期 token」三类没有构造真实 PR；「测试失败」与「错误镜像名」已分别在第 246/251 轮用真实 PR 验证并关闭",
     "负向控制 PR 每次会真实消耗 4 个 CI job（含 Docker 构建）；它们按设计关闭且不合并，但会在 PR 历史里留下记录",
-    "README「配置总览」由人工维护；现有 `check_docs.py` 只校验文档中出现的环境变量确实有实现，未机械校验每个项目环境变量都出现在快速开始，后续新增配置时需要人工同步并补护栏"
+    "README「配置总览」由人工维护；现有 `check_docs.py` 只校验文档中出现的环境变量确实有实现，未机械校验每个项目环境变量都出现在快速开始，后续新增配置时需要人工同步并补护栏",
+    "Immich release 线当前为 v3.3.0 的记录是 2026-10-08 的时点事实；现有护栏只要求文档同时保留 v3.2.4 与 v3.3.0，不会联网核对 `releases/latest`，上游发布新版本后仍需人工更新"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
