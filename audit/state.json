@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 237,
+  "round": 238,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 177,
+    "findings": 178,
     "clean_rounds": 71,
     "p0": 0,
     "p1": 33,
-    "p2": 111,
+    "p2": 112,
     "p3": 42
   },
   "status": "active",
@@ -2411,6 +2411,16 @@
       "severity": "P2",
       "evidence": "`check_checksums` 只验证 checksum 清单中已列出的文件，不要求覆盖 manifest 的全部 assets；漏掉某个资产的 checksum 行仍可整体通过。修复：要求 checksum 集合完整覆盖 manifest assets 与 manifest 自身，并拒绝重复、未登记条目；增加漏项负向测试。make check 361 tests、docs、workflow、shell 全绿；PR #180 合并 main 248e6c5，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/180"
+    },
+    {
+      "round": 238,
+      "timestamp": "2026-10-07T20:15:00+07:00",
+      "focus": "manifest artifacts 与 assets 的覆盖关系",
+      "method": "M9 清单覆盖审计 + M3 负向 manifest 实验",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`check_manifest` 分别校验 artifacts 与 assets，没有要求 artifacts 中的所有 canonical variant 同时出现在 assets；变体若只在 artifacts 中登记，就会绕过 assets、checksum 与发布清单覆盖。修复：要求 `artifact_files <= asset_files` 并报告缺失项；新增移除 asset 的负向测试。make check 362 tests、docs、workflow、shell 全绿；PR #181 合并 main 19da004，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/181"
     }
   ],
   "residual_risks": [
