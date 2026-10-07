@@ -2,15 +2,15 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 265,
+  "round": 266,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 187,
+    "findings": 188,
     "clean_rounds": 76,
     "p0": 0,
     "p1": 28,
-    "p2": 114,
-    "p3": 48
+    "p2": 115,
+    "p3": 49
   },
   "status": "active",
   "last_method": "M9",
@@ -2697,6 +2697,16 @@
       "severity": "P3",
       "evidence": "确认三处文档缺陷：① README 维度表已膨胀到 9 行，偏离用户指定的五个核心维度；② docs/development.md 的 CLI 参数表被 `--provider auto` 段落从中间打断，后续 6 行失去表头；③ 多篇文档仍有 Pipeline layers、Local development、Rollback、Provider environment variables 等纯英文二级标题，且 README 文档索引重复列出 conventions/data-format，并出现 Data sources and processing 英文标签。修复：README 只保留代码许可、构建入口、外部依赖、行政区粒度、发布方式五个维度，方式一至方式五统一为 8 字；全部二级以下纯英文标题改为中文短标题；文档索引去重并覆盖全部 docs/*.md；CLI 表格恢复连续；CITATION.cff 与 pyproject.toml 描述改为中文。新增 check_readme_dimensions、check_readme_doc_index、check_markdown_layout，并补 4 个负向用例：增加维度行、英文标题、重复索引、正文打断表格均能精确失败。同时把 GitHub 仓库描述改为中文，并整理 topics 为 automation、container-registry、reverse-geocoding 等 18 项。验证：make check 443 passed，文档契约检查通过 15 个文档、56 个实现文件，工作流与 Shell 契约全绿；PR #207 合并 main 281e43e，四项 required checks 全绿；clean_streak 归零。",
       "pr": "https://github.com/webees/immich-cn/pull/207"
+    },
+    {
+      "round": 266,
+      "timestamp": "2026-10-08T14:30:00+07:00",
+      "focus": "中英混杂、自动更新失败路径、Release 旧资产清理与入口边界",
+      "method": "M9 文档-实现逐条核对 + M10 工作流/容器审查 + M3 负向清理实验",
+      "verdict": "findings",
+      "severity": "P2/P3",
+      "evidence": "确认并修复四类问题：① 用户指出文档大量中英混杂；逐行检查 README/docs/CONTRIBUTING/SECURITY，将通用英文词（issue、repository、pull request、force push、review thread、squash、pattern、pull、sidecar 等）改为中文，新增 check_prose_language 护栏并补负向用例，只有产品名、协议缩写、命令、路径、字段名与代码标识符保留英文；② 2026-10-07 Auto Data Update 因 `ghcr.io/immich-app/postgres` 拉取触发 toomanyrequests 失败；在完整服务栈冒烟中增加 PostgreSQL、Valkey、覆盖镜像的 5 次退避拉取重试；③ `cleanup.py` 原先只能清理 auto-release 资产，语义版本 Release 上的旧命名资产没有自动回收机制；新增 `--prune-legacy-assets`，先确认仓库已有规范 v4 替代品，再删除旧命名资产，缺少替代品时只报告不删除，并补纯函数与执行测试；真实 dry-run 识别 v1.0.0~v1.0.4 共 100 个、auto-release 21 个，合计 121 个可删除旧资产，实际删除未执行；④ 容器入口在 source_dir == target 时会误报“目标不可写”，现明确跳过复制并补 check-entrypoint 用例。验证：make check 447 passed，文档/工作流/Shell 契约全绿，make entrypoint 全部通过；PR #208 合并 main 39cccc2，四项 required checks 全绿。仍阻塞：旧资产实际删除需授权；GHCR 版本列表 API 因当前令牌缺 read:packages 返回 403；secret scanning 两个开关需 owner 手动开启。clean_streak 归零。",
+      "pr": "https://github.com/webees/immich-cn/pull/208"
     }
   ],
   "residual_risks": [
