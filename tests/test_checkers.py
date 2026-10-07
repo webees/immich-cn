@@ -390,6 +390,19 @@ def test_check_docs_requires_explicit_immich_column_indexing(repo_copy: Path) ->
     assert "0-based column" in result.stdout
 
 
+def test_check_docs_rejects_ui_translation_as_upstream_requirement(repo_copy: Path) -> None:
+    """Immich 已有 zh_Hans/zh_Hant，不能把 UI translation 写成需要上游修改。"""
+    integration = repo_copy / "docs" / "immich-integration.md"
+    mutate(
+        integration,
+        "| Upstream change required | 不在本项目做不安全 patch 或 UI fork | 全局 UI timezone、任意地图瓦片 |",
+        "| Upstream change required | 不在本项目做不安全 patch 或 UI fork | 全局 UI timezone、任意地图瓦片、UI translation |",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "UI translation" in result.stdout
+
+
 def test_check_docs_detects_license_field_drift(repo_copy: Path) -> None:
     """pyproject 的 license 与 LICENSE/CITATION 不一致时必须报错。"""
     pyproject = repo_copy / "pyproject.toml"

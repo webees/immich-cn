@@ -107,6 +107,9 @@ UPSTREAM_INTEGRATION_TOKENS = (
     "Integration classes",
     "map.repository.ts",
     "0-based column",
+    "zh_Hans",
+    "zh_Hant",
+    "User Settings",
     "countryInfo.txt",
     "geodata-date.txt",
     "/_app/immutable",
@@ -599,6 +602,19 @@ def check_immich_column_contract(errors: list[str]) -> None:
         errors.append(f"{CHINA_LOCALIZATION_DOC} 未明确 cities500.txt 的 0-based column 1 展示名")
 
 
+def check_immich_ui_locale_contract(errors: list[str]) -> None:
+    """Immich 已内置中文 locale，不应再把它列为需要上游修改。"""
+    integration = UPSTREAM_INTEGRATION_DOC.read_text(encoding="utf-8")
+    for line in integration.splitlines():
+        if line.startswith("| Upstream change required |") and "UI translation" in line:
+            errors.append(
+                f"{UPSTREAM_INTEGRATION_DOC} 不应把 Immich 已内置的 UI translation 列为 upstream change required"
+            )
+    localization = CHINA_LOCALIZATION_DOC.read_text(encoding="utf-8")
+    if "zh_Hans" not in localization or "zh_Hant" not in localization:
+        errors.append(f"{CHINA_LOCALIZATION_DOC} 未记录 Immich 内置的中文 UI locale")
+
+
 def check_absolute_claims(paths: list[Path], errors: list[str]) -> None:
     """拒绝没有范围、条件与例外的绝对化承诺。"""
     for path in paths:
@@ -1071,6 +1087,7 @@ def main(argv: list[str] | None = None) -> int:
     check_registry_mirror_contract(errors)
     check_immich_integration_contract(errors)
     check_immich_column_contract(errors)
+    check_immich_ui_locale_contract(errors)
     check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
     check_process_or_legal_claims([*doc_files, Path("CITATION.cff")], errors)
     check_independence_guidance(errors)
