@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 282,
-  "consecutive_clean": 1,
+  "round": 283,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 192,
+    "findings": 193,
     "clean_rounds": 81,
     "p0": 0,
     "p1": 30,
-    "p2": 117,
+    "p2": 118,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M9",
+  "last_method": "M9 文档-实现逐条核对",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -2867,6 +2867,16 @@
       "severity": null,
       "evidence": "运行 `pytest -q tests/test_validation.py -k threshold_boundary`：9 个边界用例全部通过，覆盖 countryInfo、admin 总体/分地区、CN CJK、HK CJK、admin2 代码率与 admin2 可解析率；每个用例都同时包含刚好命中阈值的通过输入和低一档的失败输入。此前的完整 `make check` 为 453 passed。本轮未发现 P0-P2 问题，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 283,
+      "timestamp": "2026-10-08T16:40:00+08:00",
+      "focus": "未使用配置与快速开始覆盖",
+      "method": "M9 文档-实现逐条核对",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "README「快速开始」此前只展示 3 个服务端变量和 1 个 GHCR 镜像变量，未集中说明数据镜像、CDN、提供方、照片时区与上游 Immich 配置；用户按 README 无法发现完整配置入口。修复后新增配置总览，覆盖 7 个服务端变量、5 个数据镜像变量与 3 个入口参数、3 个网络与加速项、7 个构建提供方变量、16 个常用构建参数、4 个照片时区项与 9 个上游 Immich 变量；`scripts/check_docs.py` 通过，`make check` 453 passed。PR #218 合并 main fe75494，四项 required checks 全绿；clean_streak 归零。",
+      "pr": "https://github.com/webees/immich-cn/pull/218"
     }
   ],
   "residual_risks": [
@@ -3004,7 +3014,8 @@
     "GHCR 包名护栏按 workflow 原始文本匹配：注释里写过时的包名同样会失败（对文档型注释略显严格），而由环境变量或 ${{ vars.* }} 动态拼出的包名不在覆盖范围内",
     "护栏对 `${GITHUB_REPOSITORY}` 形式只能校验后缀；owner 写错这类问题只对写死的 `ghcr.io/<owner>/immich-cn*` 生效（当前 workflows 里没有写死的自有引用）",
     "objective 点名的 required-check 负向控制还剩「空数据」「陈旧缓存」「过期 token」三类没有构造真实 PR；「测试失败」与「错误镜像名」已分别在第 246/251 轮用真实 PR 验证并关闭",
-    "负向控制 PR 每次会真实消耗 4 个 CI job（含 Docker 构建）；它们按设计关闭且不合并，但会在 PR 历史里留下记录"
+    "负向控制 PR 每次会真实消耗 4 个 CI job（含 Docker 构建）；它们按设计关闭且不合并，但会在 PR 历史里留下记录",
+    "README「配置总览」由人工维护；现有 `check_docs.py` 只校验文档中出现的环境变量确实有实现，未机械校验每个项目环境变量都出现在快速开始，后续新增配置时需要人工同步并补护栏"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
