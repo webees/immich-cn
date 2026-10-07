@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 255,
-  "consecutive_clean": 1,
+  "round": 256,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 180,
+    "findings": 181,
     "clean_rounds": 73,
     "p0": 0,
     "p1": 28,
-    "p2": 112,
+    "p2": 113,
     "p3": 43
   },
   "status": "active",
@@ -2597,9 +2597,21 @@
       "severity": null,
       "evidence": "镜像体积：从 GHCR manifest 逐层求和（linux/amd64）——immich-cn 7 层压缩合计 28.2 MiB = 29.6 MB，与 docs/packages.md 写的「amd64 压缩层合计约 29.6 MB」逐字吻合；immich-cn-server 30 层压缩合计 642.0 MB（文档只给本地未压缩约 1.63 GB，未冲突）。jsDelivr 声明：cdn.jsdmirror.com 与 cdn.jsdelivr.net 的 `@main/README.md`、`@d04f0ee/docs/china-localization.md`（commit 真实存在）、`@v1.0.4/README.md` 全部 200；而 Release 资产 `immich-cn-geodata-admin2-default-v1.zip`、`immich-cn-manifest-json-v1.json` 在两个域名上都是 404——与 docs/china-acceleration.md「jsDelivr 服务 Git 树文件、不镜像 Release 附件」的描述完全一致。本轮未发现缺陷，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 256,
+      "timestamp": "2026-10-08T06:55:00+07:00",
+      "focus": "provider 凭证缺失/过期时是否会静默降级",
+      "method": "M6 边界与异常输入（合成数据端到端跑 provider=auto 无密钥）+ M1 变异探针（日志观测）",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "实测用合成数据跑 `provider=auto` 且不设 `AMAP_API_KEY`：`resolve_provider()` 返回 offline，构建全程成功，日志里**没有任何一行**提到 provider 或降级（只有 manifest 末尾 `config.provider=offline`、`providers=[]` 留痕）。后果：CI 里 `AMAP_API_KEY` 缺失、改名或 secret 过期时，日常构建会产出与 `--provider offline` 完全相同的制品并报绿，「未执行高德增强」被当成一次成功构建——正对 objective 的「禁止把未执行/未检查/未知判为成功」。对照：`--provider amap` 是硬要求，缺 Key 直接 ConfigError（amap.py:53/67），只有 auto 会静默。修复：`build_chain` 在 requested=auto 且解析结果非 amap 时打印显式 warning（说明产物与 offline 完全相同）；`docs/development.md` 记录两种 provider 的差别；3 个用例（auto 缺 Key 必告警、显式 offline 不得告警、auto 有 Key 时链路为 ['amap'] 且不告警）。端到端复跑同一合成构建，日志出现该 warning。make check 423 tests 全绿；PR #198 合并 main b863dca，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/198"
     }
   ],
   "residual_risks": [
+    "provider=auto 缺 Key 现在会告警，但「Key 存在却无效/过期」仍按批次打 warning 并写入 _error 缓存，没有「失败比例超过阈值就整体失败」的硬门槛；高德部分失败的构建仍会成功",
+    "auto 回退到 offline 仍是一次成功构建（offline 是合法基线），除 warning 与 manifest 的 config.provider 外没有别的阻断机制；需要「必须有高德增强」的场景应显式用 --provider amap",
     "monitor-update.yml 在 2026-10-07T08:41Z 的 schedule 槽位到 09:07Z 仍未触发；下一个槽位 14:41Z，届时需要复验，否则「监控按时触发」始终没有真实证据",
     "docs/packages.md 的「amd64 压缩层约 29.6 MB」是 2026-10-07 对 data-2026-10-06 的实测值，没有护栏；数据增长或基础镜像变化后需要重新测量（本轮复算吻合，28.2 MiB = 29.6 MB）",
     "jsDelivr 及 cdn.jsdmirror.com 的可用性是外部状态，文档已按「可选、无 SLA」表述；本轮两种域名与三类 ref 全部 200、Release 资产全部 404，但这不能作为长期保证，也没有自动检查",
