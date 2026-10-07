@@ -178,12 +178,25 @@ jobs:
             echo "未找到历史 manifest，视为首次构建"
           fi
 
+          release_assets_ok=false
+          if [ -n "$previous" ]; then
+            remote_assets="$(gh release view auto-release --repo "$GITHUB_REPOSITORY" \
+              --json assets --jq '.assets[].name' 2>/dev/null | sort)"
+            local_assets="$(find dist -maxdepth 1 -type f -printf '%f\n' | sort)"
+            if [ "$remote_assets" = "$local_assets" ]; then
+              release_assets_ok=true
+            else
+              echo "auto-release 资产与本次 dist 不一致，强制发布并回收多余/缺失资产"
+            fi
+          fi
+
           if [ -n "$previous" ] \
             && [ "$previous" = "$digest" ] \
             && [ "$previous_base_digest" = "$base_digest" ] \
-            && [ -n "$previous_data_digest" ]; then
+            && [ -n "$previous_data_digest" ] \
+            && [ "$release_assets_ok" = true ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "上游数据、构建配置、发布器修订、Immich base digest 与 data image 均无变化，跳过镜像推送"
+            echo "上游数据、构建配置、发布器修订、Immich base digest、data image 与 Release 资产均无变化，跳过镜像推送"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
             if [ -z "$previous_data_digest" ]; then
