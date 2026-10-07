@@ -12,7 +12,7 @@
     "p2": 116,
     "p3": 49
   },
-  "status": "active",
+  "status": "blocked",
   "last_method": "M9",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
