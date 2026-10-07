@@ -75,6 +75,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
+      - name: 校验审计账本
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin audit:refs/remotes/origin/audit
+          state="$(mktemp)"
+          git show origin/audit:audit/state.json > "$state"
+          python scripts/check_audit_ledger.py --path "$state"
       - name: 校验 GitHub Actions 工作流
         run: |
           docker run --rm \
