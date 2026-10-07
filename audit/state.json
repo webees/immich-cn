@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 233,
+  "round": 234,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 173,
+    "findings": 174,
     "clean_rounds": 71,
     "p0": 0,
     "p1": 33,
-    "p2": 107,
+    "p2": 108,
     "p3": 42
   },
   "status": "active",
@@ -2371,6 +2371,16 @@
       "severity": "P2",
       "evidence": "release workflow 只有发布前的 tag 占用检查；publish job 创建 GitHub Release 前没有再次确认 build 产出的两个 `image:VERSION` tag 实际存在，标签追加步骤若因条件或配置问题被跳过仍会留下无镜像 Release。修复：publish job 在创建 Release 前用 `docker manifest inspect` 验证两个 semantic version image tag；增加 workflow 静态护栏与负向测试。make check 357 tests、docs、workflow、shell 全绿；PR #176 合并 main d556ed8，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/176"
+    },
+    {
+      "round": 234,
+      "timestamp": "2026-10-07T18:40:00+07:00",
+      "focus": "prune-all 对 Actions 运行保留策略的真实收紧",
+      "method": "M8 保留策略反演 + M3 负向运行集合测试",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "文档声明稳定前 `prune-all` 每个 workflow 只保留最新一次运行，但 `select_runs` 仍保留 cutoff 内所有运行；在近期运行很多时不会真正收紧。修复：`prune-all` 忽略普通时间窗口，只保留每 workflow 最新一次、当前运行和语义版本保护 SHA；新增 recent-extra 与 current/protected 回归测试。make check 358 tests、docs、workflow、shell 全绿；PR #177 合并 main cdcd29e，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/177"
     }
   ],
   "residual_risks": [
