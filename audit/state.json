@@ -2,7 +2,7 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 267,
+  "round": 268,
   "consecutive_clean": 0,
   "totals": {
     "findings": 189,
@@ -2717,6 +2717,16 @@
       "severity": "P2",
       "evidence": "`make audit-pins` 首次运行发现 5 个固定引用已漂移：actions/upload-artifact 的 3 处仍指向 043fb46d1a93，但上游 v7 标签当前指向 cf430e030ddb；actions/download-artifact 的 2 处仍指向 3e5f45b2cfb9，但上游 v8 标签当前指向 9000827ccba6。修复：按 GitHub API 解析出的 commit 更新 5 处 pin，保留 # v7/# v8 注释；复查 `make audit-pins` 通过 25 个固定引用。验证：`make check` 447 passed，PR #209 合并 main ecba960，四项 required checks 全绿；该检查仍不在 make check 内，因为需要网络与令牌。",
       "pr": "https://github.com/webees/immich-cn/pull/209"
+    },
+    {
+      "round": 268,
+      "timestamp": "2026-10-08T15:40:00+07:00",
+      "focus": "新增旧资产清理模式在真实 GitHub Actions 中的只读验证",
+      "method": "M3 负向清理实验（workflow_dispatch 强制 apply=false）",
+      "verdict": "wait",
+      "severity": null,
+      "evidence": "在真实仓库触发 cleanup.yml（apply=false、prune-legacy-assets=true）：run 37645248763 success；日志确认 v1.0.4/v1.0.3/v1.0.2/v1.0.1/v1.0.0 各 20 个旧资产、auto-release 21 个，共 121 个可删除、0 个需人工确认。该轮没有执行删除，因此不判 clean；等待用户授权后才能进入 apply 验证。",
+      "pr": null
     }
   ],
   "residual_risks": [
