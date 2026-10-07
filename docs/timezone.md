@@ -4,7 +4,7 @@ Immich 的照片详情页优先使用 EXIF 的 `dateTimeOriginal` 与 `exifInfo.
 
 ## 可选工具
 
-仓库提供 [scripts/set_asset_timezone.py](../scripts/set_asset_timezone.py)，通过 Immich 官方批量资产 API 把资产的 `timeZone` 设置为指定 IANA 时区。工具优先使用 v3.3.0 推荐的 `PATCH /api/assets`，仅在返回 `404`/`405` 时回退到旧版 `PUT /api/assets`。默认值是 `Asia/Shanghai`，默认只做试运行。
+仓库提供 [scripts/set_asset_timezone.py](../scripts/set_asset_timezone.py)，通过 Immich 官方批量资产 API 把资产的 `timeZone` 设置为指定 IANA 时区。工具优先使用 v3.3.0 推荐的 `PATCH /api/assets`，仅在返回 `404`/`405` 时回退到 `PUT /api/assets`。默认值是 `Asia/Shanghai`，默认只做试运行。
 
 ```bash
 IMMICH_API_KEY='<api-key>' \
@@ -23,7 +23,7 @@ python scripts/set_asset_timezone.py \
   --apply
 ```
 
-需要具备 `asset.update` 权限的 API 密钥。工具跳过缺少 `dateTimeOriginal` 或已经是目标时区的资产，并优先通过 `PATCH /api/assets` 批量更新；仅当旧版返回 `404`/`405` 时才回退到 `PUT /api/assets`，避免逐张调用。
+需要具备 `asset.update` 权限的 API 密钥。工具跳过缺少 `dateTimeOriginal` 或已经是目标时区的资产，并优先通过 `PATCH /api/assets` 批量更新；仅在返回 `404`/`405` 时才回退到 `PUT /api/assets`，避免逐张调用。
 
 ## 适用边界
 

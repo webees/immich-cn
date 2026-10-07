@@ -44,7 +44,7 @@ sqlite3 immich-cn-dataset-v1.sqlite \
 
 ## 制品命名
 
-当前规范只发布规范文件名，不生成历史别名。发布标签承载版本与日期，文件名承载制品类型、适配器、展示粒度、数据规模与结构版本。
+当前规范只发布规范文件名，不生成别名。发布标签承载版本与日期，文件名承载制品类型、适配器、展示粒度、数据规模与结构版本。
 
 ```text
 immich-cn.geodata.<profile>.<scope>.v<schema>
@@ -65,7 +65,7 @@ immich-cn.geodata.<profile>.<scope>.v<schema>
 | 清单 | `immich-cn-manifest-json-v1.json` |
 | 校验和 | `immich-cn-checksums-sha256-v1.txt` |
 
-文件名不使用 `{}`、空格、下划线或历史别名。运行时占位符 `{admin_2}` 与制品展示粒度 ID `admin2` 是不同契约：前者必须保留花括号与下划线，后者只用于规范 ID、文件名与清单，两者不能互相替换。
+文件名不使用 `{}`、空格、下划线或别名。运行时占位符 `{admin_2}` 与制品展示粒度 ID `admin2` 是不同契约：前者必须保留花括号与下划线，后者只用于规范 ID、文件名与清单，两者不能互相替换。
 
 ```bash
 immich-cn artifact resolve --manifest immich-cn-manifest-json-v1.json \
@@ -113,5 +113,5 @@ immich-cn artifact resolve --manifest immich-cn-manifest-json-v1.json \
 
 发布路径使用 `gh release upload ... dist/*`，因此 `dist/` 必须只包含本次构建登记的制品：
 
-- `immich-cn-checksums-sha256-v1.txt` 只登记清单里的 `artifacts` 与 `assets`（外加清单自身），不扫描目录，历史残留不会被签名；
-- `scripts/check_artifacts.py` 会拒绝任何未登记的残留文件（旧命名、临时文件），并提示清理或改用 `immich-cn all --clean`。
+- `immich-cn-checksums-sha256-v1.txt` 只登记清单里的 `artifacts` 与 `assets`（外加清单自身），不扫描目录，非登记文件不会被签名；
+- `scripts/check_artifacts.py` 会拒绝任何未登记的残留文件（非规范命名、临时文件），并提示清理或改用 `immich-cn all --clean`。
