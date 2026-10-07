@@ -67,6 +67,7 @@
 
 ### 修复
 
+- 补上「固定摘要变化后不得复用旧缓存」的负向控制（`test_fetcher_ignores_cache_when_pinned_digest_changed`）：去掉缓存命中时的 `spec.expected_sha256` 比对后该测试会失败，证明 CI 里很宽的 `actions/cache` `restore-keys` 兜底不会让构建拿着旧内容成功；`docs/data-sources.md` 记录这条兜底为什么安全；
 - `check_workflows` 新增 GHCR 包名护栏：发布路径里自有的 `ghcr.io/${GITHUB_REPOSITORY}` 只允许 `-server` 后缀，写死的引用只允许 `webees/immich-cn` 与 `webees/immich-cn-server`；此前把 `_build-data.yml` 里 18 处包名改成 `-typo` 仍能通过全部门禁与冒烟构建（冒烟只使用本地镜像名），错误包名只会在真实发布时暴露或静默发布到另一个包；
 - `check_artifacts.py` 新增规范数据集与 Immich 适配器的 admin 层级一致性比对：`admin_areas` 与 `admin1CodesASCII.txt`/`admin2Codes.txt` 出现未记录差异即失败，HK/MO 的 level-1 特别行政区覆盖（2026-10-06 发布实测 26 条：HK 18 + MO 8）是唯一允许的例外，覆盖被静默去掉也会失败；`docs/data-format.md` 记录该已知差异；
 - 清理脚本的 dry-run 现在会先打印真实读到的对象数量（Release / Actions 运行 / 每个 GHCR 包的版本数），并在某个 GHCR 包返回 0 个版本时直接失败：此前只打印「待删除 0」无法区分「没有可删项」与「token 缺 read:packages 或 API 结构变化导致读到空列表」；确认包尚未创建时用 `--allow-empty-packages` 显式放行；
