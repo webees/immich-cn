@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 242,
+  "round": 244,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 182,
+    "findings": 184,
     "clean_rounds": 71,
     "p0": 0,
     "p1": 33,
-    "p2": 116,
-    "p3": 42
+    "p2": 117,
+    "p3": 43
   },
   "status": "active",
-  "last_method": "M3",
+  "last_method": "M9",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -2461,6 +2461,26 @@
       "severity": "P2",
       "evidence": "full-stack smoke 原先用 `name LIKE '苏州市%'` 断言中文检索，而上游 `search.repository.ts:searchPlaces` 用的是 `f_unaccent(...) %>> f_unaccent($1)`（strict word similarity）对 name/admin2Name/admin1Name/alternateNames 四列取并集。本地用 PostgreSQL 17 + pg_trgm + Immich 的 `f_unaccent` 复现：`strict_word_similarity('苏州市','苏州')=0.4` 低于默认阈值 0.5，`%>>` 为假而 LIKE 为真，两者召回不等价——别名或 admin 中文名回归时用户搜不到，smoke 仍全绿（假通过）。修复：workflow 改为直接执行上游谓词并对 `苏州市`/`苏州`/`Suzhou`/`蘇州`/`昆山` 断言至少 1 条命中；`check_workflows` 新增 `check_immich_search_smoke` 要求保留 `%>>` 且禁止 `LIKE '苏州市%'`；文档新增 Place search 小节。取证：把 data-2026-10-06 的 admin2-default 制品（256,644 行）按上游规则解析 admin 名后导入真实 PostgreSQL，workflow 中那段 loop 原样执行 exit 0（苏州市 79、苏州 1、Suzhou 6、蘇州 1、昆山 2），无意义查询 0 命中证明断言可失败。make check 372 tests、actionlint 全绿；PR #185 合并 main 0665dc9，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/185"
+    },
+    {
+      "round": 243,
+      "timestamp": "2026-10-07T22:45:00+07:00",
+      "focus": "全自动更新是否有外部观测（调度停摆可发现性）",
+      "method": "M6 边界与异常输入 + 真实 API 负向控制",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "update-data.yml 的 cron 是 `23 5 * * *`，但全仓 schedule 运行只有一次（37461020382，2026-10-06T12:07Z），2026-10-07T05:23Z 的时点没有对应运行；此前没有任何机制能区分「调度没跑」与「跑了但无变化」，也没有机制区分「手动 dispatch 成功」与「定时任务还活着」。修复：新增 `scripts/check_update_freshness.py`（复用 cleanup 的 GitHub 客户端，`python -m` 运行）与 `.github/workflows/monitor-update.yml`（每 6 小时检查，不健康时建/更新 automation issue，恢复后自动关闭）；状态互斥穷尽：never_run/no_run/stalled/failed/stale_success/schedule_stalled/ok，其中 schedule 事件新鲜度单独判定，cancelled 不判失败也不当成功。护栏 `check_update_monitor` 要求 schedule 触发、指向 update-data.yml、限定 automation 标签、保留恢复关闭步骤，并强制该工作流存在。真实 API 取证：默认 30h → ok（scheduleAgeHours=19.29 / successAgeHours=12.07）；`--max-age-hours 1` → no_run exit 1；`--max-age-hours 18.5` → schedule_stalled exit 1（手动 dispatch 成功被正确识破）。make check 391 tests、actionlint 全绿；PR #186 合并 main c6869dd，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/186"
+    },
+    {
+      "round": 244,
+      "timestamp": "2026-10-07T23:20:00+07:00",
+      "focus": "GHCR Packages 标签契约、签名与 attestation 的真实性",
+      "method": "M9 文档-实现逐条核对 + 真实 registry 取证 + 签名负向控制",
+      "verdict": "findings",
+      "severity": "P3",
+      "evidence": "对公开 GHCR 包逐 tag 解析 digest：immich-cn 的 latest=2026-10-06=sha-cdc0ba3 同一 digest，immich-cn-server 的 latest=release=release-2026-10-06=sha-cdc0ba3 同一 digest；两个 index 均含 linux/amd64、linux/arm64 与 2 个 attestation manifest，attestation 同时带 spdx.dev/Document 与 slsa.dev/provenance/v1；用 cosign v3 容器按 issuer+identity-regexp 校验两个包均 exit 0，改成非本仓库 identity 则 exit 1 且 SAN 显示签名来自 _build-data.yml@refs/heads/main（负向控制有效）。确认问题：① docs/packages.md 用 `<语义化版本>` 描述镜像 tag，实测 `ghcr.io/webees/immich-cn:v1.0.4` not found 而 `1.0.4` 存在——文档未说明 Git Release 是 vX.Y.Z、镜像 tag 是 X.Y.Z；② Packages 页面上的 `sha256-<digest>` OCI referrer tag（Cosign/attestation）无任何文档解释。修复：标签表改 `<X.Y.Z>`、写明前缀差异、补 3 条可复制 pull 示例、解释 referrer tag；新增 `check_image_tag_examples` 校验文档里写死的 tag 必须符合真实推送形态，并在示例全部消失时报「护栏可能已失效」避免恒真。另核实 server 镜像缺少 org.opencontainers.image.base.digest 是「最后一次发布（cdc0ba3）早于标签提交 1a5ccc3」造成，读取路径 `imagetools inspect --format json .Image | to_entries[0].value.config.Labels` 实测可用，下次发布会自愈，非缺陷。make check 394 tests 全绿；PR #187 合并 main 6ab52cb，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/187"
     }
   ],
   "residual_risks": [
@@ -2549,6 +2569,12 @@
     "第 242 轮实测 `苏州` 仅 1 条命中，且该命中来自 alternateNames 里的独立 `苏州` token，而不是展示名；一旦 GeoNames 去掉这个别名，中文两字查询会立刻归零。这是真阳性护栏，但修复方式是补 config/overrides.toml 而不是放宽断言",
     "搜索契约依赖上游 `f_unaccent`、`pg_trgm.strict_word_similarity_threshold` 默认值 0.5 与 `searchPlaces` 的四列并集；Immich 调整函数、阈值或字段集合时，smoke 的语义会改变，需要重新核对上游源码",
     "第 241 轮的 `natural-earth` 强校验依赖当前 pin 的 Natural Earth 版本带 ADMIN/ADM0_A3/TYPE 与面几何（实测 258/258）；升级 NATURAL_EARTH_VERSION 时必须重新核对字段名与几何类型，否则会出现正确拒绝",
-    "geodata_places 列宽检查用的是上游当前 schema（varchar(200)/char(2)/20/80）；Immich 若放宽或收紧这些列，本项目的构建期门禁需要同步调整"
+    "geodata_places 列宽检查用的是上游当前 schema（varchar(200)/char(2)/20/80）；Immich 若放宽或收紧这些列，本项目的构建期门禁需要同步调整",
+    "第 243 轮新增的 monitor-update.yml 自身的 schedule 触发同样受 GitHub 延迟影响，且没有任何东西监控它；本轮只能验证其定义、逻辑与真实 API 行为，「监控工作流是否按时触发」仍未验证，属于同类问题的下一层",
+    "monitor-update 的 30 小时阈值是「每日一次调度 + 允许约 6 小时延迟」的推断值：GitHub 若持续延迟超过 6 小时，会得到真阳性告警（这是设计意图），但也意味着告警频率取决于 GitHub 调度稳定性，需要观察一段时间后再决定是否调整",
+    "以 cancelled 结尾且成功记录仍在阈值内时判健康是刻意的假拒绝规避；若有人长期每天手动取消，该状态不会被发现（成功新鲜度仍会在超阈值后报警）",
+    "GHCR 包的「可见性」与「关联仓库」本轮未用 API 确认（本地 token 缺 read:packages，API 返回 403），只确认了包可匿名 pull、tag 与 digest 一致；要完成 objective 里「验证 Package 页面、可见性、关联仓库」这一步需要具备 read:packages 的凭据",
+    "Cosign/attestation 的 OCI referrer tag（sha256-*）被 cleanup 保护因此永不回收：已观察到至少一个孤儿 referrer（sha256-3e6d804c…，对应镜像 tag 已不存在）。保护优先于整洁是对的，但 Packages 版本列表会长期增长，需要时再设计「仅回收无对应镜像的 referrer」的清理规则",
+    "check_image_tag_examples 只扫描 DOC_GLOBS（README/docs/CONTRIBUTING/SECURITY）；examples/*.yml 的镜像引用走 ${IMMICH_CN_GHCR_MIRROR} 占位符，不受该规则覆盖，若将来在示例里写死 tag 需要把该目录纳入扫描"
   ]
 }
