@@ -193,6 +193,7 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
     assert "9101" not in rows
 
     with zipfile.ZipFile(dist / "immich-cn-i18n-json-v1.zip") as zf:
+        assert set(zf.namelist()) == {"LICENSE", "langs/en.json"}
         license_text = zf.read("LICENSE").decode("utf-8")
     assert "MIT License" in license_text
     assert "Copyright" in license_text
@@ -200,6 +201,17 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
     checksums = (dist / "immich-cn-checksums-sha256-v1.txt").read_text(encoding="utf-8")
     assert "immich-cn-geodata-admin2-default-v1.zip" in checksums
     assert "immich-cn-dataset-sqlite-v1.zip" in checksums
+
+
+def test_language_bundle_removes_stale_files(build_options: BuildOptions) -> None:
+    """重复使用 work 目录时，旧语言包不能残留进镜像或 Release。"""
+    stale = build_options.work_dir / "langs" / "zh.json"
+    stale.parent.mkdir(parents=True, exist_ok=True)
+    stale.write_text("{}", encoding="utf-8")
+
+    result = run_build(build_options)
+
+    assert sorted(path.name for path in result.langs_dir.iterdir()) == ["LICENSE", "en.json"]
 
 
 def test_canonical_dataset_is_queryable_and_preserves_immich_boundary(build_options: BuildOptions) -> None:

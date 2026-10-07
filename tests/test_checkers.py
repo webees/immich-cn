@@ -891,6 +891,17 @@ def test_check_workflows_requires_nginx_config_validation(repo_copy: Path) -> No
     assert "nginx -t" in result.stdout
 
 
+def test_check_workflows_requires_image_size_budget(repo_copy: Path) -> None:
+    """CI 必须保留镜像尺寸预算，避免重新引入整包语言文件或额外包层。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    text = workflow.read_text(encoding="utf-8")
+    assert "IMAGE_SIZE_BUDGET_BYTES" in text
+    workflow.write_text(text.replace("IMAGE_SIZE_BUDGET_BYTES", "REMOVED_SIZE_BUDGET"), encoding="utf-8")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "镜像尺寸" in result.stdout or "语言包最小化" in result.stdout
+
+
 def test_check_workflows_detects_illegal_key_on_reusable_job(repo_copy: Path) -> None:
     """这次修复过的真实事故：reusable 调用 job 上出现 timeout-minutes。"""
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"

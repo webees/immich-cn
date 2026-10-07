@@ -110,6 +110,25 @@ jobs:
             --build-arg IMMICH_BASE=alpine \
             --build-arg IMMICH_VERSION=3.21 \
             -t immich-cn-server:ci .
+      - name: 校验镜像尺寸预算与语言包最小化
+        env:
+          IMAGE_SIZE_BUDGET_BYTES: "10485760"
+        run: |
+          set -euo pipefail
+          data_size="$(docker image inspect immich-cn-geodata:ci --format '{{.Size}}')"
+          server_size="$(docker image inspect immich-cn-server:ci --format '{{.Size}}')"
+          echo "数据镜像：${data_size} bytes"
+          echo "覆盖镜像：${server_size} bytes"
+          test "$data_size" -lt "$IMAGE_SIZE_BUDGET_BYTES"
+          test "$server_size" -lt "$IMAGE_SIZE_BUDGET_BYTES"
+          for image in immich-cn-geodata:ci immich-cn-server:ci; do
+            docker run --rm --entrypoint sh "$image" -c '
+              set -eu
+              test "$(find /opt/immich-cn/i18n-iso-countries/langs -maxdepth 1 -type f | wc -l)" -eq 2
+              test -f /opt/immich-cn/i18n-iso-countries/langs/en.json
+              test ! -e /opt/immich-cn/i18n-iso-countries/langs/zh.json
+            '
+          done
       - name: 上传冒烟数据
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
