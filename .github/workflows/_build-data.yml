@@ -129,11 +129,35 @@ jobs:
         id: change
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMMICH_VERSION: ${{ inputs.immich-version }}
         run: |
           set -euo pipefail
           digest="$(immich-cn fingerprint dist/immich-cn-manifest-json-v1.json)"
           echo "本次发布指纹：${digest}"
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+          base_image="ghcr.io/immich-app/immich-server:${IMMICH_VERSION}"
+          base_digest="$(
+            docker buildx imagetools inspect "$base_image" --format '{{json .Manifest}}' \
+              | jq -r '.digest'
+          )"
+          if [ -z "$base_digest" ] || [ "$base_digest" = "null" ]; then
+            echo "::error::无法解析 Immich base image digest"
+            exit 1
+          fi
+          echo "base_digest=${base_digest}" >> "$GITHUB_OUTPUT"
+
+          previous_base_digest=""
+          if previous_image="$(
+            docker buildx imagetools inspect "ghcr.io/${GITHUB_REPOSITORY}-server:latest" \
+              --format '{{json .Image}}' 2>/dev/null
+          )"; then
+            previous_base_digest="$(
+              printf '%s' "$previous_image" \
+                | jq -r 'to_entries[0].value.config.Labels["org.opencontainers.image.base.digest"] // empty'
+            )"
+          fi
+          echo "上次 Immich base digest：${previous_base_digest:-未知}"
 
           previous=""
           work="$(mktemp -d)"
@@ -145,9 +169,9 @@ jobs:
             echo "未找到历史 manifest，视为首次构建"
           fi
 
-          if [ -n "$previous" ] && [ "$previous" = "$digest" ]; then
+          if [ -n "$previous" ] && [ "$previous" = "$digest" ] && [ "$previous_base_digest" = "$base_digest" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "上游数据、构建配置与发布器修订均无变化，跳过镜像推送"
+            echo "上游数据、构建配置、发布器修订与 Immich base digest 均无变化，跳过镜像推送"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
@@ -238,6 +262,7 @@ jobs:
         # 因此这里用 buildx 直接构建并做 3 次退避重试。
         env:
           IMMICH_VERSION: ${{ inputs.immich-version }}
+          BASE_DIGEST: ${{ steps.change.outputs.base_digest }}
           SERVER_PLATFORMS: ${{ inputs.server-platforms }}
           DATA_DATE: ${{ steps.meta.outputs.date }}
           TOOL_VERSION: ${{ steps.tool.outputs.version }}
@@ -245,16 +270,8 @@ jobs:
           set -euo pipefail
           image="ghcr.io/${GITHUB_REPOSITORY}-server"
           metadata="$(mktemp)"
-          base_image="ghcr.io/immich-app/immich-server:${IMMICH_VERSION}"
-          base_digest="$(
-            docker buildx imagetools inspect "$base_image" --format '{{json .Manifest}}' \
-              | jq -r '.digest'
-          )"
-          if [ -z "$base_digest" ] || [ "$base_digest" = "null" ]; then
-            echo "::error::无法解析 Immich base image digest"
-            exit 1
-          fi
-          echo "base_digest=${base_digest}" >> "$GITHUB_OUTPUT"
+          test -n "$BASE_DIGEST"
+          echo "base_digest=${BASE_DIGEST}" >> "$GITHUB_OUTPUT"
           for attempt in 1 2 3; do
             if docker buildx build \
               --file docker/immich.Dockerfile \
@@ -263,10 +280,10 @@ jobs:
               --sbom=true \
               --metadata-file "$metadata" \
               --build-arg "IMMICH_VERSION=${IMMICH_VERSION}" \
-              --build-arg "IMMICH_BASE_DIGEST=@${base_digest}" \
+              --build-arg "IMMICH_BASE_DIGEST=@${BASE_DIGEST}" \
               --build-arg "IMMICH_CN_DATA_DATE=${DATA_DATE}" \
               --label "org.opencontainers.image.base.name=ghcr.io/immich-app/immich-server" \
-              --label "org.opencontainers.image.base.digest=${base_digest}" \
+              --label "org.opencontainers.image.base.digest=${BASE_DIGEST}" \
               --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
               --label "org.opencontainers.image.version=${TOOL_VERSION}" \
               --label "org.opencontainers.image.licenses=AGPL-3.0-only AND MIT" \

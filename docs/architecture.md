@@ -99,7 +99,7 @@
 - 使用的 provider 列表；
 - 构建日期与 `geodata-date.txt` 使用北京时间 `+08:00`。
 
-镜像发布还附带 BuildKit provenance 与 SBOM；server 覆盖镜像在构建前把 Immich tag 解析为 base digest，并用 `tag@digest` 固定本次构建。推送后按最终 digest 重新拉取执行入口 smoke test，再用 Trivy 扫描漏洞和许可证。在当次扫描数据库和扫描范围内，数据镜像阻断 `HIGH`/`CRITICAL`； Immich 覆盖镜像与同一 base digest 做差集，只阻断新增漏洞并把继承项写成例外报告。最后通过 GitHub OIDC 使用 Cosign 做 keyless 签名。
+镜像发布还附带 BuildKit provenance 与 SBOM；server 覆盖镜像在构建前把 Immich tag 解析为 base digest，并用 `tag@digest` 固定本次构建。base digest 参与 change detection，Immich base 更新时会触发 server image 重建。推送后按最终 digest 重新拉取执行入口 smoke test，再用 Trivy 扫描漏洞和许可证。在当次扫描数据库和扫描范围内，数据镜像阻断 `HIGH`/`CRITICAL`； Immich 覆盖镜像与同一 base digest 做差集，只阻断新增漏洞并把继承项写成例外报告。最后通过 GitHub OIDC 使用 Cosign 做 keyless 签名。
 
 ### 5. 校验前置
 
