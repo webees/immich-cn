@@ -2,15 +2,15 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 207,
+  "round": 208,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 153,
+    "findings": 154,
     "clean_rounds": 67,
     "p0": 0,
     "p1": 33,
     "p2": 90,
-    "p3": 39
+    "p3": 40
   },
   "status": "active",
   "last_method": "M4",
@@ -2111,6 +2111,16 @@
       "severity": "P3",
       "evidence": "核对远端分支与 worktree 状态，发现 206 轮 ledger 只存在于被 .gitignore 忽略的本地 work/audit/state.json，远端没有 audit 分支或 Release artifact，目标中“账本存于 release artifact、job summary 或独立审计分支”的要求未满足。修复：用 git hash-object/mktree/commit-tree/update-ref 创建独立 audit 分支，路径 audit/state.json，初始提交 031c43e2967afd0dd915bf32c016ab90554ef495，包含 206 轮、clean_streak=1、totals 与全部 history/residual_risks；已 push 到 origin/audit 并通过 git show audit:audit/state.json 反解析验证。main 未改变。因补齐持久化缺口，clean_streak 重置为 0；后续每轮应把更新后的 ledger 追加到 audit 分支。",
       "pr": null
+    },
+    {
+      "round": 208,
+      "timestamp": "2026-10-07T12:30:00+07:00",
+      "focus": "自动 cleanup 的真实失败路径、GHCR digest-like tag 与部分删除韧性",
+      "method": "M5 外部运行日志审计 + M3 失败注入",
+      "verdict": "findings",
+      "severity": "P3",
+      "evidence": "审计真实 cleanup run 37521346274，发现 DELETE /users/webees/packages/container/immich-cn/versions/1345243058 返回 HTTP 500，旧 apply_plan 在单项失败后直接中断，导致后续 release/run/package 未处理。修复：select_package_versions 保护 sha256-* / sha256:* digest-like tag 和 untagged 子 manifest；受保护 tag 不再占 retention 的普通版本额度；apply_plan 单项失败后继续处理其他删除，最后汇总失败并返回非零。新增 digest-like tag、retention 边界、部分失败继续执行测试；make check 334 tests、docs、workflow、shell 全绿；PR #157 合并 main 042eb45，四项 required checks 与 main CI 全绿。真实 cleanup apply 仍需下一次定时运行复验，且 GHCR 500 的具体上游原因未完全定位。",
+      "pr": "https://github.com/webees/immich-cn/pull/157"
     }
   ],
   "residual_risks": [
