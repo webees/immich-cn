@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 259,
-  "consecutive_clean": 1,
+  "round": 260,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 182,
+    "findings": 183,
     "clean_rounds": 75,
     "p0": 0,
     "p1": 28,
-    "p2": 113,
+    "p2": 114,
     "p3": 44
   },
   "status": "active",
@@ -2637,9 +2637,21 @@
       "severity": null,
       "evidence": "在干净 clone 切到 main（9712534）后跑两次独立构建（不同 work/dist 目录，间隔 >60s），逐层比对：14 个 geodata zip 只有 `geodata/geodata-date.txt` 与 `geodata/build-info.json` 两个成员不同，cities500/admin1/admin2/countryInfo/geojson/NOTICE 全部逐字节相同；i18n zip 逐成员相同；patterns gz 解压后 1145 字节完全相同（容器字节因 gzip mtime 不同）；dataset SQLite 的 places/place_names/admin_areas/countries/dataset_meta/sources 逐行相同（排除 dataset_meta.generatedAt），schema.json/README/NOTICE 逐字节相同；manifest 的差异只有 generatedAt 与那批带时间戳成员的 sha256/sizeBytes，stats/config/index/providers/license/sources/tool 全部相同。发布指纹两次都是 e7c60441288143be…（本地无 GITHUB_SHA 故 revision 为空）。另核对已发布 manifest：`tool.revision = cdc0ba3c154f27c6e0e6a6ed25a7fe3d8f974291`（pipeline.py 取 GITHUB_SHA），说明生产侧「改代码 ⇒ 指纹变化 ⇒ 重新发布」的链路是通的。未发现缺陷，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 260,
+      "timestamp": "2026-10-08T09:20:00+07:00",
+      "focus": "i18n 语言包裁剪契约是否成立、文档是否与已发布资产一致",
+      "method": "M5 真实数据抽样（下载已发布资产并与 manifest 对拍）+ M1 变异探针（恢复旧逻辑验证护栏）",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "文档（README:110、docs/packages.md:44、docs/data-sources.md:102）把「i18n 包只保留 langs/en.json + LICENSE」写成既成事实，但实测下载的资产不是：data-2026-10-06 与滚动 auto-release 的 immich-cn-i18n-json-v1.zip 都是 74 个成员（LICENSE + 73 个 langs/*.json）、191,847 字节，且大小与 sha256（cc0d06ab…）与各自 manifest 记录完全一致——是构建真实产出而非资产错位；该构建 revision=cdc0ba3c…、generatedAt=2026-10-06T19:22:32Z。根因：cdc0ba3 版 `_write_langs` 会把上游包里每个 `*.json` 都写进 work_dir/langs（仅把 en.json 换成中文国家名），当前 main 已改成只写 en.json（Unreleased），但**裁剪没有任何护栏**——check_artifacts 对 i18n 包只查 LICENSE 文本。修复：check_artifacts 要求 i18n 资产必须且只能含 LICENSE 与 langs/en.json（缺 en.json 或多出任何 langs/*.json 都失败）；补 2 个负向用例并把最小 dist 夹具补成含 langs/en.json；README/docs 的措辞限定为「自下一次数据发布起」并写明已发布快照仍是 74 成员/191,847 字节。元负向控制：在临时副本恢复「复制整套语言包」的旧逻辑后跑 smoke，i18n 包出现 langs/zh.json（3 个成员），check_artifacts 报「含 1 个非必需语言文件（如 langs/zh.json）」exit 1——证明护栏能拦住造成本次 74 成员产物的原始回归。make check 433 tests 全绿；PR #200 合并 main bdfe171，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/200"
     }
   ],
   "residual_risks": [
+    "已发布的 data-2026-10-06 快照与滚动 auto-release 仍带 74 个成员的整套 i18n 语言包；要换成裁剪版必须等下一次成功的 update-data 发布，而那次发布同时会回收 21 个 legacy 资产（不可逆，待确认）",
+    "新的 i18n 裁剪护栏依赖合成 fixture 里有两个语言文件（zh.json + en.json），因此「复制整套语言包」这类回归会在 smoke+check_artifacts 里暴露；如果将来 fixture 被简化成只写 en.json，护栏会重新变成恒真",
     "round 259 的两次构建都在本地跑（`GITHUB_SHA` 未设置 ⇒ `tool.revision` 为空），所以「指纹随代码变化」只在生产侧用已发布 manifest（revision=cdc0ba3c…）间接证实，没有在两次真实 CI 构建间直接对拍",
     "`immich-cn-patterns-tsv-v1.gz` 的容器字节跨构建会变（gzip 头带 mtime），只有解压后的内容一致；任何按容器哈希跨构建比对的工具都必须先归一时间戳",
     "make audit-pins 需要网络与 token，不在 make check 链路里；Dependabot 若把 SHA 更新了却漏改 `# <version>` 注释，只有人工复核或显式跑该目标才会发现（注释与 tag 的一致性现在可验，但不会自动验）",
