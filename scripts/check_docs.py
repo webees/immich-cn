@@ -746,6 +746,47 @@ def check_language_priority_doc(errors: list[str]) -> None:
         errors.append(f"{path} 的中文语言优先级与实现不一致：文档 {documented}，实现 {actual}")
 
 
+def check_license_consistency(errors: list[str]) -> None:
+    """代码许可声明必须在 LICENSE / pyproject / CITATION / NOTICE / licensing 之间一致。
+
+    代码是 MIT，但数据制品不是；两句话一旦在某一处丢失或改错，会直接影响使用者的
+    合规判断（pyproject 的 license 还会进入发布元数据）。
+    """
+    import tomllib
+
+    problems: list[str] = []
+    license_text = Path("LICENSE").read_text(encoding="utf-8").lstrip()
+    if not license_text.startswith("MIT License"):
+        problems.append("LICENSE 不是 MIT 文本")
+
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    py_license = str((pyproject.get("project") or {}).get("license", ""))
+    if py_license != "MIT":
+        problems.append(f"pyproject.toml 的 license 是 {py_license!r}，不是 MIT")
+
+    cff = re.search(
+        r"^license:\s*(\S+)\s*$",
+        Path("CITATION.cff").read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
+    if cff is None or cff.group(1) != "MIT":
+        problems.append("CITATION.cff 的 license 不是 MIT")
+
+    # 两处都必须同时给出「代码 MIT」与「数据制品不适用纯 MIT」，用固定措辞避免偶然命中
+    for path, phrase in {
+        Path("NOTICE"): "并不属于 MIT",
+        Path("docs/licensing.md"): "数据制品不适用 MIT",
+    }.items():
+        text = path.read_text(encoding="utf-8")
+        if "MIT" not in text:
+            problems.append(f"{path} 未说明 MIT")
+        elif phrase not in text:
+            problems.append(f"{path} 未说明数据制品不适用纯 MIT（缺少「{phrase}」）")
+
+    if problems:
+        errors.append("许可声明不一致：" + "；".join(problems))
+
+
 def check_version_consistency(errors: list[str]) -> None:
     """项目版本号必须在 pyproject / __init__ / CITATION 三处一致。
 
@@ -840,6 +881,7 @@ def main(argv: list[str] | None = None) -> int:
     check_adm4_coverage_wording(render_files, errors)
     check_i18n_asset_documented(render_files, errors)
     check_version_consistency(errors)
+    check_license_consistency(errors)
     check_geodata_import_wording(render_files, errors)
     check_language_priority_doc(errors)
     check_hk_districts(errors)
