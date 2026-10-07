@@ -156,6 +156,8 @@ jsDelivr 等免费 CDN 只作为 GitHub 分支、tag 或 commit 中静态文件�
 | `{admin_3}` | 昆山市 |
 | `{admin_4}` | 周市镇 |
 | `{admin_2} {admin_3}` | 苏州市 昆山市 |
+| `{admin_2} {admin_4}` | 苏州市 周市镇 |
+| `{admin_3} {admin_4}` | 昆山市 周市镇 |
 | `{admin_2} {admin_3} {admin_4}` | 苏州市 昆山市 周市镇 |
 
 存在至少一个非空层级时，显示名会自动回退到上一级；若全部层级为空，build validation 应拒绝该记录。完整的组合规则见 [docs/architecture.md](docs/architecture.md)。
