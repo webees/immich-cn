@@ -2,7 +2,7 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 314,
+  "round": 315,
   "consecutive_clean": 0,
   "totals": {
     "findings": 204,
@@ -13,7 +13,7 @@
     "p3": 49
   },
   "status": "active",
-  "last_method": "M4 契约快照",
+  "last_method": "M9 文档-实现逐条核对",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3187,6 +3187,16 @@
       "severity": "P2",
       "evidence": "把 docs/packages.md 的当前镜像示例从 `3.3.0.1` 回退为 `3.3.0` 后，`check_docs.py` 仍通过，说明文档护栏允许示例漂回三段式。新增要求：文档至少存在一个 `ghcr.io/webees/immich-cn:<当前项目版本>` 示例，并补负向测试；`make check` 455 passed；PR #230 合并 main d18e782，四项 required checks 全绿；clean_streak 归零。",
       "pr": "https://github.com/webees/immich-cn/pull/230"
+    },
+    {
+      "round": 315,
+      "timestamp": "2026-10-06T06:35:00+08:00",
+      "focus": "文档去重与阅读性优化",
+      "method": "M9 文档-实现逐条核对",
+      "verdict": "wait",
+      "severity": null,
+      "evidence": "按用户要求精简重复内容：README 配置总览压缩为紧凑表格并保留全部配置名，架构文档移除重复 ASCII 流程图与发布细节，部署文档把镜像标签和镜像源规则收敛到镜像发布专题。三份文档净减少 81 行；`check_docs` 通过，`make check` 455 passed；PR #231 合并 main 293e67d，四项 required checks 全绿。该轮为文档结构变更，用 wait 记录。",
+      "pr": "https://github.com/webees/immich-cn/pull/231"
     }
   ],
   "residual_risks": [
@@ -3356,7 +3366,8 @@
     "第 311 轮只验证了 translate_admin_codes 的 ASCII 回退开关；translate_admin_units 的同类开关由独立测试覆盖，但本轮没有重复变异",
     "第 312 轮只反演了香港 CJK 覆盖率阈值；其余区域和总体覆盖率阈值仍未在本轮逐一反演",
     "第 313 轮的数据类字段扫描仍是临时 AST 脚本，未固化为 `make` 目标；当前零参考字段为 0，但后续新增数据类字段时需要重新扫描",
-    "第 314 轮只要求至少一个镜像示例使用当前项目版本；文档中其它版本号、上游 Immich 版本与发布标签的逐项一致性仍未自动对拍"
+    "第 314 轮只要求至少一个镜像示例使用当前项目版本；文档中其它版本号、上游 Immich 版本与发布标签的逐项一致性仍未自动对拍",
+    "第 315 轮的行数下降来自人工去重；没有自动指标能判断“冗余”是否完全消除，后续文档增长时仍可能重新出现重复说明"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
