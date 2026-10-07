@@ -2,15 +2,15 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 251,
-  "consecutive_clean": 1,
+  "round": 253,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 178,
-    "clean_rounds": 71,
+    "findings": 179,
+    "clean_rounds": 72,
     "p0": 0,
     "p1": 28,
     "p2": 112,
-    "p3": 41
+    "p3": 42
   },
   "status": "active",
   "last_method": "M9",
@@ -2557,9 +2557,33 @@
       "severity": null,
       "evidence": "在 main（600f0d4）之上建一次性分支，把 `_build-data.yml` 的 server 包名改成 `-server-typo` 并开 PR #195：三项 Python required check 全部 conclusion=failure，日志含 `[!!] .github/workflows/_build-data.yml 使用了非规范的自有 GHCR 包名后缀 '-server-typo'` 与 `工作流契约检查失败：1 项`；`Docker 冒烟构建` 仍 success（与 round 250 的判断一致：它只用本地镜像名，本来抓不到这类错误）；GitHub API 返回 mergeable_state=blocked。随后关闭 PR（merged=false）并删除分支，main 未被触碰、工作区干净。本轮未发现新缺陷，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 252,
+      "timestamp": "2026-10-08T04:45:00+07:00",
+      "focus": "required check 能否拒绝「空数据」PR",
+      "method": "M1 变异探针（源码级空输出）+ M3 负向制品实验（清空包内 cities500）",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "两组探针都证明空数据会被拦下：① 在临时副本让 `iter_output_places` 直接 return（模拟产出为空），`python -m scripts.smoke_data` 自己就失败——`VerifyError: cities500-cn-cjk: 中国记录 0 条，中文名称 0 条（0.0%）；chinese-regions-cjk-strict: ；cities500-hk-cjk: 香港记录 0 条…`，exit 1；② 把已生成 zip 里的 `geodata/cities500.txt` 清空后跑 `check_artifacts.py`，exit 1 且报 6 项，含内容级 `geodata/cities500.txt 首行列数不足` 与 manifest/checksums 不一致，说明即使制品绕过构建校验，签名清单层也会拒绝。本轮未发现缺陷，clean_streak=1（承接 round 251）。",
+      "pr": null
+    },
+    {
+      "round": 253,
+      "timestamp": "2026-10-08T05:10:00+07:00",
+      "focus": "陈旧缓存是否会带来「成功但数据陈旧」",
+      "method": "M1 变异探针（去掉固定摘要比对）+ M8 资源与性能剖析（缓存命中路径）",
+      "verdict": "findings",
+      "severity": "P3",
+      "evidence": "审计 CI 缓存键：`immich-cn-sources-<os>-<tool version>-<settings.py 摘要>-<run_id>`，但 `restore-keys` 保留了很宽的兜底 `immich-cn-sources-<os>-`，工具版本升级后会还原旧缓存。实测该路径行为正确：命中缓存时会同时比对缓存元数据与 `spec.expected_sha256`，固定摘要变化时打印「缓存 demo 摘要不符，重新下载」并删除旧文件重下（请求数 2、内容为新版本），因此不会「成功但数据陈旧」。**但这行判断没有任何测试**——去掉 `spec.expected_sha256` 那一半后全套测试仍然绿。修复（含元负向控制）：新增 `test_fetcher_ignores_cache_when_pinned_digest_changed`；在临时副本把该判断改成只比 `record.sha256` 后新测试立即失败（`len(calls)==1`，旧缓存被信任），证明测试真能失败且该比对就是防住陈旧缓存的代码；`docs/data-sources.md` 记录宽兜底为什么安全。make check 419 tests 全绿；PR #196 合并 main 660e025，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/196"
     }
   ],
   "residual_risks": [
+    "round 252 的「空数据」是本地变异探针（源码级空输出 + 清空包内 cities500），没有走真实 PR 路径；objective 点名的 required-check 负向控制里「陈旧缓存」「过期 token」仍未构造真实 PR，「空数据」只做到本地双层验证",
+    "monitor-update.yml 自身在 2026-10-07T08:41Z 的 schedule 槽位到 08:57Z 仍未触发（与 update-data 观测到的同一类 GitHub 调度行为）；「监控工作流按时触发」至今没有一次真实定时运行证据",
+    "每日工作流固定传 `--revalidate`（_build-data.yml:129），所以上游真正变化会被 304/200 分支捕获；但本地 CLI 默认不 revalidate，用户本地重复构建不会检查上游——这是设计使然，误用会拿到旧数据",
+    "宽松 restore-key 的安全性依赖「命中缓存必做双摘要比对」这一不变量，该不变量现在有了负向控制；若将来为性能跳过命中缓存的 SHA256，会同时打破这条兜底的安全性",
     "阈值来自 2026-10 的真实数据，上游数据分布变化后需重新标定",
     "日本回退依赖 GeoNames 的 ja 汉字标签；若后续只保留假名，JP 区域 90% 阈值可能触发正确报警，需要重新核对",
     "香港 cities500 中文覆盖率阈值 99%，允许极少量上游新英文记录；若出现新地名需按真实数据重新标定",
