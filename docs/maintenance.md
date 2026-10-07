@@ -49,6 +49,16 @@ python scripts/cleanup.py --release-retention 14 \
 
 GHCR 删除使用 GitHub Packages API。工作流优先使用 `GITHUB_TOKEN`，如仓库策略不允许访问用户级 Package，可配置具备 `read:packages` / `delete:packages` 的 `PACKAGE_ADMIN_TOKEN`；没有权限时清理任务会失败并保留日志，不会静默跳过。
 
+每次 dry-run 会先打印**真实读到的数量**，再打印待删除项：
+
+```text
+[DRY-RUN] 观察到 Release 6 个、Actions 运行 132 次、GHCR 版本 immich-cn=21、immich-cn-server=22
+[DRY-RUN] 待删除 Release：0
+...
+```
+
+这样「没有可删项」与「什么都没读到」不会长得一样：如果某个包返回 0 个版本，脚本直接失败，因为 token 缺 `read:packages`、API 结构变化或 owner 写错都会产生空列表，而只打印四行 `0` 的计划看起来和「一切受保护」完全相同。确认包确实尚未创建时才用 `--allow-empty-packages` 显式放行。
+
 ## 失败告警
 
 清理失败时会创建或更新带 `automation` 标签的 GitHub issue，标题为 `自动清理失败（YYYY-MM-DD）`，正文包含运行记录和触发方式；同一类告警只保留一个 open issue。后续清理成功后，工作流会评论并关闭该 issue。告警搜索始终限定 `automation` 标签与标题范围，避免误改用户 issue。

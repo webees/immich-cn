@@ -82,6 +82,29 @@ class CleanupPlan:
     releases: tuple[ReleaseRecord, ...]
     runs: tuple[RunRecord, ...]
     package_versions: dict[str, tuple[PackageVersionRecord, ...]]
+    inventory: Inventory
+
+    @property
+    def total(self) -> int:
+        return len(self.releases) + len(self.runs) + sum(len(items) for items in self.package_versions.values())
+
+
+@dataclass(frozen=True, slots=True)
+class Inventory:
+    """清理前真实读到的对象数量。
+
+    「0 待删除」必须能和「什么都没读到」区分开：2026-10-07 的 dry-run 只打印四行 0，
+    无法证明 Packages API 真的返回了版本列表。Inventory 把观察到的总数一并打印，
+    并在某个包读到空列表时直接失败（除非显式 --allow-empty-packages）。
+    """
+
+    releases: int
+    runs: int
+    package_versions: dict[str, int]
+
+    def describe(self) -> str:
+        packages = "、".join(f"{name}={count}" for name, count in sorted(self.package_versions.items()))
+        return f"观察到 Release {self.releases} 个、Actions 运行 {self.runs} 次、GHCR 版本 {packages}"
 
 
 def _parse_time(value: str) -> datetime:
@@ -353,7 +376,12 @@ class GitHubClient:
         )
 
 
-def build_plan(client: GitHubClient, settings: CleanupSettings) -> CleanupPlan:
+def build_plan(
+    client: GitHubClient,
+    settings: CleanupSettings,
+    *,
+    allow_empty_packages: bool = False,
+) -> CleanupPlan:
     settings.validate()
     releases = client.list_releases()
     protected_shas = {
@@ -363,13 +391,23 @@ def build_plan(client: GitHubClient, settings: CleanupSettings) -> CleanupPlan:
     runs = client.list_runs()
     cutoff = datetime.now(UTC) - timedelta(days=settings.run_retention_days)
     current_run_id = int(os.environ["GITHUB_RUN_ID"]) if os.environ.get("GITHUB_RUN_ID", "").isdigit() else None
+    observed: dict[str, list[PackageVersionRecord]] = {}
+    for package in PACKAGE_NAMES:
+        versions = client.list_package_versions(package)
+        if not versions and not allow_empty_packages:
+            raise CleanupError(
+                f"GHCR 包 {package} 返回 0 个版本：无法区分「确实没有版本」与「token 缺少 "
+                "read:packages / API 结构变化导致读到空列表」。拒绝在没有证据的情况下报告清理成功；"
+                "确认该包尚未创建时显式加 --allow-empty-packages"
+            )
+        observed[package] = versions
     package_versions = {
         package: select_package_versions(
-            client.list_package_versions(package),
+            versions,
             retention=settings.package_retention,
             prune_all=settings.prune_all,
         )
-        for package in PACKAGE_NAMES
+        for package, versions in observed.items()
     }
     return CleanupPlan(
         releases=select_releases(
@@ -386,11 +424,17 @@ def build_plan(client: GitHubClient, settings: CleanupSettings) -> CleanupPlan:
             prune_all=settings.prune_all,
         ),
         package_versions=package_versions,
+        inventory=Inventory(
+            releases=len(releases),
+            runs=len(runs),
+            package_versions={package: len(versions) for package, versions in observed.items()},
+        ),
     )
 
 
 def print_plan(plan: CleanupPlan, *, apply: bool) -> None:
     mode = "APPLY" if apply else "DRY-RUN"
+    print(f"[{mode}] {plan.inventory.describe()}")
     print(f"[{mode}] 待删除 Release：{len(plan.releases)}")
     for release in plan.releases:
         print(f"  release {release.tag_name}")
@@ -438,6 +482,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--run-retention-days", type=int, default=30)
     parser.add_argument("--run-keep-per-workflow", type=int, default=20)
     parser.add_argument("--package-retention", type=int, default=20)
+    parser.add_argument(
+        "--allow-empty-packages",
+        action="store_true",
+        help="允许某个 GHCR 包返回 0 个版本（仅在包确实尚未创建时使用）",
+    )
     parser.add_argument(
         "--prune-release-assets",
         metavar="TAG",
@@ -530,7 +579,7 @@ def main(argv: list[str] | None = None) -> int:
             return _prune_release_assets(client, args)
         if args.verify_release_assets:
             return _verify_release_assets(client, args)
-        plan = build_plan(client, settings)
+        plan = build_plan(client, settings, allow_empty_packages=args.allow_empty_packages)
         print_plan(plan, apply=args.apply)
         if args.apply:
             apply_plan(client, plan)
