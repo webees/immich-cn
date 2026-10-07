@@ -37,7 +37,7 @@ services:
     restart: always
 ```
 
-Immich v3.3.0 官方 compose 将媒体目录挂载到 `/data`；不要把新部署继续写成旧路径 `/usr/src/app/upload`。machine-learning 服务需要持久化 `model-cache`，否则模型会在容器重建后重新下载。
+Immich v3.2.4 与 v3.3.0 官方 compose 均已将媒体目录挂载到 `/data`；不要把新部署继续写成旧路径 `/usr/src/app/upload`。machine-learning 服务需要持久化 `model-cache`，否则模型会在容器重建后重新下载。
 
 镜像标签：
 
