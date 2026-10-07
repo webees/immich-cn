@@ -39,14 +39,7 @@ services:
 
 Immich 官方 compose 当前将媒体目录挂载到 `/data`。machine-learning 服务需要持久化 `model-cache`，否则模型会在容器重建后重新下载。
 
-镜像标签：
-
-| 标签 | 含义 |
-|:--|:--|
-| `latest` | 最近一次成功构建的数据 + `release` 版 Immich |
-| `release` | 与 Immich `release` 标签对齐 |
-| `release-<日期>` | 当日最新数据，同日重跑可更新；长期固定请使用摘要 |
-| `<Immich 对齐版本>` | 由发布工作流生成，格式为 `X.Y.Z.N`，两个镜像使用同一项目版本 |
+镜像标签、版本规则与拉取源见 [镜像发布](packages.md)。部署时优先固定 `sha-<短提交>` 或完整摘要，`latest` 只用于试用。
 
 ### 环境变量
 
@@ -135,12 +128,7 @@ TZ=Asia/Shanghai date +"%Y-%m-%dT%H:%M:%S+08:00" > ./immich-cn/geodata/geodata-d
 
 ## 国内网络
 
-Compose 示例默认使用中国可达的 GHCR 镜像源：
-
-- `ghcr.nju.edu.cn`：默认；
-- `docker.m.daocloud.io/ghcr.io`：可选回退；
-- `ghcr.dockerproxy.net`：可选回退；
-- `ghcr.io`：官方源，作为最终回退或摘要比对基准。
+Compose 示例默认使用中国可达的 GHCR 镜像源；可用源、信任边界与摘要比对方式见 [镜像发布](packages.md)。
 
 用 `IMMICH_CN_GHCR_MIRROR` 覆盖默认值：
 
