@@ -525,7 +525,9 @@ jobs:
                 return response.json();
               })
               .then((config) => {
-                if (!config.map?.lightStyle || !config.map?.darkStyle) process.exit(2);
+                const lightStyle = config.map?.lightStyle ?? config.mapLightStyleUrl;
+                const darkStyle = config.map?.darkStyle ?? config.mapDarkStyleUrl;
+                if (!lightStyle || !darkStyle) process.exit(2);
                 console.log("api-server-config-ok");
               })
               .catch(() => process.exit(3));

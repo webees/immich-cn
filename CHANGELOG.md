@@ -83,6 +83,7 @@
 - CI 的 Python 作业现在自动执行 Action 固定提交校验，不再只依赖人工运行 `make audit-pins`；
 - CI 的 Python 作业同时执行死代码扫描，新增零引用模块级定义会在提交阶段被拦住；
 - 增加过期/无效 GitHub 令牌的负向测试，确认 401 会立即失败而不是被重试掩盖；
+- 完整服务栈冒烟同时识别 Immich 新旧地图配置字段（`map.lightStyle` / `mapLightStyleUrl` 等），修复当前 release 因契约升级导致的误失败；
 - `cleanup.yml` 的旧命名资产清理支持仓库变量 `PRUNE_LEGACY_ASSETS=true` 开启定时自动模式，默认保持关闭；
 - CI 的 Docker 冒烟作业会从 `audit` 分支读取审计账本并校验汇总值可由轮次明细复算；
 - 数据镜像落地目录里的 `README.md` 补齐 i18n 挂载说明：此前只写「Immich < 1.136 的 `node_modules/i18n-iso-countries`」，1.136.0 ~ 3.2.x 的用户会照它把覆盖包放到错误位置；现在同时给出 `/usr/src/app/node_modules/...`、`/usr/src/app/server/node_modules/...` 与「3.3.0 起不再需要」，`check_docs.check_langs_mounts` 会强制这两个路径都保留；
