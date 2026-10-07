@@ -57,7 +57,7 @@ Homepage = "https://github.com/webees/immich-cn"
 Documentation = "https://github.com/webees/immich-cn/tree/main/docs"
 Changelog = "https://github.com/webees/immich-cn/releases"
 "Source Code" = "https://github.com/webees/immich-cn"
-"Container Image" = "https://github.com/webees/immich-cn/pkgs/container/immich-cn%2Fgeodata"
+"Container Image" = "https://github.com/webees/immich-cn/pkgs/container/immich-cn"
 
 [project.scripts]
 immich-cn = "immich_cn.cli:main"

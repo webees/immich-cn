@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -162,6 +163,7 @@ COMPOSE_EXAMPLES = (*COMPOSE_FULL_EXAMPLES, Path("examples/compose.volume.yml"))
 VALKEY_IMAGE = "docker.io/valkey/valkey:9@sha256:70739f85ad2ee01a726a965584a0f94895f01b0c60b3cc8b0aeef11eaa6888cf"
 GHCR_MIRROR_DEFAULT = "ghcr.nju.edu.cn"
 GHCR_MIRROR_ENV = "IMMICH_CN_GHCR_MIRROR"
+CONTAINER_URL = "https://github.com/webees/immich-cn/pkgs/container/immich-cn"
 TERMINOLOGY_DOC = Path("docs/conventions.md")
 README_DIMENSION_LABELS = ("代码许可", "构建入口", "外部依赖", "行政区粒度", "发布方式")
 README_DOC_LINK = re.compile(r"^\s*-\s+\[[^\]]+\]\((docs/[^)#]+\.md)\)", re.MULTILINE)
@@ -723,6 +725,11 @@ def check_registry_mirror_contract(errors: list[str]) -> None:
             errors.append(f"{path} 未默认使用中国 GHCR mirror：{GHCR_MIRROR_DEFAULT}")
         if GHCR_MIRROR_ENV not in text:
             errors.append(f"{path} 未提供 GHCR mirror 覆盖入口：{GHCR_MIRROR_ENV}")
+
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    container_url = ((pyproject.get("project") or {}).get("urls") or {}).get("Container Image")
+    if container_url != CONTAINER_URL:
+        errors.append(f"pyproject.toml 的 Container Image 必须是 {CONTAINER_URL}，当前为 {container_url!r}")
 
 
 def check_image_tag_examples(doc_files: list[Path], errors: list[str]) -> None:
