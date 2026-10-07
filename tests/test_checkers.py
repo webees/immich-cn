@@ -192,11 +192,11 @@ def test_check_docs_requires_complete_make_check_description(repo_copy: Path) ->
 
 
 def test_check_docs_detects_wrong_image_dataset_claim(repo_copy: Path) -> None:
-    faq = repo_copy / "docs" / "faq.md"
+    faq = repo_copy / "docs" / "operations.md"
     mutate(
         faq,
-        "镜像内置的是默认非 full 数据集",
-        "镜像内置的是 full 数据集（点位更多）\n\n镜像内置的是默认非 full 数据集",
+        "镜像内置的是默认非完整数据集",
+        "镜像内置的是完整数据集（点位更多）\n\n镜像内置的是默认非完整数据集",
     )
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
@@ -279,12 +279,11 @@ def test_check_docs_detects_broken_markdown_link(repo_copy: Path) -> None:
 
 def test_check_docs_detects_manifest_field_drift(repo_copy: Path) -> None:
     """manifest 顶层字段名在文档里写错时必须被报出。"""
-    spec = repo_copy / "docs" / "artifact-spec.md"
-    mutate(spec, '"patternsTable": "immich-cn-patterns-tsv-v1.gz"', '"patternTableX": "immich-cn-patterns-tsv-v1.gz"')
+    spec = repo_copy / "docs" / "data-format.md"
     mutate(spec, "| `patternsTable` |", "| `patternTableX` |")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
-    assert "未记录 manifest 顶层字段" in result.stdout
+    assert "未记录清单顶层字段" in result.stdout
 
 
 def test_check_docs_detects_new_manifest_field(repo_copy: Path) -> None:
@@ -302,7 +301,7 @@ def test_check_docs_detects_new_manifest_field(repo_copy: Path) -> None:
 
 def test_check_docs_requires_manifest_stats_scope(repo_copy: Path) -> None:
     """stats 是规范层 full 口径，缺少口径说明时必须被报出。"""
-    spec = repo_copy / "docs" / "artifact-spec.md"
+    spec = repo_copy / "docs" / "data-format.md"
     mutate(spec, "`sourcePlaces + extraPlaces == outputPlaces`；", "记录数之间的关系见实现；")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
@@ -311,7 +310,7 @@ def test_check_docs_requires_manifest_stats_scope(repo_copy: Path) -> None:
 
 def test_check_docs_requires_drop_split_documentation(repo_copy: Path) -> None:
     """丢弃计数必须分段说明，否则合并后的数字会被误读为单一阶段的丢弃量。"""
-    spec = repo_copy / "docs" / "artifact-spec.md"
+    spec = repo_copy / "docs" / "data-format.md"
     mutate(spec, "`droppedPlaces = droppedCities + droppedExtra`：", "丢弃计数说明：")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
@@ -387,10 +386,10 @@ def test_check_docs_detects_language_priority_drift(repo_copy: Path) -> None:
 
 def test_check_docs_rejects_stale_geodata_import_wording(repo_copy: Path) -> None:
     """上游是「相等则跳过」，写成「按新旧比较」必须被拦下。"""
-    faq = repo_copy / "docs" / "faq.md"
+    faq = repo_copy / "docs" / "operations.md"
     mutate(
         faq,
-        "Immich 只在 `geodata-date.txt` 与上次导入时记录的值**不同**时才重新导入",
+        "Immich 只在 `geodata-date.txt` 与上次导入记录的值**不同**时才重新导入",
         "Immich 只在 `geodata-date.txt` 比上次导入时间更新时才重新导入",
     )
     result = run_checker(repo_copy, "check_docs.py")
@@ -910,7 +909,7 @@ def test_check_docs_requires_upstream_acknowledgement_at_bottom(repo_copy: Path)
     readme = repo_copy / "README.md"
     link = (
         "- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)："
-        "早期中文 Immich geodata 思路提供了启发；本项目按独立实现组织，"
+        "早期中文 Immich 地理数据思路提供了启发；本项目按独立实现组织，"
         "当前树未引用或打包该项目的代码与人工整理数据（核查方式见 [规范与约定](docs/conventions.md)）。"
     )
     mutated = readme.read_text(encoding="utf-8").replace(link, "")

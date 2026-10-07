@@ -7,7 +7,7 @@ GHCR 中有两个容器包，它们不是重复镜像，也不是可互换别名
 | `ghcr.io/webees/immich-cn` | 纯数据镜像，把地理数据释放到宿主机目录 | Alpine | `immich-cn-install` | `linux/amd64`, `linux/arm64` |
 | `ghcr.io/webees/immich-cn-server` | 开箱即用的 Immich 服务端覆盖镜像 | 官方 `immich-server` | `immich-cn-entrypoint` + `start.sh` | `linux/amd64`, `linux/arm64` |
 
-## 中国大陆拉取地址
+## 拉取地址
 
 `ghcr.io` 是规范镜像源，也是签名与摘要的比对基准；在中国大陆默认使用可覆盖的镜像源：
 
@@ -20,7 +20,7 @@ GHCR 中有两个容器包，它们不是重复镜像，也不是可互换别名
 
 Compose 示例通过 `IMMICH_CN_GHCR_MIRROR` 选择前缀。2026-10-07 对两个包的 `latest` 做了清单对比，三个镜像源与 `ghcr.io` 返回相同摘要；这不构成长期可用性或安全性保证。生产环境仍应从官方源确认摘要，再把镜像源当作同一摘要的传输通道。
 
-## 为什么有两个
+## 镜像差异
 
 `immich-cn` 只负责分发数据，适合继续使用官方 Immich 镜像并挂载数据目录的用户。`immich-cn-server` 在官方服务端镜像启动前注入数据，适合希望减少手工挂载步骤的用户。
 
@@ -28,7 +28,7 @@ Compose 示例通过 `IMMICH_CN_GHCR_MIRROR` 选择前缀。2026-10-07 对两个
 
 许可证也不同：`immich-cn` 的数据处理层按 MIT 发布；`immich-cn-server` 包含上游 Immich 服务端代码，按当前组合方式声明为 `AGPL-3.0-only AND MIT`。具体再分发义务应结合镜像内实际文件确认。
 
-## 镜像体积与取舍
+## 体积取舍
 
 镜像大小要区分两个数字：
 
@@ -47,7 +47,7 @@ Compose 示例通过 `IMMICH_CN_GHCR_MIRROR` 选择前缀。2026-10-07 对两个
 
 不采用“先把数据打成 tar.gz 再放入镜像”的方案：OCI 层本身已经压缩，重复压缩对拉取体积收益有限，却增加启动解压时间和临时磁盘占用。需要更小体积时，优先使用纯数据镜像或 `--geodata-only`，而不是删除运行时需要的地理数据、粒度表或许可证。
 
-## 标签
+## 标签规范
 
 | 包 | 标签 | 用途 |
 |:--|:--|:--|
@@ -102,11 +102,11 @@ cosign verify \
 
 ## 自动清理
 
-GHCR 版本、`data-*` 发布和 Actions 运行由 `cleanup.yml` 每周清理。默认保留语义版本、`auto-release`、`latest`、`release` 与最近版本；稳定前可手动启用 `prune-all`。完整规则见 [自动清理与保留策略](maintenance.md)。
+GHCR 版本、`data-*` 发布和 Actions 运行由 `cleanup.yml` 每周清理。默认保留语义版本、`auto-release`、`latest`、`release` 与最近版本；稳定前可手动启用 `prune-all`。完整规则见 [运维与常见问题](operations.md)。
 
-发布资产的规范 ID、v4 文件名和唯一发布规则见 [制品命名规范 v4](artifact-spec.md)。
+发布资产的规范 ID、v4 文件名与唯一发布规则见 [数据格式与制品命名](data-format.md)。
 
-## 不可混用边界
+## 混用边界
 
 - `immich-cn-server:release-YYYY-MM-DD` 固定的是本项目数据与该次构建使用的 Immich 标签；
 - `immich-cn:YYYY-MM-DD` 的镜像内只有数据层文件，没有 Immich 服务端二进制，不能直接运行服务端；

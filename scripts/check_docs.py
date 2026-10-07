@@ -90,7 +90,7 @@ PROCESS_OR_LEGAL_CLAIMS: dict[str, str] = {
 
 #: README 独立性段落的锚点；正文改写时需同步更新本契约。
 INDEPENDENCE_ANCHOR = "本项目按独立实现组织"
-INDEPENDENCE_SECTION_END = "## 数据模型与使用方式"
+INDEPENDENCE_SECTION_END = "## 数据模型"
 
 #: 中国本地化是项目的主方向，README、专题文档、部署示例和时区默认值必须一致。
 CHINA_LOCALIZATION_DOC = Path("docs/china.md")
@@ -414,7 +414,7 @@ def check_numeric_contracts(errors: list[str]) -> None:
     workflow = Path(".github/workflows/update-data.yml").read_text(encoding="utf-8")
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
-    if "镜像内置的是 full 数据集" in doc_text:
+    if "镜像内置的是 full 数据集" in doc_text or "镜像内置的是完整数据集" in doc_text:
         errors.append("文档错误：镜像使用非 full 的 build/geodata，不能声称内置 full 数据集")
     if "默认在打包完成后删除" in doc_text:
         errors.append("文档错误：默认构建直接流式写 immich-cn-patterns-tsv-v1.gz，不生成明文 immich-cn-patterns-v1.tsv")
@@ -850,20 +850,20 @@ def _manifest_top_level_keys() -> set[str]:
 
 
 def check_manifest_field_docs(errors: list[str]) -> None:
-    """docs/artifact-spec.md 必须记录 manifest 的每个顶层字段。"""
-    doc = Path("docs/artifact-spec.md").read_text(encoding="utf-8")
+    """docs/data-format.md 必须记录清单的每个顶层字段。"""
+    doc = Path("docs/data-format.md").read_text(encoding="utf-8")
     keys = _manifest_top_level_keys()
     if not keys:
         errors.append("未能从实现提取 manifest 顶层字段，护栏可能已失效")
         return
     for key in sorted(keys):
         if key not in doc:
-            errors.append(f"docs/artifact-spec.md 未记录 manifest 顶层字段：{key}")
+            errors.append(f"docs/data-format.md 未记录清单顶层字段：{key}")
 
 
 def check_manifest_stats_scope(errors: list[str]) -> None:
     """manifest 的 stats 是规范层 full 口径，文档必须写明，否则会被当成某个 zip 的行数。"""
-    path = Path("docs/artifact-spec.md")
+    path = Path("docs/data-format.md")
     doc = path.read_text(encoding="utf-8")
     if "stats" not in doc:
         return  # 顶层字段护栏已保证 stats 出现，这里只在该前提成立时补充口径要求
