@@ -66,6 +66,40 @@ def test_fetcher_detects_same_size_cache_corruption(tmp_path: Path) -> None:
     assert result.path.read_bytes() == b"new!"
 
 
+def test_fetcher_ignores_cache_when_pinned_digest_changed(tmp_path: Path) -> None:
+    """固定摘要变化后，即使旧缓存自身校验通过也不能被信任。
+
+    CI 的 `actions/cache` restore-key 故意很宽（`immich-cn-sources-<os>-`），会跨工具
+    版本还原 `.cache/immich-cn`。这条负向控制证明「还原到旧缓存」不会让构建拿着旧内容
+    还成功：命中缓存时会把文件摘要与 `spec.expected_sha256` 比对，不一致就删掉重下。
+    """
+    payload = b"stale cached bytes"
+    changed = b"upstream changed!"
+    calls: list[int] = []
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        return httpx.Response(200, content=payload if len(calls) == 1 else changed)
+
+    cache = tmp_path / "cache"
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with Fetcher(cache, client=client) as fetcher:
+        fetcher.fetch(SourceSpec(name="demo", url="https://example.com/demo.txt", filename="demo.txt"))
+
+    pinned = SourceSpec(
+        name="demo",
+        url="https://example.com/demo.txt",
+        filename="demo.txt",
+        expected_sha256=sha256_bytes(changed),
+    )
+    with Fetcher(cache, client=client) as fetcher:
+        result = fetcher.fetch(pinned)
+
+    assert len(calls) == 2, "固定摘要变化后必须重新下载，不能复用旧缓存"
+    assert result.path.read_bytes() == changed
+    assert result.record.sha256 == sha256_bytes(changed)
+
+
 def test_fetcher_force_refreshes(tmp_path: Path) -> None:
     calls: list[str] = []
 

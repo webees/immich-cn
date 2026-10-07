@@ -29,6 +29,8 @@
 
 CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每日构建通常只需传输真正发生变化的少数文件。缓存键由 `runner.os`、工具版本与 `src/immich_cn/settings.py` 的摘要组成，上游源定义或版本固定发生变化时会切换到新键； `check_workflows.py` 会拒绝指向不存在文件的 `hashFiles` 路径，避免缓存键的某个维度静默变成空字符串。
 
+`restore-keys` 里保留了一条很宽的兜底（`immich-cn-sources-<os>-`），因此工具版本升级后仍可能还原到旧缓存。这是安全的：命中缓存时会把文件摘要同时与缓存元数据和 `spec.expected_sha256` 比对，只要固定摘要变了就删除旧文件重新下载（`tests/test_fetching.py::test_fetcher_ignores_cache_when_pinned_digest_changed` 是这条路径的负向控制——把该比对去掉后该测试会失败）。换句话说，还原旧缓存最多省一次传输，不会让构建拿着旧内容成功。
+
 ### 2. 确定地点集合
 
 1. 过滤 `cities500.txt`：丢弃缺少有效一级行政区代码的噪声记录（`SG`、`VA` 除外）；
