@@ -7,7 +7,7 @@
 - 1.136.0 以下同样需要该覆盖，只是挂载路径不同；
 - 数据文件在容器内需要**可读**，镜像方案会自动复制一份到 `/build/geodata`。
 
-## 方案 A：开箱即用的 Immich 镜像
+## 镜像方案
 
 示例 Compose 文件（含 immich-server、immich-machine-learning、redis 与数据库，仍需提供 `.env` 与持久化目录）：[examples/compose.server.yml](../examples/compose.server.yml)。
 
@@ -77,7 +77,7 @@ Immich v3.2.4 与 v3.3.0 官方 compose 均已将媒体目录挂载到 `/data`�
 
 `TZ=Asia/Shanghai` 是面向中国用户的默认示例。若宿主机已正确设置时区，也可以保留 `/etc/localtime` 挂载；两者同时存在时，容器内的 `TZ` 环境变量优先。
 
-## 方案 B：官方镜像 + 数据镜像
+## 数据方案
 
 示例 compose 文件（需自行提供 `.env` 和持久化目录）：[examples/compose.volume.yml](../examples/compose.volume.yml)。
 
@@ -103,7 +103,7 @@ services:
       # - ./immich-cn/i18n-iso-countries/langs:/usr/src/app/node_modules/i18n-iso-countries/langs:ro
 ```
 
-## 方案 C：只用发布数据
+## 下载数据
 
 ```bash
 curl -fsSL -o immich-cn-geodata-admin2-default-v1.zip \
@@ -115,9 +115,9 @@ mkdir -p i18n-iso-countries
 unzip -o immich-cn-i18n-json-v1.zip -d i18n-iso-countries
 ```
 
-解压后得到 `geodata/` 与 `i18n-iso-countries/langs/en.json`，按方案 B 的方式挂载即可。注意国家名称覆盖是**独立资产**：`immich-cn-geodata-*.zip` 里没有 `langs/`，只下载它会缺失 Immich 1.136.0 ~ 3.2.x 需要的国家名覆盖（3.3.0 起 Immich 改读 `countryInfo.txt`，不再需要）。
+解压后得到 `geodata/` 与 `i18n-iso-countries/langs/en.json`，按数据方案的方式挂载即可。注意国家名称覆盖是**独立资产**：`immich-cn-geodata-*.zip` 里没有 `langs/`，只下载它会缺失 Immich 1.136.0 ~ 3.2.x 需要的国家名覆盖（3.3.0 起 Immich 改读 `countryInfo.txt`，不再需要）。
 
-## 让中文地名立即生效
+## 刷新生效
 
 1. 重启 Immich，确认日志出现 `geodata records imported`；
 2. 进入「系统管理 → 任务」，执行一次「提取元数据 → 全部」刷新历史照片；
@@ -133,7 +133,7 @@ TZ=Asia/Shanghai date +"%Y-%m-%dT%H:%M:%S+08:00" > ./immich-cn/geodata/geodata-d
 # 把 IMMICH_CN_FORCE_RELOAD 设为 1 后重启容器
 ```
 
-## 国内网络与镜像获取
+## 国内网络
 
 Compose 示例默认使用中国可达的 GHCR 镜像源：
 
@@ -158,7 +158,7 @@ docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 
 国内网络环境下，地图底图与坐标偏移是另一个问题：本项目输出的坐标来自 GeoNames（WGS-84）。若底图使用 GCJ-02，请阅读 [中国本地化与加速](china.md) 的坐标说明，或改用 WGS-84 底图。
 
-## CDN 与静态资源加速
+## 静态加速
 
 需要把 Immich 放在国内 CDN 或反向代理后面时，可使用：
 
@@ -167,13 +167,13 @@ docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 
 本项目只提供源站策略，不运营公共 CDN。HTML、API、Cookie、认证头、原始照片和视频不得进入公共共享缓存；地图瓦片只能缓存自有或明确授权的内容。完整缓存矩阵、地图同源代理、CSP 和验证命令见 [中国本地化与加速](china.md)。
 
-## 更新数据
+## 数据更新
 
 - **镜像方案**：`docker compose pull && docker compose up -d`；
-- **挂载方案**：重新执行方案 B 的第一步，然后 `docker compose restart immich-server`；
+- **挂载方案**：重新执行数据方案的第一步，然后 `docker compose restart immich-server`；
 - **自动更新**：沿用自己的定时任务，例如每周执行一次上面的命令。
 
-### 数据更新频率
+### 更新频率
 
 上游数据由 GitHub Actions 按设计每天自动检查更新（北京时间 13:23 / UTC 05:23）；实际执行取决于仓库权限与上游服务可用性：
 
@@ -181,9 +181,9 @@ docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 - 只有数据、构建配置或发布器修订真正变化时才重新构建、发布与推送镜像；
 - 因此拉取最新镜像即可获得该次发布当时的完整数据；拉取频率取决于你对数据新鲜度和保留策略的要求。
 
-判断当前数据版本：查看 Release 标题日期，或容器内 `/build/geodata/geodata-date.txt`。
+判断当前数据版本：查看发布标题日期，或容器内 `/build/geodata/geodata-date.txt`。
 
-### 让镜像自动跟随更新
+### 自动跟随
 
 如果希望主机自动跟随每日数据：
 
@@ -194,11 +194,11 @@ docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 
 也可以使用 Watchtower 等工具监听 `${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/webees/immich-cn-server:latest`。注意：数据变化后 `geodata-date.txt` 会更新，Immich 会在启动时重新导入 geodata；若显式设置 `IMMICH_CN_FORCE_RELOAD=1`，则每次启动都会强制重新导入。
 
-## 非官方 Immich 镜像
+## 非官方镜像
 
 `imagegenius/immich` 等第三方镜像的目录结构可能不同（未逐一验证），请把 `geodata` 挂载到它实际使用的地理数据路径，并参考镜像自身的文档。`IMAGES` 目录不一致时，`IMMICH_BUILD_DATA` 也可以显式覆盖。
 
-## Rollback
+## 回滚方案
 
-- 镜像方案：优先固定到 `sha-<短提交>` 或 digest；`release-<日期>` 只适合当日跟踪；
+- 镜像方案：优先固定到 `sha-<短提交>` 或摘要；`release-<日期>` 只适合当日跟踪；
 - 数据方案：从 [Releases](https://github.com/webees/immich-cn/releases) 下载 `data-<日期>` 或 `data-<日期>-sha-<短提交>` 不可变快照。

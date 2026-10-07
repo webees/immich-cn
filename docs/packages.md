@@ -1,4 +1,4 @@
-# 软件包说明
+# 镜像发布
 
 GHCR 中有两个容器包，它们不是重复镜像，也不是可互换别名：
 
@@ -72,11 +72,11 @@ docker pull ghcr.io/webees/immich-cn-server:sha-cdc0ba3
 docker pull ghcr.io/webees/immich-cn@sha256:fa8b3db5c1879f8e5ba1f37f49983d0f3b568d896b9135944c2bcc2b0042747f
 ```
 
-在 GitHub Packages 页面上还会看到 `sha256-<digest>` 形式的标签。它们不是本项目的发布标签，而是 GHCR 为 Cosign 签名与 attestation 这类 OCI 引用对象生成的引用标签：以镜像摘要命名的那个标签指向的是签名、证明对象，不是镜像本身。请勿把这类标签当作镜像拉取，也不要手动删除；`cleanup.yml` 会保护 `sha256-*` / `sha256:*` 版本。
+在 GitHub Packages 页面上还会看到 `sha256-<digest>` 形式的标签。它们不是本项目的发布标签，而是 GHCR 为 Cosign 签名与证明对象这类 OCI 引用对象生成的引用标签：以镜像摘要命名的那个标签指向的是签名、证明对象，不是镜像本身。请勿把这类标签当作镜像拉取，也不要手动删除；`cleanup.yml` 会保护 `sha256-*` / `sha256:*` 版本。
 
 语义化版本发布必须同时推送两个镜像；工作流在创建版本化发布前会拒绝 `push-images=false`，并对两个版本标签的镜像仓库摘要与本次构建输出做比对，避免出现只有 GitHub 发布、没有对应包标签，或标签指向其他镜像的半成品版本。
 
-## 供应链证据
+## 供应链
 
 每次镜像发布都会：
 

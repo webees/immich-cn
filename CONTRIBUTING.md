@@ -36,7 +36,7 @@ Ruleset 当前 `id=24545711`、`enforcement=active`、`bypass_actors` 为空， 
 
 因此在 ruleset 生效范围内，改动需要先推到功能分支再开 PR。维护者如需保留直推能力，可在 Settings → Rules → Rulesets 中为「Repository admin」添加 bypass actor。
 
-## 新增中文地名纠正
+## 地名纠正
 
 优先改 `config/overrides.toml`，并在 PR 描述中给出依据（GeoNames ID 或公开行政资料），例如：
 
@@ -52,7 +52,7 @@ Ruleset 当前 `id=24545711`、`enforcement=active`、`bypass_actors` 为空， 
 - 注释与日志使用中文，代码标识符使用英文；
 - 网络访问必须支持超时、重试与磁盘缓存，并遵守数据源的使用条款。
 
-## 新增 provider
+## 新增提供方
 
 1. 在 `src/immich_cn/providers/` 下实现 `prefetch()` / `enrich()`；
 2. 在 `src/immich_cn/providers/__init__.py:build_chain` 中注册；
@@ -69,6 +69,6 @@ fix(build): 修复 XX 情况下缺少 admin2 的问题
 docs: 更新部署说明
 ```
 
-## 许可
+## 许可声明
 
 提交代码即表示你同意以 MIT 许可发布你的贡献。若引入了新的数据源，请在 PR 中说明其许可与再分发限制。

@@ -103,7 +103,7 @@ CHINA_LOCALIZATION_OVERCLAIM = "完整行政区层级"
 CHINA_ACCELERATION_DOC = Path("docs/china.md")
 PROJECT_SCOPE_DOC = Path("docs/china.md")
 PROJECT_SCOPE_ANCHOR = "规范定位"
-PROJECT_SCOPE_SECTIONS = ("核心范围", "可选支持", "非目标")
+PROJECT_SCOPE_SECTIONS = ("核心范围", "可选支持", "排除范围")
 FORBIDDEN_SCOPE_PHRASES = ("本地化增强套件", "本地化不止于翻译", "六个层面", "六个支柱")
 UPSTREAM_INTEGRATION_DOC = Path("docs/immich-integration.md")
 UPSTREAM_INTEGRATION_TOKENS = (
@@ -113,7 +113,7 @@ UPSTREAM_INTEGRATION_TOKENS = (
     "PPLX",
     "PPLH",
     "reverseGeocodeMaxDistance",
-    "列约束",
+    "字段约束",
     "cities500-immich-columns",
     "地点检索",
     "searchPlaces",
@@ -135,6 +135,7 @@ CHINA_ACCELERATION_TOKENS = (
     "cdn.jsdmirror.com",
     "IMMICH_CN_JSDELIVR_BASE",
     "jsdelivr_url.py",
+    "不能代理 GitHub 发布资产",
     "发布资产",
     "Cache-Control",
     "/_app/immutable/",
@@ -159,6 +160,10 @@ VALKEY_IMAGE = "docker.io/valkey/valkey:9@sha256:70739f85ad2ee01a726a965584a0f94
 GHCR_MIRROR_DEFAULT = "ghcr.nju.edu.cn"
 GHCR_MIRROR_ENV = "IMMICH_CN_GHCR_MIRROR"
 TERMINOLOGY_DOC = Path("docs/conventions.md")
+README_DIMENSION_LABELS = ("代码许可", "构建入口", "外部依赖", "行政区粒度", "发布方式")
+README_DOC_LINK = re.compile(r"^\s*-\s+\[[^\]]+\]\((docs/[^)#]+\.md)\)", re.MULTILINE)
+ENGLISH_ONLY_HEADING = re.compile(r"^#{2,6}\s+[A-Za-z][A-Za-z0-9 /&+-]*$")
+TABLE_SEPARATOR = re.compile(r"^\|(?:\s*:?-{2,}:?\s*\|)+\s*$")
 TECHNICAL_TERMS = (
     "artifact",
     "manifest",
@@ -551,7 +556,7 @@ def check_project_positioning(errors: list[str]) -> None:
         if phrase in readme:
             errors.append(f"README 出现错误的项目定位：{phrase}")
 
-    marker = "## 致谢"
+    marker = "## 致谢说明"
     upstream = "https://github.com/ZingLix/immich-geodata-cn"
     positions = [index for index, line in enumerate(readme.splitlines(), start=1) if upstream in line]
     if len(positions) != 1:
@@ -831,6 +836,85 @@ def check_markdown_links(doc_files: list[Path], errors: list[str]) -> None:
                     errors.append(f"{path}:{line_number} 的 Markdown 链接目标不存在：{raw}")
     if checked == 0:
         errors.append("Markdown 链接检查未解析到任何相对链接，护栏可能已失效")
+
+
+def check_readme_dimensions(errors: list[str]) -> None:
+    """README 只保留五个短维度，避免首页再次堆成功能清单。"""
+    path = Path("README.md")
+    lines = path.read_text(encoding="utf-8").splitlines()
+    header = next((index for index, line in enumerate(lines) if line.strip() == "| 维度 | 设计 |"), None)
+    if header is None:
+        errors.append(f"{path} 缺少「| 维度 | 设计 |」表头，维度护栏可能已失效")
+        return
+    if header + 1 >= len(lines) or not TABLE_SEPARATOR.match(lines[header + 1].strip()):
+        errors.append(f"{path}:{header + 2} 维度表缺少分隔行")
+        return
+
+    labels: list[str] = []
+    for line in lines[header + 2 :]:
+        if not line.startswith("|"):
+            break
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if cells:
+            labels.append(cells[0])
+    if tuple(labels) != README_DIMENSION_LABELS:
+        errors.append(
+            f"{path} 维度表必须且只能按顺序包含：{'、'.join(README_DIMENSION_LABELS)}；"
+            f"当前为：{'、'.join(labels) or '空'}"
+        )
+
+
+def check_readme_doc_index(errors: list[str]) -> None:
+    """README 文档索引必须覆盖全部 docs/*.md，且每个入口只出现一次。"""
+    path = Path("README.md")
+    text = path.read_text(encoding="utf-8")
+    parts = text.split("## 文档索引", 1)
+    if len(parts) != 2:
+        errors.append(f"{path} 缺少「文档索引」小节")
+        return
+    section = parts[1].split("\n## ", 1)[0]
+    links = README_DOC_LINK.findall(section)
+    duplicates = sorted({link for link in links if links.count(link) > 1})
+    expected = {path.as_posix() for path in sorted(Path("docs").glob("*.md"))}
+    missing = sorted(expected - set(links))
+    if duplicates:
+        errors.append(f"{path} 的文档索引存在重复入口：{'、'.join(duplicates)}")
+    if missing:
+        errors.append(f"{path} 的文档索引缺少：{'、'.join(missing)}")
+
+
+def check_markdown_layout(paths: list[Path], errors: list[str]) -> None:
+    """标题与表格排版必须整齐：二级以下标题不能用纯英文，表格不能断行。"""
+    for path in paths:
+        lines = path.read_text(encoding="utf-8").splitlines()
+        in_fence = False
+        index = 0
+        while index < len(lines):
+            raw = lines[index]
+            stripped = raw.strip()
+            if stripped.startswith(("```", "~~~")):
+                in_fence = not in_fence
+                index += 1
+                continue
+            if in_fence:
+                index += 1
+                continue
+            if ENGLISH_ONLY_HEADING.match(stripped):
+                errors.append(f"{path}:{index + 1} 二级以下标题不能使用纯英文：{stripped}")
+            if raw.startswith("|"):
+                start = index
+                block: list[tuple[int, str]] = []
+                while index < len(lines) and lines[index].startswith("|"):
+                    block.append((index + 1, lines[index]))
+                    index += 1
+                if len(block) < 2 or not TABLE_SEPARATOR.match(block[1][1].strip()):
+                    errors.append(f"{path}:{start + 1} 表格缺少表头或分隔行，可能已被正文打断")
+                    continue
+                widths = [len(line.strip().strip("|").split("|")) for _, line in block]
+                if len(set(widths)) != 1:
+                    errors.append(f"{path}:{start + 1} 表格各行列数不一致：{widths}")
+                continue
+            index += 1
 
 
 def _manifest_top_level_keys() -> set[str]:
@@ -1266,6 +1350,9 @@ def main(argv: list[str] | None = None) -> int:
     check_module_name_table(errors)
     check_referenced_paths(doc_files, errors)
     check_project_positioning(errors)
+    check_readme_dimensions(errors)
+    check_readme_doc_index(errors)
+    check_markdown_layout([*doc_files, Path("CHANGELOG.md")], errors)
     check_china_localization_contract(errors)
     check_documentation_language(errors)
     check_registry_mirror_contract(errors)

@@ -2,7 +2,7 @@
 
 本项目的第一等数据制品是 `immich-cn-dataset-sqlite-v1.zip`：一个可查询的 SQLite 3 数据库归档，用于分析、审计、二次开发或编写新的适配器。Immich 文本目录只是其中一个导出格式。
 
-## 规范数据集
+## 规范数据
 
 归档成员固定为：
 
@@ -38,13 +38,13 @@ sqlite3 immich-cn-dataset-v1.sqlite \
 
 也可以用 DuckDB、Python `sqlite3`、BI 工具或 SQL 导出程序读取。规范数据库不要求用户理解 Immich 的制表符列位置。`schema.json` 与 `dataset_meta` 里的 `schemaVersion` 是规范结构版本，与项目版本、数据日期标签相互独立；破坏性字段变更必须提升该版本。
 
-### 与 Immich 适配器的已知差异
+### 适配器差异
 
-规范数据集的 `admin_areas` 与适配器的 `admin1CodesASCII.txt` 由同一次构建产出，正常情况下逐条一致（2026-10-06 的发布里 level-2 有 33,661 条可比记录、0 处差异）。唯一例外是 **HK/MO 的 level-1**：GeoNames 把区与堂区当作 admin1，而 Immich 会把 `admin1Name` 当省/州展示，因此适配器按 `SPECIAL_ADMIN_TOP_LEVEL` 把这两个地区的 level-1 写成 `香港特别行政区` / `澳门特别行政区`，规范数据集保留可从地点记录推导的 `香港` / `澳门`（2026-10-06 发布中正好 26 条：HK 18 + MO 8）。`scripts/check_artifacts.py` 会比对两份制品，除该覆盖之外的任何差异都会失败，覆盖被静默去掉同样失败。
+规范数据集的 `admin_areas` 与适配器的 `admin1CodesASCII.txt` 由同一次构建产出，正常情况下逐条一致（2026-10-06 的发布里二级有 33,661 条可比记录、0 处差异）。唯一例外是 **HK/MO 的一级**：GeoNames 把区与堂区当作 admin1，而 Immich 会把 `admin1Name` 当省/州展示，因此适配器按 `SPECIAL_ADMIN_TOP_LEVEL` 把这两个地区的一级写成 `香港特别行政区` / `澳门特别行政区`，规范数据集保留可从地点记录推导的 `香港` / `澳门`（2026-10-06 发布中正好 26 条：HK 18 + MO 8）。`scripts/check_artifacts.py` 会比对两份制品，除该覆盖之外的任何差异都会失败，覆盖被静默去掉同样失败。
 
 ## 制品命名
 
-当前规范只发布 canonical 文件名，不生成历史别名。发布标签承载版本与日期，文件名承载制品类型、适配器、展示粒度、数据规模与结构版本。
+当前规范只发布规范文件名，不生成历史别名。发布标签承载版本与日期，文件名承载制品类型、适配器、展示粒度、数据规模与结构版本。
 
 ```text
 immich-cn.geodata.<profile>.<scope>.v<schema>
@@ -90,7 +90,7 @@ immich-cn artifact resolve --manifest immich-cn-manifest-json-v1.json \
 | `config` | 构建配置快照 |
 | `sources` | 每个上游文件的 URL、SHA256、大小、ETag 与 Last-Modified |
 | `artifactSpecVersion` | 制品命名规范版本，当前为 `4` |
-| `artifacts` | canonical 地理数据制品索引 |
+| `artifacts` | 规范地理数据制品索引 |
 | `assets` | 完整发布文件索引 |
 | `patternsTable` | 运行时变体表文件名 |
 | `dataset` | 规范数据集的文件名、格式、结构版本、大小与摘要 |
@@ -98,18 +98,18 @@ immich-cn artifact resolve --manifest immich-cn-manifest-json-v1.json \
 
 `artifacts` 的元素包含 `pattern`、`full`、`file`、`id`、`profile`、`scope`、`schemaVersion`、`canonicalFile`、`sizeBytes` 与 `sha256`；`assets` 的元素包含 `file`、`kind`、`sizeBytes` 与 `sha256`。清单与校验和文件自身不列入 `assets`，由 `immich-cn-checksums-sha256-v1.txt` 覆盖。
 
-### stats 口径
+### 统计口径
 
-`stats` 描述的是**规范层（完整名称表）**，不是某一个 zip 的文件内容：
+`stats` 描述的是**规范层（完整名称表）**，不是某一个压缩包的文件内容：
 
 - `sourcePlaces + extraPlaces == outputPlaces`；
 - `perCountry` 各项之和等于 `outputPlaces`，按同一完整口径统计；
 - `droppedPlaces = droppedCities + droppedExtra`：前者是 cities500 中缺少有效一级行政区代码而丢弃的噪声行，后者是国家数据转储在额外点位筛选阶段因 GeoNames ID 已存在或经纬度冲突而丢弃的记录；两者来源不同，合并计数会掩盖差异；
-- 非完整变体在打包时按人口阈值过滤 extra 记录，因此变体行数小于 `outputPlaces`；每个变体的展示粒度与数据规模记录在包内 `geodata/build-info.json`，行数以包内 `cities500.txt` 为准。
+- 默认变体在打包时按人口阈值过滤 extra 记录，因此变体行数小于 `outputPlaces`；每个变体的展示粒度与数据规模记录在包内 `geodata/build-info.json`，行数以包内 `cities500.txt` 为准。
 
 实测示例（发布 `data-2026-10-06`）：`outputPlaces=1318848`、`perCountry.CN=956792`，而 `immich-cn-geodata-admin2-default-v1.zip` 内 `cities500.txt` 为 256,644 行、其中 CN 34,897 行（= `sourcePlaces` 235,649 + 人口 ≥100 的 extra 20,995）。把 `stats` 当作「这个 zip 有多少条记录」会高估。
 
-## 目录不变量
+## 目录约束
 
 发布路径使用 `gh release upload ... dist/*`，因此 `dist/` 必须只包含本次构建登记的制品：
 

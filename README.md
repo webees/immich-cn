@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/webees/immich-cn/actions/workflows/ci.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/ci.yml) [![Data Update](https://github.com/webees/immich-cn/actions/workflows/update-data.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/update-data.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Container](https://img.shields.io/badge/ghcr.io-immich--cn-blue)](https://github.com/webees/immich-cn/pkgs/container/immich-cn)
 
-Immich 的反向地理编码默认输出英文地名。本项目的核心范围是让照片地图显示中文地名，并支持中文、拼音、英文与繁体检索。地图、EXIF 时区、CDN 与缓存、Nginx 回源属于可选支持，不是对 Immich 的完整本地化复刻。完整范围、本地化现状与加速边界见 [中国本地化与加速](docs/china.md)。术语、命名与文档写法遵循 [规范与约定](docs/conventions.md)。
+完整范围、本地化现状与加速边界见 [中国本地化与加速](docs/china.md)；术语、命名与文档写法遵循 [规范与约定](docs/conventions.md)。
 
 本项目按独立实现组织：本仓库当前树中的代码、配置、持续集成工作流与数据构建脚本由本项目维护，没有引用或打包同类项目的代码文件与人工整理数据文件；核查范围、关键词与边界见 [规范与约定](docs/conventions.md)。文末「致谢」记录了与本项目相关的上游思路来源。对 Immich 文本格式的兼容属于消费端适配，不定义本项目的内部数据模型。以上描述的是当前仓库状态与项目声明，不是对历史过程或法律状态的结论。本仓库的源代码、配置、工作流与文档采用 **MIT** 许可；生成的数据库与地理数据制品不属于 MIT，数据来源、署名与再分发要求见 [许可与署名](docs/licensing.md)。
 
@@ -15,17 +15,14 @@ Immich 的反向地理编码默认输出英文地名。本项目的核心范围�
 | 代码许可 | 代码 MIT；数据制品另有许可与署名要求 |
 | 构建入口 | 可测试的 Python 包 + 统一命令行 |
 | 外部依赖 | GeoNames、Natural Earth、i18n-iso-countries；可选高德与 Nominatim |
-| 数据格式 | 规范 SQLite 数据集 + Immich 适配输出 |
 | 行政区粒度 | 7 种展示粒度 × 完整/默认，共 14 个变体 |
 | 发布方式 | GitHub 发布 + GHCR 多架构镜像 |
-| 更新频率 | 每天自动检查，变化后自动校验并发布 |
-| 缓存策略 | 静态资源长期缓存；API、照片与视频不缓存 |
-| 来源追溯 | 记录来源哈希、构建配置、发布器修订与输出摘要 |
-| 发布校验 | 结构、覆盖率、去重、哈希、容器冒烟、Trivy 与 Cosign |
+
+自动更新、缓存边界与发布校验见对应专题文档。
 
 ## 数据模型
 
-本项目不以“保留上游相同格式与相同使用方式”为目标。规范数据模型是第一等产物， `immich-cn-dataset-sqlite-v1.zip` 内含带索引的 SQLite 数据库，直接表达地点、四级行政名、国家、来源哈希与构建元数据；支持 SQLite 3 的工具可以查询和二次开发，具体兼容性取决于客户端版本，不要求先理解 Immich 的文本列约定。
+本项目不以“保留上游相同格式与相同使用方式”为目标。规范数据模型是第一等产物，`immich-cn-dataset-sqlite-v1.zip` 内含带索引的 SQLite 数据库，直接表达地点、四级行政名、国家、来源哈希与构建元数据；支持 SQLite 3 的工具可以查询和二次开发，具体兼容性取决于客户端版本，不要求先理解 Immich 的文本列约定。
 
 层间关系明确：
 
@@ -55,7 +52,7 @@ Immich 的反向地理编码默认输出英文地名。本项目的核心范围�
 
 ## 快速开始
 
-### 方式一：开箱即用镜像
+### 方式一：镜像直用
 
 `webees/immich-cn-server` 基于官方 `immich-server`，在启动时把中文地理数据注入到目标目录；仍需要按 Immich 官方要求配置数据库、缓存与持久化目录。示例 Compose 默认通过 `IMMICH_CN_GHCR_MIRROR=ghcr.nju.edu.cn` 拉取；完整示例见 [examples/compose.server.yml](examples/compose.server.yml)。
 
@@ -73,7 +70,7 @@ services:
       IMMICH_CN_FORCE_RELOAD: "1"
 ```
 
-### 方式二：数据镜像挂载
+### 方式二：数据挂载
 
 如果你希望继续使用官方 `immich-app/immich-server` 镜像，可以用数据镜像提供文件；示例默认走中国大陆可达的 GHCR 镜像源，可用 `IMMICH_CN_GHCR_MIRROR=ghcr.io` 回退官方源：完整示例见 [examples/compose.volume.yml](examples/compose.volume.yml)。
 
@@ -92,7 +89,7 @@ docker run --rm -v "$PWD/immich-cn:/out" \
   --target /out
 ```
 
-### 方式三：下载发布数据
+### 方式三：发布下载
 
 在 [发布页面](https://github.com/webees/immich-cn/releases) 下载两个资产，按下面命令解压即可得到与挂载路径一致的目录结构：
 
@@ -109,7 +106,7 @@ unzip -o immich-cn-i18n-json-v1.zip -d i18n-iso-countries
 `immich-cn-geodata-*.zip` 里只有 `geodata/`；国家名称覆盖单独发布为 `immich-cn-i18n-json-v1.zip`，其成员是旧版 Immich 实际读取的 `langs/` 目录下 `en.json` 与上游 `LICENSE`，所以要解压到 `i18n-iso-countries/` 下才对得上后面的挂载路径。Immich 3.3.0 起改读 `countryInfo.txt`，不再需要这个覆盖包。
 
 > [!NOTE]
-> 语言包裁剪自**下一次数据发布**起生效。已发布的 `data-2026-10-06` 快照与滚动 `auto-release` 里，`immich-cn-i18n-json-v1.zip` 仍是整套 `langs/*.json`（2026-10-07 实测 74 个成员、191,847 字节，sha256 与清单记录一致）；多出的语言文件不影响挂载，只是体积更大。判据与后续收窄说明见 [软件包说明](docs/packages.md)。
+> 语言包裁剪自**下一次数据发布**起生效。已发布的 `data-2026-10-06` 快照与滚动 `auto-release` 里，`immich-cn-i18n-json-v1.zip` 仍是整套 `langs/*.json`（2026-10-07 实测 74 个成员、191,847 字节，sha256 与清单记录一致）；多出的语言文件不影响挂载，只是体积更大。判据与后续收窄说明见 [镜像发布](docs/packages.md)。
 
 ```yaml
 volumes:
@@ -121,7 +118,7 @@ volumes:
   # - ./i18n-iso-countries/langs:/usr/src/app/node_modules/i18n-iso-countries/langs
 ```
 
-### 方式四：本地自行构建
+### 方式四：本地构建
 
 ```bash
 git clone https://github.com/webees/immich-cn.git && cd immich-cn
@@ -134,15 +131,15 @@ immich-cn all
 
 产物位于 `dist/`：规范数据集 `immich-cn-dataset-sqlite-v1.zip`、Immich 默认粒度 `immich-cn-geodata-admin2-default-v1.zip`、`immich-cn-geodata-admin2-full-v1.zip`（数据增强版）、各展示粒度变体、`immich-cn-checksums-sha256-v1.txt` 与 `immich-cn-manifest-json-v1.json`。
 
-### 方式五：静态资源加速
+### 方式五：静态加速
 
 需要把 Immich 放在国内 CDN 或反向代理后面时，可以使用 [examples/compose.acceleration.yml](examples/compose.acceleration.yml) 和 [examples/nginx/immich-cn.conf](examples/nginx/immich-cn.conf)。该示例只对 `/_app/immutable/*` 开启长期缓存，HTML、API、原始照片与视频默认绕过，避免把私有内容写进公共缓存。
 
-jsDelivr 等免费 CDN 只作为 GitHub 分支、标签或提交中静态文件的**可选**通道；它不能直接代理 GitHub Release 资产，也不保证中国大陆线路质量。完整缓存矩阵、jsDelivr 实测边界、地图同源加速与校验命令见 [中国本地化与加速](docs/china.md)。
+jsDelivr 等免费 CDN 只作为 GitHub 分支、标签或提交中静态文件的**可选**通道；它不能直接代理 GitHub 发布资产，也不保证中国大陆线路质量。完整缓存矩阵、jsDelivr 实测边界、地图同源加速与校验命令见 [中国本地化与加速](docs/china.md)。
 
-默认 CDN 构址使用中国加速候选 `cdn.jsdmirror.com`，可用 `IMMICH_CN_JSDELIVR_BASE` 或 `scripts/jsdelivr_url.py --base` 改为用户信任的端点；第三方镜像源必须验证 TLS 与 SHA256，不能视为官方回源。
+默认 CDN 基址使用中国加速候选 `cdn.jsdmirror.com`，可用 `IMMICH_CN_JSDELIVR_BASE` 或 `scripts/jsdelivr_url.py --base` 改为用户信任的端点；第三方镜像源必须验证 TLS 与 SHA256，不能视为官方回源。
 
-### 生效与刷新
+### 刷新生效
 
 1. 重启 Immich，启动日志出现 `geodata records imported` 表示数据已导入。
 2. 首次使用时，在「系统管理 → 任务」中执行一次「提取元数据 → 全部」，让已有照片重新计算位置。
@@ -179,7 +176,7 @@ jsDelivr 等免费 CDN 只作为 GitHub 分支、标签或提交中静态文件�
 
 > 代码采用 MIT，但**生成的地理数据制品不适用 MIT**，请阅读 [许可与署名](docs/licensing.md)。
 
-## 工作流
+## 自动流程
 
 ```
 每天 13:23 北京时间（cron）
@@ -204,28 +201,26 @@ release.yml ──► 手动创建语义化版本发布
 - `cleanup.yml`：每周清理旧 `data-*` 快照、Actions 运行历史与 GHCR 版本；稳定前可启用 `prune-all`。
 - `monitor-update.yml`：每 6 小时检查自动数据更新的新鲜度；定时任务未触发、运行卡住、最近一次失败或长期没有成功时创建 `automation` 告警 issue，恢复后自动关闭。
 
-## 文档
+## 文档索引
 
 - [架构设计](docs/architecture.md)
-- [中国本地化与加速](docs/china.md)
-- [Immich 集成契约](docs/immich-integration.md)
-- [规范与约定](docs/conventions.md)
-- [数据格式与制品命名](docs/data-format.md)
-- [规范与约定](docs/conventions.md)
-- [规范数据格式](docs/data-format.md)
-- [Data sources and processing](docs/data-sources.md)
-- [部署指南](docs/deployment.md)
-- [照片拍摄时间与时区](docs/timezone.md)
-- [Packages 与供应链](docs/packages.md)
-- [运维与常见问题](docs/operations.md)
+- [中国本地化](docs/china.md)
+- [集成契约](docs/immich-integration.md)
+- [规范约定](docs/conventions.md)
+- [数据格式](docs/data-format.md)
+- [数据来源](docs/data-sources.md)
+- [部署说明](docs/deployment.md)
+- [照片时区](docs/timezone.md)
+- [镜像发布](docs/packages.md)
+- [运维手册](docs/operations.md)
 - [本地开发](docs/development.md)
-- [许可与署名](docs/licensing.md)
+- [许可署名](docs/licensing.md)
 
-## 许可
+## 许可声明
 
-源代码、配置、CI workflow 和文档以 [MIT](LICENSE) 发布；database 和 geodata artifact 不适用 MIT，署名要求汇总在 [NOTICE](NOTICE)，完整说明见 [docs/licensing.md](docs/licensing.md)。
+源代码、配置、持续集成工作流与文档以 [MIT](LICENSE) 发布；数据库与地理数据制品不适用 MIT，署名要求汇总在 [NOTICE](NOTICE)，完整说明见 [许可与署名](docs/licensing.md)。
 
-## 致谢
+## 致谢说明
 
 - [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)：早期中文 Immich 地理数据思路提供了启发；本项目按独立实现组织，当前树未引用或打包该项目的代码与人工整理数据（核查方式见 [规范与约定](docs/conventions.md)）。
 - [Immich](https://github.com/immich-app/immich)：反向地理编码的实现与文档。

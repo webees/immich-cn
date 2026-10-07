@@ -104,6 +104,54 @@ def test_check_docs_passes_on_repo_copy(repo_copy: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_check_docs_requires_five_readme_dimensions(repo_copy: Path) -> None:
+    """README 维度表重新膨胀为功能清单时必须被报出。"""
+    readme = repo_copy / "README.md"
+    mutate(
+        readme,
+        "| 发布方式 | GitHub 发布 + GHCR 多架构镜像 |\n",
+        "| 发布方式 | GitHub 发布 + GHCR 多架构镜像 |\n| 更新频率 | 每天自动检查 |\n",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "维度表必须且只能" in result.stdout
+
+
+def test_check_docs_rejects_english_only_subheading(repo_copy: Path) -> None:
+    """二级以下标题继续使用英文时，文档会重新变成中英混杂。"""
+    architecture = repo_copy / "docs" / "architecture.md"
+    mutate(architecture, "## 流水线分层", "## Pipeline layers")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "纯英文" in result.stdout
+
+
+def test_check_docs_rejects_duplicate_readme_doc_index(repo_copy: Path) -> None:
+    """README 文档索引重复列出同一篇文档时必须被报出。"""
+    readme = repo_copy / "README.md"
+    mutate(
+        readme,
+        "- [架构设计](docs/architecture.md)\n",
+        "- [架构设计](docs/architecture.md)\n- [架构设计](docs/architecture.md)\n",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "重复入口" in result.stdout
+
+
+def test_check_docs_rejects_broken_markdown_table(repo_copy: Path) -> None:
+    """正文插入表格中间后，后续行会失去表头，必须被报出。"""
+    development = repo_copy / "docs" / "development.md"
+    mutate(
+        development,
+        "| `--jobs` | CPU 数（最多 8） | 打包并发度 |",
+        "说明文字。\n\n| `--jobs` | CPU 数（最多 8） | 打包并发度 |",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "表格缺少表头或分隔行" in result.stdout
+
+
 def test_check_docs_detects_undocumented_env_var(repo_copy: Path) -> None:
     target = repo_copy / "src" / "immich_cn" / "domain.py"
     mutate(target, "GEO_COLUMNS = 19", 'GEO_COLUMNS = 19\nUNDOCUMENTED = "IMMICH_CN_UNDOCUMENTED_PROBE"')
@@ -271,7 +319,7 @@ def test_check_docs_detects_legacy_module_resurrection(repo_copy: Path) -> None:
 def test_check_docs_detects_broken_markdown_link(repo_copy: Path) -> None:
     """Markdown 相对链接指向不存在的文件时必须被报出。"""
     readme = repo_copy / "README.md"
-    mutate(readme, "- [许可与署名](docs/licensing.md)", "- [许可与署名](docs/licensing-x.md)")
+    mutate(readme, "- [许可署名](docs/licensing.md)", "- [许可署名](docs/licensing-x.md)")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "Markdown 链接目标不存在" in result.stdout
@@ -345,8 +393,8 @@ def test_check_docs_detects_citation_punct_space(repo_copy: Path) -> None:
     citation = repo_copy / "CITATION.cff"
     mutate(
         citation,
-        "为 Immich 提供中国本地化的 reverse geocoding geodata：核心",
-        ("为 Immich 提供中国本地化的 reverse geocoding geodata： 核心"),
+        "为 Immich 提供中国本地化的反向地理编码地理数据：核心",
+        ("为 Immich 提供中国本地化的反向地理编码地理数据： 核心"),
     )
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
@@ -765,7 +813,7 @@ def test_check_docs_requires_acceleration_examples(repo_copy: Path) -> None:
 def test_check_docs_requires_jsdelivr_release_limit(repo_copy: Path) -> None:
     """免费 CDN 说明必须保留 Release 附件不能被 jsDelivr 直接代理的边界。"""
     acceleration = repo_copy / "docs" / "china.md"
-    mutate(acceleration, "发布资产", "发布文件")
+    mutate(acceleration, "不能代理 GitHub 发布资产", "不能代理 GitHub 发布文件")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "发布资产" in result.stdout
