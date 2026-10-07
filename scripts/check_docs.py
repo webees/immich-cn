@@ -732,6 +732,14 @@ def check_registry_mirror_contract(errors: list[str]) -> None:
         errors.append(f"pyproject.toml 的 Container Image 必须是 {CONTAINER_URL}，当前为 {container_url!r}")
 
 
+def check_security_policy_contract(errors: list[str]) -> None:
+    """安全策略必须说明脚本实际使用的 GitHub API 传输方式。"""
+    policy = Path("SECURITY.md").read_text(encoding="utf-8")
+    scripts = "\n".join(path.read_text(encoding="utf-8") for path in sorted(Path("scripts").glob("*.py")))
+    if "urllib.request" in scripts and "urllib" not in policy:
+        errors.append("SECURITY.md 未说明 Python 脚本使用 urllib 访问 GitHub API")
+
+
 def check_image_tag_examples(doc_files: list[Path], errors: list[str]) -> None:
     """文档里写死的 GHCR tag 必须符合真实发布形态。
 
@@ -1430,6 +1438,7 @@ def main(argv: list[str] | None = None) -> int:
     check_china_localization_contract(errors)
     check_documentation_language(errors)
     check_registry_mirror_contract(errors)
+    check_security_policy_contract(errors)
     check_immich_integration_contract(errors)
     check_immich_column_contract(errors)
     check_immich_ui_locale_contract(errors)
