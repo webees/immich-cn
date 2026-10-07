@@ -96,7 +96,8 @@
 - 每个上游文件的 URL、SHA256、大小、ETag、Last-Modified；
 - 各级行政表条目数、源记录数、输出记录数、中文覆盖率；
 - 规范数据集与 14 个兼容变体各自的 SHA256、格式版本与体积；
-- 使用的 provider 列表。
+- 使用的 provider 列表；
+- 构建日期与 `geodata-date.txt` 使用北京时间 `+08:00`。
 
 镜像发布还附带 BuildKit provenance 与 SBOM；推送后按最终 digest 重新拉取执行入口 smoke test，再用 Trivy 扫描漏洞和许可证。在当次扫描数据库和扫描范围内，数据镜像阻断 `HIGH`/`CRITICAL`； Immich 覆盖镜像与官方基础镜像做差集，只阻断新增漏洞并把继承项写成例外报告。最后通过 GitHub OIDC 使用 Cosign 做 keyless 签名。
 

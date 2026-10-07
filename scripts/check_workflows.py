@@ -517,6 +517,18 @@ def check_image_size_budget(path: Path, workflow: dict[str, Any], errors: list[s
         errors.append(f"{path} 缺少镜像尺寸或语言包最小化护栏：{'、'.join(missing)}")
 
 
+def check_china_timezone(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """工作流生成的日期和摘要必须使用北京时间，而不是继续依赖 runner 的 UTC。"""
+    del workflow
+    text = path.read_text(encoding="utf-8")
+    if "TZ: Asia/Shanghai" not in text:
+        errors.append(f"{path} 未设置 TZ: Asia/Shanghai，生成的日期可能回退到 UTC 或 runner 本地时区")
+    if path.name == "_build-data.yml" and "date -u +%Y-%m-%d" in text:
+        errors.append(f"{path} 仍用 date -u 生成构建日期，不能输出北京时间日期")
+    if path.name == "update-data.yml" and "date -u +%F" in text:
+        errors.append(f"{path} 仍用 date -u 生成告警日期，不能输出北京时间日期")
+
+
 def check_checkout_credentials(path: Path, workflow: dict[str, Any], errors: list[str]) -> int:
     """每个 actions/checkout 都必须关闭凭据持久化，返回发现的 checkout 数量。
 
@@ -607,6 +619,7 @@ def main() -> int:
         checkout_total += check_checkout_credentials(path, workflow, errors)
         check_examples_compose_validation(path, workflow, errors)
         check_image_size_budget(path, workflow, errors)
+        check_china_timezone(path, workflow, errors)
         check_published_url_verification(path, workflow, errors)
 
     if checkout_total == 0:

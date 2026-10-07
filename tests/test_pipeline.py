@@ -214,6 +214,15 @@ def test_language_bundle_removes_stale_files(build_options: BuildOptions) -> Non
     assert sorted(path.name for path in result.langs_dir.iterdir()) == ["LICENSE", "en.json"]
 
 
+def test_generated_timestamps_use_china_time(build_options: BuildOptions) -> None:
+    """manifest 和 geodata-date.txt 面向中国用户统一使用 +08:00。"""
+    result = run_build(build_options)
+
+    assert result.generated_at.endswith("+08:00")
+    geodata_date = (result.geodata_dir / "geodata-date.txt").read_text(encoding="utf-8").strip()
+    assert geodata_date.endswith("+08:00")
+
+
 def test_canonical_dataset_is_queryable_and_preserves_immich_boundary(build_options: BuildOptions) -> None:
     result = run_build(build_options)
     package_all(build_options, result)

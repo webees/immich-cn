@@ -5,7 +5,7 @@
 Immich 只在 `geodata-date.txt` 与上次导入时记录的值**不同**时才重新导入——上游代码（`server/src/repositories/map.repository.ts`）是「相等就 return」，因此换成更新或更旧的不同值都会触发导入：
 
 ```bash
-date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./geodata/geodata-date.txt
+TZ=Asia/Shanghai date +"%Y-%m-%dT%H:%M:%S+08:00" > ./geodata/geodata-date.txt
 ```
 
 或在使用镜像时设置 `IMMICH_CN_FORCE_RELOAD=1`。
@@ -76,7 +76,7 @@ GitHub Actions 上一次完整构建（7 种粒度 × full/非 full）通常在 
 
 ## 数据多久更新一次？
 
-按设计每天检查一次。`全自动更新数据` 工作流在 UTC 05:23（北京时间 13:23）自动运行，实际执行取决于仓库权限与上游服务可用性：
+按设计每天检查一次。`全自动更新数据` 工作流在北京时间 13:23（UTC 05:23）自动运行，实际执行取决于仓库权限与上游服务可用性：
 
 1. 用 ETag/Last-Modified 条件校验上游，未变化时不下载正文；
 2. 计算「上游文件摘要 + 构建配置 + 发布器修订」的发布指纹并与上次发布对比；

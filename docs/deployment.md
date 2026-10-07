@@ -124,7 +124,7 @@ unzip -o immich-cn-i18n-json-v1.zip -d i18n-iso-countries
 
 ```bash
 # 官方镜像 + 挂载方案
-date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./immich-cn/geodata/geodata-date.txt
+TZ=Asia/Shanghai date +"%Y-%m-%dT%H:%M:%S+08:00" > ./immich-cn/geodata/geodata-date.txt
 
 # 镜像方案
 # 把 IMMICH_CN_FORCE_RELOAD 设为 1 后重启容器
@@ -158,7 +158,7 @@ date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./immich-cn/geodata/geodata-date.txt
 
 ### 数据更新频率
 
-上游数据由 GitHub Actions 按设计每天自动检查更新（UTC 05:23 / 北京时间 13:23）；实际执行取决于仓库权限与上游服务可用性：
+上游数据由 GitHub Actions 按设计每天自动检查更新（北京时间 13:23 / UTC 05:23）；实际执行取决于仓库权限与上游服务可用性：
 
 - 每天用 ETag 条件请求检查 GeoNames、Natural Earth、i18n-iso-countries；
 - 只有数据、构建配置或发布器修订真正变化时才重新构建、发布 Release 与推送镜像；

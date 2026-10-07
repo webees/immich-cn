@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  TZ: Asia/Shanghai
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true

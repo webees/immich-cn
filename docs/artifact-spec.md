@@ -80,7 +80,7 @@ immich-cn-geodata-admin2-admin3-full-v1.zip
 |:--|:--|
 | `schemaVersion` | 规范数据集 schema 版本 |
 | `tool` | 生成工具的名称、版本与 CI 修订 |
-| `generatedAt` | 本次构建时间 |
+| `generatedAt` | 本次构建时间，使用北京时间 `+08:00` |
 | `providers` | 本次使用的 provider 列表 |
 | `stats` | **规范层口径**的各级记录数、去重与覆盖率统计（见下文「stats 口径」） |
 | `index` | 中文名称索引规模 |
