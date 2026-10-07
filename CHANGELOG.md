@@ -47,6 +47,7 @@
 - 版本化发布在创建 GitHub Release 前验证两个 `image:VERSION` tag 已存在，避免构建后追加版本标签被跳过时留下无镜像 Release；
 - `prune-all` 现在真正忽略时间窗口，只保留每个 workflow 最新一次运行、当前运行与语义版本 Release 对应提交，和“稳定前激进清理”文档一致；
 - Auto Data Update change detection 新增最新 `data-*` 不可变快照的 manifest fingerprint 校验；快照缺失或与当前内容不一致时会强制进入发布修复，避免快照创建失败后被 no-change 错误跳过；
+- 版本化 Release 在创建 GitHub Release 前对两个 `image:VERSION` tag 的 registry digest 与本次 build 输出做比对，防止 tag 指向非本次构建镜像；
 - 部署示例默认设置 `TZ: Asia/Shanghai`，并补充国内镜像获取、digest 验证、WGS-84/GCJ-02 偏移与故障排查说明；
 - 规范 SQLite 数据集 `immich-cn-dataset-sqlite-v1.zip` 作为一等制品，Immich 文本格式改由适配器导出，详见 `docs/data-format.md` 与 ADR 0001；
 - `immich-cn artifact resolve` CLI：按 canonical ID、profile+scope 或历史别名解析制品；

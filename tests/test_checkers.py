@@ -1120,6 +1120,19 @@ def test_check_workflows_requires_post_build_versioned_image_tags(repo_copy: Pat
     assert "创建 Release 前未验证" in result.stdout
 
 
+def test_check_workflows_requires_version_tag_digest_match(repo_copy: Path) -> None:
+    """version tag 指向的 digest 必须与本次 build 输出一致。"""
+    workflow = repo_copy / ".github" / "workflows" / "release.yml"
+    mutate(
+        workflow,
+        'test "$actual_server_digest" = "$EXPECTED_SERVER_DIGEST"\n',
+        'test -n "$EXPECTED_SERVER_DIGEST"\n',
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "digest" in result.stdout
+
+
 def test_check_workflows_rejects_vacuous_versioned_release_image_guard(repo_copy: Path) -> None:
     """保留 push-images 文案但把拒绝条件改成恒假时，护栏必须失败。"""
     workflow = repo_copy / ".github" / "workflows" / "release.yml"
