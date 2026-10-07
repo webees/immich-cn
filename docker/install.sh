@@ -48,12 +48,12 @@ fi
 REQUIRED_FILES="admin1CodesASCII.txt admin2Codes.txt cities500.txt countryInfo.txt geodata-date.txt ne_10m_admin_0_countries.geojson"
 missing_files=""
 for name in $REQUIRED_FILES; do
-  if [ ! -f "$geodata_root/$name" ]; then
+  if [ ! -s "$geodata_root/$name" ]; then
     missing_files="${missing_files} ${name}"
   fi
 done
 if [ -n "$missing_files" ]; then
-  echo "错误：geodata 源缺少必需文件：${missing_files# }" >&2
+  echo "错误：geodata 源缺少必需文件或文件为空：${missing_files# }" >&2
   echo "      请检查 IMMICH_CN_GEODATA_DIR=${geodata_root}" >&2
   exit 1
 fi

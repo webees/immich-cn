@@ -202,6 +202,38 @@ readonly_partial_target_case() {
 readonly_complete_target_case
 readonly_partial_target_case
 
+# 只读目标中的必需文件为 0 字节时同样必须失败。
+readonly_zero_byte_target_case() {
+  if [ "$(id -u)" = "0" ]; then
+    echo "跳过：以 root 运行，文件权限不生效"
+    return
+  fi
+  local root="$work/ro-zero-byte"
+  mkdir -p "$root/geodata"
+  cp -a "$repo_root/build/geodata/." "$root/geodata/"
+  : > "$root/geodata/cities500.txt"
+  chmod 0444 "$root/geodata"/*
+  chmod 0555 "$root/geodata"
+  local output
+  if output="$(IMMICH_BUILD_DATA="$root" \
+      IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
+      IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
+      bash "$repo_root/docker/entrypoint.sh" true 2>&1)"; then
+    chmod 0755 "$root/geodata"
+    echo "失败：只读目标含 0 字节必需文件时不应成功" >&2
+    exit 1
+  fi
+  chmod 0755 "$root/geodata"
+  if ! printf '%s' "$output" | grep -q "缺少必需文件"; then
+    echo "失败：0 字节必需文件未给出明确提示：${output}" >&2
+    exit 1
+  fi
+  echo "通过：只读目标含 0 字节必需文件时拒绝启动"
+}
+
+readonly_zero_byte_target_case
+
 # 变体表与数据不匹配时必须失败，而不是"看起来成功但一字未改"。
 mismatch_case() {
   local data="$work/mismatch/geodata"
@@ -300,6 +332,32 @@ install_missing_langs_case() {
 
 incomplete_source_case
 install_missing_langs_case
+
+# install.sh：源 geodata 的必需文件为 0 字节时必须在写入前失败。
+install_zero_byte_source_case() {
+  local root="$work/install-zero-byte"
+  mkdir -p "$root/source"
+  cp -a "$repo_root/build/geodata/." "$root/source/"
+  : > "$root/source/cities500.txt"
+  local output
+  if output="$(IMMICH_CN_GEODATA_DIR="$root/source" \
+      IMMICH_CN_LANGS_DIR="$root/langs" \
+      sh "$repo_root/docker/install.sh" --target "$root/out" 2>&1)"; then
+    echo "失败：源 geodata 含 0 字节必需文件时不应成功" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "缺少必需文件"; then
+    echo "失败：0 字节源文件未给出明确提示：${output}" >&2
+    exit 1
+  fi
+  if [ -e "$root/out/geodata" ]; then
+    echo "失败：0 字节源文件不应写入目标目录" >&2
+    exit 1
+  fi
+  echo "通过：源 geodata 含 0 字节必需文件时拒绝写入"
+}
+
+install_zero_byte_source_case
 
 # 语言目录存在但内容不完整时必须在写入目标目录前失败。
 install_incomplete_langs_case() {

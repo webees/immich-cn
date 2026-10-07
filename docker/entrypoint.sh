@@ -22,7 +22,7 @@ missing_required_files() {
   local missing=""
   local name
   for name in $REQUIRED_FILES; do
-    if [ ! -f "$dir/$name" ]; then
+    if [ ! -s "$dir/$name" ]; then
       missing="${missing} ${name}"
     fi
   done
@@ -31,7 +31,7 @@ missing_required_files() {
 
 missing_files="$(missing_required_files "$source_dir")"
 if [ -n "$missing_files" ]; then
-  echo "immich-cn: 数据源缺少必需文件：${missing_files# }" >&2
+  echo "immich-cn: 数据源缺少必需文件或文件为空：${missing_files# }" >&2
   echo "immich-cn: 请检查 IMMICH_CN_GEODATA_DIR=${source_dir}" >&2
   exit 1
 fi
@@ -58,7 +58,7 @@ elif ! cp -a "$source_dir/." "$target/" 2>/dev/null; then
   if [ -z "$target_missing" ]; then
     echo "immich-cn: ${target} 不可写，沿用其中已有的 geodata" >&2
   else
-    echo "immich-cn: 无法写入 ${target}，且现有 geodata 缺少必需文件：${target_missing# }" >&2
+    echo "immich-cn: 无法写入 ${target}，且现有 geodata 缺少必需文件或文件为空：${target_missing# }" >&2
     exit 1
   fi
 fi
