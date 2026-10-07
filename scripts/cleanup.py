@@ -160,7 +160,7 @@ def select_runs(
     for grouped_runs in grouped.values():
         keep.update(run.id for run in grouped_runs[:keep_count])
     for run in runs:
-        if run.id == current_run_id or run.head_sha in protected_shas or run.created_at >= cutoff:
+        if run.id == current_run_id or run.head_sha in protected_shas or (not prune_all and run.created_at >= cutoff):
             keep.add(run.id)
     return tuple(run for run in runs if run.status == "completed" and run.id not in keep)
 
