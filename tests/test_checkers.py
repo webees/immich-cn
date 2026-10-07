@@ -1644,6 +1644,21 @@ def test_check_artifacts_manifest_hash_layer(tmp_path: Path) -> None:
     assert any("immich-cn-patterns-tsv-v1.gz" in error for error in errors), errors
 
 
+def test_check_artifacts_manifest_assets_cover_artifacts(tmp_path: Path) -> None:
+    """artifacts 中登记的变体必须同时出现在 assets 清单中。"""
+    dist = _make_dist(tmp_path)
+    manifest_path = dist / "immich-cn-manifest-json-v1.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["assets"] = [
+        asset for asset in manifest["assets"] if asset["file"] != "immich-cn-geodata-admin2-default-v1.zip"
+    ]
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+
+    errors: list[str] = []
+    check_artifacts.check_manifest(dist, errors)
+    assert any("artifacts 未出现在 assets" in error for error in errors), errors
+
+
 def test_check_artifacts_checksums_layer(tmp_path: Path) -> None:
     """直接验证 immich-cn-checksums-sha256-v1.txt 层：把它削弱后本用例必须失败。"""
     dist = _make_dist(tmp_path)

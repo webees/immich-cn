@@ -56,6 +56,7 @@ def check_manifest(dist: Path, errors: list[str]) -> None:
         errors.append(f"{MANIFEST_FILE} 没有 canonical artifacts")
         return
     artifact_ids: set[str] = set()
+    artifact_files: set[str] = set()
     for artifact in artifacts:
         if not isinstance(artifact, dict):
             errors.append(f"{MANIFEST_FILE} 的 artifacts 含非对象条目")
@@ -73,11 +74,13 @@ def check_manifest(dist: Path, errors: list[str]) -> None:
             errors.append(f"{MANIFEST_FILE} 的 artifact ID 重复：{artifact_id}")
         artifact_ids.add(artifact_id)
         name = str(artifact.get("file", ""))
+        artifact_files.add(name)
         if name != canonical_file:
             errors.append(f"{MANIFEST_FILE} 的 file 与 canonicalFile 不一致：{name!r} != {canonical_file!r}")
         _check_file_entry(dist, artifact, errors)
 
     assets = manifest.get("assets")
+    asset_files: set[str] = set()
     if not isinstance(assets, list) or not assets:
         errors.append(f"{MANIFEST_FILE} 没有 assets 清单")
     else:
@@ -90,7 +93,11 @@ def check_manifest(dist: Path, errors: list[str]) -> None:
             if name in asset_names:
                 errors.append(f"{MANIFEST_FILE} 的 asset 重复：{name}")
             asset_names.add(name)
+            asset_files.add(name)
             _check_file_entry(dist, asset, errors)
+    missing_assets = sorted(artifact_files - asset_files)
+    if missing_assets:
+        errors.append(f"{MANIFEST_FILE} 的 artifacts 未出现在 assets：" + "、".join(missing_assets))
 
     if manifest.get("patternsTable") != PATTERNS_FILE:
         errors.append(f"{MANIFEST_FILE} 的 patternsTable 不是 {PATTERNS_FILE}")
