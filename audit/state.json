@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 304,
-  "consecutive_clean": 0,
+  "round": 305,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 201,
-    "clean_rounds": 93,
+    "clean_rounds": 94,
     "p0": 0,
     "p1": 31,
     "p2": 125,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M9 文档-实现逐条核对",
+  "last_method": "M10 shell/容器安全审查",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3087,6 +3087,16 @@
       "severity": "P2",
       "evidence": "`pyproject.toml` 的 Container Image 指向 `/pkgs/container/immich-cn%2Fgeodata`，实测 HTTP 404；正确页面 `/pkgs/container/immich-cn` 返回 200。已修正 URL，并新增护栏与负向测试，要求该元数据始终等于 canonical 仓库包链接。`make check` 453 passed；PR #227 合并 main 177e138，四项 required checks 全绿；clean_streak 仍为 0。",
       "pr": "https://github.com/webees/immich-cn/pull/227"
+    },
+    {
+      "round": 305,
+      "timestamp": "2026-10-09T02:25:00+08:00",
+      "focus": "工作流逻辑：四段式版本输入护栏",
+      "method": "M10 shell/容器安全审查",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "把 `release.yml` 的四段式版本正则回退为三段式，`check_workflows.py` 立即报“未限制四段式 Immich 对齐版本号”；恢复后工作流检查通过。当前 `main=177e138` 的 `make check` 453 passed 仍有效。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3246,7 +3256,8 @@
     "第 301 轮只验证了制品命名正则的锚点与控制字符类；其他生产正则与分支没有在本轮逐一做等价性判定",
     "第 302 轮只反演了 admin2 可解析率阈值；其他覆盖率阈值由既有边界测试覆盖，但本轮没有逐一反演",
     "第 303 轮的 AST 检查是临时脚本，尚未固化成 `make` 目标；数据类字段只写不读的问题仍可能在其他类中再次出现",
-    "第 304 轮只对 pyproject 的 Container Image URL 做了静态契约校验；其他项目 URL、外部文档链接与页面可达性仍未纳入自动联网检查"
+    "第 304 轮只对 pyproject 的 Container Image URL 做了静态契约校验；其他项目 URL、外部文档链接与页面可达性仍未纳入自动联网检查",
+    "第 305 轮只验证了 release.yml 的四段式版本正则；其他工作流条件、权限与失败路径没有在本轮逐一重新注入"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
