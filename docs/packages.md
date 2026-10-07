@@ -71,7 +71,7 @@ Compose 示例通过 `IMMICH_CN_GHCR_MIRROR` 选择 prefix。2026-10-07 对两�
 - 在数据目录中保留 i18n 语言文件的上游 `LICENSE`；
 - 执行 Trivy 漏洞和许可证扫描；在当次扫描数据库与扫描范围内，数据镜像的 `HIGH`/`CRITICAL` 阻断， Immich 覆盖镜像只阻断相对官方基础镜像新增的漏洞，继承项写入显式例外报告；
 - 通过 GitHub OIDC 使用 Cosign keyless 签名；
-- 推送后按最终 digest 重新拉取并执行入口 smoke test。
+- 推送后按最终 digest 重新拉取并执行入口 smoke test；full-stack smoke 还会验证 PostgreSQL 中的 `geodata_places` 记录、苏州样本和 `/api/server/config`。
 
 OCI 元数据约定中，`org.opencontainers.image.version` 表示项目版本；数据日期单独写入 `org.immich-cn.data-date`，避免把软件版本和数据批次混为一谈。
 

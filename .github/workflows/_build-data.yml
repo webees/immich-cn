@@ -394,6 +394,29 @@ jobs:
           test "$import_ready" = 1
           grep -q "Successfully imported .* geodata records" server-smoke.log
           docker exec "$server" grep -q "苏州市 昆山市" /build/geodata/cities500.txt
+
+          geodata_count="$(docker exec "$postgres" \
+            psql -U immich -d immich -tAc 'SELECT count(*) FROM geodata_places;')"
+          test "$geodata_count" -gt 0
+          country_count="$(docker exec "$postgres" \
+            psql -U immich -d immich -tAc 'SELECT count(*) FROM naturalearth_countries;')"
+          test "$country_count" -gt 0
+          suzhou_count="$(docker exec "$postgres" \
+            psql -U immich -d immich -tAc "SELECT count(*) FROM geodata_places WHERE name LIKE '苏州市%';")"
+          test "$suzhou_count" -gt 0
+
+          docker exec "$server" node -e '
+            fetch("http://127.0.0.1:2283/api/server/config")
+              .then((response) => {
+                if (!response.ok) process.exit(1);
+                return response.json();
+              })
+              .then((config) => {
+                if (!config.map?.lightStyle || !config.map?.darkStyle) process.exit(2);
+                console.log("api-server-config-ok");
+              })
+              .catch(() => process.exit(3));
+          '
           echo "完整 Immich 服务栈 smoke 通过"
 
       - name: 安装 Trivy

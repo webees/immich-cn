@@ -850,6 +850,24 @@ def test_check_workflows_requires_full_stack_smoke(repo_copy: Path) -> None:
     assert "缺少 PostgreSQL/Redis/Immich 完整服务栈导入冒烟" in result.stdout
 
 
+def test_check_workflows_requires_database_import_probe(repo_copy: Path) -> None:
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    text = workflow.read_text(encoding="utf-8")
+    assert "SELECT count(*) FROM geodata_places" in text
+    workflow.write_text(text.replace("SELECT count(*) FROM geodata_places", "SELECT 1"), encoding="utf-8")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "geodata_places" in result.stdout
+
+
+def test_check_workflows_requires_api_config_probe(repo_copy: Path) -> None:
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(workflow, "/api/server/config", "/api/server/version")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "API/config" in result.stdout
+
+
 def test_check_workflows_requires_distinct_oci_version_and_data_date(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
     mutate(workflow, "org.immich-cn.data-date", "org.immich-cn.unlabeled-date")
