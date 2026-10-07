@@ -52,6 +52,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
         run: python -m scripts.check_action_pins --repository "$REPOSITORY"
+      - name: 死代码检查
+        run: python -m scripts.check_dead_symbols
       - name: Shell 契约检查
         run: python scripts/check_shell.py
       - name: pytest
