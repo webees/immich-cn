@@ -23,7 +23,7 @@ python scripts/set_asset_timezone.py \
   --apply
 ```
 
-需要具备 `asset.update` permission 的 API key。工具跳过缺少 `dateTimeOriginal` 或已经是目标 timezone 的 asset，并通过 `PUT /api/assets` 批量更新，避免逐张调用。
+需要具备 `asset.update` permission 的 API key。工具跳过缺少 `dateTimeOriginal` 或已经是目标 timezone 的 asset，并优先通过 `PATCH /api/assets` 批量更新；仅当旧版返回 `404`/`405` 时才回退到 `PUT /api/assets`，避免逐张调用。
 
 ## 边界
 
