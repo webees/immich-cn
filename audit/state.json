@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 299,
-  "consecutive_clean": 2,
+  "round": 300,
+  "consecutive_clean": 3,
   "totals": {
     "findings": 199,
-    "clean_rounds": 90,
+    "clean_rounds": 91,
     "p0": 0,
     "p1": 31,
     "p2": 123,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M8 资源与性能剖析",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3037,6 +3037,16 @@
       "severity": null,
       "evidence": "把 `ci.yml` 的 checkout 注入为 `actions/checkout@v4`，`check_workflows.py` 立即报未固定到 40 位 SHA；恢复后工作流检查通过。使用临时注入的 `GITHUB_TOKEN` 运行 `make audit-pins`，25 个 Action pin 全部与上游 tag 一致；工作流权限保持顶层 read、写权限下沉到具体 job，checkout 均关闭凭据持久化。主分支复跑 `make check` 452 passed。本轮未发现 P0-P2 问题，clean_streak=2。",
       "pr": null
+    },
+    {
+      "round": 300,
+      "timestamp": "2026-10-09T00:20:00+08:00",
+      "focus": "性能与资源：合成构建热点剖析",
+      "method": "M8 资源与性能剖析",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "`cProfile -s cumulative` 实测合成流水线：202,378 次调用、0.145 s，主要耗时在 Python 模块导入与线程收尾，实际打包函数 `package_all` 约 0.024 s；`/usr/bin/time -l` 显示 0.22 s real、最大 RSS 50,216,960 字节（约 48 MiB）。对抗性控制：`ulimit -t 0` 后同一命令返回 152，证明 CPU 资源限制真实生效。未发现可量化热点或重复扫描。本轮未发现 P0-P2 问题，clean_streak=3。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3191,7 +3201,8 @@
     "第 296 轮把 `IMMICH_CN_LANGS_DIR` 的契约固定为包含 `langs/` 子目录；若外部用户此前传入扁平的 `en.json` 目录，现在会被拒绝，需要按其目录结构调整或使用 `--geodata-only`",
     "第 297 轮的四段式版本要求前三段与 Immich 上游版本对齐，但现有护栏不会联网核对当前上游 release；发布前仍需人工确认 Immich 版本并选择对应的第四段修订号",
     "第 298 轮只核验了 `data-2026-10-08` 的默认地理数据包，未重新下载并逐项校验全部 19 个资产；其余资产的摘要仍依赖 manifest/checksums 与既有 `check_artifacts` 护栏",
-    "第 299 轮的 Action pin 对拍依赖 GitHub API 与有效 `GITHUB_TOKEN`；本地 `make audit-pins` 默认不注入 token 时会报缺少凭据，本轮通过临时环境变量完成，CI 侧仍需确保凭据存在"
+    "第 299 轮的 Action pin 对拍依赖 GitHub API 与有效 `GITHUB_TOKEN`；本地 `make audit-pins` 默认不注入 token 时会报缺少凭据，本轮通过临时环境变量完成，CI 侧仍需确保凭据存在",
+    "第 300 轮 cProfile 数据来自最小合成数据集，导入开销占比高，不能外推到真实 131 万级地点构建；真实构建的性能结论仍以 docs/development.md 的实测为准"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
