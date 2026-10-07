@@ -1,12 +1,12 @@
 # immich-cn
 
-> **面向中国用户的 Immich 本地化项目**：为 [Immich](https://immich.app/) 提供中文地名、可切换的行政区层级、拼音/英文检索，并配套面向中国网络环境的部署与排障说明。数据流水线按设计每天自动检查并更新（运行前提见后文）。
+> **面向中国用户的 Immich 本地化增强套件**：提供中文地名与检索、地图与坐标说明、时区体验、CDN 与静态资源加速、国内部署排障，以及全自动数据更新和镜像发布。数据流水线按设计每天自动检查并更新（运行前提见后文）。
 
 [![CI](https://github.com/webees/immich-cn/actions/workflows/ci.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/ci.yml) [![全自动更新数据](https://github.com/webees/immich-cn/actions/workflows/update-data.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/update-data.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Container](https://img.shields.io/badge/ghcr.io-immich--cn-blue)](https://github.com/webees/immich-cn/pkgs/container/immich-cn)
 
 Immich 的反向地理编码默认输出英文地名，本项目的目标是让照片地图显示**熟悉的中文地名**，并且可以直接用中文搜索地点。
 
-本地化不止于翻译：项目按「显示、检索、部署、数据」四个层面推进，当前进展与短板（例如中国大陆区县层级目前只对 1.8% 的点位生效）都写在 [docs/china-localization.md](docs/china-localization.md) 里。
+本地化不止于翻译：项目按「显示、检索、地图、体验、加速、数据」六个层面推进，当前进展与短板都写在 [中国本地化方向](docs/china-localization.md) 里；CDN、缓存边界和 Nginx 源站示例见 [中国网络与加速](docs/china-acceleration.md)。
 
 本项目按独立实现组织：本仓库当前树中的代码、配置、CI 工作流与数据构建脚本由本项目维护，没有引用或打包同类项目的代码文件与人工整理数据文件；核查范围、关键词与边界见 [docs/documentation-policy.md](docs/documentation-policy.md)。文末「致谢」记录了与本项目相关的上游思路来源。Immich 文本格式兼容属于消费者接口适配，不定义本项目的内部数据模型。以上描述的是当前仓库状态与项目声明，不是对历史过程或法律状态的结论。本仓库的源代码、配置、CI 工作流和文档采用 **MIT** 许可；生成的数据库与地理数据制品不属于 MIT，数据来源、署名和再分发要求见 [docs/licensing.md](docs/licensing.md)。
 
@@ -21,6 +21,7 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 | 兼容导出 | Immich 文本目录与 zip 是默认适配器，不定义内部模型 |
 | 发布方式 | Release 制品 + GHCR 数据镜像 + 开箱即用的 Immich 覆盖镜像 |
 | 粒度切换 | 同一镜像内用 `IMMICH_CN_PATTERN` 切换，无需重新构建 |
+| 访问加速 | `/_app/immutable` 长缓存 + CDN 回源边界 + Nginx 源站示例 |
 | 更新频率 | 每天自动检查并更新，含 ETag 增量校验与发布指纹 |
 | 数据追踪 | 每次构建记录源文件 SHA256、ETag、统计与输出摘要 |
 | 发布校验 | 结构、覆盖率、去重、制品哈希、容器 smoke、Trivy 与 Cosign |
@@ -130,6 +131,12 @@ immich-cn all
 
 产物位于 `dist/`：规范数据集 `immich-cn-dataset-sqlite-v1.zip`、Immich 默认粒度 `immich-cn-geodata-admin2-default-v1.zip`、 `immich-cn-geodata-admin2-full-v1.zip`（数据增强版）、各粒度变体、`immich-cn-checksums-sha256-v1.txt` 与 `immich-cn-manifest-json-v1.json`。
 
+### 方式五：CDN 与静态资源加速
+
+需要把 Immich 放在国内 CDN 或反向代理后面时，可以使用 [examples/compose.acceleration.yml](examples/compose.acceleration.yml) 和 [examples/nginx/immich-cn.conf](examples/nginx/immich-cn.conf)。该示例只对 `/_app/immutable/*` 开启长期共享缓存，HTML、API、原始照片和视频默认旁路，避免把私有内容写进公共缓存。
+
+完整缓存矩阵、地图同源加速、CDN 配置要点和验证命令见 [中国网络与加速](docs/china-acceleration.md)。
+
 ### 生效与刷新
 
 1. 重启 Immich，启动日志出现 `geodata records imported` 表示数据已导入。
@@ -193,6 +200,7 @@ release.yml ──► 手动创建语义化版本 Release
 
 - [架构设计](docs/architecture.md)
 - [中国本地化方向](docs/china-localization.md)
+- [中国网络与加速](docs/china-acceleration.md)
 - [制品命名规范 v4](docs/artifact-spec.md)
 - [项目命名规范](docs/naming-conventions.md)
 - [文档严谨性规范](docs/documentation-policy.md)

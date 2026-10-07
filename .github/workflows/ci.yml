@@ -77,17 +77,23 @@ jobs:
         run: |
           set -euo pipefail
           workdir="$(mktemp -d)"
-          cp examples/compose.server.yml examples/compose.volume.yml "$workdir/"
+          cp examples/compose.*.yml "$workdir/"
           printf '%s\n' \
             'UPLOAD_LOCATION=/tmp/upload' \
             'DB_PASSWORD=example' \
             'DB_USERNAME=immich' \
             'DB_DATABASE_NAME=immich' \
             'DB_DATA_LOCATION=/tmp/db' > "$workdir/.env"
-          for file in compose.server.yml compose.volume.yml; do
+          for file in compose.*.yml; do
             (cd "$workdir" && docker compose -f "$file" config >/dev/null)
             echo "ok: $file"
           done
+      - name: 校验 Nginx 加速源站配置
+        run: |
+          docker run --rm \
+            -v "$PWD/examples/nginx/immich-cn.conf:/etc/nginx/conf.d/default.conf:ro" \
+            docker.io/nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de \
+            nginx -t
       - name: 构建数据镜像
         run: docker build -f docker/geodata.Dockerfile -t immich-cn-geodata:ci .
       - name: 运行数据镜像
