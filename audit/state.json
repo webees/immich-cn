@@ -2,17 +2,17 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 274,
+  "round": 276,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 189,
+    "findings": 191,
     "clean_rounds": 76,
     "p0": 0,
-    "p1": 28,
+    "p1": 30,
     "p2": 116,
     "p3": 49
   },
-  "status": "blocked",
+  "status": "active",
   "last_method": "M9",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
@@ -2787,11 +2787,31 @@
       "severity": null,
       "evidence": "用户明确授权后执行两次 cleanup.yml：run 37657263446 apply=true/prune-all=true 删除 524 条 Actions 运行、immich-cn 与 immich-cn-server 各 2 个 GHCR 版本；run 37658042004 apply=true/prune-legacy-assets=true 删除 121 个旧命名 Release 资产（v1.0.0~v1.0.4 各 20 个、auto-release 21 个）。复核结果：v1.0.0~v1.0.4 当前资产均为 0，auto-release 与 data-2026-10-06 均保留 19 个规范资产。两次运行均 success；该轮完成不可逆清理，但不构成 clean 轮，secret scanning 设置与真实 update-data 复验仍未完成。",
       "pr": null
+    },
+    {
+      "round": 275,
+      "timestamp": "2026-10-08T02:05:00+08:00",
+      "focus": "Immich release API 地图配置字段契约",
+      "method": "M4 契约快照 + M1 变异探针（真实 update-data 负向失败）",
+      "verdict": "findings",
+      "severity": "P1",
+      "evidence": "真实 Auto Data Update run 37658668165 在完整服务栈冒烟失败，退出码 2；上游 release/v3.3 的 `/api/server/config` 返回 `mapLightStyleUrl` / `mapDarkStyleUrl`，旧冒烟仍只检查 `config.map.lightStyle` / `config.map.darkStyle`。修复：冒烟兼容新旧两组字段，`check_workflows` 增加当前字段护栏，补负向用例；make check 449 passed；PR #215 合并 main aca4032，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/215"
+    },
+    {
+      "round": 276,
+      "timestamp": "2026-10-08T02:45:00+08:00",
+      "focus": "Auto Data Update Release 清理凭据变量",
+      "method": "M1 变异探针（真实 update-data 负向失败）+ M4 外部状态对拍",
+      "verdict": "findings",
+      "severity": "P1",
+      "evidence": "修复地图字段后重跑 run 37662405114，构建与完整服务栈通过，但 Publish Release 的滚动资产清理失败：`cleanup.py` 只读 GITHUB_TOKEN，update-data 只传 GH_TOKEN。修复：`_github_token()` 按 PACKAGE_ADMIN_TOKEN → GITHUB_TOKEN → GH_TOKEN 回退，补单元测试；PR #216 合并 main aa430b3。第三次 run 37665792656 首轮 Cosign OIDC 返回非 JSON，按环境噪声重跑同一 run 后成功；最终新 Release `data-2026-10-08` 含 19 个规范资产，issue #204 自动关闭，latest 摘要 immich-cn=sha256:0a886347…、immich-cn-server=sha256:28ad2c61…。",
+      "pr": "https://github.com/webees/immich-cn/pull/216"
     }
   ],
   "residual_risks": [
-    "round 266 的旧 Release 资产清理只完成了机制与 dry-run：真实删除 121 个旧命名资产不可逆，按边界约定仍需用户明确确认后才能执行",
-    "round 266 为完整服务栈冒烟增加镜像拉取重试，但真实 CI 自动更新尚未重新运行；重试是否足以覆盖 GitHub/GHCR 限流仍待下一次 update-data 验证",
+    "round 274 已完成真实删除：121 个旧命名 Release 资产与 4 个旧 GHCR 版本不可恢复；固定引用旧文件名或旧镜像 tag 的消费者必须迁移到规范资产名、摘要或新的 data-* 快照",
+    "round 276 的 update-data 最终成功，但 Cosign OIDC 首次失败仍是外部环境噪声；未来签名步骤仍可能受 GitHub OIDC 端点瞬时异常影响，需要继续按重试规则区分环境失败与代码失败",
     "round 266 的文档散文语言护栏覆盖 README/docs/CONTRIBUTING/SECURITY；CHANGELOG 作为历史记录仍保留当时的命令、文件标识符和少量英文技术表述，不能把它当作当前用户文档的语言样例",
     "round 264 的陈旧引用扫描是文本级：只比对旧模块名/旧资产名/旧项目名的字面出现，无法发现「措辞不同但语义已过期」的注释",
     "cleanup 的资产回收口径是「不在本次 dist 清单里就删」：如果未来某次构建因 bug 少产出若干变体，这些资产会在同一次运行里被删掉；现有的两道闸只拦「空清单」与「零交集」，不拦「清单变小」，需要时再加变体数下限",
