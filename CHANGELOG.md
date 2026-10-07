@@ -13,6 +13,7 @@
 
 ### 新增
 
+- 新增 `monitor-update.yml` 与 `scripts/check_update_freshness.py`：每 6 小时检查 **Auto Data Update** 的新鲜度，区分 `never_run` / `no_run` / `stalled` / `failed` / `stale_success` / `schedule_stalled` / `ok`，并把「手动 dispatch 成功」与「schedule 仍在触发」分开判定，停摆时创建 `automation` 告警、恢复后自动关闭；
 - 项目定位收敛为“为 Immich 提供中国本地化的 reverse geocoding geodata”；新增 `docs/project-scope.md` 统一 core scope、optional support 与 non-goals，`docs/china-localization.md` 只记录实际证据、缺口和 roadmap；
 - 新增 `docs/china-acceleration.md`、`examples/compose.acceleration.yml` 与 `examples/nginx/immich-cn.conf`：明确 CDN、HTML/API/照片/视频缓存边界，并提供可校验的 Nginx 静态资源缓存源站；
 - 增加 jsDelivr 免费 CDN 可选说明：仅服务 GitHub 分支、tag 或提交中的静态文件，实测不能代理 GitHub Release 附件；中国线路质量需按地区、运营商和时段自行验证；

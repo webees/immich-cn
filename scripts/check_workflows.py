@@ -585,6 +585,41 @@ def check_actionlint_in_ci(path: Path, workflow: dict[str, Any], errors: list[st
         errors.append(f"{path} 缺少固定 digest 的 actionlint workflow 校验")
 
 
+def _triggers(workflow: dict[str, Any]) -> dict[str, Any]:
+    """返回 workflow 的触发配置。
+
+    PyYAML 按 YAML 1.1 把裸 ``on`` 解析成布尔 True，因此必须同时接受 ``"on"``
+    与 ``True`` 两个键，否则检查会在正确的 workflow 上误报。
+    """
+    triggers = workflow.get("on")
+    if not isinstance(triggers, dict):
+        legacy = workflow.get(True)
+        triggers = legacy if isinstance(legacy, dict) else {}
+    return triggers
+
+
+def check_update_monitor(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """更新监控必须存在、盯住真实的 update-data 工作流，并且告警能自动关闭。
+
+    GitHub 的 schedule 事件会被延迟或跳过，而「调度没跑」与「跑了但无变化」在
+    Actions 页面上没有区别。没有这层监控时，静默停摆可以持续到有人手动发现。
+    """
+    if path.name != "monitor-update.yml":
+        return
+    if "schedule" not in _triggers(workflow):
+        errors.append(f"{path} 缺少 schedule 触发，无法发现定时任务停摆")
+    text = path.read_text(encoding="utf-8")
+    # 该检查模块导入 scripts.cleanup 复用 GitHub 客户端，必须以模块方式运行。
+    if "python -m scripts.check_update_freshness" not in text:
+        errors.append(f"{path} 未以 `python -m scripts.check_update_freshness` 调用新鲜度检查")
+    if "--workflow update-data.yml" not in text:
+        errors.append(f"{path} 未把新鲜度检查指向 update-data.yml（改名后监控会盯错工作流）")
+    if "--label automation" not in text:
+        errors.append(f"{path} 的告警 issue 未使用 automation 标签")
+    if "if: success()" not in text:
+        errors.append(f"{path} 缺少恢复后关闭告警的步骤，告警会一直挂着")
+
+
 def check_immich_search_smoke(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
     """full-stack smoke 必须用 Immich 自己的 place 搜索谓词验证检索。
 
@@ -698,6 +733,8 @@ def main() -> int:
             continue
         loaded[path.name] = workflow
     outputs_by_workflow = {name: _workflow_call_outputs(workflow) for name, workflow in loaded.items()}
+    if "monitor-update.yml" not in loaded:
+        errors.append("缺少 .github/workflows/monitor-update.yml：定时任务停摆将无人发现")
 
     checkout_total = 0
     for path in files:
@@ -725,6 +762,7 @@ def main() -> int:
         check_examples_compose_validation(path, workflow, errors)
         check_actionlint_in_ci(path, workflow, errors)
         check_immich_search_smoke(path, workflow, errors)
+        check_update_monitor(path, workflow, errors)
         check_image_size_budget(path, workflow, errors)
         check_china_timezone(path, workflow, errors)
         check_published_url_verification(path, workflow, errors)

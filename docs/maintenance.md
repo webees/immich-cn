@@ -52,3 +52,32 @@ GHCR 删除使用 GitHub Packages API。工作流优先使用 `GITHUB_TOKEN`，�
 ## 失败告警
 
 清理失败时会创建或更新带 `automation` 标签的 GitHub issue，标题为 `自动清理失败（YYYY-MM-DD）`，正文包含运行记录和触发方式；同一类告警只保留一个 open issue。后续清理成功后，工作流会评论并关闭该 issue。告警搜索始终限定 `automation` 标签与标题范围，避免误改用户 issue。
+
+## 更新新鲜度监控
+
+`monitor-update.yml` 每 6 小时（UTC 每 6 小时的 `:41`）检查一次 **Auto Data Update** 的真实执行情况。GitHub 的 `schedule` 事件在高负载时会被延迟甚至整轮跳过，而「调度没跑」与「跑了但上游无变化」在 Actions 页面上看起来完全一样；没有这层监控时，静默停摆可以持续到有人手动发现。
+
+判定状态互斥且穷尽，`ok` 以外都会创建或更新带 `automation` 标签的 issue（标题 `自动更新停摆（YYYY-MM-DD）`），恢复后自动评论并关闭：
+
+| 状态 | 含义 |
+|:--|:--|
+| `ok` | 最近运行、最近成功与最近一次定时触发都在阈值内 |
+| `never_run` | 该工作流从未有任何运行记录 |
+| `no_run` | 最近一次运行超过 `--max-age-hours` 没有出现，调度没有触发 |
+| `stalled` | 最近一次运行长时间停在未完成状态 |
+| `failed` | 最近一次已完成运行的结论是失败 |
+| `stale_success` | 最近一段时间内没有任何成功运行 |
+| `schedule_stalled` | 最近一段时间内没有 `schedule` 事件触发的运行 |
+
+`schedule_stalled` 单独建模的原因：手动 `workflow_dispatch` 成功只说明「现在能跑」，不能证明「定时任务还活着」。因此监控同时检查两类年龄——任意运行的新鲜度，以及 `schedule` 事件运行的新鲜度。`cancelled` 是操作者动作，不直接判失败，但也不会被当作成功。
+
+本地复现（需要 `actions:read` 权限的 token）：
+
+```bash
+GITHUB_TOKEN=<token> python -m scripts.check_update_freshness \
+  --repository webees/immich-cn \
+  --workflow update-data.yml \
+  --max-age-hours 30 --stall-grace-hours 3
+```
+
+默认 30 小时阈值对应每天一次的调度：留出 6 小时给 GitHub 的定时延迟与重试。退出码 `0` 表示健康，`1` 表示已确认的不健康状态，`2` 表示配置或 API 错误——三者在工作流里都不会被当成成功。

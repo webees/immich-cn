@@ -46,6 +46,9 @@ class RunRecord:
     status: str
     created_at: datetime
     head_sha: str
+    #: 仅更新监控使用；清理流程只关心 ``status``。默认值保证既有调用点不受影响。
+    conclusion: str = ""
+    event: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +107,8 @@ def _run_record(payload: dict[str, Any]) -> RunRecord:
         status=str(payload.get("status") or "unknown"),
         created_at=_parse_time(str(payload["created_at"])),
         head_sha=str(payload.get("head_sha") or ""),
+        conclusion=str(payload.get("conclusion") or ""),
+        event=str(payload.get("event") or ""),
     )
 
 
@@ -199,7 +204,7 @@ def select_package_versions(
 
 
 class GitHubClient:
-    """只实现清理流程需要的最小 GitHub REST API。"""
+    """自动化脚本共用的最小 GitHub REST API（清理与更新监控）。"""
 
     def __init__(self, repository: str, token: str) -> None:
         if not token:
@@ -273,6 +278,24 @@ class GitHubClient:
 
     def list_runs(self) -> list[RunRecord]:
         return [_run_record(item) for item in self._list(f"/repos/{self.repository}/actions/runs", key="workflow_runs")]
+
+    def list_workflow_runs(self, workflow_file: str, *, limit: int = 30) -> list[RunRecord]:
+        """按工作流文件读取最近若干次运行（单次请求，不翻页）。
+
+        更新监控只关心最近几次运行，整仓 ``list_runs()`` 会翻遍所有历史，
+        既慢又会因为保留策略删过记录而给出误导性的结果。
+        """
+        if not 1 <= limit <= 100:
+            raise CleanupError(f"limit 必须在 1..100 之间，收到 {limit}")
+        encoded = urllib.parse.quote(workflow_file, safe="")
+        payload = self._request(
+            "GET",
+            f"/repos/{self.repository}/actions/workflows/{encoded}/runs?per_page={limit}",
+        )
+        raw = payload.get("workflow_runs") if isinstance(payload, dict) else None
+        if not isinstance(raw, list):
+            raise CleanupError(f"无法解析 {workflow_file} 的运行列表")
+        return [_run_record(item) for item in raw if isinstance(item, dict)]
 
     def list_package_versions(self, package: str) -> list[PackageVersionRecord]:
         encoded = urllib.parse.quote(package, safe="")
