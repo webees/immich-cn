@@ -22,6 +22,7 @@
 - README 的更新 badge 改为英文 `Data Update`，新增 `docs/terminology.md`，明确技术术语优先使用英文、中文只用于用户目标、风险和操作说明；
 - 新增 `scripts/set_asset_timezone.py` 与 `docs/timezone.md`：通过 Immich bulk asset API 将所有 asset 的 EXIF `timeZone` 设置为 `Asia/Shanghai`，默认 dry-run、需显式 `--apply`；日志和 Release 时间仍与照片 EXIF 显示时区分离；
 - 新增 `scripts/jsdelivr_url.py`：jsDelivr URL 默认使用中国加速候选 `cdn.jsdmirror.com`，支持 `IMMICH_CN_JSDELIVR_BASE` 用户配置；文档记录多节点探测结果，并明确第三方 mirror 的信任与 SHA256 校验边界；
+- `Auto Data Update` 在清理 `auto-release` 后新增 `--verify-release-assets` reconciliation：Release 资产与本次 `dist` 缺一或多一都会让 workflow 失败，避免旧资产静默残留；
 - 部署示例默认设置 `TZ: Asia/Shanghai`，并补充国内镜像获取、digest 验证、WGS-84/GCJ-02 偏移与故障排查说明；
 - 规范 SQLite 数据集 `immich-cn-dataset-sqlite-v1.zip` 作为一等制品，Immich 文本格式改由适配器导出，详见 `docs/data-format.md` 与 ADR 0001；
 - `immich-cn artifact resolve` CLI：按 canonical ID、profile+scope 或历史别名解析制品；

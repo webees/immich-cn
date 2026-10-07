@@ -800,6 +800,19 @@ def test_check_workflows_detects_release_metadata_before_assets(repo_copy: Path)
     assert "替换资产前更新了元数据" in result.stdout
 
 
+def test_check_workflows_requires_release_asset_reconciliation(repo_copy: Path) -> None:
+    """滚动 Release 清理后必须验证 dist 与 Release 资产完全一致。"""
+    workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
+    mutate(
+        workflow,
+        "python scripts/cleanup.py --verify-release-assets auto-release --dist-dir dist",
+        "true",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "post-cleanup verification" in result.stdout
+
+
 def test_check_workflows_rejects_immutable_snapshot_regression(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
     mutate(
