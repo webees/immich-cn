@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 211,
+  "round": 212,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 156,
+    "findings": 157,
     "clean_rounds": 68,
     "p0": 0,
     "p1": 33,
-    "p2": 90,
+    "p2": 91,
     "p3": 42
   },
   "status": "active",
-  "last_method": "M4",
+  "last_method": "M6",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -2151,6 +2151,16 @@
       "severity": "P3",
       "evidence": "发现发布流程只执行 cosign sign，没有按最终 digest 执行 cosign verify，签名是否可被消费端读取没有运行时证据。修复：签名后新增验证步骤，对 data image 与 server image 两个最终 digest 执行 cosign verify，使用 GitHub OIDC issuer 与仓库 workflow identity regexp；check_workflows 增加 cosign verification 护栏和负向测试；packages/architecture/CHANGELOG 同步。make check 336 tests、docs、workflow、shell 全绿；PR #159 合并 main ddd1db6，四项 required checks 与 main CI 全绿。真实 push-images 路径尚未执行，cosign verify 仍需下一次发布复验。",
       "pr": "https://github.com/webees/immich-cn/pull/159"
+    },
+    {
+      "round": 212,
+      "timestamp": "2026-10-07T10:45:00+07:00",
+      "focus": "清理工作流的失败可见性与自动化 issue 搜索边界",
+      "method": "M6 workflow 失败路径审计 + M3 负向输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "cleanup.yml 的定时清理失败只会留在 Actions 历史，没有自动化告警；修复后失败时创建或更新带 automation 标签的 issue，成功后评论并关闭历史告警。新增检查时发现原 issue 搜索护栏会因同一脚本后续的 `gh issue create --label automation` 而假通过，现改为逐条解析 `gh issue list` 命令，并补失败通知、issues: write、搜索范围三类负向测试。make check 339 tests、docs、workflow、shell 全绿；PR #160 合并 main f4f815f，四项 required checks 全绿。真实 cleanup 失败与恢复路径尚未触发，需在下一次真实失败或受控演练中复验。",
+      "pr": "https://github.com/webees/immich-cn/pull/160"
     }
   ],
   "residual_risks": [
