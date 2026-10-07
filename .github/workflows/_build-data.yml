@@ -190,13 +190,35 @@ jobs:
             fi
           fi
 
+          snapshot_ok=false
+          snapshot_tag=""
+          if snapshot_json="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 200 \
+              --json tagName,createdAt 2>/dev/null)"; then
+            snapshot_tag="$(printf '%s' "$snapshot_json" \
+              | jq -r '[.[] | select(.tagName | startswith("data-"))] | sort_by(.createdAt) | reverse | .[0].tagName // empty')"
+          fi
+          if [ -n "$snapshot_tag" ]; then
+            snapshot_work="$(mktemp -d)"
+            if gh release download "$snapshot_tag" --repo "$GITHUB_REPOSITORY" \
+                 --pattern immich-cn-manifest-json-v1.json --dir "$snapshot_work" >/dev/null 2>&1; then
+              snapshot_digest="$(immich-cn fingerprint "${snapshot_work}/immich-cn-manifest-json-v1.json" 2>/dev/null || true)"
+              if [ "$snapshot_digest" = "$digest" ]; then
+                snapshot_ok=true
+              fi
+            fi
+          fi
+          if [ "$snapshot_ok" != true ]; then
+            echo "最新 data-* 快照缺失或与本次 fingerprint 不一致，强制修复不可变快照"
+          fi
+
           if [ -n "$previous" ] \
             && [ "$previous" = "$digest" ] \
             && [ "$previous_base_digest" = "$base_digest" ] \
             && [ -n "$previous_data_digest" ] \
-            && [ "$release_assets_ok" = true ]; then
+            && [ "$release_assets_ok" = true ] \
+            && [ "$snapshot_ok" = true ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "上游数据、构建配置、发布器修订、Immich base digest、data image 与 Release 资产均无变化，跳过镜像推送"
+            echo "上游数据、构建配置、发布器修订、Immich base digest、data image、Release 资产与不可变快照均无变化，跳过镜像推送"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
             if [ -z "$previous_data_digest" ]; then

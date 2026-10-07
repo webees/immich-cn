@@ -1029,6 +1029,17 @@ def test_check_workflows_requires_release_assets_in_change_detection(repo_copy: 
     assert "Release asset 集合" in result.stdout
 
 
+def test_check_workflows_requires_snapshot_in_change_detection(repo_copy: Path) -> None:
+    """最新 data-* 快照缺失或 fingerprint 不一致时不能跳过发布。"""
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    text = workflow.read_text(encoding="utf-8")
+    assert "snapshot_ok" in text
+    workflow.write_text(text.replace("snapshot_ok", "snapshot_check"), encoding="utf-8")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "不可变快照" in result.stdout
+
+
 def test_check_workflows_requires_full_stack_smoke(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
     mutate(
