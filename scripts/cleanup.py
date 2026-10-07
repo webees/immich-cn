@@ -15,6 +15,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -179,12 +180,18 @@ def select_package_versions(
     retention: int,
     prune_all: bool,
 ) -> tuple[PackageVersionRecord, ...]:
-    """保留语义版本、稳定标签、最新版本与全部 untagged 子 manifest，返回应删除项。"""
+    """保留语义版本、稳定标签、digest-like tag、最新版本与 untagged 子 manifest，返回应删除项。"""
     keep: set[int] = set()
+    candidates: list[PackageVersionRecord] = []
     for version in versions:
-        if any(SEMVER.match(tag) or tag in PACKAGE_TAGS for tag in version.tags):
+        protected = any(
+            SEMVER.match(tag) or tag in PACKAGE_TAGS or tag.startswith(("sha256-", "sha256:")) for tag in version.tags
+        )
+        if protected or not version.tags:
             keep.add(version.id)
-    ordered = sorted(versions, key=lambda version: version.created_at, reverse=True)
+        else:
+            candidates.append(version)
+    ordered = sorted(candidates, key=lambda version: version.created_at, reverse=True)
     keep_count = 1 if prune_all else retention
     keep.update(version.id for version in ordered[:keep_count])
     # untagged 版本通常是多架构索引的子 manifest 或 attestation；直接删除会破坏父索引。
@@ -374,13 +381,30 @@ def print_plan(plan: CleanupPlan, *, apply: bool) -> None:
 
 
 def apply_plan(client: GitHubClient, plan: CleanupPlan) -> None:
+    """执行清理；单项失败不阻断其他删除，最后统一失败。"""
+    failures: list[str] = []
+
+    def attempt(label: str, action: Callable[[], None]) -> None:
+        try:
+            action()
+        except CleanupError as error:
+            failures.append(f"{label}: {error}")
+
     for run in plan.runs:
-        client.delete_run(run)
+        attempt(f"run {run.id}", lambda run=run: client.delete_run(run))
     for release in plan.releases:
-        client.delete_release(release)
+        attempt(f"release {release.tag_name}", lambda release=release: client.delete_release(release))
     for package, versions in plan.package_versions.items():
         for version in versions:
-            client.delete_package_version(package, version)
+            attempt(
+                f"package {package} version {version.id}",
+                lambda package=package, version=version: client.delete_package_version(package, version),
+            )
+    if failures:
+        detail = "；".join(failures[:5])
+        if len(failures) > 5:
+            detail += f"；另有 {len(failures) - 5} 项"
+        raise CleanupError(f"清理部分失败：{len(failures)} 项：{detail}")
 
 
 def _parser() -> argparse.ArgumentParser:
