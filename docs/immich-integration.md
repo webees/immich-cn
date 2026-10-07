@@ -72,7 +72,7 @@ Immich 支持通过 Map Settings 配置 Light/Dark map style。默认 tile servi
 - `1.136.0 ~ 3.2.x`：语言覆盖路径为 `/usr/src/app/server/node_modules/...`，国家名仍由 `i18n-iso-countries` 参与；
 - `3.3.0+`：国家名读取 `countryInfo.txt`，不再需要旧语言覆盖文件。
 
-这些边界来自上游源码核对，不替代真实镜像 smoke test。发布流程中的 full-stack smoke 是最终验证层。
+这些边界来自上游源码核对，不替代真实镜像 smoke test。发布流程中的 full-stack smoke 会验证 PostgreSQL `geodata_places`、苏州样本和 `/api/server/config`，作为最终运行级验证层。
 
 ## Explicit non-goals
 
