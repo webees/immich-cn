@@ -2,7 +2,7 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 227,
+  "round": 228,
   "consecutive_clean": 0,
   "totals": {
     "findings": 169,
@@ -13,7 +13,7 @@
     "p3": 42
   },
   "status": "active",
-  "last_method": "M4",
+  "last_method": "M5",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -2311,6 +2311,16 @@
       "severity": "P2",
       "evidence": "change detection 仅比较 fingerprint 与 Immich base digest，并检查 server image；若 data image 曾推送失败但 server image 仍存在且 base digest 未变，下一次无变化运行会跳过重建，no-change 还会关闭历史告警。修复：解析 `ghcr.io/webees/immich-cn:latest` digest，只有在 data image 存在且 fingerprint/base digest 都匹配时才允许 changed=false；否则强制重建。新增 workflow 静态护栏、负向测试与架构说明。make check 353 tests、docs、workflow、shell 全绿；PR #172 合并 main de3c763，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/172"
+    },
+    {
+      "round": 228,
+      "timestamp": "2026-10-07T16:10:00+07:00",
+      "focus": "scheduled Auto Data Update 等待与本地数据管线独立复验",
+      "method": "M5 有界 schedule 轮询 + 合成 pipeline/artifact/entrypoint 验证",
+      "verdict": "wait",
+      "severity": null,
+      "evidence": "UTC 05:23 计划触发后，20 分钟有界轮询未观察到新的 schedule run；权威 Actions 历史显示 2026-10-06 的 schedule run `37461020382` 曾成功，当前属于 GitHub schedule 延迟，不是失败或已跳过。等待期间在当前 main 上独立运行 `make smoke`（17 个制品）、`make artifacts`（15 个压缩包、18 项 checksum）与 `make entrypoint`（全部入口行为通过），均成功。因缺少本次 scheduled run 的最终证据，本轮不判 clean，clean_streak 保持 0；下一步继续等待/复核同一 workflow。",
+      "pr": null
     }
   ],
   "residual_risks": [
