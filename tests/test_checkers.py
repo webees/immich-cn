@@ -957,6 +957,60 @@ def test_check_workflows_requires_cleanup_apply_policy(repo_copy: Path) -> None:
     assert "定时任务没有自动切换为 apply" in result.stdout
 
 
+def test_check_workflows_requires_cleanup_failure_notifier(repo_copy: Path) -> None:
+    """清理工作流失败时必须创建告警，不能只把失败留在 Actions 历史里。"""
+    workflow = repo_copy / ".github" / "workflows" / "cleanup.yml"
+    mutate(
+        workflow,
+        "  notify-failure:\n    name: Notify Failure\n    needs: [cleanup, resolve-previous-failure]\n    if: failure()\n",
+        "  notify-failure:\n    name: Notify Failure\n    needs: [cleanup, resolve-previous-failure]\n    if: false()\n",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "缺少 cleanup 失败告警 job" in result.stdout
+
+
+def test_check_workflows_requires_cleanup_notifier_issue_permission(repo_copy: Path) -> None:
+    """缺少 issues: write 时告警步骤会失败，护栏必须直接拦下。"""
+    workflow = repo_copy / ".github" / "workflows" / "cleanup.yml"
+    mutate(
+        workflow,
+        "  notify-failure:\n"
+        "    name: Notify Failure\n"
+        "    needs: [cleanup, resolve-previous-failure]\n"
+        "    if: failure()\n"
+        "    runs-on: ubuntu-latest\n"
+        "    timeout-minutes: 10\n"
+        "    permissions:\n"
+        "      contents: read\n"
+        "      issues: write\n",
+        "  notify-failure:\n"
+        "    name: Notify Failure\n"
+        "    needs: [cleanup, resolve-previous-failure]\n"
+        "    if: failure()\n"
+        "    runs-on: ubuntu-latest\n"
+        "    timeout-minutes: 10\n"
+        "    permissions:\n"
+        "      contents: read\n",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "缺少 issues: write" in result.stdout
+
+
+def test_check_workflows_detects_unscoped_cleanup_issue_search(repo_copy: Path) -> None:
+    """清理告警搜索漏掉 automation 标签时可能误关用户 issue。"""
+    workflow = repo_copy / ".github" / "workflows" / "cleanup.yml"
+    mutate(
+        workflow,
+        "            --label automation --search '自动清理失败 in:title' \\\n",
+        "            --search '自动清理失败 in:title' \\\n",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "未限定 automation 标签" in result.stdout
+
+
 def test_check_workflows_detects_unscoped_automation_issue_search(repo_copy: Path) -> None:
     """自动化告警搜索必须限定 automation 标签，防止误关用户 issue。"""
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"

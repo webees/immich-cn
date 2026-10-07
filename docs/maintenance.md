@@ -48,3 +48,7 @@ python scripts/cleanup.py --release-retention 14 \
 确认计划后再加 `--apply`。定时任务会自动 apply；手动触发默认只列出计划。
 
 GHCR 删除使用 GitHub Packages API。工作流优先使用 `GITHUB_TOKEN`，如仓库策略不允许访问用户级 Package，可配置具备 `read:packages` / `delete:packages` 的 `PACKAGE_ADMIN_TOKEN`；没有权限时清理任务会失败并保留日志，不会静默跳过。
+
+## 失败告警
+
+清理失败时会创建或更新带 `automation` 标签的 GitHub issue，标题为 `自动清理失败（YYYY-MM-DD）`，正文包含运行记录和触发方式；同一类告警只保留一个 open issue。后续清理成功后，工作流会评论并关闭该 issue。告警搜索始终限定 `automation` 标签与标题范围，避免误改用户 issue。
