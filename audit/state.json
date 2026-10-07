@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 224,
-  "consecutive_clean": 1,
+  "round": 225,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 167,
+    "findings": 168,
     "clean_rounds": 70,
     "p0": 0,
     "p1": 33,
-    "p2": 101,
+    "p2": 102,
     "p3": 42
   },
   "status": "active",
@@ -2281,6 +2281,16 @@
       "severity": null,
       "evidence": "GitHub API 独立确认 Immich latest=v3.2.4，v3.2.4 官方 compose 的 Valkey digest 为 `sha256:70739f85...`；本地两份 Compose 与发布 smoke 均引用同一 digest，`docs/deployment.md` 与 `docs/immich-integration.md` 均覆盖 v3.2.4/v3.3.0 边界。`make check` 351 passed，docs/workflow/shell 全绿。无已确认缺陷，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 225,
+      "timestamp": "2026-10-07T15:05:00+07:00",
+      "focus": "贡献指南对 make check 门禁的描述完整性",
+      "method": "M9 文档-实现逐条核对 + M3 负向文档输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`CONTRIBUTING.md` 仍把 `make check` 描述为 lint + mypy + pytest，`docs/development.md` 也漏掉 workflows/shellcheck；Makefile 实际执行 lint、typecheck、test、docs、workflows、shellcheck。修复：两处文档统一为完整门禁列表，新增 `check_make_check_description` 护栏与负向测试。make check 352 tests、docs、workflow、shell 全绿；PR #171 合并 main 2e385d4，四项 required checks 全绿。clean_streak 因本轮 findings 重置为 0。",
+      "pr": "https://github.com/webees/immich-cn/pull/171"
     }
   ],
   "residual_risks": [
