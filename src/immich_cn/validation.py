@@ -23,6 +23,14 @@ REQUIRED_FILES = (
     "ne_10m_admin_0_countries.geojson",
 )
 
+#: Immich ``geodata_places`` 的列宽 / 类型上限：
+#: name varchar(200) NOT NULL、countryCode char(2)、admin1Code varchar(20)、
+#: admin2Code varchar(80)、modificationDate date NOT NULL。
+#: 超限会让 import 直接失败，构建期就必须拦下。
+NAME_MAX_CHARS = 200
+ADMIN1_CODE_MAX_CHARS = 20
+ADMIN2_CODE_MAX_CHARS = 80
+
 
 @dataclass(frozen=True, slots=True)
 class CheckResult:
@@ -221,7 +229,45 @@ def _check_geojson(path: Path) -> CheckResult:
     features = payload.get("features") if isinstance(payload, dict) else None
     if not isinstance(features, list) or not features:
         return CheckResult("natural-earth", False, "缺少 features")
+    # 上游 importNaturalEarthCountries 会把这些值写进 naturalearth_countries 的
+    # NOT NULL 列（admin / admin_a3 / type / polygon coordinates）。字段缺失或几何
+    # 类型不是面时，生成的 polygon 字面量无法入库，country fallback 会在 import 阶段失败。
+    broken: list[str] = []
+    for index, feature in enumerate(features):
+        if not isinstance(feature, dict):
+            broken.append(f"#{index} 不是 Feature")
+        else:
+            problems = _geojson_feature_problems(feature)
+            if problems:
+                broken.append(f"#{index}（{'、'.join(problems)}）")
+        if len(broken) >= 5:
+            break
+    if broken:
+        return CheckResult("natural-earth", False, f"要素不符合 Immich 读取契约：{'；'.join(broken)}")
     return CheckResult("natural-earth", True, f"{len(features)} 个要素")
+
+
+def _geojson_feature_problems(feature: dict[str, object]) -> list[str]:
+    """返回单个 Feature 缺失或类型错误的字段（空列表表示符合 Immich 契约）。"""
+    problems: list[str] = []
+    properties = feature.get("properties")
+    if not isinstance(properties, dict):
+        problems.append("properties")
+    else:
+        for key in ("ADMIN", "ADM0_A3", "TYPE"):
+            value = properties.get(key)
+            if not isinstance(value, str) or not value:
+                problems.append(f"properties.{key}")
+    geometry = feature.get("geometry")
+    if not isinstance(geometry, dict):
+        problems.append("geometry")
+        return problems
+    if geometry.get("type") not in ("Polygon", "MultiPolygon"):
+        problems.append(f"geometry.type={geometry.get('type')!r}")
+    coordinates = geometry.get("coordinates")
+    if not isinstance(coordinates, list) or not coordinates:
+        problems.append("geometry.coordinates")
+    return problems
 
 
 def _check_cities500(
@@ -245,6 +291,8 @@ def _check_cities500(
     strict_regions: dict[str, list[int]] = {code: [0, 0] for code in sorted(CHINESE_OUTPUT_REGIONS)}
     cn_with_admin2 = 0
     cn_admin2_resolved = 0
+    over_column_limit = 0
+    bad_modification_date = 0
     with path.open("r", encoding="utf-8") as handle:
         for line in handle:
             fields = line.rstrip("\n").split("\t")
@@ -252,6 +300,17 @@ def _check_cities500(
                 bad += 1
                 continue
             total += 1
+            if (
+                len(fields[1]) > NAME_MAX_CHARS
+                or len(fields[8]) != 2
+                or len(fields[10]) > ADMIN1_CODE_MAX_CHARS
+                or len(fields[11]) > ADMIN2_CODE_MAX_CHARS
+            ):
+                over_column_limit += 1
+            try:
+                datetime.strptime(fields[18], "%Y-%m-%d")
+            except ValueError:
+                bad_modification_date += 1
             try:
                 geoname_id = int(fields[0])
             except ValueError:
@@ -293,6 +352,20 @@ def _check_cities500(
     results = [
         CheckResult("cities500", bad == 0, f"{total} 条记录，字段异常 {bad} 条"),
         CheckResult("cities500-duplicates", duplicates == 0, f"重复 GeoNames ID {duplicates} 条"),
+        CheckResult(
+            "cities500-immich-columns",
+            over_column_limit == 0,
+            f"{over_column_limit} 条记录超出 Immich geodata_places 列宽"
+            if over_column_limit
+            else "全部记录符合 Immich geodata_places 列宽与 countryCode 长度",
+        ),
+        CheckResult(
+            "cities500-modification-date",
+            bad_modification_date == 0,
+            f"{bad_modification_date} 条记录的 modification date 不是 YYYY-MM-DD"
+            if bad_modification_date
+            else "全部记录都有合法的 modification date",
+        ),
     ]
     cn_ratio = cn_chinese / cn_total if cn_total else 0.0
     results.append(

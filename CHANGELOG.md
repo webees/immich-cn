@@ -53,6 +53,7 @@
 - 清理 `actionlint`/ShellCheck 告警：归档索引改用 `find`、合并 GITHUB_OUTPUT 重定向，并修正自动化 issue 正文中的字面反引号表达式；
 - CI 新增固定 digest 的 `rhysd/actionlint` 校验，防止 workflow 语法与 shell 质量问题回归，并由工作流静态护栏强制保留；
 - Immich integration contract 补充上游 import filter：`PPLX`（非 `AU`）与 `PPLH` 记录在导入阶段被丢弃，并记录 `reverseGeocodeMaxDistance` 与当前实测的跳过行数，避免把制品行数误读成 Immich 实际导入行数；
+- 校验器补齐 Immich `geodata_places` 列契约：`cities500-immich-columns` 拦截超过 `varchar(200)` 的展示名、非两字符 `countryCode`、超长 admin1/admin2 code，`cities500-modification-date` 拦截不可解析的 `date` 值；`natural-earth` 校验从「能解析」提升为「`properties.ADMIN` / `ADM0_A3` / `TYPE` 与面几何齐全」，避免 country fallback 在 import 阶段才失败；
 - 文档护栏新增 CHANGELOG 重复 bullet 检查，并把 CHANGELOG 纳入中文软换行扫描；
 - 部署示例默认设置 `TZ: Asia/Shanghai`，并补充国内镜像获取、digest 验证、WGS-84/GCJ-02 偏移与故障排查说明；
 - 规范 SQLite 数据集 `immich-cn-dataset-sqlite-v1.zip` 作为一等制品，Immich 文本格式改由适配器导出，详见 `docs/data-format.md` 与 ADR 0001；

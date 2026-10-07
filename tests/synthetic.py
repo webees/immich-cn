@@ -300,8 +300,11 @@ def create_synthetic_sources(work_dir: Path, langs_dir: Path) -> Path:
                 "features": [
                     {
                         "type": "Feature",
-                        "properties": {"ADMIN": "China", "ADM0_A3": "CHN"},
-                        "geometry": {"type": "Point", "coordinates": [104.0, 35.0]},
+                        "properties": {"ADMIN": "China", "ADM0_A3": "CHN", "TYPE": "Sovereign country"},
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [[[73.0, 18.0], [135.0, 18.0], [135.0, 54.0], [73.0, 54.0], [73.0, 18.0]]],
+                        },
                     }
                 ],
             }

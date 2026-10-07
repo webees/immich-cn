@@ -113,6 +113,8 @@ UPSTREAM_INTEGRATION_TOKENS = (
     "PPLX",
     "PPLH",
     "reverseGeocodeMaxDistance",
+    "Column limits",
+    "cities500-immich-columns",
     "zh_Hans",
     "zh_Hant",
     "User Settings",
