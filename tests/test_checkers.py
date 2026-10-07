@@ -403,6 +403,19 @@ def test_check_docs_rejects_ui_translation_as_upstream_requirement(repo_copy: Pa
     assert "UI translation" in result.stdout
 
 
+def test_check_docs_requires_current_release_locale_boundary(repo_copy: Path) -> None:
+    """默认 release 线已内置中文 locale，文档不能只写 v3.3.0。"""
+    integration = repo_copy / "docs" / "immich-integration.md"
+    mutate(
+        integration,
+        "Immich 当前 `release` 线 v3.2.4 与 v3.3.0 都已内置",
+        "Immich v3.3.0 已内置",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "v3.2.4" in result.stdout
+
+
 def test_check_docs_requires_nginx_upload_buffering_contract(repo_copy: Path) -> None:
     """Nginx 示例漏掉上传旁路缓冲时，Immich 大文件会先被代理层落盘。"""
     nginx = repo_copy / "examples" / "nginx" / "immich-cn.conf"

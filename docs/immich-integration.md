@@ -49,7 +49,7 @@
 
 ## UI locale and experience
 
-Immich v3.3.0 已内置 [zh_Hans.json](https://github.com/immich-app/immich/blob/v3.3.0/i18n/zh_Hans.json) 与 [zh_Hant.json](https://github.com/immich-app/immich/blob/v3.3.0/i18n/zh_Hant.json)。Web 端还会把浏览器 locale 别名映射到内置语言：`zh-CN` / `zh-SG` → `zh-Hans`，`zh-TW` / `zh-HK` / `zh-MO` → `zh-Hant`。用户可在 **User Settings → App Settings → Language** 中选择语言；这是 per-user preference，上游没有提供统一强制所有用户的 server 环境变量。
+Immich 当前 `release` 线 v3.2.4 与 v3.3.0 都已内置 [zh_Hans.json](https://github.com/immich-app/immich/blob/v3.3.0/i18n/zh_Hans.json) 与 [zh_Hant.json](https://github.com/immich-app/immich/blob/v3.3.0/i18n/zh_Hant.json)。Web 端还会把浏览器 locale 别名映射到内置语言：`zh-CN` / `zh-SG` → `zh-Hans`，`zh-TW` / `zh-HK` / `zh-MO` → `zh-Hant`。用户可在 **User Settings → App Settings → Language** 中选择语言；这是 per-user preference，上游没有提供统一强制所有用户的 server 环境变量。
 
 本项目不维护 Immich UI translation fork，也不通过字符串替换修改前端 bundle。中文地名、检索和 reverse geocoding 数据与 UI locale 是独立契约：前者由本项目提供，后者由 Immich 上游和用户设置决定。
 
