@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 313,
-  "consecutive_clean": 4,
+  "round": 314,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 203,
+    "findings": 204,
     "clean_rounds": 100,
     "p0": 0,
     "p1": 32,
-    "p2": 126,
+    "p2": 127,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M7 死代码与引用计数",
+  "last_method": "M4 契约快照",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3177,6 +3177,16 @@
       "severity": null,
       "evidence": "AST 扫描 118 个数据类字段，零参考字段为 0；`check_dead_symbols` 通过。控制实验向 `PackageResult` 临时注入 `probe_field`，AST 扫描立即列出该字段；恢复后仓库无差异。`main=9a18f0b` 的 `make check` 454 passed 仍有效。本轮未发现 P0-P2 问题，clean_streak=4。",
       "pr": null
+    },
+    {
+      "round": 314,
+      "timestamp": "2026-10-06T06:10:00+08:00",
+      "focus": "文档与实现一致性：当前版本镜像示例",
+      "method": "M4 契约快照",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "把 docs/packages.md 的当前镜像示例从 `3.3.0.1` 回退为 `3.3.0` 后，`check_docs.py` 仍通过，说明文档护栏允许示例漂回三段式。新增要求：文档至少存在一个 `ghcr.io/webees/immich-cn:<当前项目版本>` 示例，并补负向测试；`make check` 455 passed；PR #230 合并 main d18e782，四项 required checks 全绿；clean_streak 归零。",
+      "pr": "https://github.com/webees/immich-cn/pull/230"
     }
   ],
   "residual_risks": [
@@ -3345,7 +3355,8 @@
     "第 310 轮只测量了单个默认地理数据包的解压与哈希；完整 19 个资产、真实构建缓存命中和并发下载场景没有在本轮测量",
     "第 311 轮只验证了 translate_admin_codes 的 ASCII 回退开关；translate_admin_units 的同类开关由独立测试覆盖，但本轮没有重复变异",
     "第 312 轮只反演了香港 CJK 覆盖率阈值；其余区域和总体覆盖率阈值仍未在本轮逐一反演",
-    "第 313 轮的数据类字段扫描仍是临时 AST 脚本，未固化为 `make` 目标；当前零参考字段为 0，但后续新增数据类字段时需要重新扫描"
+    "第 313 轮的数据类字段扫描仍是临时 AST 脚本，未固化为 `make` 目标；当前零参考字段为 0，但后续新增数据类字段时需要重新扫描",
+    "第 314 轮只要求至少一个镜像示例使用当前项目版本；文档中其它版本号、上游 Immich 版本与发布标签的逐项一致性仍未自动对拍"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
