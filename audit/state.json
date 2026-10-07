@@ -2,15 +2,15 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 246,
-  "consecutive_clean": 1,
+  "round": 249,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 174,
+    "findings": 177,
     "clean_rounds": 70,
     "p0": 0,
     "p1": 28,
-    "p2": 109,
-    "p3": 40
+    "p2": 111,
+    "p3": 41
   },
   "status": "active",
   "last_method": "M9",
@@ -2507,6 +2507,36 @@
       "severity": null,
       "evidence": "Ruleset 24545711 复核：enforcement=active、bypass_actors=[]、conditions 仅 ~DEFAULT_BRANCH、rules=deletion+non_fast_forward+pull_request(仅 squash、dismiss stale reviews、要求解决 review thread)+required_status_checks(strict=true)+required_linear_history，四项 required context 与 CONTRIBUTING.md「必须通过以下状态检查」列表逐字一致，且与 ci.yml 展开 matrix 后的 job 名一致（`静态检查与单元测试 (Python ${{ matrix.python-version }})` → 3.11/3.12/3.13 + `Docker 冒烟构建`）。负向控制：在一次性分支加入必然失败的用例并开 PR #189，三项 Python required check 全部 conclusion=failure（日志含该断言原文），GitHub API 返回 mergeable_state=blocked；随后关闭 PR（merged=false）并删除分支，main 未被触碰且工作区干净。main 6c1f0b3 的 push CI run 37589917281 四项 job 全部 success，check-runs API 复核同样四项 success。本轮未发现缺陷，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 247,
+      "timestamp": "2026-10-08T01:35:00+07:00",
+      "focus": "更新监控的真实执行验证 + 「每天更新」表述是否与调度事实一致",
+      "method": "M3 负向实验（真实工作流三次触发）+ M9 文档-实现核对",
+      "verdict": "findings",
+      "severity": "P3",
+      "evidence": "先在真实 GitHub 环境把 round 243 的监控跑完三条路径：健康（run 37590432116，日志 state=ok healthy=True，最近一次运行 12.6h 前 workflow_dispatch、最近一次定时触发 19.8h 前，告警步骤 skipped、关闭步骤 success、无 issue）；告警（`-f max-age-hours=0.5`，run 37590511390，检查步骤 failure → 创建 issue #190（automation 标签）；关闭步骤因 if: success() 正确 skipped）；恢复（默认阈值 run 37590569420，检查 success、关闭步骤 success，issue #190 被评论并 CLOSED/COMPLETED，无遗留 open 告警）。确认问题：GitHub 的 schedule 会整轮跳过而不只是「延后」——2026-10-06 起两天只有一次 schedule 运行（37461020382，2026-10-06T12:07Z），2026-10-07 05:23Z 时点没有运行，而 README 的「每天自动检查」与 FAQ 的「按设计每天检查一次」都没说明这一点，也没指向让失败可追踪的 monitor-update.yml。修复：README Auto Data Update 表新增 Liveness 行、FAQ 补实测证据与 30 小时容忍窗口的语义、`check_discoverable` 扩展到 .github/workflows/*.yml（新增工作流未在文档被点名即失败）；新增负向用例。make check 407 tests 全绿；PR #191 合并 main d2ec0a9，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/191"
+    },
+    {
+      "round": 248,
+      "timestamp": "2026-10-08T02:10:00+07:00",
+      "focus": "清理 dry-run 在真实仓库上的计划与「0 删除」的可信度",
+      "method": "M3 负向实验（真实 dry-run）+ M2 阈值反演（保留策略手算对拍）",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "真实 dry-run（gh workflow run cleanup.yml，手动触发 APPLY=false）：run 37591206911 success，计划为 Release 0 / Actions 运行 0 / GHCR immich-cn 0 / immich-cn-server 0。手算对拍一致：仓库只有 1 天历史，运行记录全在 30 天窗口内故 0 候选；两个包的非受保护候选（日期与 sha- 标签）少于保留数 20 故 0 候选；同时证明工作流上下文里 Releases/Actions/Packages 三套 API 读取都可用（否则脚本会抛 CleanupError 让 job 失败）。确认问题：这四行 0 无法区分「没有可删项」与「什么都没读到」——build_plan 对 list_package_versions 没有任何 sanity check，token 缺 read:packages、owner 写错或 API 结构变化导致空数组时会打印「待删除 0」并绿灯，与「一切受保护」完全同形。修复：CleanupPlan 增加 inventory（Release/Actions/每包版本数）并在 dry-run 与 APPLY 都先打印观察值；某个包读到 0 个版本时直接 CleanupError，只有显式 --allow-empty-packages 才放行；补 4 个用例并修正既有 CleanupPlan 构造。make check 411 tests 全绿；PR #192 合并 main d65cd1a，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/192"
+    },
+    {
+      "round": 249,
+      "timestamp": "2026-10-08T02:55:00+07:00",
+      "focus": "已发布规范数据集与 Immich 适配器的跨制品一致性",
+      "method": "M5 真实数据抽样（下载已发布制品独立复算）+ M4 契约快照（文档 vs 制品）",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "独立取证：用同 Release 的 checksums 校验 dataset 与 manifest（均 OK）；实测结构=places/place_names 各 1,318,848、admin_areas 131,609、countries 252、sources 12、dataset_meta 8，localized_places 视图存在且文档里的查询逐字成功；places 含坐标/人口/source/in_default 的 CHECK，越界坐标 0 条；sources 12 条无空值。跨制品算术全部一致：outputPlaces=perCountry 求和=places 行数=1,318,848；perCountry.CN=956,792=数据集 CN 行数；sourcePlaces 235,649=cities500 计数；in_default=1 的 256,644=默认 geodata 变体行数；CN in_default=1 的 34,897=文档数值。确认问题：规范数据集 admin_areas 与适配器 admin1CodesASCII.txt 在 level-1 上有 26 处未记录差异（HK 18 + MO 8，如 HK.NYL 数据集=香港/适配器=香港特别行政区；level-2 33,661 条可比记录 0 差异）。差异本身是 pipeline 里 SPECIAL_ADMIN_TOP_LEVEL 的刻意覆盖，但文档没写、也没有任何跨制品检查，任一侧被改动（含静默失去覆盖）都不会被发现。修复：check_artifacts 新增 check_admin_area_consistency（仅允许 HK/MO level-1 覆盖，覆盖丢失也失败，两侧无数据也失败，常量复用 localization.SPECIAL_ADMIN_TOP_LEVEL）；docs/data-format.md 记录已知差异与实测数字；5 个用例（含覆盖丢失与未记录漂移负向控制），最小 dist 夹具补成自洽。真实发布制品与 smoke dist 上均 PASS。make check 416 tests 全绿；PR #193 合并 main b89f916，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/193"
     }
   ],
   "residual_risks": [
@@ -2605,7 +2635,14 @@
     "第 246 轮的负向控制只证明了「测试失败 PR 会被拒绝」；objective 还列了错误镜像名、空数据、陈旧缓存、过期 token 四类，这些路径本轮没有做真实 PR 控制，需要后续轮次分别构造",
     "审计账本的 severity 采用「包含即计数」：一条 P1/P2 会同时计入 p1 与 p2，因此 p1+p2+p3 可以大于 findings 条目数；消费账本时不能把三个级别直接相加，validator 的 summarize 是唯一口径",
     "make audit-ledger 不在 make check 内（账本不在仓库树，CI 拿不到），因此每轮审计必须显式执行；漏跑时只能靠人工纪律发现，属于流程风险",
-    "Ruleset 本身在仓库外，仓库内护栏只能校验 CONTRIBUTING.md 里列出的 required check 名与工作流是否匹配；如果有人在 GitHub 上直接改 ruleset（例如删掉某个 required context 或加 bypass actor），CI 不会有任何提示，需要在后续轮次用 gh api 定期复核"
+    "Ruleset 本身在仓库外，仓库内护栏只能校验 CONTRIBUTING.md 里列出的 required check 名与工作流是否匹配；如果有人在 GitHub 上直接改 ruleset（例如删掉某个 required context 或加 bypass actor），CI 不会有任何提示，需要在后续轮次用 gh api 定期复核",
+    "第 247 轮的告警路径是用 `-f max-age-hours=0.5` 强制触发验证的，真实停摆（阈值自然越过）走的是同一段代码但仍未由真实停摆触发过一次；issue #190 已按设计自动关闭，不留残留",
+    "监控只在 GitHub schedule 触发；如果 GitHub 对 monitor-update.yml 本身长期不触发，则不会有告警（下一层同类问题），目前只能靠人工发现或另加外部触发",
+    "清理的 --apply 真实删除路径与 GHCR delete:packages 权限仍未执行（不可逆，按边界约定需先确认）；本轮只验证了 dry-run 计划与读取权限",
+    "第 249 轮的跨制品比对只覆盖 admin1/admin2 名称；place 名称、pattern 组合、countries 名称等其它字段没有做 dataset↔adapter 交叉比对",
+    "dataset↔adapter 的 admin 比对依赖 dist 里同时存在 dataset 与至少一个 *-default geodata 包；若未来 dist 只产出其中一种，检查会静默 return（缺件由别的检查负责），需要时再收紧",
+    "admin_areas 里缺失的 75 个 adapter level-1 代码被视为正常（它按「可从地点记录推导」定义）；若上游一次性丢掉大量 level-1 记录，只有降到 0 才会被空清单护栏拦住，数量骤降不会被发现",
+    "已发布产物的取证针对 data-2026-10-06；下一次发布后需要重新跑一遍 dataset/manifest/checksum 与跨制品比对（check_artifacts 已在 CI 覆盖新构建，但历史 Release 不会自动重验）"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
