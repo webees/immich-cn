@@ -838,6 +838,14 @@ def test_check_workflows_requires_image_supply_chain(repo_copy: Path) -> None:
     assert "缺少数据或 server 镜像的 Cosign keyless 签名" in result.stdout
 
 
+def test_check_workflows_requires_server_base_digest(repo_copy: Path) -> None:
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(workflow, "IMMICH_BASE_DIGEST=@${base_digest}", "IMMICH_BASE_DIGEST=")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "base digest" in result.stdout
+
+
 def test_check_workflows_requires_full_stack_smoke(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
     mutate(
