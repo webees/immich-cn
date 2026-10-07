@@ -43,7 +43,6 @@ def read_admin_codes(path: Path) -> dict[str, AdminEntry]:
                 continue
             geoname_raw = fields[3].strip()
             entries[fields[0]] = AdminEntry(
-                code=fields[0],
                 name=fields[1],
                 geoname_id=int(geoname_raw) if geoname_raw.isdigit() else None,
             )
@@ -64,8 +63,6 @@ def iter_places(path: Path, *, encoding: str = "utf-8") -> Iterator[Place]:
 class AdminUnit:
     """从国家全量 dump 中抽取的行政单元（用于自建 admin3/admin4 表）。"""
 
-    level: int
-    code: str
     geoname_id: int
     name: str
     alternate_names: tuple[str, ...]
@@ -90,8 +87,6 @@ def build_admin_units(paths: Iterable[Path]) -> dict[int, dict[str, AdminUnit]]:
             if not code:
                 continue
             tables[level][code] = AdminUnit(
-                level=level,
-                code=code,
                 geoname_id=place.geoname_id,
                 name=place.columns[IDX_NAME],
                 alternate_names=tuple(place.alternate_names),
