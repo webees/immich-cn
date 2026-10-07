@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 289,
-  "consecutive_clean": 3,
+  "round": 290,
+  "consecutive_clean": 4,
   "totals": {
     "findings": 196,
-    "clean_rounds": 84,
+    "clean_rounds": 85,
     "p0": 0,
     "p1": 31,
     "p2": 120,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M3 负向制品实验",
+  "last_method": "M8 资源与性能剖析",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -2937,6 +2937,16 @@
       "severity": null,
       "evidence": "构造含 `../escaped.txt` 的恶意 zip，`check_zip_members` 返回路径越界错误；构造 4 MiB 全零压缩包，压缩比 1028.0，`check_zip_budget` 返回超过 200 的错误。两个负向控制均以独立临时制品执行，未触碰仓库文件。主分支 `d481835` 的 `make check` 450 passed 仍有效。本轮未发现 P0-P2 问题，clean_streak=3。",
       "pr": null
+    },
+    {
+      "round": 290,
+      "timestamp": "2026-10-08T20:00:00+08:00",
+      "focus": "性能与资源：合成构建与制品校验",
+      "method": "M8 资源与性能剖析",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "`/usr/bin/time -l` 实测合成流水线：0.15 s real、最大 RSS 44,515,328 字节（约 42 MiB）、峰值 memory footprint 32,670,200 字节；`check_artifacts dist`：0.09 s real、最大 RSS 37,584,896 字节（约 36 MiB），15 个压缩包、18 项校验和通过。对抗性控制：同一流水线设置 `ulimit -t 0` 后进程返回 152，证明资源限制真实生效。当前 `build` 80 KiB、`dist` 88 KiB、上游缓存 `.cache/immich-cn` 508 MiB；未发现重复扫描或可量化回归。clean_streak=4。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3081,7 +3091,8 @@
     "只读目录回归用例在 root 用户下跳过，因为权限位对 root 不生效；当前本地与 GitHub Actions 的运行用户均为非 root，真实只读挂载仍未在 CI 中用 mount namespace 复刻",
     "第 287 轮只对 `_RETRY_STATUS` 注入 404 做了单点变异；429、Retry-After、ReadTimeout、Content-Range 与固定摘要路径由既有测试覆盖，但本轮没有逐一重复变异",
     "第 288 轮抽样来自滚动 `auto-release`，不是不可变 `data-*` 快照；内容与 2026-10-08 生成时间一致，但滚动发布后续可被新构建覆盖，不能把该样本当作长期固定黄金样本",
-    "第 289 轮负向实验覆盖归档路径穿越与压缩比，未构造 zip symlink 成员；symlink 分支由 `check_zip_members` 静态检查覆盖，但本轮没有独立运行该分支"
+    "第 289 轮负向实验覆盖归档路径穿越与压缩比，未构造 zip symlink 成员；symlink 分支由 `check_zip_members` 静态检查覆盖，但本轮没有独立运行该分支",
+    "第 290 轮性能数据来自最小合成数据集，不能外推到真实 131 万级地点构建；真实下载与打包耗时仍以 docs/development.md 的实测数据为准"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
