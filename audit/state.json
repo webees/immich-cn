@@ -2,11 +2,11 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 245,
-  "consecutive_clean": 0,
+  "round": 246,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 174,
-    "clean_rounds": 69,
+    "clean_rounds": 70,
     "p0": 0,
     "p1": 28,
     "p2": 109,
@@ -2497,6 +2497,16 @@
       "severity": "P2",
       "evidence": "在干净 clone（6ab52cb，fresh venv）跑完整门禁：make check 394 passed + docs/workflows/shell 全绿、make smoke / make artifacts（15 个压缩包、18 项校验和）/ make entrypoint（5 项）全通过、actionlint exit 0、单测连跑 3 次结果一致（无 flaky）；另实测两次相隔 >60s 的构建得到同一发布指纹 e7c60441288143be41971a6f5f3b98cd8e8b290d360a8ee3fac0791a5ce160e7，证明「发布指纹不含构建时间」的文档描述成立（字节级镜像可复现因此按设计 N/A，而非常绿）。但同一轮复核账本自身发现两处真实完整性缺陷：① totals 与 history 脱钩——声明 findings=184/clean_rounds=71/p1=33/p2=117/p3=43，由 history 复算只有 170/72/28/108/40，最终 ACHIEVED 无法被第三方复核；② 第 63/73/83 轮记录了确认的 P3 却标为 clean，与 objective 的「clean 须无 P0-P3 已确认缺陷」冲突。修复：新增 `scripts/check_audit_ledger.py`（口径=按轮次从 history 复算，含 round=max、唯一且递增、verdict 合法性、severity 与 verdict 匹配、totals、consecutive_clean），配 12 个用例（含 totals 漂移、陈旧 clean_rounds、重复/乱序 round、consecutive_clean 不符等负向控制）；账本按 objective 收紧口径重算并保留旧值于 totalsSuperseded、把 63/73/83 改判 findings 并写入 reclassifiedFrom 与理由、把 63 处 `severity: none` 归一为 null；重算后 findings=173/clean_rounds=69/p1=28/p2=108/p3=40，validator exit 0。此次是收紧标准（clean 变少）而非放宽，符合禁止「修改验收标准凑轮数」。",
       "pr": null
+    },
+    {
+      "round": 246,
+      "timestamp": "2026-10-08T00:55:00+07:00",
+      "focus": "分支保护能否真实拒绝错误 PR（required checks 负向控制）",
+      "method": "M3 负向实验（故意失败的 PR）+ M4 外部控制面对拍",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "Ruleset 24545711 复核：enforcement=active、bypass_actors=[]、conditions 仅 ~DEFAULT_BRANCH、rules=deletion+non_fast_forward+pull_request(仅 squash、dismiss stale reviews、要求解决 review thread)+required_status_checks(strict=true)+required_linear_history，四项 required context 与 CONTRIBUTING.md「必须通过以下状态检查」列表逐字一致，且与 ci.yml 展开 matrix 后的 job 名一致（`静态检查与单元测试 (Python ${{ matrix.python-version }})` → 3.11/3.12/3.13 + `Docker 冒烟构建`）。负向控制：在一次性分支加入必然失败的用例并开 PR #189，三项 Python required check 全部 conclusion=failure（日志含该断言原文），GitHub API 返回 mergeable_state=blocked；随后关闭 PR（merged=false）并删除分支，main 未被触碰且工作区干净。main 6c1f0b3 的 push CI run 37589917281 四项 job 全部 success，check-runs API 复核同样四项 success。本轮未发现缺陷，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -2591,7 +2601,11 @@
     "以 cancelled 结尾且成功记录仍在阈值内时判健康是刻意的假拒绝规避；若有人长期每天手动取消，该状态不会被发现（成功新鲜度仍会在超阈值后报警）",
     "GHCR 包的「可见性」与「关联仓库」本轮未用 API 确认（本地 token 缺 read:packages，API 返回 403），只确认了包可匿名 pull、tag 与 digest 一致；要完成 objective 里「验证 Package 页面、可见性、关联仓库」这一步需要具备 read:packages 的凭据",
     "Cosign/attestation 的 OCI referrer tag（sha256-*）被 cleanup 保护因此永不回收：已观察到至少一个孤儿 referrer（sha256-3e6d804c…，对应镜像 tag 已不存在）。保护优先于整洁是对的，但 Packages 版本列表会长期增长，需要时再设计「仅回收无对应镜像的 referrer」的清理规则",
-    "check_image_tag_examples 只扫描 DOC_GLOBS（README/docs/CONTRIBUTING/SECURITY）；examples/*.yml 的镜像引用走 ${IMMICH_CN_GHCR_MIRROR} 占位符，不受该规则覆盖，若将来在示例里写死 tag 需要把该目录纳入扫描"
+    "check_image_tag_examples 只扫描 DOC_GLOBS（README/docs/CONTRIBUTING/SECURITY）；examples/*.yml 的镜像引用走 ${IMMICH_CN_GHCR_MIRROR} 占位符，不受该规则覆盖，若将来在示例里写死 tag 需要把该目录纳入扫描",
+    "第 246 轮的负向控制只证明了「测试失败 PR 会被拒绝」；objective 还列了错误镜像名、空数据、陈旧缓存、过期 token 四类，这些路径本轮没有做真实 PR 控制，需要后续轮次分别构造",
+    "审计账本的 severity 采用「包含即计数」：一条 P1/P2 会同时计入 p1 与 p2，因此 p1+p2+p3 可以大于 findings 条目数；消费账本时不能把三个级别直接相加，validator 的 summarize 是唯一口径",
+    "make audit-ledger 不在 make check 内（账本不在仓库树，CI 拿不到），因此每轮审计必须显式执行；漏跑时只能靠人工纪律发现，属于流程风险",
+    "Ruleset 本身在仓库外，仓库内护栏只能校验 CONTRIBUTING.md 里列出的 required check 名与工作流是否匹配；如果有人在 GitHub 上直接改 ruleset（例如删掉某个 required context 或加 bypass actor），CI 不会有任何提示，需要在后续轮次用 gh api 定期复核"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
