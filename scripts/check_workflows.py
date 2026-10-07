@@ -210,6 +210,7 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
     if path.name != "_build-data.yml":
         return
     text = yaml.safe_dump(workflow, allow_unicode=True)
+    raw_text = path.read_text(encoding="utf-8")
     if text.count("docker pull") < 2:
         errors.append(f"{path} 缺少数据或 server 镜像的最终 digest 冒烟验证")
     if "完整 Immich 服务栈冒烟" not in text or "Geodata import completed" not in text:
@@ -224,6 +225,8 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
         errors.append(f"{path} 缺少 server 覆盖镜像相对官方基础镜像的漏洞差集检查")
     if text.count("cosign sign --yes") < 2:
         errors.append(f"{path} 缺少数据或 server 镜像的 Cosign keyless 签名")
+    if raw_text.count("cosign verify") < 1:
+        errors.append(f"{path} 签名后未按 digest 执行 Cosign verification")
     if "IMMICH_BASE_DIGEST=@${BASE_DIGEST}" not in text or "org.opencontainers.image.base.digest" not in text:
         errors.append(f"{path} server 镜像未把解析后的 Immich base digest 固定到构建和 OCI metadata")
     if "previous_base_digest" not in text or "BASE_DIGEST" not in text:

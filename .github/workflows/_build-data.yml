@@ -541,6 +541,22 @@ jobs:
           cosign sign --yes "ghcr.io/${GITHUB_REPOSITORY}@${DATA_DIGEST}"
           cosign sign --yes "ghcr.io/${GITHUB_REPOSITORY}-server@${SERVER_DIGEST}"
 
+      - name: 验证 Cosign keyless 签名
+        if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
+        env:
+          DATA_DIGEST: ${{ steps.data-image.outputs.digest }}
+          SERVER_DIGEST: ${{ steps.server-image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          for image in \
+            "ghcr.io/${GITHUB_REPOSITORY}@${DATA_DIGEST}" \
+            "ghcr.io/${GITHUB_REPOSITORY}-server@${SERVER_DIGEST}"; do
+            cosign verify \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              --certificate-identity-regexp "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/.*" \
+              "$image" >/dev/null
+          done
+
       - name: 追加版本标签
         if: inputs.image-version != '' && inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
         env:
