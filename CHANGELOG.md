@@ -67,6 +67,7 @@
 
 ### 修复
 
+- `check_artifacts.py` 新增规范数据集与 Immich 适配器的 admin 层级一致性比对：`admin_areas` 与 `admin1CodesASCII.txt`/`admin2Codes.txt` 出现未记录差异即失败，HK/MO 的 level-1 特别行政区覆盖（2026-10-06 发布实测 26 条：HK 18 + MO 8）是唯一允许的例外，覆盖被静默去掉也会失败；`docs/data-format.md` 记录该已知差异；
 - 清理脚本的 dry-run 现在会先打印真实读到的对象数量（Release / Actions 运行 / 每个 GHCR 包的版本数），并在某个 GHCR 包返回 0 个版本时直接失败：此前只打印「待删除 0」无法区分「没有可删项」与「token 缺 read:packages 或 API 结构变化导致读到空列表」；确认包尚未创建时用 `--allow-empty-packages` 显式放行；
 - README 与 FAQ 明确 GitHub `schedule` 可能延迟甚至整轮跳过（2026-10-06/07 实测只有一次 `schedule` 运行），把「每天更新」限定为设计频率并指向 `monitor-update.yml` 的告警路径与 30 小时容忍窗口；`check_discoverable` 扩展到 `.github/workflows/*.yml`，新增工作流未在文档中被点名即失败；
 - 新增 `scripts/check_audit_ledger.py` 与 `make audit-ledger`：审计账本的汇总值必须能按轮次从 `history` 复算，并校验 `round` 唯一递增、verdict/severity 匹配与 `consecutive_clean` 正确；据此修正账本两类真实漂移（`totals` 与明细脱钩、三轮带 P3 却标 clean），旧值保留在 `totalsSuperseded`、改判理由写入条目；
