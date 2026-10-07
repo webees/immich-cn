@@ -503,12 +503,12 @@ def test_check_docs_rejects_ui_translation_as_upstream_requirement(repo_copy: Pa
 
 
 def test_check_docs_requires_current_release_locale_boundary(repo_copy: Path) -> None:
-    """默认 release 线已内置中文 locale，文档不能只写 v3.3.0。"""
+    """文档不能只写 v3.3.0，而丢掉仍受支持的 v3.2.4 locale 边界。"""
     integration = repo_copy / "docs" / "immich-integration.md"
     mutate(
         integration,
-        "Immich 当前 `release` 线 v3.2.4 与 v3.3.0 都已内置",
-        "Immich v3.3.0 已内置",
+        "2026-10-08 实测：Immich `release` 线为 v3.3.0；v3.2.4 与 v3.3.0 都已内置",
+        "2026-10-08 实测：Immich `release` 线为 v3.3.0；v3.3.0 已内置",
     )
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
@@ -568,7 +568,7 @@ def test_check_docs_requires_machine_learning_in_full_compose(repo_copy: Path) -
 
 
 def test_check_docs_requires_current_release_valkey_digest(repo_copy: Path) -> None:
-    """默认 release 线当前为 v3.2.4，应使用对应官方 compose 的 Valkey digest。"""
+    """Compose 应使用 Immich v3.3 官方示例对齐的 Valkey digest。"""
     compose = repo_copy / "examples" / "compose.server.yml"
     mutate(
         compose,
