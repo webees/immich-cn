@@ -2,11 +2,11 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 258,
-  "consecutive_clean": 0,
+  "round": 259,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 182,
-    "clean_rounds": 74,
+    "clean_rounds": 75,
     "p0": 0,
     "p1": 28,
     "p2": 113,
@@ -2627,9 +2627,21 @@
       "severity": "P3",
       "evidence": "先用真实 API 对拍：6 个工作流共提取 11 个不同 action、25 个固定引用，逐一把 pin 与注释里的 tag 比较（annotated tag 解引用后比较 commit），全部一致（actions/cache#v6、checkout#v7、download-artifact#v8、setup-python#v7、upload-artifact#v7、aquasecurity/setup-trivy#v0.3.1、docker/build-push-action#v7、login-action#v4、setup-buildx-action#v4、setup-qemu-action#v4、sigstore/cosign-installer#v4.1.2），只有两处 `./.github/workflows/_build-data.yml` 是本地引用无需 pin——本轮未发现真实漂移。确认问题（P3）：`check_workflows` 只能离线校验 40 位十六进制格式，发现不了「SHA 存在但与注释版本不一致」（pin 停在旧版本、或指到同名仓库另一提交时文件完全合规），而这类对拍此前只存在于一次性 shell 循环里、不是可复现资产。修复：新增 `scripts/check_action_pins.py`（四条规则：非本地引用缺 40 位 SHA、缺 `# <version>` 注释、tag 不存在、tag 指向 commit 与 pin 不一致；无 pin 可解析时报护栏失效；annotated tag 自动解引用；退出码 0/1/2）与 `make audit-pins`，文档写入 docs/maintenance.md，8 个用例含浮动 tag/缺注释/漂移/缺 tag/空解析/CLI 缺目录的负向控制。真实 API 复跑 exit 0 并打印 25 条 OK。make check 431 tests 全绿；PR #199 合并 main 9712534，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/199"
+    },
+    {
+      "round": 259,
+      "timestamp": "2026-10-08T08:40:00+07:00",
+      "focus": "幂等性：同一份输入两次构建的产物是否只有时间戳不同",
+      "method": "M8 资源与性能剖析（两次独立构建逐成员/逐表比对）+ M4 契约快照（已发布 manifest 的 tool.revision）",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "在干净 clone 切到 main（9712534）后跑两次独立构建（不同 work/dist 目录，间隔 >60s），逐层比对：14 个 geodata zip 只有 `geodata/geodata-date.txt` 与 `geodata/build-info.json` 两个成员不同，cities500/admin1/admin2/countryInfo/geojson/NOTICE 全部逐字节相同；i18n zip 逐成员相同；patterns gz 解压后 1145 字节完全相同（容器字节因 gzip mtime 不同）；dataset SQLite 的 places/place_names/admin_areas/countries/dataset_meta/sources 逐行相同（排除 dataset_meta.generatedAt），schema.json/README/NOTICE 逐字节相同；manifest 的差异只有 generatedAt 与那批带时间戳成员的 sha256/sizeBytes，stats/config/index/providers/license/sources/tool 全部相同。发布指纹两次都是 e7c60441288143be…（本地无 GITHUB_SHA 故 revision 为空）。另核对已发布 manifest：`tool.revision = cdc0ba3c154f27c6e0e6a6ed25a7fe3d8f974291`（pipeline.py 取 GITHUB_SHA），说明生产侧「改代码 ⇒ 指纹变化 ⇒ 重新发布」的链路是通的。未发现缺陷，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "round 259 的两次构建都在本地跑（`GITHUB_SHA` 未设置 ⇒ `tool.revision` 为空），所以「指纹随代码变化」只在生产侧用已发布 manifest（revision=cdc0ba3c…）间接证实，没有在两次真实 CI 构建间直接对拍",
+    "`immich-cn-patterns-tsv-v1.gz` 的容器字节跨构建会变（gzip 头带 mtime），只有解压后的内容一致；任何按容器哈希跨构建比对的工具都必须先归一时间戳",
     "make audit-pins 需要网络与 token，不在 make check 链路里；Dependabot 若把 SHA 更新了却漏改 `# <version>` 注释，只有人工复核或显式跑该目标才会发现（注释与 tag 的一致性现在可验，但不会自动验）",
     "pin 校验只回答「SHA 与该 tag 指向同一 commit」，不回答「这个上游版本本身可信」——供应链风险仍依赖上游可信度、Dependabot 与人工 review",
     "provider=auto 缺 Key 现在会告警，但「Key 存在却无效/过期」仍按批次打 warning 并写入 _error 缓存，没有「失败比例超过阈值就整体失败」的硬门槛；高德部分失败的构建仍会成功",
