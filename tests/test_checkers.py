@@ -891,6 +891,16 @@ def test_check_docs_requires_canonical_container_url(repo_copy: Path) -> None:
     assert "Container Image" in result.stdout
 
 
+def test_check_docs_requires_accurate_security_api_transport(repo_copy: Path) -> None:
+    """脚本使用 urllib 时，安全策略不能只写 gh。"""
+    security = repo_copy / "SECURITY.md"
+    text = security.read_text(encoding="utf-8")
+    security.write_text(text.replace("urllib", "HTTP 客户端"), encoding="utf-8")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "urllib" in result.stdout
+
+
 def test_check_docs_requires_immich_integration_contract(repo_copy: Path) -> None:
     """Immich 上游依赖和不可修改边界必须有契约文档。"""
     doc = repo_copy / "docs" / "immich-integration.md"
