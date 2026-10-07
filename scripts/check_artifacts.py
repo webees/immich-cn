@@ -271,8 +271,10 @@ def check_checksums(dist: Path, errors: list[str]) -> int:
         errors.append(f"{CHECKSUMS_FILE} 为空")
         return 0
     verified = 0
+    names: list[str] = []
     for line in lines:
         digest, _, name = line.partition("  ")
+        names.append(name)
         target = dist / name
         if not target.exists():
             errors.append(f"{CHECKSUMS_FILE} 列出的文件不存在：{name}")
@@ -280,6 +282,28 @@ def check_checksums(dist: Path, errors: list[str]) -> int:
         if sha256_file(target) != digest:
             errors.append(f"{CHECKSUMS_FILE} 与实际文件不符：{name}")
         verified += 1
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    if duplicates:
+        errors.append(f"{CHECKSUMS_FILE} 含重复条目：" + "、".join(duplicates))
+
+    manifest_path = dist / MANIFEST_FILE
+    if manifest_path.is_file():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            manifest = None
+        if isinstance(manifest, dict):
+            expected = {MANIFEST_FILE}
+            for entry in manifest.get("assets") or []:
+                if isinstance(entry, dict) and isinstance(entry.get("file"), str):
+                    expected.add(entry["file"])
+            actual = set(names)
+            missing = sorted(expected - actual)
+            extra = sorted(actual - expected)
+            if missing:
+                errors.append(f"{CHECKSUMS_FILE} 未覆盖 manifest assets：" + "、".join(missing))
+            if extra:
+                errors.append(f"{CHECKSUMS_FILE} 含 manifest 未登记的条目：" + "、".join(extra))
     return verified
 
 

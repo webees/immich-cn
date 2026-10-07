@@ -1656,6 +1656,22 @@ def test_check_artifacts_checksums_layer(tmp_path: Path) -> None:
     assert any("immich-cn-patterns-tsv-v1.gz" in error for error in errors), errors
 
 
+def test_check_artifacts_checksums_require_manifest_coverage(tmp_path: Path) -> None:
+    """checksum 清单漏掉 manifest asset 时必须失败，不能只校验已列出的条目。"""
+    dist = _make_dist(tmp_path)
+    checksums = dist / "immich-cn-checksums-sha256-v1.txt"
+    lines = [
+        line
+        for line in checksums.read_text(encoding="utf-8").splitlines()
+        if not line.endswith("  immich-cn-patterns-tsv-v1.gz")
+    ]
+    checksums.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    errors: list[str] = []
+    check_artifacts.check_checksums(dist, errors)
+    assert any("未覆盖 manifest assets" in error for error in errors), errors
+
+
 def test_check_artifacts_rejects_zip_path_traversal(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
     with zipfile.ZipFile(dist / "immich-cn-geodata-admin2-default-v1.zip", "a") as archive:
