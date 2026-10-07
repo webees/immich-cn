@@ -396,17 +396,27 @@ def _parser() -> argparse.ArgumentParser:
         metavar="TAG",
         help="按 --dist-dir 的文件清单回收该 Release 中多余的资产（缺省 dry-run）",
     )
+    parser.add_argument(
+        "--verify-release-assets",
+        metavar="TAG",
+        help="验证 Release 资产与 --dist-dir 文件清单完全一致；不一致时返回 1",
+    )
     parser.add_argument("--dist-dir", type=Path, default=Path("dist"), help="--prune-release-assets 使用的本地清单目录")
     return parser
 
 
+def _release_manifest(dist_dir: Path) -> set[str]:
+    if not dist_dir.is_dir():
+        raise CleanupError(f"{dist_dir} 不是目录，无法作为清单来源")
+    files = {path.name for path in dist_dir.iterdir() if path.is_file()}
+    if not files:
+        raise CleanupError(f"{dist_dir} 中没有文件，拒绝使用空清单")
+    return files
+
+
 def _prune_release_assets(client: GitHubClient, args: argparse.Namespace) -> int:
     """按本地 dist 清单回收 Release 中不再发布的资产。"""
-    if not args.dist_dir.is_dir():
-        raise CleanupError(f"{args.dist_dir} 不是目录，无法作为清单来源")
-    keep = {path.name for path in args.dist_dir.iterdir() if path.is_file()}
-    if not keep:
-        raise CleanupError(f"{args.dist_dir} 中没有文件，拒绝按空清单删除 Release 资产")
+    keep = _release_manifest(args.dist_dir)
     assets = client.release_assets(args.prune_release_assets)
     if not (keep & {name for _, name in assets}):
         raise CleanupError(
@@ -422,8 +432,32 @@ def _prune_release_assets(client: GitHubClient, args: argparse.Namespace) -> int
     return 0
 
 
+def _verify_release_assets(client: GitHubClient, args: argparse.Namespace) -> int:
+    """验证 Release 资产集合与本地 dist 完全一致。"""
+    expected = _release_manifest(args.dist_dir)
+    assets = client.release_assets(args.verify_release_assets)
+    actual = {name for _, name in assets}
+    missing = sorted(expected - actual)
+    extra = sorted(actual - expected)
+    if not missing and not extra:
+        print(f"[OK] Release {args.verify_release_assets}：{len(actual)} 个资产与 dist 完全一致")
+        return 0
+    print(
+        f"[!!] Release {args.verify_release_assets} 与 dist 不一致：缺少 {len(missing)} 个，多出 {len(extra)} 个",
+        file=sys.stderr,
+    )
+    for name in missing:
+        print(f"  missing: {name}", file=sys.stderr)
+    for name in extra:
+        print(f"  extra: {name}", file=sys.stderr)
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.prune_release_assets and args.verify_release_assets:
+        print("::error::--prune-release-assets 与 --verify-release-assets 不能同时使用", file=sys.stderr)
+        return 2
     settings = CleanupSettings(
         release_retention=args.release_retention,
         run_retention_days=args.run_retention_days,
@@ -438,6 +472,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         if args.prune_release_assets:
             return _prune_release_assets(client, args)
+        if args.verify_release_assets:
+            return _verify_release_assets(client, args)
         plan = build_plan(client, settings)
         print_plan(plan, apply=args.apply)
         if args.apply:

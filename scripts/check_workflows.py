@@ -166,6 +166,21 @@ def check_release_update_order(path: Path, workflow: dict[str, Any], errors: lis
                     )
 
 
+def check_release_asset_reconciliation(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """滚动 Release 必须先 prune，再验证资产集合与 dist 完全一致。"""
+    if path.name != "update-data.yml":
+        return
+    del workflow
+    text = path.read_text(encoding="utf-8")
+    prune = "scripts/cleanup.py --prune-release-assets auto-release --dist-dir dist --apply"
+    verify = "scripts/cleanup.py --verify-release-assets auto-release --dist-dir dist"
+    if prune not in text or verify not in text:
+        errors.append(f"{path} 缺少 auto-release 的 prune 或 post-cleanup verification")
+        return
+    if text.index(verify) < text.index(prune):
+        errors.append(f"{path} 在 prune 之前执行 auto-release 资产验证")
+
+
 def check_snapshot_immutability(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
     """同日后续发布不得覆盖 data-YYYY-MM-DD，必须落到不可变 revision tag。"""
     if path.name != "update-data.yml":
@@ -606,6 +621,7 @@ def main() -> int:
         check_action_pins(path, workflow, errors)
         check_release_replacements(path, workflow, errors)
         check_release_update_order(path, workflow, errors)
+        check_release_asset_reconciliation(path, workflow, errors)
         check_snapshot_immutability(path, workflow, errors)
         check_image_supply_chain(path, workflow, errors)
         check_version_release(path, workflow, errors)

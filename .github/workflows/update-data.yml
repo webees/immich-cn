@@ -104,6 +104,12 @@ jobs:
         run: |
           python scripts/cleanup.py --prune-release-assets auto-release --dist-dir dist --apply
 
+      - name: 验证滚动 Release 资产与本次 dist 完全一致
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/cleanup.py --verify-release-assets auto-release --dist-dir dist
+
       - name: 归档不可变快照
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

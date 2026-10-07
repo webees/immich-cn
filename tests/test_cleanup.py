@@ -16,6 +16,7 @@ from scripts.cleanup import (
     ReleaseRecord,
     RunRecord,
     _prune_release_assets,
+    _verify_release_assets,
     select_package_versions,
     select_releases,
     select_runs,
@@ -216,7 +217,7 @@ def test_prune_release_assets_refuses_empty_dist(tmp_path: Path) -> None:
             raise AssertionError("空清单时不应访问 API")
 
     args = SimpleNamespace(dist_dir=tmp_path, prune_release_assets="auto-release", apply=True)
-    with pytest.raises(CleanupError, match="拒绝按空清单"):
+    with pytest.raises(CleanupError, match="拒绝使用空清单"):
         _prune_release_assets(_Client(), args)
 
 
@@ -231,3 +232,26 @@ def test_prune_release_assets_refuses_disjoint_manifest(tmp_path: Path) -> None:
     args = SimpleNamespace(dist_dir=tmp_path, prune_release_assets="auto-release", apply=True)
     with pytest.raises(CleanupError, match="没有任何交集"):
         _prune_release_assets(_Client(), args)
+
+
+def test_verify_release_assets_requires_exact_match(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """发布后 reconciliation 必须同时拒绝缺失和多余资产。"""
+    (tmp_path / "expected.zip").write_bytes(b"x")
+
+    class _Client:
+        def __init__(self, names: list[str]) -> None:
+            self.names = names
+
+        def release_assets(self, tag: str) -> list[tuple[int, str]]:
+            return [(index, name) for index, name in enumerate(self.names, start=1)]
+
+    args = SimpleNamespace(dist_dir=tmp_path, verify_release_assets="auto-release")
+    assert _verify_release_assets(_Client(["expected.zip"]), args) == 0
+
+    assert _verify_release_assets(_Client(["expected.zip", "legacy.zip"]), args) == 1
+    assert "extra: legacy.zip" in capsys.readouterr().err
+
+    assert _verify_release_assets(_Client(["other.zip"]), args) == 1
+    error = capsys.readouterr().err
+    assert "missing: expected.zip" in error
+    assert "extra: other.zip" in error
