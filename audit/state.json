@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 226,
-  "consecutive_clean": 1,
+  "round": 227,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 168,
+    "findings": 169,
     "clean_rounds": 71,
     "p0": 0,
     "p1": 33,
-    "p2": 102,
+    "p2": 103,
     "p3": 42
   },
   "status": "active",
@@ -2301,6 +2301,16 @@
       "severity": null,
       "evidence": "main 2e385d4 工作区干净；`make check` 352 passed，docs/workflow/shell 全绿。GitHub API 复核 Ruleset 24545711：active、bypass_actors=0，包含 deletion、non_fast_forward、pull_request、required_linear_history、required_status_checks；该 SHA 上四项 required check runs 均存在。无已确认缺陷，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 227,
+      "timestamp": "2026-10-07T15:45:00+07:00",
+      "focus": "无变化判定对 data image 存在性的假恢复路径",
+      "method": "M6 失败恢复审计 + M3 workflow 负向输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "change detection 仅比较 fingerprint 与 Immich base digest，并检查 server image；若 data image 曾推送失败但 server image 仍存在且 base digest 未变，下一次无变化运行会跳过重建，no-change 还会关闭历史告警。修复：解析 `ghcr.io/webees/immich-cn:latest` digest，只有在 data image 存在且 fingerprint/base digest 都匹配时才允许 changed=false；否则强制重建。新增 workflow 静态护栏、负向测试与架构说明。make check 353 tests、docs、workflow、shell 全绿；PR #172 合并 main de3c763，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/172"
     }
   ],
   "residual_risks": [
