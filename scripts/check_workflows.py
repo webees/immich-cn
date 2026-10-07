@@ -258,8 +258,12 @@ def check_version_release(path: Path, workflow: dict[str, Any], errors: list[str
         errors.append(f"{path} 未把 Release 版本传递给镜像构建")
     if "tomllib" not in text or "repo_version=" not in text:
         errors.append(f"{path} 缺少输入版本与 pyproject.toml 的一致性检查")
-    if "PUSH_IMAGES: ${{ inputs.push-images }}" not in text or "版本化发布必须推送镜像" not in text:
-        errors.append(f"{path} 允许创建没有对应 image version tag 的语义化 Release")
+    if (
+        "PUSH_IMAGES: ${{ inputs.push-images }}" not in text
+        or "版本化发布必须推送镜像" not in text
+        or '[ "$PUSH_IMAGES" != "true" ]' not in text
+    ):
+        errors.append(f"{path} 未实际拒绝 push-images=false，可能创建没有对应 image version tag 的语义化 Release")
     validate = (workflow.get("jobs") or {}).get("validate")
     steps = validate.get("steps") if isinstance(validate, dict) else None
     if not isinstance(steps, list) or not any(
