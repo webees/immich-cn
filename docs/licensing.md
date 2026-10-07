@@ -1,4 +1,4 @@
-# Licensing and attribution
+# 许可与署名
 
 仓库根目录的 [NOTICE](../NOTICE) 汇总了各数据源的署名要求，本文件给出完整说明与再分发注意事项。
 
@@ -8,7 +8,7 @@
 
 本项目源码、配置、CI 工作流与文档以 [MIT](../LICENSE) 发布。
 
-`immich-cn-server` 镜像包含上游 Immich server 的 [AGPL-3.0-only](https://github.com/immich-app/immich/blob/main/LICENSE) 代码，因此该组合镜像的整体许可必须是 `AGPL-3.0-only AND MIT`，不能只按本项目的 MIT 代码声明。纯数据镜像 `immich-cn` 不包含 Immich server 代码。
+`immich-cn-server` 镜像包含上游 Immich 服务端的 [AGPL-3.0-only](https://github.com/immich-app/immich/blob/main/LICENSE) 代码，因此该组合镜像的整体许可必须是 `AGPL-3.0-only AND MIT`，不能只按本项目的 MIT 代码声明。纯数据镜像 `immich-cn` 不包含 Immich 服务端代码。
 
 ## 数据制品
 
@@ -24,13 +24,13 @@
 
 ### 默认制品的许可
 
-使用默认 provider（`offline`）构建的制品包含 GeoNames 与 Natural Earth 数据，再分发时应保留以下署名：
+使用默认提供方（`offline`）构建的制品包含 GeoNames 与 Natural Earth 数据，再分发时应保留以下署名：
 
 > 地理数据来源于 GeoNames（https://www.geonames.org/），以 CC BY 4.0 授权；国界数据来源于 Natural Earth（https://www.naturalearthdata.com/），属公有领域。数据处理由 immich-cn（https://github.com/webees/immich-cn）完成。
 
 ### 使用 ODbL 数据时
 
-如果启用了 `nominatim` provider，制品中会包含 OpenStreetMap 派生数据：
+如果启用了 `nominatim` 提供方，制品中会包含 OpenStreetMap 派生数据：
 
 > © OpenStreetMap contributors，数据以 ODbL 1.0 授权。
 
@@ -38,7 +38,7 @@ ODbL 对“派生数据库”设有 share-alike 条件。再分发包含 OSM/Nom
 
 ### 使用高德数据时
 
-`AMAP_API_KEY` 属于调用者自己的账号。高德开放平台条款可能限制地理编码结果的存储、展示或再分发，因此本项目的默认构建**不使用**高德，CI 中也只在显式配置 Secret 与 `--provider amap` 时才会调用。若需要分发高德派生数据，应先独立审阅并确认符合高德的服务条款。
+`AMAP_API_KEY` 属于调用者自己的账号。高德开放平台条款可能限制地理编码结果的存储、展示或再分发，因此本项目的默认构建**不使用**高德，CI 中也只在显式配置密钥与 `--provider amap` 时才会调用。若需要分发高德派生数据，应先独立审阅并确认符合高德的服务条款。
 
 ## 项目独立性
 
