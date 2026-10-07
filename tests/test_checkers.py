@@ -1096,6 +1096,19 @@ def test_check_workflows_requires_versioned_release_images(repo_copy: Path) -> N
     assert "image version tag" in result.stdout
 
 
+def test_check_workflows_rejects_vacuous_versioned_release_image_guard(repo_copy: Path) -> None:
+    """保留 push-images 文案但把拒绝条件改成恒假时，护栏必须失败。"""
+    workflow = repo_copy / ".github" / "workflows" / "release.yml"
+    mutate(
+        workflow,
+        'if [ "$PUSH_IMAGES" != "true" ]; then',
+        "if false; then",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "未实际拒绝 push-images=false" in result.stdout
+
+
 def test_check_workflows_requires_release_preflight_checkout(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "release.yml"
     mutate(
