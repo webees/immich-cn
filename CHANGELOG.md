@@ -79,6 +79,7 @@
 - 完整 Immich 服务栈冒烟在拉取 PostgreSQL、Valkey 与覆盖镜像时增加 5 次退避重试，避免单次镜像仓库限流把自动更新误判为失败；
 - 容器入口在源数据目录与目标目录相同时明确跳过复制，不再误报“目标不可写”；
 - `cleanup.py` 新增 `--prune-legacy-assets`：仅当仓库中已有规范 v4 替代品时回收旧命名 Release 资产，缺少替代品的历史发布保持不动；
+- 更新 `actions/upload-artifact` 与 `actions/download-artifact` 的固定提交，使 25 个 Action 引用重新与上游版本标签一致；
 - 数据镜像落地目录里的 `README.md` 补齐 i18n 挂载说明：此前只写「Immich < 1.136 的 `node_modules/i18n-iso-countries`」，1.136.0 ~ 3.2.x 的用户会照它把覆盖包放到错误位置；现在同时给出 `/usr/src/app/node_modules/...`、`/usr/src/app/server/node_modules/...` 与「3.3.0 起不再需要」，`check_docs.check_langs_mounts` 会强制这两个路径都保留；
 - `check_artifacts` 现在校验 i18n 语言包的裁剪契约：`immich-cn-i18n-json-v1.zip` 必须且只能含 `LICENSE` 与 `langs/en.json`，出现其它 `langs/*.json` 或缺 `langs/en.json` 都失败（此前只检查 LICENSE 文本，裁剪是否生效无人把关）；同时把 README / docs/packages / docs/data-sources 的措辞限定为「自下一次数据发布起」——2026-10-07 实测已发布的 `data-2026-10-06` 与 `auto-release` 仍是 74 个成员、191,847 字节的整套语言包（sha256 与各自 manifest 一致），文档此前把未发布的行为写成了既成事实；
 - `--provider auto` 在缺少 `AMAP_API_KEY` 时不再静默降级：新增显式 warning（产物与 `--provider offline` 完全相同，manifest 里 `config.provider` 记为 `offline`），避免「密钥缺失 / 改名 / secret 过期」伪装成一次成功的高德增强构建；`--provider amap` 仍然是硬要求，缺 Key 直接 `ConfigError`；`docs/development.md` 记录该行为；

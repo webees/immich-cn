@@ -262,7 +262,7 @@ jobs:
           } > build-summary.md
 
       - name: 上传发布制品
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ steps.meta.outputs.artifact }}
           # 只上传 dist 内容，artifactId 的根目录就是发布文件本身，
@@ -603,7 +603,7 @@ jobs:
 
       - name: 上传 Trivy 报告
         if: always() && inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: trivy-reports
           path: trivy-*
