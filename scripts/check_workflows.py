@@ -263,7 +263,7 @@ def check_version_release(path: Path, workflow: dict[str, Any], errors: list[str
 
 
 def check_cleanup_workflow(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
-    """定时清理必须默认 apply、支持 prune-all，并具备所需最小权限。"""
+    """定时清理必须默认 apply、支持 prune-all、报告失败，并具备所需最小权限。"""
     if path.name != "cleanup.yml":
         return
     text = yaml.safe_dump(workflow, allow_unicode=True)
@@ -273,6 +273,27 @@ def check_cleanup_workflow(path: Path, workflow: dict[str, Any], errors: list[st
         errors.append(f"{path} 定时任务没有自动切换为 apply")
     if "actions: write" not in text or "packages: write" not in text or "contents: write" not in text:
         errors.append(f"{path} 缺少 Actions/Release/Packages 清理所需权限")
+    jobs = workflow.get("jobs") or {}
+    notifier = jobs.get("notify-failure") if isinstance(jobs, dict) else None
+    if not isinstance(notifier, dict) or "failure()" not in str(notifier.get("if", "")):
+        errors.append(f"{path} 缺少 cleanup 失败告警 job")
+        return
+    raw_needs = notifier.get("needs")
+    needs = {raw_needs} if isinstance(raw_needs, str) else set(raw_needs or [])
+    if "cleanup" not in needs:
+        errors.append(f"{path}:notify-failure 未依赖 cleanup，清理失败时不会创建告警")
+    permissions = notifier.get("permissions")
+    if not isinstance(permissions, dict) or permissions.get("issues") != "write":
+        errors.append(f"{path}:notify-failure 缺少 issues: write，无法创建或更新告警")
+    steps = notifier.get("steps")
+    if not isinstance(steps, list) or not any(
+        isinstance(step, dict)
+        and "gh issue list" in str(step.get("run", ""))
+        and "自动清理失败 in:title" in str(step.get("run", ""))
+        and not _unscoped_issue_searches(str(step.get("run", "")))
+        for step in steps
+    ):
+        errors.append(f"{path}:notify-failure 缺少限定 automation 标签的告警搜索")
 
 
 def check_concurrency(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
@@ -309,6 +330,17 @@ def check_needs_coverage(path: Path, workflow: dict[str, Any], errors: list[str]
             errors.append(f"{path}:{job_name} 的 if 只判断了部分依赖，遗漏 {missing}；被遗漏的依赖失败时该任务仍会运行")
 
 
+def _unscoped_issue_searches(script: str) -> list[str]:
+    """返回缺少 automation 标签过滤的 gh issue list 命令。
+
+    不能在整段 shell 里搜索 `--label automation`：同一脚本后半段的
+    `gh issue create --label automation` 会掩盖真正未限定范围的查询。
+    """
+    normalized = script.replace("\\\n", " ")
+    commands = re.findall(r"gh issue list\b[^\n)]*", normalized)
+    return [command for command in commands if "in:title" in command and "--label automation" not in command]
+
+
 def check_issue_search_scope(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
     """自动化 issue 的标题搜索必须限定 automation 标签，避免误改用户 issue。"""
     for job_name, job in (workflow.get("jobs") or {}).items():
@@ -318,11 +350,7 @@ def check_issue_search_scope(path: Path, workflow: dict[str, Any], errors: list[
             if not isinstance(step, dict) or "run" not in step:
                 continue
             script = str(step["run"])
-            if (
-                "gh issue list" in script
-                and "自动更新数据失败 in:title" in script
-                and "--label automation" not in script
-            ):
+            if _unscoped_issue_searches(script):
                 errors.append(
                     f"{path}:{job_name}/step#{index} 的自动化 issue 标题搜索未限定 automation 标签，"
                     "可能误改或误关用户 issue"

@@ -85,3 +85,63 @@ jobs:
             args+=(--prune-all)
           fi
           python scripts/cleanup.py "${args[@]}"
+
+  notify-failure:
+    name: Notify Failure
+    needs: [cleanup, resolve-previous-failure]
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: 创建或更新自动化异常 issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          gh label create automation --repo "$GITHUB_REPOSITORY" \
+            --color B60205 --description "自动化流水线通知" --force >/dev/null 2>&1 || true
+
+          title="自动清理失败（$(date +%F)）"
+          body="$(printf '自动清理流程执行失败。\n\n- 运行记录：%s\n- 触发方式：%s\n\n修复后可通过 workflow_dispatch 重新执行。\n' \
+            "$RUN_URL" "$EVENT_NAME")"
+
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --label automation --search '自动清理失败 in:title' \
+            --json number --jq '.[0].number // empty')"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "$title" --label automation --body "$body"
+          fi
+
+  resolve-previous-failure:
+    name: Resolve Previous Failure
+    needs: cleanup
+    if: success()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: 关闭 automation issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --label automation --search '自动清理失败 in:title' \
+            --json number --jq '.[0].number // empty')"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" \
+              --body "自动清理已恢复。最近一次成功运行：${RUN_URL}"
+            gh issue close "$number" --repo "$GITHUB_REPOSITORY" \
+              --reason completed
+          fi
