@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 212,
+  "round": 213,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 157,
+    "findings": 158,
     "clean_rounds": 68,
     "p0": 0,
     "p1": 33,
-    "p2": 91,
+    "p2": 92,
     "p3": 42
   },
   "status": "active",
@@ -2161,6 +2161,16 @@
       "severity": "P2",
       "evidence": "cleanup.yml 的定时清理失败只会留在 Actions 历史，没有自动化告警；修复后失败时创建或更新带 automation 标签的 issue，成功后评论并关闭历史告警。新增检查时发现原 issue 搜索护栏会因同一脚本后续的 `gh issue create --label automation` 而假通过，现改为逐条解析 `gh issue list` 命令，并补失败通知、issues: write、搜索范围三类负向测试。make check 339 tests、docs、workflow、shell 全绿；PR #160 合并 main f4f815f，四项 required checks 全绿。真实 cleanup 失败与恢复路径尚未触发，需在下一次真实失败或受控演练中复验。",
       "pr": "https://github.com/webees/immich-cn/pull/160"
+    },
+    {
+      "round": 213,
+      "timestamp": "2026-10-07T11:05:00+07:00",
+      "focus": "容器入口注释中的 Immich geodata 重新导入条件",
+      "method": "M9 文档-实现逐条核对 + M3 负向输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`docker/entrypoint.sh` 仍写成 geodata-date.txt 比上次导入更新时才重新导入，而上游 v3.3.0 的实际判断是 `lastUpdate === geodataDate` 才跳过，任何不同值都会重新导入；文档护栏只扫描 Markdown/示例，没有覆盖容器脚本。修复：改为“与上次记录相等时跳过”，把 `docker/*.sh` 纳入上游契约措辞检查，并补充“比上次导入更新”这一无“时间”后缀的等价错误短语。make check 340 tests、docs、workflow、shell 全绿；PR #161 合并 main c4501df，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/161"
     }
   ],
   "residual_risks": [
