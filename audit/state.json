@@ -2,11 +2,11 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 281,
-  "consecutive_clean": 0,
+  "round": 282,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 192,
-    "clean_rounds": 80,
+    "clean_rounds": 81,
     "p0": 0,
     "p1": 30,
     "p2": 117,
@@ -2857,6 +2857,16 @@
       "severity": "P2",
       "evidence": "将 `ADMIN1_CODE_MAX_CHARS` 从 20 改为 21 后，完整 `tests/test_validation.py` 仍全绿，证明 countryCode/admin1Code/admin2Code 的列宽边界没有负向覆盖。补三个参数化用例：countryCode 非两字符、admin1Code 21 字符、admin2Code 81 字符；复跑同一变异后 admin1Code 用例立即失败。make check 453 passed；PR #217 合并 main ca5b737，四项 required checks 全绿；clean_streak 归零。",
       "pr": "https://github.com/webees/immich-cn/pull/217"
+    },
+    {
+      "round": 282,
+      "timestamp": "2026-10-08T05:30:00+08:00",
+      "focus": "数值阈值边界翻转",
+      "method": "M2 阈值反演",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "运行 `pytest -q tests/test_validation.py -k threshold_boundary`：9 个边界用例全部通过，覆盖 countryInfo、admin 总体/分地区、CN CJK、HK CJK、admin2 代码率与 admin2 可解析率；每个用例都同时包含刚好命中阈值的通过输入和低一档的失败输入。此前的完整 `make check` 为 453 passed。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
