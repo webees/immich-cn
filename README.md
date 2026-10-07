@@ -135,7 +135,7 @@ immich-cn all
 
 需要把 Immich 放在国内 CDN 或反向代理后面时，可以使用 [examples/compose.acceleration.yml](examples/compose.acceleration.yml) 和 [examples/nginx/immich-cn.conf](examples/nginx/immich-cn.conf)。该示例只对 `/_app/immutable/*` 开启长期共享缓存，HTML、API、原始照片和视频默认旁路，避免把私有内容写进公共缓存。
 
-完整缓存矩阵、地图同源加速、CDN 配置要点和验证命令见 [中国网络与加速](docs/china-acceleration.md)。
+jsDelivr 等免费 CDN 只作为 GitHub 分支、tag 或提交中静态文件的**可选**通道；它不能直接代理 GitHub Release 附件，也不保证中国大陆线路质量。完整缓存矩阵、jsDelivr 实测边界、地图同源加速和验证命令见 [中国网络与加速](docs/china-acceleration.md)。
 
 ### 生效与刷新
 

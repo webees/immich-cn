@@ -559,6 +559,15 @@ def test_check_docs_requires_acceleration_examples(repo_copy: Path) -> None:
     assert "../examples/compose.acceleration.yml" in result.stdout
 
 
+def test_check_docs_requires_jsdelivr_release_limit(repo_copy: Path) -> None:
+    """免费 CDN 说明必须保留 Release 附件不能被 jsDelivr 直接代理的边界。"""
+    acceleration = repo_copy / "docs" / "china-acceleration.md"
+    mutate(acceleration, "Release 资产", "Release 文件")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "Release 资产" in result.stdout
+
+
 def test_check_docs_rejects_process_claims(repo_copy: Path) -> None:
     """历史过程断言（例如“未从同类项目移植”）无法由当前树验证，必须被拒绝。"""
     readme = repo_copy / "README.md"

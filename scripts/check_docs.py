@@ -88,7 +88,7 @@ CHINA_LOCALIZATION_PHASES = ("阶段 1", "阶段 2", "阶段 3", "阶段 4")
 CHINA_TIMEZONE = "TZ: Asia/Shanghai"
 CHINA_LOCALIZATION_OVERCLAIM = "完整行政区层级"
 CHINA_ACCELERATION_DOC = Path("docs/china-acceleration.md")
-CHINA_ACCELERATION_TOKENS = ("CDN", "Cache-Control", "/_app/immutable/", "/api/")
+CHINA_ACCELERATION_TOKENS = ("CDN", "jsDelivr", "Release 资产", "Cache-Control", "/_app/immutable/", "/api/")
 
 #: 时间承诺（“会在 N 天内回复”）无法保证，必须改为“通常”并注明不是承诺。
 #: 已经带“通常”的句式视为合规，不再重复报警（否则护栏会自相矛盾）。
