@@ -1,5 +1,7 @@
 # immich-cn
 
+本地化不止于翻译：negative protection probe.
+
 > **immich-cn 为 Immich 提供中国本地化的 reverse geocoding geodata**：核心是中文地名、中文/拼音检索、行政层级和自动 Release/image；地图、EXIF timezone、CDN/cache 与 Nginx 示例是可选辅助能力，不构成 Immich UI fork。
 
 [![CI](https://github.com/webees/immich-cn/actions/workflows/ci.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/ci.yml) [![Data Update](https://github.com/webees/immich-cn/actions/workflows/update-data.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/update-data.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Container](https://img.shields.io/badge/ghcr.io-immich--cn-blue)](https://github.com/webees/immich-cn/pkgs/container/immich-cn)
