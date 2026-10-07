@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 295,
+  "round": 296,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 198,
+    "findings": 199,
     "clean_rounds": 88,
     "p0": 0,
     "p1": 31,
-    "p2": 122,
+    "p2": 123,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M6 边界与异常输入",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -2997,6 +2997,16 @@
       "severity": "P2",
       "evidence": "把 `update-data.yml` 的 `resolve-previous-failure.if` 注入为 `always()`，`check_workflows.py` 仍通过，目标测试也存活；原因是护栏把 `always()` 当作安全聚合函数，导致发布失败时关闭告警的回归无人拦截。修复为只豁免 `failure()`/`success()`，要求 `always()`/`!cancelled()` 继续逐个判断 needs，并新增负向测试；`make check` 451 passed；PR #223 合并 main 256beab，四项 required checks 全绿；clean_streak 归零。",
       "pr": "https://github.com/webees/immich-cn/pull/223"
+    },
+    {
+      "round": 296,
+      "timestamp": "2026-10-08T22:35:00+08:00",
+      "focus": "容器与 shell：语言包目录完整性",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "构造 `IMMICH_CN_LANGS_DIR` 目录，仅放入 LICENSE、不放入 en.json，原 `docker/install.sh` 会复制残缺语言包并 exit 0；默认数据镜像的嵌套布局为 `<root>/langs/{LICENSE,en.json}`，因此校验必须按该路径执行。修复为写入 target 前检查 `<root>/langs/LICENSE` 与 `<root>/langs/en.json`，不完整即失败；补回归用例。首次 CI 失败暴露出校验路径误写成根目录，修正后 `make entrypoint`、`make check` 451 passed，PR #224 合并 main f6f4a5e，四项 required checks 全绿；clean_streak 仍为 0。",
+      "pr": "https://github.com/webees/immich-cn/pull/224"
     }
   ],
   "residual_risks": [
@@ -3147,7 +3157,8 @@
     "第 292 轮只反演了 countryInfo 的 100% 阈值；admin 总体/分地区、CN CJK、HK CJK、admin2 代码率与可解析率由既有边界测试覆盖，但本轮没有逐一反演其比较运算符",
     "第 293 轮的 M7 只检查了 PackageResult 字段引用，没有把「数据类字段只写不读」固化成自动护栏；`checksums` 目前仅由测试读取，若未来测试移除，需要重新评估其是否保留",
     "第 294 轮资产与 digest 是 2026-10-08 的时点快照；滚动 `auto-release`、`latest` 与 `release` 标签可继续变化，文档护栏只校验命名与标签规则，不固定未来 digest",
-    "第 295 轮的依赖覆盖护栏只检查 job 级 `if`；step 级 `always()` 与 `!cancelled()` 不在覆盖范围，若未来把关键收敛逻辑拆到 step 条件中需要另加检查"
+    "第 295 轮的依赖覆盖护栏只检查 job 级 `if`；step 级 `always()` 与 `!cancelled()` 不在覆盖范围，若未来把关键收敛逻辑拆到 step 条件中需要另加检查",
+    "第 296 轮把 `IMMICH_CN_LANGS_DIR` 的契约固定为包含 `langs/` 子目录；若外部用户此前传入扁平的 `en.json` 目录，现在会被拒绝，需要按其目录结构调整或使用 `--geodata-only`"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
