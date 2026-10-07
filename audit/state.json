@@ -2,15 +2,15 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 260,
+  "round": 261,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 183,
+    "findings": 184,
     "clean_rounds": 75,
     "p0": 0,
     "p1": 28,
     "p2": 114,
-    "p3": 44
+    "p3": 45
   },
   "status": "active",
   "last_method": "M9",
@@ -2647,9 +2647,20 @@
       "severity": "P2",
       "evidence": "文档（README:110、docs/packages.md:44、docs/data-sources.md:102）把「i18n 包只保留 langs/en.json + LICENSE」写成既成事实，但实测下载的资产不是：data-2026-10-06 与滚动 auto-release 的 immich-cn-i18n-json-v1.zip 都是 74 个成员（LICENSE + 73 个 langs/*.json）、191,847 字节，且大小与 sha256（cc0d06ab…）与各自 manifest 记录完全一致——是构建真实产出而非资产错位；该构建 revision=cdc0ba3c…、generatedAt=2026-10-06T19:22:32Z。根因：cdc0ba3 版 `_write_langs` 会把上游包里每个 `*.json` 都写进 work_dir/langs（仅把 en.json 换成中文国家名），当前 main 已改成只写 en.json（Unreleased），但**裁剪没有任何护栏**——check_artifacts 对 i18n 包只查 LICENSE 文本。修复：check_artifacts 要求 i18n 资产必须且只能含 LICENSE 与 langs/en.json（缺 en.json 或多出任何 langs/*.json 都失败）；补 2 个负向用例并把最小 dist 夹具补成含 langs/en.json；README/docs 的措辞限定为「自下一次数据发布起」并写明已发布快照仍是 74 成员/191,847 字节。元负向控制：在临时副本恢复「复制整套语言包」的旧逻辑后跑 smoke，i18n 包出现 langs/zh.json（3 个成员），check_artifacts 报「含 1 个非必需语言文件（如 langs/zh.json）」exit 1——证明护栏能拦住造成本次 74 成员产物的原始回归。make check 433 tests 全绿；PR #200 合并 main bdfe171，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/200"
+    },
+    {
+      "round": 261,
+      "timestamp": "2026-10-08T10:05:00+07:00",
+      "focus": "全历史与工作区的凭证泄漏扫描 + 仓库安全开关现状",
+      "method": "M10 shell/容器安全审查（regex 全量扫描）+ M4 外部控制面对拍（security_and_analysis API）",
+      "verdict": "findings",
+      "severity": "P3",
+      "evidence": "扫描结果本身是干净的：`git log --all -p` 全历史 63,361 行对 ghp_/github_pat_/sk-/AKIA/xox/PEM 私钥/Slack webhook 六类模式 0 命中；工作区（排除 .git/.venv/work/build/dist）同样 0 命中；工作流里没有任何 `echo|printf|cat` 输出 `secrets.*`；`config/`、`examples/`、`docker/` 无字面量密码，compose 走 `POSTGRES_PASSWORD: ${DB_PASSWORD}`。唯一字面量凭证是 `_build-data.yml` 里 CI smoke 用的 `immich-smoke-password`（一次性本地容器，不出现在 examples/docs），判定为可接受的测试常量。仓库安全设置：dependabot_security_updates=enabled、secret_scanning=enabled、secret_scanning_push_protection=enabled、secret-scanning alerts=0；但 `secret_scanning_non_provider_patterns` 与 `secret_scanning_validity_checks` 仍为 disabled（此前 residual risk 已记录）。本轮尝试用 `PATCH /repos/webees/immich-cn` 的 security_and_analysis 字段开启这两项：HTTP 200 但返回值不变（token scopes=delete_repo,gist,read:org,repo,workflow，缺 security_events），因此判定为需要 owner 在 Settings → Code security 手动开启，未能由本轮关闭。判为 findings（P3）：扫描无泄漏，但在范围内的两项加固开关仍是禁用状态且本轮无法关闭。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "仓库 secret scanning 的 `non-provider patterns` 与 `validity checks` 仍是 disabled：round 261 用 PATCH /repos/.../security_and_analysis 尝试开启，HTTP 200 但值不变（token scopes 为 delete_repo/gist/read:org/repo/workflow，缺 security_events），需要在 Settings → Code security 里由 owner 手动开启",
     "已发布的 data-2026-10-06 快照与滚动 auto-release 仍带 74 个成员的整套 i18n 语言包；要换成裁剪版必须等下一次成功的 update-data 发布，而那次发布同时会回收 21 个 legacy 资产（不可逆，待确认）",
     "新的 i18n 裁剪护栏依赖合成 fixture 里有两个语言文件（zh.json + en.json），因此「复制整套语言包」这类回归会在 smoke+check_artifacts 里暴露；如果将来 fixture 被简化成只写 en.json，护栏会重新变成恒真",
     "round 259 的两次构建都在本地跑（`GITHUB_SHA` 未设置 ⇒ `tool.revision` 为空），所以「指纹随代码变化」只在生产侧用已发布 manifest（revision=cdc0ba3c…）间接证实，没有在两次真实 CI 构建间直接对拍",
