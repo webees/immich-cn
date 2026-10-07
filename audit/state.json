@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 311,
-  "consecutive_clean": 2,
+  "round": 312,
+  "consecutive_clean": 3,
   "totals": {
     "findings": 203,
-    "clean_rounds": 98,
+    "clean_rounds": 99,
     "p0": 0,
     "p1": 32,
     "p2": 126,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3157,6 +3157,16 @@
       "severity": null,
       "evidence": "把 `translate_admin_codes` 的 `if not name and fallback_to_ascii` 注入为 `if not name`，隔离字节码缓存后运行目标测试，`fallback_to_ascii=False` 的美国条目被错误放行，测试立即失败；恢复后目标测试通过。`main=9a18f0b` 的 `make check` 454 passed 仍有效。本轮未发现 P0-P2 问题，clean_streak=2。",
       "pr": null
+    },
+    {
+      "round": 312,
+      "timestamp": "2026-10-06T05:20:00+08:00",
+      "focus": "校验与阈值：香港 CJK 覆盖率边界",
+      "method": "M2 阈值反演",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "把 `cities500-hk-cjk` 的 `hk_ratio >= min_hk_cjk_ratio` 反演为 `>`，隔离字节码缓存后运行目标边界测试，99/100=0.99 的命中用例立即失败；恢复后同一测试通过。`main=9a18f0b` 的 `make check` 454 passed 仍有效。本轮未发现 P0-P2 问题，clean_streak=3。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3323,7 +3333,8 @@
     "第 308 轮只注入了重复 GeoNames ID 与英文国家名；列宽、坐标越界、admin2 引用完整性等其它数据错误没有在本轮逐一注入",
     "第 309 轮只校验了 urllib 传输说明的存在性；安全策略的其他声明与工作流权限仍未逐条自动对拍",
     "第 310 轮只测量了单个默认地理数据包的解压与哈希；完整 19 个资产、真实构建缓存命中和并发下载场景没有在本轮测量",
-    "第 311 轮只验证了 translate_admin_codes 的 ASCII 回退开关；translate_admin_units 的同类开关由独立测试覆盖，但本轮没有重复变异"
+    "第 311 轮只验证了 translate_admin_codes 的 ASCII 回退开关；translate_admin_units 的同类开关由独立测试覆盖，但本轮没有重复变异",
+    "第 312 轮只反演了香港 CJK 覆盖率阈值；其余区域和总体覆盖率阈值仍未在本轮逐一反演"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
