@@ -138,105 +138,74 @@ jsDelivr 等免费 CDN 只作为 GitHub 分支、标签或提交中静态文件�
 
 ### 配置总览
 
-本节列出当前仓库涉及的全部可配置入口。默认值以示例 Compose 与实现为准；未列出的 Immich 上游变量保持官方默认。静态资源加速默认关闭，仓库不运营公共 CDN，也没有隐藏的运行时开关；启用方式是切换到 [examples/compose.acceleration.yml](examples/compose.acceleration.yml) 并挂载 [examples/nginx/immich-cn.conf](examples/nginx/immich-cn.conf)。
+本节列出当前仓库的全部配置入口。默认值以 Compose 示例与实现为准；未列出的 Immich 变量保持官方默认。静态资源加速默认关闭，启用方式是切换 [examples/compose.acceleration.yml](examples/compose.acceleration.yml) 并挂载 [examples/nginx/immich-cn.conf](examples/nginx/immich-cn.conf)。
 
 #### 服务端镜像
 
 适用于 `webees/immich-cn-server`，也适用于将数据目录挂载到官方 `immich-app/immich-server` 的部署。
 
-| 变量 | 默认值 | 必填 | 适用场景与用途 |
-|:--|:--|:--|:--|
-| `IMMICH_CN_PATTERN` | `{admin_2}` | 否 | 控制中文地名展示粒度，例如 `{admin_2} {admin_3}`；取值见「展示粒度」 |
-| `IMMICH_CN_FORCE_RELOAD` | `0` | 否 | 设为 `1` 时把 `geodata-date.txt` 更新为当前北京时间，强制 Immich 重新导入 |
-| `IMMICH_CN_GEODATA_DIR` | `/opt/immich-cn/geodata` | 否 | 服务端镜像内的地理数据源目录，一般无需修改 |
-| `IMMICH_CN_LANGS_DIR` | `/opt/immich-cn/i18n-iso-countries/langs` | 否 | 服务端镜像内的国家名称覆盖目录，适用于 Immich 1.136.0 ~ 3.2.x |
-| `IMMICH_CN_PATTERNS_TABLE` | `/opt/immich-cn/immich-cn-patterns-tsv-v1.gz` | 否 | 运行时切换展示粒度所用的变体表，一般无需修改 |
-| `IMMICH_BUILD_DATA` | `/build` | 否 | Immich 的构建数据根目录；包装层把数据写入 `$IMMICH_BUILD_DATA/geodata` |
-| `IMMICH_CN_DATA_DATE` | 构建时写入 | 否 | 只读元信息，用于识别镜像内数据批次；运行时不读取 |
+| 变量 | 默认值 | 说明 |
+|:--|:--|:--|
+| `IMMICH_CN_PATTERN` | `{admin_2}` | 展示粒度，例如 `{admin_2} {admin_3}`；取值见「展示粒度」 |
+| `IMMICH_CN_FORCE_RELOAD` | `0` | 设为 `1` 时把 `geodata-date.txt` 更新为当前北京时间，强制重新导入 |
+| `IMMICH_CN_GEODATA_DIR` | `/opt/immich-cn/geodata` | 镜像内地理数据源目录 |
+| `IMMICH_CN_LANGS_DIR` | `/opt/immich-cn/i18n-iso-countries/langs` | 国家名称覆盖目录，适用于 Immich 1.136.0 ~ 3.2.x |
+| `IMMICH_CN_PATTERNS_TABLE` | `/opt/immich-cn/immich-cn-patterns-tsv-v1.gz` | 运行时切换粒度所用的变体表 |
+| `IMMICH_BUILD_DATA` | `/build` | Immich 构建数据根目录；数据写入 `$IMMICH_BUILD_DATA/geodata` |
+| `IMMICH_CN_DATA_DATE` | 构建时写入 | 只读数据批次元信息 |
 
 #### 数据镜像
 
 适用于 `webees/immich-cn`，入口命令是 `immich-cn-install`。
 
-| 变量或参数 | 默认值 | 必填 | 适用场景与用途 |
-|:--|:--|:--|:--|
-| `IMMICH_CN_TARGET` | `/out` | 否 | 指定释放目录，等价于 `--target` |
-| `IMMICH_CN_PATTERN` | `{admin_2}` | 否 | 释放时写入指定展示粒度，等价于 `--pattern` |
-| `IMMICH_CN_GEODATA_DIR` | `/opt/immich-cn/geodata` | 否 | 数据镜像内的地理数据源目录，一般无需修改 |
-| `IMMICH_CN_LANGS_DIR` | `/opt/immich-cn/i18n-iso-countries` | 否 | 数据镜像内的国家名称覆盖目录，适用于 Immich 1.136.0 ~ 3.2.x |
-| `IMMICH_CN_PATTERNS_TABLE` | `/opt/immich-cn/immich-cn-patterns-tsv-v1.gz` | 否 | 释放时切换展示粒度所用的变体表 |
-| `--target <目录>` | `/out` | 否 | 指定释放目录，优先级高于 `IMMICH_CN_TARGET` |
-| `--pattern '<pattern>'` | `{admin_2}` | 否 | 指定展示粒度，优先级高于 `IMMICH_CN_PATTERN` |
-| `--geodata-only` | 关闭 | 否 | 只释放 `geodata/`；Immich 3.3.0 及以上不再需要国家名称覆盖 |
+| 变量或参数 | 默认值 | 说明 |
+|:--|:--|:--|
+| `IMMICH_CN_TARGET` | `/out` | 释放目录，等价于 `--target` |
+| `IMMICH_CN_PATTERN` | `{admin_2}` | 释放时的展示粒度，等价于 `--pattern` |
+| `IMMICH_CN_GEODATA_DIR` | `/opt/immich-cn/geodata` | 镜像内地理数据源目录 |
+| `IMMICH_CN_LANGS_DIR` | `/opt/immich-cn/i18n-iso-countries` | 国家名称覆盖目录，适用于 Immich 1.136.0 ~ 3.2.x |
+| `IMMICH_CN_PATTERNS_TABLE` | `/opt/immich-cn/immich-cn-patterns-tsv-v1.gz` | 释放时切换粒度所用的变体表 |
+| `--target <目录>` | `/out` | 释放目录，优先级高于 `IMMICH_CN_TARGET` |
+| `--pattern '<pattern>'` | `{admin_2}` | 展示粒度，优先级高于 `IMMICH_CN_PATTERN` |
+| `--geodata-only` | 关闭 | 只释放 `geodata/`；Immich 3.3.0 及以上不需要国家名称覆盖 |
 
 #### 网络与加速
 
-| 变量 | 默认值 | 必填 | 适用场景与用途 |
-|:--|:--|:--|:--|
-| `IMMICH_CN_GHCR_MIRROR` | `ghcr.nju.edu.cn` | 否 | Compose 拉取镜像时的前缀；可改为 `ghcr.io` 或其他可信镜像源 |
-| `IMMICH_CN_JSDELIVR_BASE` | `https://cdn.jsdmirror.com` | 否 | 可选静态文件加速基址，只用于 GitHub 分支、标签或提交中的文件；不能代理 GitHub 发布资产 |
-| `IMMICH_CN_HTTP_PORT` | `8080` | 否 | 仅加速示例中的 Nginx 宿主机端口；不改变 Immich 容器端口 |
-| CDN 静态资源缓存 | 关闭 | 否 | 默认不启用；需要时使用加速示例，并只缓存 `/_app/immutable/*` |
+| 变量 | 默认值 | 说明 |
+|:--|:--|:--|
+| `IMMICH_CN_GHCR_MIRROR` | `ghcr.nju.edu.cn` | Compose 拉取前缀；可改为 `ghcr.io` 或其他可信镜像源 |
+| `IMMICH_CN_JSDELIVR_BASE` | `https://cdn.jsdmirror.com` | 可选静态文件加速基址；不能代理 GitHub 发布资产 |
+| `IMMICH_CN_HTTP_PORT` | `8080` | 仅加速示例中的 Nginx 宿主机端口 |
+| CDN 静态资源缓存 | 关闭 | 需要时使用加速示例，并只缓存 `/_app/immutable/*` |
 
 #### 构建与提供方
 
-这些变量在本地构建、镜像数据构建或 GitHub Actions 中生效；默认离线构建不需要 API Key。
+默认离线构建不需要 API Key；`AMAP_API_KEY` 仅在 `--provider amap` 时必填。
 
-| 变量 | 默认值 | 必填 | 适用场景与用途 |
-|:--|:--|:--|:--|
-| `AMAP_API_KEY` | 无 | 否 | 高德密钥；仅 `--provider amap` 必填，`--provider auto` 缺少时回退离线并告警 |
-| `IMMICH_CN_AMAP_QPS` | `3` | 否 | 高德请求速率上限 |
-| `IMMICH_CN_AMAP_BATCH_SIZE` | `20` | 否 | 高德批量逆地理编码的每批坐标数 |
-| `IMMICH_CN_AMAP_COUNTRIES` | `CN,HK,MO` | 否 | 使用高德的国家或地区代码 |
-| `IMMICH_CN_NOMINATIM_QPS` | `1` | 否 | Nominatim 速率上限；服务条款要求为 1 |
-| `IMMICH_CN_NOMINATIM_COUNTRIES` | `TW,JP` | 否 | 使用 Nominatim 的国家或地区代码 |
-| `IMMICH_CN_LOG_LEVEL` | `INFO` | 否 | 构建日志级别 |
+| 变量 | 默认值 | 说明 |
+|:--|:--|:--|
+| `AMAP_API_KEY` | 无 | 高德密钥；`--provider auto` 缺少时回退离线并告警 |
+| `IMMICH_CN_AMAP_QPS` | `3` | 高德请求速率上限 |
+| `IMMICH_CN_AMAP_BATCH_SIZE` | `20` | 高德批量逆地理编码的每批坐标数 |
+| `IMMICH_CN_AMAP_COUNTRIES` | `CN,HK,MO` | 使用高德的国家或地区代码 |
+| `IMMICH_CN_NOMINATIM_QPS` | `1` | Nominatim 速率上限；服务条款要求为 1 |
+| `IMMICH_CN_NOMINATIM_COUNTRIES` | `TW,JP` | 使用 Nominatim 的国家或地区代码 |
+| `IMMICH_CN_LOG_LEVEL` | `INFO` | 构建日志级别 |
 
-常用构建参数如下；完整参数、默认值与边界见 [本地开发](docs/development.md)。
-
-| 参数 | 默认值 | 必填 | 用途 |
-|:--|:--|:--|:--|
-| `--provider` | `offline` | 否 | 选择 `offline`、`amap`、`nominatim` 或 `auto` |
-| `--chinese-variant` | `hans` | 否 | 输出简体 `hans` 或繁体 `hant` |
-| `--patterns` | 7 种粒度 | 否 | 逗号分隔的展示粒度组合 |
-| `--extra-countries` | `CN,HK,TW,MO,JP` | 否 | 附带国家数据转储的地区 |
-| `--min-population` | `100` | 否 | 非完整变体的最小人口阈值 |
-| `--revalidate` | 关闭 | 否 | 使用 ETag 或 Last-Modified 检查上游，未变化时跳过下载 |
-| `--force` | 关闭 | 否 | 强制重新下载全部数据源 |
-| `--skip-fetch` | 关闭 | 否 | 直接使用已有数据源 |
-| `--work-dir` | `build` | 否 | 中间产物目录 |
-| `--dist-dir` | `dist` | 否 | 发布制品目录 |
-| `--cache-dir` | `.cache/immich-cn` | 否 | 下载缓存目录 |
-| `--config-dir` | `config` | 否 | 人工覆盖表目录 |
-| `--jobs` | CPU 数，最多 8 | 否 | 打包并发度 |
-| `--keep-raw` | 关闭 | 否 | 保留原始大文件与明文变体表 |
-| `--clean` | 关闭 | 否 | 执行前清空工作目录与制品目录 |
-| `--quiet` | 关闭 | 否 | 只输出警告与错误 |
+构建参数包括 `--provider`、`--chinese-variant`、`--patterns`、`--extra-countries`、`--min-population`、`--revalidate`、`--force`、`--skip-fetch`、`--work-dir`、`--dist-dir`、`--cache-dir`、`--config-dir`、`--jobs`、`--keep-raw`、`--clean`、`--quiet`；默认值与边界见 [本地开发](docs/development.md)。
 
 #### 照片时区工具
 
-| 变量或参数 | 默认值 | 必填 | 适用场景与用途 |
-|:--|:--|:--|:--|
-| `IMMICH_API_KEY` | 无 | 是（执行写入时） | 调用 Immich 资产 API 所需的密钥，需要 `asset.update` 权限 |
-| `IMMICH_BASE_URL` | `http://localhost:2283` | 否 | Immich 服务地址 |
-| `--timezone` | `Asia/Shanghai` | 否 | 要写入资产的 IANA 时区 |
-| `--apply` | 关闭 | 否 | 默认试运行；显式传入后才写入 Immich |
+| 变量或参数 | 默认值 | 说明 |
+|:--|:--|:--|
+| `IMMICH_API_KEY` | 无 | 执行写入时必填；需要 `asset.update` 权限 |
+| `IMMICH_BASE_URL` | `http://localhost:2283` | Immich 服务地址 |
+| `--timezone` | `Asia/Shanghai` | 要写入资产的 IANA 时区 |
+| `--apply` | 关闭 | 默认试运行；显式传入后才写入 Immich |
 
 #### 上游 Immich 配置
 
-以下变量属于 Immich 上游契约，本项目只保留或透传，默认不覆盖。需要调整时请同时阅读 [Immich 集成契约](docs/immich-integration.md)。
-
-| 变量 | 默认值 | 必填 | 适用场景与用途 |
-|:--|:--|:--|:--|
-| `TZ` | `Asia/Shanghai`（示例） | 否 | 服务端进程、日志与存储模板时区；不改变照片 EXIF 的拍摄时间 |
-| `IMMICH_CONFIG_FILE` | 上游默认 | 否 | 使用 Immich 的 YAML 或 JSON 配置文件 |
-| `IMMICH_HELMET_FILE` | 上游默认 | 否 | 配置 CSP 与 helmet；自定义地图回源时需要 |
-| `IMMICH_TRUSTED_PROXIES` | 上游默认 | 否 | 反向代理后的可信代理范围 |
-| `IMMICH_WORKERS_INCLUDE` | 上游默认 | 否 | 控制 Immich 工作进程包含范围 |
-| `IMMICH_WORKERS_EXCLUDE` | 上游默认 | 否 | 控制 Immich 工作进程排除范围 |
-| `IMMICH_ALLOW_SETUP` | 上游默认 | 否 | 是否允许初次初始化 |
-| `IMMICH_IGNORE_MOUNT_CHECK_ERRORS` | 上游默认 | 否 | 存储挂载检查策略 |
-| `IMMICH_ALLOW_EXTERNAL_PLUGINS` | 上游默认 | 否 | 外部插件开关，默认不启用 |
+以下变量属于 Immich 上游契约，本项目只保留或透传，默认不覆盖：`TZ`、`IMMICH_CONFIG_FILE`、`IMMICH_HELMET_FILE`、`IMMICH_TRUSTED_PROXIES`、`IMMICH_WORKERS_INCLUDE`、`IMMICH_WORKERS_EXCLUDE`、`IMMICH_ALLOW_SETUP`、`IMMICH_IGNORE_MOUNT_CHECK_ERRORS`、`IMMICH_ALLOW_EXTERNAL_PLUGINS`。完整边界见 [Immich 集成契约](docs/immich-integration.md)。
 
 ### 刷新生效
 
