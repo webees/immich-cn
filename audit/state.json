@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 229,
+  "round": 230,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 169,
+    "findings": 170,
     "clean_rounds": 71,
     "p0": 0,
     "p1": 33,
-    "p2": 103,
+    "p2": 104,
     "p3": 42
   },
   "status": "active",
@@ -2331,6 +2331,16 @@
       "severity": null,
       "evidence": "复核 `docs/packages.md`、`docs/architecture.md`、`release.yml` 与 `_build-data.yml`：两个 package 的用途、基础镜像、入口、平台、tag 和 AGPL/MIT 边界一致；语义版本 tag 在签名验证后通过 `imagetools create` 指向同一 digest，Release 在镜像构建后创建。没有发现新的已确认代码缺陷。scheduled `Auto Data Update` 仍未出现，因此本轮不计 clean，保持 clean_streak=0；下一步继续复核同一 schedule。",
       "pr": null
+    },
+    {
+      "round": 230,
+      "timestamp": "2026-10-07T17:00:00+07:00",
+      "focus": "Release asset 不完整时的假 no-change 路径",
+      "method": "M6 失败恢复审计 + M3 workflow 负向输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "change detection 只比较 fingerprint、base digest 与 data image，不检查 `auto-release` asset 是否与 dist 一致；资产缺失、上传失败或多出 legacy 名时会错误进入 no-change 并关闭告警，当前 legacy assets 也属于该不一致状态。修复：新增 remote asset 与本地 dist 排序对拍，集合不一致时强制进入 release，由既有 reconciliation 删除 legacy/多余资产并补齐缺失资产；增加 workflow 静态护栏、负向测试与架构说明。make check 354 tests、docs、workflow、shell 全绿；PR #173 合并 main 82bf0cc，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/173"
     }
   ],
   "residual_risks": [
