@@ -2,7 +2,7 @@ PYTHON ?= python3
 VENV ?= .venv
 BIN := $(VENV)/bin
 
-.PHONY: help venv install lint format typecheck test docs workflows shellcheck check smoke artifacts entrypoint audit-ledger build clean
+.PHONY: help venv install lint format typecheck test docs workflows shellcheck check smoke artifacts entrypoint audit-ledger audit-pins build clean
 
 help: ## 显示可用目标
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -39,6 +39,9 @@ shellcheck: ## 校验 shell 脚本的变量展开等静态问题
 
 audit-ledger: ## 校验审计账本一致性（汇总必须能由 history 复算）
 	$(BIN)/python scripts/check_audit_ledger.py --path work/audit/state.json
+
+audit-pins: ## 校验 Action pin 与上游 tag 一致（需要网络与 GITHUB_TOKEN）
+	$(BIN)/python -m scripts.check_action_pins --repository $${GITHUB_REPOSITORY:-webees/immich-cn}
 
 check: lint typecheck test docs workflows shellcheck ## 全部检查
 
