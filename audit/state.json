@@ -2,7 +2,7 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 269,
+  "round": 270,
   "consecutive_clean": 0,
   "totals": {
     "findings": 189,
@@ -2737,6 +2737,16 @@
       "severity": null,
       "evidence": "确认 CI 原先只运行 check_workflows 的离线格式检查，Action pin 与上游 tag 的漂移仍依赖人工执行 make audit-pins。已在 ci.yml 的 Python 作业中加入同一脚本，使用 GITHUB_TOKEN 对拍 25 个 pin；PR #210 四项 required checks 全绿并合并 main 43b2523。该轮是覆盖加固，不产生新的 clean 结论；仍等待不可逆删除授权与外部权限。",
       "pr": "https://github.com/webees/immich-cn/pull/210"
+    },
+    {
+      "round": 270,
+      "timestamp": "2026-10-08T16:50:00+07:00",
+      "focus": "把死代码扫描从人工目标纳入 CI 持续门禁",
+      "method": "M7 引用计数 + 工作流负向检查",
+      "verdict": "wait",
+      "severity": null,
+      "evidence": "确认 check_dead_symbols 是离线检查但原先只通过 make audit-dead-symbols 人工执行；已在 ci.yml 的 Python 作业中加入同一脚本。本地 make audit-dead-symbols 通过（零引用定义 0），make check 447 passed；PR #211 四项 required checks 全绿并合并 main 50ea416。该轮是覆盖加固，不产生新的 clean 结论。",
+      "pr": "https://github.com/webees/immich-cn/pull/211"
     }
   ],
   "residual_risks": [
