@@ -13,7 +13,7 @@ services:
       IMMICH_CN_PATTERN: "{admin_2}"
       IMMICH_CN_FORCE_RELOAD: "0"
     volumes:
-      - ${UPLOAD_LOCATION}:/usr/src/app/upload
+      - ${UPLOAD_LOCATION}:/data
       - /etc/localtime:/etc/localtime:ro
     expose:
       - "2283"
@@ -21,6 +21,19 @@ services:
       - redis
       - database
     restart: always
+
+  immich-machine-learning:
+    image: ${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/immich-app/immich-machine-learning:release
+    container_name: immich_machine_learning
+    env_file:
+      - .env
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - model-cache:/cache
+    restart: always
+    healthcheck:
+      disable: false
 
   nginx:
     image: docker.io/nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
@@ -34,7 +47,7 @@ services:
     restart: always
 
   redis:
-    image: docker.io/valkey/valkey:8-bookworm
+    image: docker.io/valkey/valkey:9@sha256:c123e3715db63d06d4ad6964884037aa0d5d4d703939b9929954112889708e1d
     container_name: immich_redis
     healthcheck:
       test: redis-cli ping || exit 1
@@ -50,4 +63,8 @@ services:
       POSTGRES_INITDB_ARGS: "--data-checksums"
     volumes:
       - ${DB_DATA_LOCATION}:/var/lib/postgresql/data
+    shm_size: 128mb
     restart: always
+
+volumes:
+  model-cache:
