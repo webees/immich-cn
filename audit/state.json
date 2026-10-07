@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 215,
+  "round": 216,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 160,
+    "findings": 161,
     "clean_rounds": 68,
     "p0": 0,
     "p1": 33,
-    "p2": 94,
+    "p2": 95,
     "p3": 42
   },
   "status": "active",
@@ -2191,6 +2191,16 @@
       "severity": "P2",
       "evidence": "`scripts/set_asset_timezone.py` 固定调用 `PUT /api/assets`；Immich v3.3.0 已把该端点标记 deprecated，官方替代为 `PATCH /api/assets`，但 v1.136.0 等旧版本仍只有 PUT。修复：优先 PATCH，仅在 404/405 时回退 PUT；搜索与批量更新统一使用 408/425/429/5xx 重试；新增 PATCH 正常路径与 PUT fallback 测试，文档同步说明。make check 342 tests、docs、workflow、shell 全绿；PR #163 合并 main 429076c，四项 required checks 全绿。真实 Immich 实例尚未执行批量写入复验。",
       "pr": "https://github.com/webees/immich-cn/pull/163"
+    },
+    {
+      "round": 216,
+      "timestamp": "2026-10-07T12:05:00+07:00",
+      "focus": "Immich 内置中文 UI locale 与项目本地化边界",
+      "method": "M4 上游源码快照 + M9 文档-实现逐条核对",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "集成契约把 UI translation 列为需要上游修改，但 Immich v3.3.0 已内置 `i18n/zh_Hans.json` 与 `i18n/zh_Hant.json`，并在 `web/src/lib/utils/i18n.ts` 中把 zh-CN/zh-SG 映射为 zh-Hans、zh-TW/zh-HK/zh-MO 映射为 zh-Hant。修复：新增 upstream built-in locale 分类，明确 User Settings → App Settings → Language 是 per-user preference，项目不 fork UI；增加逐行护栏和负向测试。make check 343 tests、docs、workflow、shell 全绿；PR #164 合并 main 7267e7a，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/164"
     }
   ],
   "residual_risks": [
