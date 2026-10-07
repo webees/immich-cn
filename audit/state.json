@@ -2,7 +2,7 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 296,
+  "round": 297,
   "consecutive_clean": 0,
   "totals": {
     "findings": 199,
@@ -13,7 +13,7 @@
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M4 契约快照",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3007,6 +3007,16 @@
       "severity": "P2",
       "evidence": "构造 `IMMICH_CN_LANGS_DIR` 目录，仅放入 LICENSE、不放入 en.json，原 `docker/install.sh` 会复制残缺语言包并 exit 0；默认数据镜像的嵌套布局为 `<root>/langs/{LICENSE,en.json}`，因此校验必须按该路径执行。修复为写入 target 前检查 `<root>/langs/LICENSE` 与 `<root>/langs/en.json`，不完整即失败；补回归用例。首次 CI 失败暴露出校验路径误写成根目录，修正后 `make entrypoint`、`make check` 451 passed，PR #224 合并 main f6f4a5e，四项 required checks 全绿；clean_streak 仍为 0。",
       "pr": "https://github.com/webees/immich-cn/pull/224"
+    },
+    {
+      "round": 297,
+      "timestamp": "2026-10-08T23:05:00+08:00",
+      "focus": "版本契约：Immich 对齐四段式",
+      "method": "M4 契约快照",
+      "verdict": "wait",
+      "severity": null,
+      "evidence": "按用户要求把项目版本从三段式改为 `<Immich 版本>.<项目修订>`：当前上游 Immich `3.3.0` 对应项目 `3.3.0.1`，Git 标签为 `v3.3.0.1`，镜像标签为 `3.3.0.1`。同步更新 pyproject、__init__、CITATION、Release 工作流、cleanup 稳定版本保护、文档与测试；`make check` 452 passed，PR #225 合并 main 1e7ecaa，四项 required checks 全绿。该轮改变版本契约与护栏，按审计规则用 wait 记录并重置 clean_streak。",
+      "pr": "https://github.com/webees/immich-cn/pull/225"
     }
   ],
   "residual_risks": [
@@ -3158,7 +3168,8 @@
     "第 293 轮的 M7 只检查了 PackageResult 字段引用，没有把「数据类字段只写不读」固化成自动护栏；`checksums` 目前仅由测试读取，若未来测试移除，需要重新评估其是否保留",
     "第 294 轮资产与 digest 是 2026-10-08 的时点快照；滚动 `auto-release`、`latest` 与 `release` 标签可继续变化，文档护栏只校验命名与标签规则，不固定未来 digest",
     "第 295 轮的依赖覆盖护栏只检查 job 级 `if`；step 级 `always()` 与 `!cancelled()` 不在覆盖范围，若未来把关键收敛逻辑拆到 step 条件中需要另加检查",
-    "第 296 轮把 `IMMICH_CN_LANGS_DIR` 的契约固定为包含 `langs/` 子目录；若外部用户此前传入扁平的 `en.json` 目录，现在会被拒绝，需要按其目录结构调整或使用 `--geodata-only`"
+    "第 296 轮把 `IMMICH_CN_LANGS_DIR` 的契约固定为包含 `langs/` 子目录；若外部用户此前传入扁平的 `en.json` 目录，现在会被拒绝，需要按其目录结构调整或使用 `--geodata-only`",
+    "第 297 轮的四段式版本要求前三段与 Immich 上游版本对齐，但现有护栏不会联网核对当前上游 release；发布前仍需人工确认 Immich 版本并选择对应的第四段修订号"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
