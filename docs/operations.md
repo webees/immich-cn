@@ -83,5 +83,5 @@ python scripts/cleanup.py --release-retention 14 \
 ## 审计工具
 
 - `make audit-ledger`：审计账本的汇总必须能按轮次从明细复算；
-- `make audit-pins`：Action 固定引用必须与注释里的版本标签指向同一提交（需要网络与令牌）；
+- `make audit-pins`：Action 固定引用必须与注释里的版本标签指向同一提交（需要网络与令牌）；CI 的 Python 作业也会执行同一脚本，防止 pin 漂移；
 - `make audit-dead-symbols`：扫描 `src/` 与 `scripts/` 的零引用模块级定义。
