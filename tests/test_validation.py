@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 
@@ -187,6 +188,64 @@ def test_broken_geojson_is_rejected(build_options: BuildOptions) -> None:
     result = run_build(build_options)
     (result.geodata_dir / "ne_10m_admin_0_countries.geojson").write_text("{not json", encoding="utf-8")
     assert "natural-earth" in _failures(result.geodata_dir)
+
+
+def test_geojson_missing_immich_properties_is_rejected(build_options: BuildOptions) -> None:
+    """Immich 把 properties.TYPE 等写入 NOT NULL 列，缺字段会让 country fallback 失败。"""
+    result = run_build(build_options)
+    path = result.geodata_dir / "ne_10m_admin_0_countries.geojson"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["features"][0]["properties"].pop("TYPE")
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert "natural-earth" in _failures(result.geodata_dir)
+
+
+def test_geojson_non_polygon_geometry_is_rejected(build_options: BuildOptions) -> None:
+    """Immich 把 geometry.coordinates 拼成 PostgreSQL polygon，点几何无法入库。"""
+    result = run_build(build_options)
+    path = result.geodata_dir / "ne_10m_admin_0_countries.geojson"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["features"][0]["geometry"] = {"type": "Point", "coordinates": [104.0, 35.0]}
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert "natural-earth" in _failures(result.geodata_dir)
+
+
+def test_overlong_place_name_is_rejected(build_options: BuildOptions) -> None:
+    """Immich geodata_places.name 是 varchar(200)，超长会让整个 import 失败。"""
+    result = run_build(build_options)
+    cities = result.geodata_dir / "cities500.txt"
+    lines = cities.read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(lines):
+        fields = line.split("\t")
+        if fields[8] == "US":
+            fields[1] = "x" * 201
+            lines[index] = "\t".join(fields)
+            break
+    else:
+        raise AssertionError("测试前提：样例数据应包含 US 记录")
+    cities.write_text("".join(line + "\n" for line in lines), encoding="utf-8")
+
+    assert "cities500-immich-columns" in _failures(result.geodata_dir)
+
+
+def test_invalid_modification_date_is_rejected(build_options: BuildOptions) -> None:
+    """Immich geodata_places.modificationDate 是 NOT NULL date 列，空值无法导入。"""
+    result = run_build(build_options)
+    cities = result.geodata_dir / "cities500.txt"
+    lines = cities.read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(lines):
+        fields = line.split("\t")
+        if fields[8] == "US":
+            fields[18] = ""
+            lines[index] = "\t".join(fields)
+            break
+    else:
+        raise AssertionError("测试前提：样例数据应包含 US 记录")
+    cities.write_text("".join(line + "\n" for line in lines), encoding="utf-8")
+
+    assert "cities500-modification-date" in _failures(result.geodata_dir)
 
 
 def test_duplicate_geoname_ids_are_rejected(build_options: BuildOptions) -> None:

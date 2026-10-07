@@ -25,7 +25,7 @@
 | `admin2Codes.txt` | Immich 以 0-based column 0 为 key、0-based column 1 为名称建立 admin2 map |
 | `countryInfo.txt` | 国家名来自 0-based column 4；alpha-2/alpha-3 分别位于 0-based column 0/1 |
 | `geodata-date.txt` | 与 Immich metadata 中的 `lastUpdate` **相等时跳过 import**，不等时重新 import |
-| `ne_10m_admin_0_countries.geojson` | 没有城市点时的 country fallback |
+| `ne_10m_admin_0_countries.geojson` | 没有城市点时的 country fallback；Immich 读取每个 Feature 的 `properties.ADMIN` / `ADM0_A3` / `TYPE` 与 `geometry.coordinates`，写入 `naturalearth_countries` 的 NOT NULL 列 |
 
 本文的 `column` 一律指 `line.split('\t')` 的 0-based index，避免把 `column 1` 误读成自然语言中的“第一列”。本项目的职责是让这些文件始终符合上述 column contract，并通过 validation 和 artifact checksum 阻止坏数据发布。我们不在 Immich 数据库中直接写 `geodata_places`，也不覆盖 Immich 的 migration。
 
@@ -40,6 +40,20 @@
 所以制品行数不等于 Immich 实际写入 `geodata_places` 的行数。2026-10-07 对当时全量制品实测：256,626 行中有 7,307 行会被跳过（7,278 行 `PPLX` 非 `AU`，29 行 `PPLH`），其中 `CN` 77 行。复算方式：解压任一 geodata 制品，对 `geodata/cities500.txt` 按 0-based column 7/8 统计。
 
 本项目不预先删除这些行。过滤规则是 Immich 的版本行为，制品仍需保持 GeoNames 语义完整；差异只在上文量化，不作为“全部记录都会出现在 Immich”的依据。
+
+### Column limits
+
+导入后的记录写入 Immich `geodata_places`，该表的列宽与 NOT NULL 约束构成硬上限；超限会让整个 import 失败，而不是丢弃单条记录：
+
+| 文件字段（0-based） | Immich 列 | 约束 |
+|:--|:--|:--|
+| `cities500.txt` column 1 | `name` | `varchar(200) NOT NULL` |
+| `cities500.txt` column 8 | `countryCode` | `char(2) NOT NULL` |
+| `cities500.txt` column 10 | `admin1Code` | `varchar(20)` |
+| `cities500.txt` column 11 | `admin2Code` | `varchar(80)` |
+| `cities500.txt` column 18 | `modificationDate` | `date NOT NULL` |
+
+`validation.py` 对以上四项做构建期校验：`cities500-immich-columns` 检查长度上限与两字符 `countryCode`，`cities500-modification-date` 检查 `YYYY-MM-DD` 可解析性。这两项在 2026-10-07 的真实制品上均为 0 违规。
 
 ## Config and environment
 
