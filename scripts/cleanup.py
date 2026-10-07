@@ -559,6 +559,11 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _github_token() -> str:
+    """兼容仓库工作流常用的 GITHUB_TOKEN 与 gh CLI 的 GH_TOKEN 变量名。"""
+    return os.environ.get("PACKAGE_ADMIN_TOKEN") or os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN", "")
+
+
 def _release_manifest(dist_dir: Path) -> set[str]:
     if not dist_dir.is_dir():
         raise CleanupError(f"{dist_dir} 不是目录，无法作为清单来源")
@@ -674,7 +679,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         client = GitHubClient(
             repository=os.environ.get("GITHUB_REPOSITORY", "webees/immich-cn"),
-            token=os.environ.get("PACKAGE_ADMIN_TOKEN") or os.environ.get("GITHUB_TOKEN", ""),
+            token=_github_token(),
         )
         if args.prune_release_assets:
             return _prune_release_assets(client, args)

@@ -17,6 +17,7 @@ from scripts.cleanup import (
     PackageVersionRecord,
     ReleaseRecord,
     RunRecord,
+    _github_token,
     _prune_legacy_assets,
     _prune_release_assets,
     _verify_release_assets,
@@ -65,6 +66,14 @@ def test_cleanup_settings_rejects_non_positive_values() -> None:
         CleanupSettings(0, 30, 20, 20, False).validate()
     with pytest.raises(CleanupError, match="package_retention"):
         CleanupSettings(14, 30, 20, 0, False).validate()
+
+
+def test_cleanup_accepts_gh_token_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """仓库工作流常用 GH_TOKEN，脚本也必须接受它。"""
+    monkeypatch.delenv("PACKAGE_ADMIN_TOKEN", raising=False)
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.setenv("GH_TOKEN", "gh-token")
+    assert _github_token() == "gh-token"
 
 
 def test_release_cleanup_preserves_semver_auto_and_latest_snapshots() -> None:
