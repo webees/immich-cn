@@ -372,6 +372,28 @@ def test_github_client_retries_transient_http_errors(monkeypatch: pytest.MonkeyP
     assert len(attempts) == 3
 
 
+def test_github_client_rejects_expired_token_without_retry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """过期/无效令牌必须立即失败，不能靠重试掩盖 401。"""
+    attempts: list[int] = []
+
+    def fake_urlopen(request: Any, timeout: float) -> FakeResponse:
+        attempts.append(1)
+        raise urllib.error.HTTPError(
+            request.full_url,
+            401,
+            "Unauthorized",
+            {},
+            io.BytesIO(b'{"message":"Bad credentials"}'),
+        )
+
+    monkeypatch.setattr("scripts.cleanup.urllib.request.urlopen", fake_urlopen)
+    client = GitHubClient("webees/immich-cn", "expired-token")
+
+    with pytest.raises(CleanupError, match="HTTP 401"):
+        client._request("GET", "/repos/webees/immich-cn")
+    assert len(attempts) == 1
+
+
 def test_github_client_allows_not_found_for_idempotent_delete(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_urlopen(request: Any, timeout: float) -> FakeResponse:
         raise urllib.error.HTTPError(request.full_url, 404, "gone", {}, io.BytesIO(b""))
