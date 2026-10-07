@@ -107,6 +107,15 @@ jobs:
           name: ${{ needs.build.outputs.artifact }}
           path: dist
 
+      - name: 验证 semantic version image tags
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          for image in "ghcr.io/${GITHUB_REPOSITORY}" "ghcr.io/${GITHUB_REPOSITORY}-server"; do
+            docker manifest inspect "${image}:${VERSION}" >/dev/null
+          done
+
       - name: 创建 Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

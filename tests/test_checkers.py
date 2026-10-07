@@ -1096,6 +1096,19 @@ def test_check_workflows_requires_versioned_release_images(repo_copy: Path) -> N
     assert "image version tag" in result.stdout
 
 
+def test_check_workflows_requires_post_build_versioned_image_tags(repo_copy: Path) -> None:
+    """创建 GitHub Release 前必须验证构建产出的两个 image version tag。"""
+    workflow = repo_copy / ".github" / "workflows" / "release.yml"
+    mutate(
+        workflow,
+        "      - name: 验证 semantic version image tags\n",
+        "      - name: disabled verification\n",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "创建 Release 前未验证" in result.stdout
+
+
 def test_check_workflows_rejects_vacuous_versioned_release_image_guard(repo_copy: Path) -> None:
     """保留 push-images 文案但把拒绝条件改成恒假时，护栏必须失败。"""
     workflow = repo_copy / ".github" / "workflows" / "release.yml"
