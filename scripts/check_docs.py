@@ -65,6 +65,14 @@ PROCESS_OR_LEGAL_CLAIMS: dict[str, str] = {
 INDEPENDENCE_ANCHOR = "本项目按独立实现组织"
 INDEPENDENCE_SECTION_END = "## 数据模型与使用方式"
 
+#: 中国本地化是项目的主方向，README、专题文档、部署示例和时区默认值必须一致。
+CHINA_LOCALIZATION_DOC = Path("docs/china-localization.md")
+CHINA_LOCALIZATION_ANCHOR = "面向中国用户的 Immich 本地化项目"
+CHINA_LOCALIZATION_PILLARS = ("显示", "检索", "部署", "数据")
+CHINA_LOCALIZATION_PHASES = ("阶段 1", "阶段 2", "阶段 3", "阶段 4")
+CHINA_TIMEZONE = "TZ: Asia/Shanghai"
+CHINA_LOCALIZATION_OVERCLAIM = "完整行政区层级"
+
 #: 时间承诺（“会在 N 天内回复”）无法保证，必须改为“通常”并注明不是承诺。
 #: 已经带“通常”的句式视为合规，不再重复报警（否则护栏会自相矛盾）。
 SLA_PROMISE = re.compile(r"(?<!通常)会\s*在\s*\d+\s*(?:个)?(?:天|日|小时|周|工作日)内")
@@ -397,6 +405,32 @@ def check_project_positioning(errors: list[str]) -> None:
     )
     if marker_line is None or positions[0] < marker_line:
         errors.append("对 ZingLix/immich-geodata-cn 的引用必须位于 README 底部致谢")
+
+
+def check_china_localization_contract(errors: list[str]) -> None:
+    """中国本地化定位必须可发现、覆盖四个支柱，并给出中国时区默认值。"""
+    readme = Path("README.md").read_text(encoding="utf-8")
+    if CHINA_LOCALIZATION_ANCHOR not in readme:
+        errors.append(f"README 缺少中国本地化定位锚点：{CHINA_LOCALIZATION_ANCHOR}")
+    if "docs/china-localization.md" not in readme:
+        errors.append("README 必须链接 docs/china-localization.md，说明本地化边界与路线图")
+    if CHINA_LOCALIZATION_OVERCLAIM in readme:
+        errors.append(f"README 不应把当前未完成的目标写成既成事实：{CHINA_LOCALIZATION_OVERCLAIM}")
+
+    if not CHINA_LOCALIZATION_DOC.exists():
+        errors.append(f"缺失中国本地化专题文档：{CHINA_LOCALIZATION_DOC}")
+        return
+    doc = CHINA_LOCALIZATION_DOC.read_text(encoding="utf-8")
+    for pillar in CHINA_LOCALIZATION_PILLARS:
+        if f"| {pillar} |" not in doc:
+            errors.append(f"{CHINA_LOCALIZATION_DOC} 的四支柱表缺少「{pillar}」行")
+    for phase in CHINA_LOCALIZATION_PHASES:
+        if phase not in doc:
+            errors.append(f"{CHINA_LOCALIZATION_DOC} 缺少路线图阶段：{phase}")
+
+    for path in (Path("docs/deployment.md"), *sorted(Path("examples").glob("*.yml"))):
+        if CHINA_TIMEZONE not in path.read_text(encoding="utf-8"):
+            errors.append(f"{path} 缺少中国本地化默认时区：{CHINA_TIMEZONE}")
 
 
 def check_absolute_claims(paths: list[Path], errors: list[str]) -> None:
@@ -866,6 +900,7 @@ def main(argv: list[str] | None = None) -> int:
     check_module_name_table(errors)
     check_referenced_paths(doc_files, errors)
     check_project_positioning(errors)
+    check_china_localization_contract(errors)
     check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
     check_process_or_legal_claims([*doc_files, Path("CITATION.cff")], errors)
     check_independence_guidance(errors)

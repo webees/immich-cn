@@ -22,6 +22,7 @@ services:
     env_file:
       - .env
     environment:
+      TZ: Asia/Shanghai
       IMMICH_CN_PATTERN: "{admin_2}"
       # 数据更新后强制重新导入（镜像内 geodata-date.txt 已是构建时间，一般不需要）
       IMMICH_CN_FORCE_RELOAD: "0"
@@ -71,6 +72,8 @@ services:
 | `--geodata-only` | 只释放 `geodata/`，不复制 `i18n-iso-countries/` 国家名覆盖（Immich 3.3.0 起改读 `countryInfo.txt`，不再需要该覆盖） |
 
 > `IMMICH_CN_DATA_DATE` 是构建参数写入的只读元信息（镜像内可见），无需手动设置。
+
+`TZ=Asia/Shanghai` 是面向中国用户的默认示例。若宿主机已正确设置时区，也可以保留 `/etc/localtime` 挂载；两者同时存在时，容器内的 `TZ` 环境变量优先。
 
 ## 方案 B：官方镜像 + 数据镜像
 
@@ -126,6 +129,17 @@ date -u +"%Y-%m-%dT%H:%M:%S+00:00" > ./immich-cn/geodata/geodata-date.txt
 # 镜像方案
 # 把 IMMICH_CN_FORCE_RELOAD 设为 1 后重启容器
 ```
+
+## 国内网络与镜像获取
+
+本项目不内置第三方镜像加速地址，也不把未经核验的镜像站当作官方来源。网络不稳定时，可以：
+
+- 为 `docker` 或 `containerd` 配置你信任的 registry mirror，并确认它同步的是 `ghcr.io` 上的同一 digest；
+- 拉取后执行 `docker buildx imagetools inspect` 或 `docker inspect` 记录 digest；
+- 对需要长期固定的镜像使用 `@sha256:<digest>`，不要只写 `latest`；
+- 从 Release 下载数据时使用校验文件验证内容；GitHub 的 `releases/latest/download` 只负责定位，不代表内容已在本机验证。
+
+国内网络环境下，地图底图与坐标偏移是另一个问题：本项目输出的坐标来自 GeoNames（WGS-84）。若底图使用 GCJ-02，请阅读 [中国本地化方向](china-localization.md) 的坐标说明，或改用 WGS-84 底图。
 
 ## 更新数据
 

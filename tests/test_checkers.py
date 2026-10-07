@@ -310,7 +310,7 @@ def test_check_docs_detects_quote_soft_break(repo_copy: Path) -> None:
 def test_check_docs_detects_citation_punct_space(repo_copy: Path) -> None:
     """CITATION.cff 折叠标量会在中文标点后留下空格，必须被拦下。"""
     citation = repo_copy / "CITATION.cff"
-    mutate(citation, "构建流水线，包含 GeoNames", "构建流水线， 包含 GeoNames")
+    mutate(citation, "面向中国用户的 Immich 本地化项目，提供", "面向中国用户的 Immich 本地化项目， 提供")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "中文标点后出现空格" in result.stdout
@@ -499,6 +499,33 @@ def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "错误的项目定位" in result.stdout
+
+
+def test_check_docs_requires_china_localization_anchor(repo_copy: Path) -> None:
+    """README 丢掉中国本地化定位时必须失败，避免方向再次退化成单纯数据包。"""
+    readme = repo_copy / "README.md"
+    mutate(readme, "面向中国用户的 Immich 本地化项目", "Immich 数据工具")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "中国本地化定位锚点" in result.stdout
+
+
+def test_check_docs_requires_china_localization_pillars(repo_copy: Path) -> None:
+    """四支柱被删掉一项时必须失败，避免路线图只剩宣传性描述。"""
+    localization = repo_copy / "docs" / "china-localization.md"
+    mutate(localization, "| 检索 |", "| 查询 |")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "缺少「检索」行" in result.stdout
+
+
+def test_check_docs_requires_china_timezone(repo_copy: Path) -> None:
+    """面向中国用户的部署示例必须显式设置中国时区。"""
+    compose = repo_copy / "examples" / "compose.server.yml"
+    mutate(compose, "TZ: Asia/Shanghai\n", "")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "中国本地化默认时区" in result.stdout
 
 
 def test_check_docs_rejects_process_claims(repo_copy: Path) -> None:
