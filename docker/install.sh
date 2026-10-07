@@ -58,6 +58,19 @@ if [ -n "$missing_files" ]; then
   exit 1
 fi
 
+langs_missing=""
+if [ -n "$langs_root" ] && [ -d "$langs_root" ]; then
+  for name in LICENSE en.json; do
+    if [ ! -s "$langs_root/langs/$name" ]; then
+      langs_missing="${langs_missing} ${name}"
+    fi
+  done
+  if [ -n "$langs_missing" ]; then
+    echo "错误：国家名称目录缺少必需文件：${langs_missing# }" >&2
+    exit 1
+  fi
+fi
+
 rm -rf "$target/geodata"
 cp -a "$geodata_root" "$target/geodata"
 if [ -n "$langs_root" ]; then
