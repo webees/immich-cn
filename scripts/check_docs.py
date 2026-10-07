@@ -98,6 +98,7 @@ CHINA_LOCALIZATION_ANCHOR = "immich-cn 为 Immich 提供中国本地化的 rever
 CHINA_LOCALIZATION_AREAS = ("显示", "检索", "地图", "体验", "加速", "数据")
 CHINA_LOCALIZATION_PHASES = ("阶段 1", "阶段 2", "阶段 3", "阶段 4")
 CHINA_TIMEZONE = "TZ: Asia/Shanghai"
+MAKE_CHECK_DESCRIPTION = "lint + typecheck + test + docs + workflows + shellcheck"
 CHINA_LOCALIZATION_OVERCLAIM = "完整行政区层级"
 CHINA_ACCELERATION_DOC = Path("docs/china-acceleration.md")
 PROJECT_SCOPE_DOC = Path("docs/project-scope.md")
@@ -326,6 +327,13 @@ def check_make(doc_text: str, errors: list[str]) -> None:
     for target in sorted(set(MAKE_PATTERN.findall(doc_text))):
         if target not in targets:
             errors.append(f"文档使用了不存在的 make 目标：make {target}")
+
+
+def check_make_check_description(errors: list[str]) -> None:
+    """文档必须完整描述 make check 的实际门禁集合。"""
+    for path in (Path("CONTRIBUTING.md"), Path("docs/development.md")):
+        if MAKE_CHECK_DESCRIPTION not in path.read_text(encoding="utf-8"):
+            errors.append(f"{path} 的 make check 说明未覆盖实际门禁：{MAKE_CHECK_DESCRIPTION}")
 
 
 def check_langs_mounts(paths: list[Path], errors: list[str]) -> None:
@@ -1153,6 +1161,7 @@ def main(argv: list[str] | None = None) -> int:
     check_env_defaults(errors)
     check_cli(doc_text, errors)
     check_make(doc_text, errors)
+    check_make_check_description(errors)
     check_langs_mounts(doc_files + _expand(("examples/*.yml",)), errors)
     check_discoverable(errors)
     check_numeric_contracts(errors)
