@@ -37,3 +37,6 @@
 | `TTL` | cache time-to-live |
 | `rate limit` | provider 或 API 请求速率限制 |
 | `read-only` | 只允许读取、不允许写入的挂载或文件 |
+| `EXIF` | 照片元数据中的拍摄信息 |
+| `timeZone` | Immich EXIF metadata 中的 IANA timezone 字段 |
+| `dateTimeOriginal` | EXIF 原始拍摄时间字段 |
