@@ -35,10 +35,11 @@ RELEASE_CREATE = re.compile(r"\bgh release create\s+([A-Za-z0-9._-]+)")
 RELEASE_EDIT = re.compile(r"\bgh release edit\s+([A-Za-z0-9._-]+)")
 RELEASE_UPLOAD = re.compile(r"\bgh release upload\s+([A-Za-z0-9._-]+)")
 SCHEDULED = {"schedule"}
-#: 这些函数是运行级聚合判断，已经涵盖全部依赖的结果，因此不受"依赖覆盖"规则约束。
-#: 注意不能把 cancelled() 算进来：它只表示"是否被取消"，并不反映依赖是否失败，
-#: `!cancelled()` 实际等价于 always()，配合部分 needs 判断时仍会漏掉失败分支。
-GLOBAL_STATUS_FUNCTIONS = ("failure()", "success()", "always()")
+#: 这些函数是运行级聚合判断，已经涵盖全部依赖的结果，因此不受“依赖覆盖”规则约束。
+#: `always()` 与 `!cancelled()` 只表示“是否被取消”，并不反映依赖是否失败；
+#: 它们必须再逐个判断 needs，否则依赖失败时仍会运行。
+SAFE_GLOBAL_STATUS_FUNCTIONS = ("failure()", "success()")
+ALWAYS_STATUS_FUNCTIONS = ("always()", "!cancelled()")
 HASH_FILES_CALL = re.compile(r"hashFiles\(([^)]*)\)")
 HASH_FILES_ARG = re.compile(r"['\"]([^'\"]+)['\"]")
 #: 含这些字符的参数按 glob 处理，不要求字面路径存在。
@@ -368,7 +369,8 @@ def check_needs_coverage(path: Path, workflow: dict[str, Any], errors: list[str]
 
     只判断部分依赖（例如只写 `needs.build.result` 却漏了 `needs.release`），
     一旦被遗漏的依赖失败，该任务仍会照常运行——典型的失败路径缺陷。
-    使用 failure()/success()/always()/cancelled() 的运行级判断不受此规则约束。
+    使用 failure()/success() 的运行级判断不受此规则约束；always()/!cancelled()
+    必须同时逐个判断 needs，否则依赖失败时仍会运行。
     """
     for job_name, job in (workflow.get("jobs") or {}).items():
         if not isinstance(job, dict):
@@ -378,9 +380,11 @@ def check_needs_coverage(path: Path, workflow: dict[str, Any], errors: list[str]
             continue
         needed = [needs] if isinstance(needs, str) else list(needs)
         condition = str(job.get("if", ""))
-        if not condition or "needs." not in condition:
+        if not condition:
             continue
-        if any(function in condition for function in GLOBAL_STATUS_FUNCTIONS):
+        if any(function in condition for function in SAFE_GLOBAL_STATUS_FUNCTIONS):
+            continue
+        if "needs." not in condition and not any(function in condition for function in ALWAYS_STATUS_FUNCTIONS):
             continue
         missing = [name for name in needed if f"needs.{name}." not in condition]
         if missing:
