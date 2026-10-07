@@ -42,6 +42,18 @@ Immich 使用"最近的点"做反向地理编码，边界处的误差是原理�
 
 需要特别说明：GeoNames 的中国大陆 dump 里其实有上万个 `ADM4` 要素，但**带 `admin4` 代码的极少**（2026-10-07 实测 11,878 条里只有 73 条），而本项目靠 `CC.A1.A2.A3.A4` 代码拼层级，所以默认数据的 `{admin_4}` 通常回退到区县。若确实需要乡镇粒度，请启用高德 provider。
 
+## 地图上点位和底图有偏移怎么办？
+
+项目使用的 GeoNames 坐标是 WGS-84。OpenStreetMap 及其衍生底图通常也使用 WGS-84，不会产生系统性偏移；高德、腾讯等 GCJ-02 底图会有约数百米的偏移。Immich 不负责坐标转换，本项目也不在地名数据中混入 GCJ-02 坐标。请优先选择 WGS-84 底图，或在瓦片、代理或独立转换层处理坐标。细节见 [中国本地化方向](china-localization.md)。
+
+## 国内拉取 GHCR 镜像不稳定怎么办？
+
+可以配置你信任的 registry mirror，但必须验证它同步的是同一 digest；不要把任意镜像站当作官方来源。长期部署请固定到 `@sha256:<digest>`。数据 Release 下载后应使用 `immich-cn-checksums-sha256-v1.txt` 复核，具体命令见 [部署指南](deployment.md)。
+
+## 项目只适合中国大陆数据吗？
+
+不是。默认构建仍处理全球 `cities500`，但优先级和验证标准面向中国用户：CN/HK/TW/MO 有严格中文零缺失检查，中国大陆的区县、乡镇覆盖率被单独量化。海外地名能否显示中文，取决于 GeoNames 中文别名覆盖率与可选 provider；这不会阻止中国地区的名字正常显示。
+
 ## 为什么镜像里的数据比 Release zip 大？
 
 镜像内置的是默认非 full 数据集，点位口径与 `immich-cn-geodata-admin2-default-v1.zip` 一致；镜像还附带未压缩的 geodata 文件和用于运行时切换粒度的 `immich-cn-patterns-tsv-v1.gz`，因此不能直接与只下载一个 zip 的体积比较。需要 full 点位时请下载 `immich-cn-geodata-admin2-full-v1.zip`。

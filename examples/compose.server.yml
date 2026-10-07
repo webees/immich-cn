@@ -9,6 +9,7 @@ services:
     env_file:
       - .env
     environment:
+      TZ: Asia/Shanghai
       IMMICH_CN_PATTERN: "{admin_2}"
       IMMICH_CN_FORCE_RELOAD: "0"
     volumes:

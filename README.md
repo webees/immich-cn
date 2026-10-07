@@ -1,10 +1,12 @@
 # immich-cn
 
-> 为 [Immich](https://immich.app/) 提供**中文反向地理编码数据**的全自动构建流水线（设计目标：每天自动检查并更新；运行前提见后文）：中文地名、标准四级行政区、开箱即用的容器镜像。
+> **面向中国用户的 Immich 本地化项目**：为 [Immich](https://immich.app/) 提供中文地名、可切换的行政区层级、拼音/英文检索，并配套面向中国网络环境的部署与排障说明。数据流水线按设计每天自动检查并更新（运行前提见后文）。
 
 [![CI](https://github.com/webees/immich-cn/actions/workflows/ci.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/ci.yml) [![全自动更新数据](https://github.com/webees/immich-cn/actions/workflows/update-data.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/update-data.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Container](https://img.shields.io/badge/ghcr.io-immich--cn-blue)](https://github.com/webees/immich-cn/pkgs/container/immich-cn)
 
 Immich 的反向地理编码默认输出英文地名，本项目的目标是让照片地图显示**熟悉的中文地名**，并且可以直接用中文搜索地点。
+
+本地化不止于翻译：项目按「显示、检索、部署、数据」四个层面推进，当前进展与短板（例如中国大陆区县层级目前只对 1.8% 的点位生效）都写在 [docs/china-localization.md](docs/china-localization.md) 里。
 
 本项目按独立实现组织：本仓库当前树中的代码、配置、CI 工作流与数据构建脚本由本项目维护，没有引用或打包同类项目的代码文件与人工整理数据文件；核查范围、关键词与边界见 [docs/documentation-policy.md](docs/documentation-policy.md)。文末「致谢」记录了与本项目相关的上游思路来源。Immich 文本格式兼容属于消费者接口适配，不定义本项目的内部数据模型。以上描述的是当前仓库状态与项目声明，不是对历史过程或法律状态的结论。本仓库的源代码、配置、CI 工作流和文档采用 **MIT** 许可；生成的数据库与地理数据制品不属于 MIT，数据来源、署名和再分发要求见 [docs/licensing.md](docs/licensing.md)。
 
@@ -45,7 +47,7 @@ Immich 的反向地理编码默认输出英文地名，本项目的目标是让�
 | 上游检查 | 用 `ETag` / `Last-Modified` 条件请求校验 GeoNames、Natural Earth、i18n-iso-countries；未变化时 **304，不传输正文** |
 | 变化判断 | 用「上游文件 SHA256 + 构建配置 + 发布器修订」计算发布指纹，与上一次发布对比；无变化则跳过发布，避免无意义的版本和重复导入 |
 | 构建 | 重新生成四级行政层级、汉化 `cities500`、导出 7 种粒度 × full/非 full 共 14 个 geodata 变体与规范数据集 |
-| 校验 | 文件完整性、GeoNames ID 去重、中国与香港记录中文覆盖率、国家名称覆盖率全部通过才允许发布 |
+| 校验 | 文件完整性、GeoNames ID 去重、CN/HK/TW/MO 展示名零缺失、国家名称覆盖率全部通过才允许发布 |
 | 发布 | 更新滚动 Release `auto-release`、创建当日至多一个不可变日期快照 `data-YYYY-MM-DD`（同日后续修订用 `data-YYYY-MM-DD-sha-<短提交>`）、推送两个多架构镜像 |
 | 保留策略 | 默认保留最近 3 个 `data-*` 快照；达到策略期限后自动清理，手动修改策略除外 |
 | 失败兜底 | 任一环节失败自动创建/更新带 `automation` 标签的 issue，附带运行链接 |
@@ -64,6 +66,8 @@ services:
   immich-server:
     image: ghcr.io/webees/immich-cn-server:latest
     environment:
+      # 中国本地化默认时区
+      TZ: Asia/Shanghai
       # 可选：切换行政区展示粒度，默认 {admin_2}
       IMMICH_CN_PATTERN: "{admin_2} {admin_3}"
       # 可选：强制 Immich 重新导入 geodata
@@ -188,6 +192,7 @@ release.yml ──► 手动创建语义化版本 Release
 ## 文档
 
 - [架构设计](docs/architecture.md)
+- [中国本地化方向](docs/china-localization.md)
 - [制品命名规范 v4](docs/artifact-spec.md)
 - [项目命名规范](docs/naming-conventions.md)
 - [文档严谨性规范](docs/documentation-policy.md)
