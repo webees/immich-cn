@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 版本号，例如 1.1.0（会创建 v1.1.0 标签）
+        description: 项目版本号，格式为 Immich 版本加项目修订，例如 3.3.0.1（会创建 v3.3.0.1 标签）
         type: string
         required: true
       provider:
@@ -51,11 +51,11 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$PUSH_IMAGES" != "true" ]; then
-            echo "::error::版本化发布必须推送镜像；不能创建没有对应 semantic version image tag 的 Release"
+            echo "::error::版本化发布必须推送镜像；不能创建没有对应 Immich 对齐版本镜像标签的 Release"
             exit 1
           fi
-          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::版本号必须是语义化版本，例如 1.1.0"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::版本号必须是四段式 Immich 对齐版本，例如 3.3.0.1"
             exit 1
           fi
           repo_version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
@@ -107,7 +107,7 @@ jobs:
           name: ${{ needs.build.outputs.artifact }}
           path: dist
 
-      - name: 验证 semantic version image tags
+      - name: 验证 Immich 对齐版本镜像标签
         env:
           VERSION: ${{ inputs.version }}
           EXPECTED_DATA_DIGEST: ${{ needs.build.outputs.digest }}

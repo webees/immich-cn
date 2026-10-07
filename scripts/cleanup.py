@@ -21,7 +21,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-SEMVER = re.compile(r"^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
+#: 稳定版本标签：兼容历史三段式与当前四段式 Immich 对齐版本。
+STABLE_VERSION = re.compile(r"^v?\d+\.\d+\.\d+(?:\.\d+)?(?:[-+][0-9A-Za-z.-]+)?$")
 PACKAGE_TAGS = {"latest", "release"}
 PACKAGE_NAMES = ("immich-cn", "immich-cn-server")
 RETRY_STATUS = {408, 425, 429, 500, 502, 503, 504}
@@ -190,10 +191,10 @@ def select_releases(
     retention: int,
     prune_all: bool,
 ) -> tuple[ReleaseRecord, ...]:
-    """保留语义版本、auto-release 与最新数据快照，返回应删除项。"""
+    """保留稳定版本、auto-release 与最新数据快照，返回应删除项。"""
     keep: set[int] = set()
     for release in releases:
-        if release.tag_name == "auto-release" or SEMVER.match(release.tag_name):
+        if release.tag_name == "auto-release" or STABLE_VERSION.match(release.tag_name):
             keep.add(release.id)
     data_snapshots = sorted(
         (release for release in releases if release.tag_name.startswith("data-")),
@@ -261,12 +262,13 @@ def select_package_versions(
     retention: int,
     prune_all: bool,
 ) -> tuple[PackageVersionRecord, ...]:
-    """保留语义版本、稳定标签、digest-like tag、最新版本与 untagged 子 manifest，返回应删除项。"""
+    """保留稳定版本、稳定标签、digest-like tag、最新版本与 untagged 子 manifest，返回应删除项。"""
     keep: set[int] = set()
     candidates: list[PackageVersionRecord] = []
     for version in versions:
         protected = any(
-            SEMVER.match(tag) or tag in PACKAGE_TAGS or tag.startswith(("sha256-", "sha256:")) for tag in version.tags
+            STABLE_VERSION.match(tag) or tag in PACKAGE_TAGS or tag.startswith(("sha256-", "sha256:"))
+            for tag in version.tags
         )
         if protected or not version.tags:
             keep.add(version.id)
@@ -438,7 +440,7 @@ def build_plan(
     settings.validate()
     releases = client.list_releases()
     protected_shas = {
-        client.commit_sha_for_tag(release.tag_name) for release in releases if SEMVER.match(release.tag_name)
+        client.commit_sha_for_tag(release.tag_name) for release in releases if STABLE_VERSION.match(release.tag_name)
     }
     protected_shas.discard("")
     runs = client.list_runs()

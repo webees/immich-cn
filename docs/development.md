@@ -170,7 +170,7 @@ PYTHONPYCACHEPREFIX=$(mktemp -d) .venv/bin/python -m pytest -q -x
 ## 发布流程
 
 1. 合并到 `main` 后 CI 自动执行；
-2. 需要发版本时先同步 `pyproject.toml`、`src/immich_cn/__init__.py` 与 `CITATION.cff` 的版本号（`scripts/check_docs.py` 会拒绝三处不一致）；
-3. 手动触发 `Release` 工作流并填写相同版本号，预检查会拒绝版本漂移；
+2. 需要发版本时先同步 `pyproject.toml`、`src/immich_cn/__init__.py` 与 `CITATION.cff` 的四段式版本号，例如上游 Immich `3.3.0` 对应 `3.3.0.1`（`scripts/check_docs.py` 会拒绝三处不一致或格式错误）；
+3. 手动触发 `Release` 工作流并填写相同版本号，预检查会拒绝版本漂移或非四段式输入；
 4. 数据每天由 `Auto Data Update` 工作流自动更新（含条件校验与发布指纹比对），产出滚动发布与不可变 `data-*` 快照；
 5. 需要立即更新时手动触发 `Auto Data Update`，勾选 `force-publish` 可强制发布。

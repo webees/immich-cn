@@ -258,8 +258,9 @@ IMAGE_REFERENCE = re.compile(r"ghcr\.io/webees/immich-cn(?:-server)?:([A-Za-z0-9
 #: release.yml / _build-data.yml 真实推送的 tag 形态；语义版本不带 v 前缀。
 IMAGE_TAG_PATTERN = re.compile(
     r"^(?:latest|release|release-\d{4}-\d{2}-\d{2}|\d{4}-\d{2}-\d{2}"
-    r"|\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?|sha-[0-9a-f]{7,40})$"
+    r"|\d+\.\d+\.\d+(?:\.\d+)?(?:[-+][0-9A-Za-z.-]+)?|sha-[0-9a-f]{7,40})$"
 )
+PROJECT_VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+\.\d+$")
 CANONICAL_GEODATA = re.compile(r"^immich-cn-geodata-[a-z0-9-]+-(default|full)-v[0-9]+\.zip$")
 INTERNAL_FILES = {"immich-cn-patterns-v1.tsv"}
 LEGACY_ASSET_PREFIXES = ("geodata_admin_", "geodata_full", "geodata.zip")
@@ -727,8 +728,8 @@ def check_registry_mirror_contract(errors: list[str]) -> None:
 def check_image_tag_examples(doc_files: list[Path], errors: list[str]) -> None:
     """文档里写死的 GHCR tag 必须符合真实发布形态。
 
-    2026-10-07 实测：镜像 tag 是 `1.0.4`（没有 `v` 前缀），Git Release tag 才是
-    `v1.0.4`。文档若把两者混写，用户复制命令会直接 `not found`，而这类错误没有
+    2026-10-08 实测：镜像 tag 是 `3.3.0.1`（没有 `v` 前缀），Git Release tag 才是
+    `v3.3.0.1`。文档若把两者混写，用户复制命令会直接 `not found`，而这类错误没有
     任何机械护栏能发现。
     """
     checked = 0
@@ -1336,7 +1337,7 @@ def check_version_consistency(errors: list[str]) -> None:
 
     release.yml 只把用户输入的版本与 pyproject 比对；而镜像的 OCI version 取自
     包的 ``__version__``、Release tag 取自输入版本。三者一旦漂移，会出现「tag 是
-    1.0.5、镜像 OCI version 是 1.0.4」这类不一致。
+    3.3.0.2、镜像 OCI version 是 3.3.0.1」这类不一致。
     """
     import tomllib
 
@@ -1355,6 +1356,9 @@ def check_version_consistency(errors: list[str]) -> None:
         return
     if len(set(versions.values())) > 1:
         errors.append("项目版本号不一致：" + "、".join(f"{name}={value}" for name, value in versions.items()))
+    for name, value in versions.items():
+        if not PROJECT_VERSION_PATTERN.fullmatch(value):
+            errors.append(f"{name} 的项目版本 {value!r} 不是四段式 Immich 对齐版本，例如 3.3.0.1")
 
 
 def check_asset_names(paths: list[Path], errors: list[str]) -> None:

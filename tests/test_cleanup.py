@@ -76,13 +76,14 @@ def test_cleanup_accepts_gh_token_fallback(monkeypatch: pytest.MonkeyPatch) -> N
     assert _github_token() == "gh-token"
 
 
-def test_release_cleanup_preserves_semver_auto_and_latest_snapshots() -> None:
+def test_release_cleanup_preserves_stable_versions_auto_and_latest_snapshots() -> None:
     releases = [
         ReleaseRecord(1, "v1.0.4", at(1)),
         ReleaseRecord(2, "auto-release", at(2)),
         ReleaseRecord(3, "data-2026-10-07", at(1)),
         ReleaseRecord(4, "data-2026-10-06", at(2)),
         ReleaseRecord(5, "data-2026-10-05", at(3)),
+        ReleaseRecord(6, "v3.3.0.1", at(3)),
     ]
 
     selected = select_releases(releases, retention=2, prune_all=False)
@@ -96,6 +97,7 @@ def test_release_cleanup_prune_all_keeps_only_newest_snapshot() -> None:
         ReleaseRecord(2, "auto-release", at(2)),
         ReleaseRecord(3, "data-2026-10-07", at(1)),
         ReleaseRecord(4, "data-2026-10-06", at(2)),
+        ReleaseRecord(5, "v3.3.0.1", at(3)),
     ]
 
     selected = select_releases(releases, retention=14, prune_all=True)
@@ -203,7 +205,7 @@ def test_run_cleanup_prune_all_keeps_current_and_protected() -> None:
     assert {run.id for run in selected} == {3}
 
 
-def test_package_cleanup_preserves_semver_stable_and_recent_versions() -> None:
+def test_package_cleanup_preserves_stable_versions_and_recent_versions() -> None:
     versions = [
         PackageVersionRecord(1, at(1), ("v1.0.4",)),
         PackageVersionRecord(2, at(2), ("latest",)),
@@ -211,6 +213,7 @@ def test_package_cleanup_preserves_semver_stable_and_recent_versions() -> None:
         PackageVersionRecord(4, at(4), ("2026-10-07",)),
         PackageVersionRecord(5, at(5), ("2026-10-06",)),
         PackageVersionRecord(6, at(6), ("2026-10-05",)),
+        PackageVersionRecord(7, at(7), ("v3.3.0.1",)),
     ]
 
     selected = select_package_versions(versions, retention=2, prune_all=False)
@@ -224,6 +227,7 @@ def test_package_cleanup_prune_all_keeps_protected_and_newest_version() -> None:
         PackageVersionRecord(2, at(2), ("latest",)),
         PackageVersionRecord(3, at(3), ("2026-10-07",)),
         PackageVersionRecord(4, at(4), ("2026-10-06",)),
+        PackageVersionRecord(5, at(5), ("v3.3.0.1",)),
     ]
 
     selected = select_package_versions(versions, retention=20, prune_all=True)

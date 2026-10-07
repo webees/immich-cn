@@ -47,6 +47,10 @@ Compose 示例通过 `IMMICH_CN_GHCR_MIRROR` 选择前缀。2026-10-07 对两个
 
 不采用“先把数据打成 tar.gz 再放入镜像”的方案：OCI 层本身已经压缩，重复压缩对拉取体积收益有限，却增加启动解压时间和临时磁盘占用。需要更小体积时，优先使用纯数据镜像或 `--geodata-only`，而不是删除运行时需要的地理数据、粒度表或许可证。
 
+## 版本规范
+
+项目版本采用四段式 `<Immich 版本>.<项目修订>`，前三段与 Immich 上游版本对齐，第四段只表示本项目在同一条 Immich 版本线上的修订号。例如上游 Immich `3.3.0` 对应本项目 `3.3.0.1`；上游升级到 `3.3.1` 后，本项目从 `3.3.1.1` 重新计数。Git 发布标签为 `v3.3.0.1`，GHCR 镜像标签为 `3.3.0.1`。
+
 ## 标签规范
 
 | 包 | 标签 | 用途 |
@@ -54,18 +58,18 @@ Compose 示例通过 `IMMICH_CN_GHCR_MIRROR` 选择前缀。2026-10-07 对两个
 | `immich-cn` | `latest` | 最近一次成功构建的数据 |
 | `immich-cn` | `YYYY-MM-DD` | 当日最新数据，同日重跑可更新 |
 | `immich-cn` | `sha-<短提交>` | 对应控制面代码提交 |
-| `immich-cn` | `<X.Y.Z>` | 发布工作流创建的版本标签 |
+| `immich-cn` | `<X.Y.Z.N>` | 发布工作流创建的 Immich 对齐版本标签 |
 | `immich-cn-server` | `latest` | 最近数据 + 默认 Immich `release` |
 | `immich-cn-server` | `release` | 与 Immich `release` 标签对齐 |
 | `immich-cn-server` | `release-YYYY-MM-DD` | 当日最新数据与 Immich `release`，同日重跑可更新 |
 | `immich-cn-server` | `sha-<短提交>` | 对应控制面代码提交 |
-| `immich-cn-server` | `<X.Y.Z>` | 发布工作流创建的版本标签 |
+| `immich-cn-server` | `<X.Y.Z.N>` | 发布工作流创建的 Immich 对齐版本标签 |
 
-镜像的版本标签**不带 `v` 前缀**：Git 侧的发布标签是 `vX.Y.Z`，GHCR 上的镜像标签是 `X.Y.Z`。2026-10-07 实测：带 `v` 前缀的镜像标签返回 `not found`，不带前缀的同一个版本可以正常解析。生产环境应固定到 Git 提交 SHA 或完整摘要；日期标签只用于当日跟踪。
+镜像的版本标签**不带 `v` 前缀**：Git 侧的发布标签是 `vX.Y.Z.N`，GHCR 上的镜像标签是 `X.Y.Z.N`。2026-10-08 实测：带 `v` 前缀的镜像标签返回 `not found`，不带前缀的同一个版本可以正常解析。生产环境应固定到 Git 提交 SHA 或完整摘要；日期标签只用于当日跟踪。
 
 ```bash
-# 语义版本（发布工作流推送）
-docker pull ghcr.io/webees/immich-cn:1.0.4
+# Immich 对齐版本（发布工作流推送）
+docker pull ghcr.io/webees/immich-cn:3.3.0.1
 # 某个控制面提交
 docker pull ghcr.io/webees/immich-cn-server:sha-cdc0ba3
 # 最可追溯的写法：固定摘要（摘要值以 imagetools inspect 的当前输出为准）
@@ -74,7 +78,7 @@ docker pull ghcr.io/webees/immich-cn@sha256:<digest>
 
 在 GitHub Packages 页面上还会看到 `sha256-<digest>` 形式的标签。它们不是本项目的发布标签，而是 GHCR 为 Cosign 签名与证明对象这类 OCI 引用对象生成的引用标签：以镜像摘要命名的那个标签指向的是签名、证明对象，不是镜像本身。请勿把这类标签当作镜像拉取，也不要手动删除；`cleanup.yml` 会保护 `sha256-*` / `sha256:*` 版本。
 
-语义化版本发布必须同时推送两个镜像；工作流在创建版本化发布前会拒绝 `push-images=false`，并对两个版本标签的镜像仓库摘要与本次构建输出做比对，避免出现只有 GitHub 发布、没有对应包标签，或标签指向其他镜像的半成品版本。
+Immich 对齐版本发布必须同时推送两个镜像；工作流在创建版本化发布前会拒绝 `push-images=false`，并对两个版本标签的镜像仓库摘要与本次构建输出做比对，避免出现只有 GitHub 发布、没有对应包标签，或标签指向其他镜像的半成品版本。
 
 ## 供应链
 
@@ -102,7 +106,7 @@ cosign verify \
 
 ## 自动清理
 
-GHCR 版本、`data-*` 发布和 Actions 运行由 `cleanup.yml` 每周清理。默认保留语义版本、`auto-release`、`latest`、`release` 与最近版本；稳定前可手动启用 `prune-all`。完整规则见 [运维与常见问题](operations.md)。
+GHCR 版本、`data-*` 发布和 Actions 运行由 `cleanup.yml` 每周清理。默认保留 Immich 对齐版本、兼容三段式稳定版本、`auto-release`、`latest`、`release` 与最近版本；稳定前可手动启用 `prune-all`。完整规则见 [运维与常见问题](operations.md)。
 
 发布资产的规范 ID、v4 文件名与唯一发布规则见 [数据格式与制品命名](data-format.md)。
 

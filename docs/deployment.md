@@ -46,7 +46,7 @@ Immich 官方 compose 当前将媒体目录挂载到 `/data`。machine-learning 
 | `latest` | 最近一次成功构建的数据 + `release` 版 Immich |
 | `release` | 与 Immich `release` 标签对齐 |
 | `release-<日期>` | 当日最新数据，同日重跑可更新；长期固定请使用摘要 |
-| `<语义化版本>` | 由发布工作流生成，两个镜像使用同一项目版本 |
+| `<Immich 对齐版本>` | 由发布工作流生成，格式为 `X.Y.Z.N`，两个镜像使用同一项目版本 |
 
 ### 环境变量
 
