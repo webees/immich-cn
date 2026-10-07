@@ -25,6 +25,7 @@
 - `Auto Data Update` 在清理 `auto-release` 后新增 `--verify-release-assets` reconciliation：Release 资产与本次 `dist` 缺一或多一都会让 workflow 失败，避免旧资产静默残留；
 - full-stack release smoke 增加 PostgreSQL `geodata_places`/`naturalearth_countries` 行数、苏州样本和 `/api/server/config` 检查，验证 geodata 不只是“日志导入成功”，而是真的可查询且 API 可启动；
 - server image 构建前解析 Immich base tag digest，并使用 `tag@digest` 固定本次构建，同时写入 OCI base digest label；Trivy 差集扫描复用同一 digest，避免构建与扫描之间的 tag 漂移；
+- cleanup 保护 `sha256-*` / `sha256:*` digest-like GHCR tag，并在单个删除失败后继续清理其他 release/run/package，最后统一汇总失败，避免一次 HTTP 500 中断全部维护；
 - 部署示例默认设置 `TZ: Asia/Shanghai`，并补充国内镜像获取、digest 验证、WGS-84/GCJ-02 偏移与故障排查说明；
 - 规范 SQLite 数据集 `immich-cn-dataset-sqlite-v1.zip` 作为一等制品，Immich 文本格式改由适配器导出，详见 `docs/data-format.md` 与 ADR 0001；
 - `immich-cn artifact resolve` CLI：按 canonical ID、profile+scope 或历史别名解析制品；

@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 from scripts.cleanup import (
     CleanupError,
+    CleanupPlan,
     CleanupSettings,
     GitHubClient,
     PackageVersionRecord,
@@ -17,6 +18,7 @@ from scripts.cleanup import (
     RunRecord,
     _prune_release_assets,
     _verify_release_assets,
+    apply_plan,
     select_package_versions,
     select_releases,
     select_runs,
@@ -142,7 +144,7 @@ def test_package_cleanup_preserves_semver_stable_and_recent_versions() -> None:
 
     selected = select_package_versions(versions, retention=2, prune_all=False)
 
-    assert [version.id for version in selected] == [4, 5, 6]
+    assert [version.id for version in selected] == [6]
 
 
 def test_package_cleanup_prune_all_keeps_protected_and_newest_version() -> None:
@@ -155,7 +157,7 @@ def test_package_cleanup_prune_all_keeps_protected_and_newest_version() -> None:
 
     selected = select_package_versions(versions, retention=20, prune_all=True)
 
-    assert [version.id for version in selected] == [3, 4]
+    assert [version.id for version in selected] == [4]
 
 
 def test_package_cleanup_never_deletes_untagged_child_manifests() -> None:
@@ -165,11 +167,62 @@ def test_package_cleanup_never_deletes_untagged_child_manifests() -> None:
         PackageVersionRecord(3, at(3), ("2026-10-07",)),
         PackageVersionRecord(4, at(4), ()),
         PackageVersionRecord(5, at(5), ()),
+        PackageVersionRecord(6, at(6), ("2026-10-06",)),
     ]
 
     selected = select_package_versions(versions, retention=1, prune_all=True)
 
-    assert [version.id for version in selected] == [3]
+    assert [version.id for version in selected] == [6]
+
+
+def test_package_cleanup_protects_digest_like_tags() -> None:
+    """sha256-* / sha256:* 可能指向 attestation 或索引，不能按普通 tag 删除。"""
+    versions = [
+        PackageVersionRecord(1, at(1), ("sha256-abc",)),
+        PackageVersionRecord(2, at(2), ("sha256:def",)),
+        PackageVersionRecord(3, at(3), ("2026-10-07",)),
+        PackageVersionRecord(4, at(4), ("2026-10-06",)),
+    ]
+
+    selected = select_package_versions(versions, retention=1, prune_all=True)
+
+    assert [version.id for version in selected] == [4]
+
+
+def test_apply_plan_continues_after_individual_failure() -> None:
+    """一个删除失败不能阻断其他 release/package 的清理。"""
+    deleted: list[str] = []
+
+    class _Client:
+        def delete_run(self, run: RunRecord) -> None:
+            deleted.append(f"run:{run.id}")
+
+        def delete_release(self, release: ReleaseRecord) -> None:
+            if release.tag_name == "bad":
+                raise CleanupError("HTTP 500")
+            deleted.append(f"release:{release.tag_name}")
+
+        def delete_package_version(self, package: str, version: PackageVersionRecord) -> None:
+            deleted.append(f"package:{package}:{version.id}")
+
+    plan = CleanupPlan(
+        releases=(
+            ReleaseRecord(1, "bad", at(1)),
+            ReleaseRecord(2, "good", at(2)),
+        ),
+        runs=(),
+        package_versions={
+            "immich-cn": (
+                PackageVersionRecord(10, at(1), ("sha-abc",)),
+                PackageVersionRecord(11, at(2), ("sha-def",)),
+            )
+        },
+    )
+
+    with pytest.raises(CleanupError, match="清理部分失败：1 项"):
+        apply_plan(_Client(), plan)
+
+    assert deleted == ["release:good", "package:immich-cn:10", "package:immich-cn:11"]
 
 
 def test_github_client_retries_transient_http_errors(monkeypatch: pytest.MonkeyPatch) -> None:

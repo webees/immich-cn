@@ -20,7 +20,7 @@
 | Actions 运行 | 保留最近 30 天，且每个工作流至少保留最近 20 次 |
 | GHCR 包版本 | 每个包保留最近 20 个版本 |
 
-受保护标签命中的镜像版本会额外保留，不占“最近 20 个”之外的删除范围。没有标签的 GHCR 版本通常是多架构索引的子 manifest 或 attestation，当前策略不会直接删除，避免破坏仍受保护的父镜像索引。
+受保护标签命中的镜像版本会额外保留，不占“最近 20 个”之外的删除范围。没有标签的 GHCR 版本通常是多架构索引的子 manifest 或 attestation；`sha256-*` / `sha256:*` 这类 digest-like tag 也可能是 attestation 或索引。当前策略不会直接删除这两类版本，避免破坏仍受保护的父镜像索引。单个删除失败不会阻断其他清理项，脚本会继续执行并在最后汇总失败数量。
 
 滚动 Release `auto-release` 由 `update-data.yml` 在每次上传后自我收敛：先调用 `scripts/cleanup.py --prune-release-assets auto-release --dist-dir dist --apply` 删除不在本次 `dist` 清单里的资产，再调用 `scripts/cleanup.py --verify-release-assets auto-release --dist-dir dist` 验证 Release 资产与 `dist` 完全一致。清理脚本默认 dry-run；清单为空、或清单与 Release 资产没有任何交集时直接拒绝执行，避免因为目录路径写错而清空整个 Release。不可变快照 `data-*` 不受影响。
 
