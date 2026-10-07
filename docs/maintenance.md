@@ -81,3 +81,20 @@ GITHUB_TOKEN=<token> python -m scripts.check_update_freshness \
 ```
 
 默认 30 小时阈值对应每天一次的调度：留出 6 小时给 GitHub 的定时延迟与重试。退出码 `0` 表示健康，`1` 表示已确认的不健康状态，`2` 表示配置或 API 错误——三者在工作流里都不会被当成成功。
+
+## 审计账本
+
+「连续 N 轮 clean」这个结论的证据是审计账本（发布在 `audit` 分支的 `work/audit/state.json`）。账本的汇总值一旦与明细脱钩，结论就无法被第三方复核，因此校验器把口径固定成**按轮次从 `history` 复算**：
+
+- `round` = `history` 的最大轮次，且各轮次唯一、按顺序严格递增；
+- `totals.findings` / `totals.clean_rounds` = 对应 verdict 的条目数；
+- `totals.p0`~`p3` = severity 中包含该级别的条目数（`P1/P2` 同时计入两者）；
+- `consecutive_clean` = 从最后一轮向前连续 `clean` 的条目数。
+
+账本不在仓库树内（它记录的是被测 SHA 之外的审计过程），所以该检查不进 `make check`，需要显式执行：
+
+```bash
+make audit-ledger
+```
+
+2026-10-07 的复核发现过两类真实漂移：声明的 `findings` 是 184 而明细只有 170；以及三轮记录了确认的 P3 却仍标为 `clean`。前者按上述口径重算并把旧值保留在账本的 `totalsSuperseded`；后者按「clean 须无 P0-P3 已确认缺陷」改判为 `findings`，并在条目里写入 `reclassifiedFrom` 与理由。这类调整只会让 clean 变少，方向是收紧而不是放宽。
