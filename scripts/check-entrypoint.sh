@@ -301,6 +301,31 @@ install_missing_langs_case() {
 incomplete_source_case
 install_missing_langs_case
 
+# 语言目录存在但内容不完整时必须在写入目标目录前失败。
+install_incomplete_langs_case() {
+  local root="$work/install-incomplete"
+  mkdir -p "$root/langs"
+  printf 'MIT License\nCopyright\n' > "$root/langs/LICENSE"
+  local output
+  if output="$(IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
+      IMMICH_CN_LANGS_DIR="$root/langs" \
+      sh "$repo_root/docker/install.sh" --target "$root/out" 2>&1)"; then
+    echo "失败：语言包不完整时不应成功" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "缺少必需文件"; then
+    echo "失败：语言包不完整时未给出明确提示：${output}" >&2
+    exit 1
+  fi
+  if [ -e "$root/out/geodata" ]; then
+    echo "失败：语言包不完整时不应写入目标目录" >&2
+    exit 1
+  fi
+  echo "通过：语言包不完整时拒绝写入"
+}
+
+install_incomplete_langs_case
+
 # 参数缺少值时必须给出明确错误，不能被 set -u 的裸 $2 报错覆盖。
 missing_option_value_case() {
   local output
