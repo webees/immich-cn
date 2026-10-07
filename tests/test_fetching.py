@@ -659,6 +659,21 @@ def test_retry_delay_prefers_retry_after_header() -> None:
     assert retry_delay(1, http_date) == 120.0
 
 
+def test_retry_delay_treats_past_http_date_as_immediate() -> None:
+    """Retry-After 是过去时间时应立即重试，不能人为增加 1 秒延迟。"""
+    request = httpx.Request("GET", "https://example.com/x")
+    past_date = httpx.HTTPStatusError(
+        "429",
+        request=request,
+        response=httpx.Response(
+            429,
+            headers={"retry-after": "Wed, 21 Oct 2015 07:28:00 GMT"},
+            request=request,
+        ),
+    )
+    assert retry_delay(1, past_date) == 0.0
+
+
 def test_retry_delay_falls_back_to_exponential_backoff() -> None:
     assert retry_delay(1, httpx.ConnectError("boom")) == 2.0
     assert retry_delay(5, httpx.ConnectError("boom")) == 30.0
