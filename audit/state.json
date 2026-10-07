@@ -2,15 +2,15 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 261,
+  "round": 262,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 184,
+    "findings": 185,
     "clean_rounds": 75,
     "p0": 0,
     "p1": 28,
     "p2": 114,
-    "p3": 45
+    "p3": 46
   },
   "status": "active",
   "last_method": "M9",
@@ -2657,9 +2657,21 @@
       "severity": "P3",
       "evidence": "扫描结果本身是干净的：`git log --all -p` 全历史 63,361 行对 ghp_/github_pat_/sk-/AKIA/xox/PEM 私钥/Slack webhook 六类模式 0 命中；工作区（排除 .git/.venv/work/build/dist）同样 0 命中；工作流里没有任何 `echo|printf|cat` 输出 `secrets.*`；`config/`、`examples/`、`docker/` 无字面量密码，compose 走 `POSTGRES_PASSWORD: ${DB_PASSWORD}`。唯一字面量凭证是 `_build-data.yml` 里 CI smoke 用的 `immich-smoke-password`（一次性本地容器，不出现在 examples/docs），判定为可接受的测试常量。仓库安全设置：dependabot_security_updates=enabled、secret_scanning=enabled、secret_scanning_push_protection=enabled、secret-scanning alerts=0；但 `secret_scanning_non_provider_patterns` 与 `secret_scanning_validity_checks` 仍为 disabled（此前 residual risk 已记录）。本轮尝试用 `PATCH /repos/webees/immich-cn` 的 security_and_analysis 字段开启这两项：HTTP 200 但返回值不变（token scopes=delete_repo,gist,read:org,repo,workflow，缺 security_events），因此判定为需要 owner 在 Settings → Code security 手动开启，未能由本轮关闭。判为 findings（P3）：扫描无泄漏，但在范围内的两项加固开关仍是禁用状态且本轮无法关闭。",
       "pr": null
+    },
+    {
+      "round": 262,
+      "timestamp": "2026-10-08T10:45:00+07:00",
+      "focus": "死代码与未使用定义（把手工扫描固化为资产并清掉历史遗留）",
+      "method": "M7 死代码与引用计数（501 个模块级定义全量）+ M1 变异探针（合成仓库负向控制）",
+      "verdict": "findings",
+      "severity": "P3",
+      "evidence": "对 src/**/*.py + scripts/*.py 的模块级 def/async def/class/大写常量逐个在「源码 + 测试 + 工作流 + Makefile + 文档 + CHANGELOG」里搜名字：501 个定义里唯一零引用项是 `scripts/check_shell.py:18 SHELL_SUFFIXES`。核实它全仓只出现一次（定义处）、无 __all__ 导出、无测试/文档提及，而 check_shell 的文件发现用的是 `Path(\"docker\").glob(\"*.sh\") + Path(\"scripts\").glob(\"*.sh\")`——是第 63/73/83 轮连续记录却一直没删的历史遗留（第 245 轮收紧口径后那三轮已被改判 findings，等于长期拖累 clean streak）。修复：删除该常量（check_shell 仍通过：4 个脚本、6 个工作流）；新增 `scripts/check_dead_symbols.py` 与 `make audit-dead-symbols` 固化口径（__dunder__ 忽略、外部入口写 ALLOWED 并注明原因、退出码 0/1/2）；补 5 个用例（命中未引用常量、文档/工作流引用算引用、ALLOWED 放行、__dunder__ 忽略、CLI 失败与缺目录）；docs/maintenance.md 与 CHANGELOG 记录。元负向控制：在临时合成仓库放一个未引用常量 → 精确报 `src/pkg/mod.py:1 UNUSED_CONSTANT` 并 exit 1，同仓库被 caller 引用的函数不报。删除后复查：模块级定义 500 个、零外部引用 0 个。make check 438 tests 全绿；PR #201 合并 main 98b3399，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/201"
     }
   ],
   "residual_risks": [
+    "死代码扫描是名字级文本启发式：通过 getattr / 字符串入口 / 插件注册表调用的定义会漏判（假阴），而注释或 CHANGELOG 里的纯文字提及会被算作引用（假阳）；ALLOWED 只用来登记确认为外部入口的例外，不能用来放宽规则",
+    "make audit-dead-symbols 不在 make check 链路里（它是审计工具），新增的零引用定义只有显式运行才会被发现",
     "仓库 secret scanning 的 `non-provider patterns` 与 `validity checks` 仍是 disabled：round 261 用 PATCH /repos/.../security_and_analysis 尝试开启，HTTP 200 但值不变（token scopes 为 delete_repo/gist/read:org/repo/workflow，缺 security_events），需要在 Settings → Code security 里由 owner 手动开启",
     "已发布的 data-2026-10-06 快照与滚动 auto-release 仍带 74 个成员的整套 i18n 语言包；要换成裁剪版必须等下一次成功的 update-data 发布，而那次发布同时会回收 21 个 legacy 资产（不可逆，待确认）",
     "新的 i18n 裁剪护栏依赖合成 fixture 里有两个语言文件（zh.json + en.json），因此「复制整套语言包」这类回归会在 smoke+check_artifacts 里暴露；如果将来 fixture 被简化成只写 en.json，护栏会重新变成恒真",
