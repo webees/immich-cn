@@ -15,7 +15,6 @@ from pathlib import Path
 
 import yaml
 
-SHELL_SUFFIXES = {".sh"}
 VARIABLE = re.compile(rb"\$[A-Za-z_][A-Za-z0-9_]*")
 
 

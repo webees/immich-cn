@@ -13,6 +13,7 @@
 
 ### 新增
 
+- 新增 `scripts/check_dead_symbols.py` 与 `make audit-dead-symbols`：扫描 `src/` 与 `scripts/` 的模块级定义是否有零引用（`__dunder__` 忽略，外部入口写进 `ALLOWED` 并注明原因），把此前每轮手写的死代码扫描固化成可重复执行的资产；2026-10-07 基线 501 个定义、1 个零引用项（已删除），复查为 0；
 - 新增 `scripts/check_action_pins.py` 与 `make audit-pins`：把每个 Action pin 与注释里的版本 tag 对拍（缺 40 位 SHA、缺版本注释、tag 不存在、tag 指向的 commit 与 pin 不一致都失败）；`check_workflows` 只做离线格式校验，发现不了「pin 停在旧版本但注释写着新版本」这类漂移。实测 6 个工作流 25 个固定引用全部与上游 tag 一致；
 - 新增 `monitor-update.yml` 与 `scripts/check_update_freshness.py`：每 6 小时检查 **Auto Data Update** 的新鲜度，区分 `never_run` / `no_run` / `stalled` / `failed` / `stale_success` / `schedule_stalled` / `ok`，并把「手动 dispatch 成功」与「schedule 仍在触发」分开判定，停摆时创建 `automation` 告警、恢复后自动关闭；
 - 项目定位收敛为“为 Immich 提供中国本地化的 reverse geocoding geodata”；新增 `docs/project-scope.md` 统一 core scope、optional support 与 non-goals，`docs/china-localization.md` 只记录实际证据、缺口和 roadmap；
@@ -90,6 +91,7 @@
 
 ### 移除
 
+- 删除 `check_shell.py` 里零引用的 `SHELL_SUFFIXES` 常量：文件发现用的是 `Path("docker").glob("*.sh") + Path("scripts").glob("*.sh")`，该常量从未参与判断（2026-10-07 全量扫描 501 个模块级定义，这是唯一的零外部引用项）；
 - 不再生成历史资产别名与 legacy 变体（v4 canonical-only）；`data-*` 旧快照按保留策略清理。
 
 ## [1.0.4] - 2026-10-06
