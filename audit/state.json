@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 238,
+  "round": 240,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 178,
+    "findings": 180,
     "clean_rounds": 71,
     "p0": 0,
     "p1": 33,
-    "p2": 112,
+    "p2": 114,
     "p3": 42
   },
   "status": "active",
-  "last_method": "M4",
+  "last_method": "M9",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -2421,6 +2421,26 @@
       "severity": "P2",
       "evidence": "`check_manifest` 分别校验 artifacts 与 assets，没有要求 artifacts 中的所有 canonical variant 同时出现在 assets；变体若只在 artifacts 中登记，就会绕过 assets、checksum 与发布清单覆盖。修复：要求 `artifact_files <= asset_files` 并报告缺失项；新增移除 asset 的负向测试。make check 362 tests、docs、workflow、shell 全绿；PR #181 合并 main 19da004，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/181"
+    },
+    {
+      "round": 239,
+      "timestamp": "2026-10-07T20:40:00+07:00",
+      "focus": "工作流静态检查是否真的执行且可复现",
+      "method": "M4 契约快照 + M3 负向 workflow 实验",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "actionlint 原先以浮动 tag `rhysd/actionlint:1.7.12` 运行，且 ShellCheck 告警（`ls dist | tail` 依赖输出顺序、多行 GITHUB_OUTPUT 重定向、issue 正文里的字面反引号表达式）会让该步骤失败或语义不可靠。修复：固定 `rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667`、改用 `find ... | sort`、合并重定向、修正 issue 正文；`check_workflows` 增加固定 digest 与步骤名护栏 + 负向测试。本轮实测：仓库内该命令 exit 0；复制出坏 workflow 的临时 git 仓库 exit 1 并报 `job-needs`/`expression` 两条错误，证明步骤确实在 lint；Docker Hub registry API 返回的 tag digest 与该 sha256 完全一致。make check 363 tests 全绿；PR #182 合并 main 5db9942，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/182"
+    },
+    {
+      "round": 240,
+      "timestamp": "2026-10-07T21:05:00+07:00",
+      "focus": "Immich 上游 import 行为与 CHANGELOG 重复条目",
+      "method": "M9 文档-实现逐条核对 + M7 引用计数（对照上游 v3.3.0 源码）",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对照上游 `server/src/repositories/map.repository.ts` 与 `constants.ts` 逐条核对：列索引、`geodata-date.txt` 相等跳转、admin map key 格式均一致，但契约文档漏记 import filter——`feature code`（0-based column 7）为 `PPLX` 且 country 非 `AU`、以及全部 `PPLH` 的记录在导入阶段被丢弃，且只有 `reverseGeocodeMaxDistance`（25 km）内城市点参与 reverse geocoding。实测当前全量制品 256,626 行中 7,307 行会被跳过（7,278 `PPLX` 非 `AU` + 29 `PPLH`），其中 `CN` 77 行；此前文档未量化该差异，读者会把制品行数当成 Immich 实际导入行数。同时发现 `CHANGELOG.md` 第 53/55 行是完全相同的 actionlint bullet（合并残留），而 CHANGELOG 不在任何护栏扫描范围内。修复：新增 Import filter and search radius 小节与复算方式、删除重复 bullet、`UPSTREAM_INTEGRATION_TOKENS` 增加 `PPLX`/`PPLH`/`reverseGeocodeMaxDistance`、新增 `check_changelog_bullets`、把 CHANGELOG 纳入中文软换行扫描、`repo_copy` 子集补 `CHANGELOG.md`，并加 3 个负向用例。make check 366 tests 全绿；PR #183 合并 main cb561f1，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/183"
     }
   ],
   "residual_risks": [
@@ -2500,6 +2520,10 @@
     "raw.githubusercontent.com 的 ETag 随 Content-Encoding 变化（gzip 表示是 W/\"aa4f…\"，identity 表示是 \"29a8…\"）；当前 revalidate 依赖 httpx 默认携带 Accept-Encoding: gzip, deflate 才命中 304，若未来 httpx 默认值或显式 header 改变，会静默退化为每次全量重下（正确但浪费 13 MB/天），核对时不要跨表示比较 ETag",
     "Ruleset 24545711 已实测为 active 且无 bypass actor，required check 名与 ci.yml 的 job 名逐项一致；但仓库内护栏只能校验“工作流侧”，ruleset 本身若被改动（例如删除某条 required check）无法由 CI 发现，需要在后续轮次用 gh api 定期复核",
     "发布目录契约现在由 check_dist_entries 强制，但本机 dist/ 曾长期累积 36 个历史命名残留（已移到 /tmp/immich-cn-legacy-round160 备份）；任何复用工作目录的本地或自托管构建仍需先清理输出目录，否则 check_artifacts 会按设计拒绝",
-    "缓存键修复后，此前的空摘要键（如 immich-cn-sources-Linux-1.0.4--37518185514）不会再被新键命中，下一次数据更新会重新下载上游并写入带真实摘要的新键；这是一次性传输成本，不影响数据新鲜度"
+    "缓存键修复后，此前的空摘要键（如 immich-cn-sources-Linux-1.0.4--37518185514）不会再被新键命中，下一次数据更新会重新下载上游并写入带真实摘要的新键；这是一次性传输成本，不影响数据新鲜度",
+    "第 240 轮记录的 import filter 跳过行数（256,626 行中 7,307 行；CN 77 行）与 reverseGeocodeMaxDistance=25 km 都是 2026-10-07 对 v3.3.0 源码与当时制品的快照；上游改过滤规则、改常量或 GeoNames 分布变化后都必须重新测量，不能把这两个数字当成永久契约",
+    "第 240 轮只把 import filter 写进文档并加短语级护栏，未改成可联网比对上源码的检查；护栏只能证明文档还在写这三个关键词，不能证明文档写的语义仍然等于上游代码",
+    "`_check_geojson` 目前只断言文件可解析且 `features` 非空，未校验 Immich 实际读取的 `properties.ADMIN` / `ADM0_A3` / `TYPE` 与 `geometry.coordinates`；当前 258 个要素全部具备这些字段（已实测），但护栏无法在源被替换成缺字段的 FeatureCollection 时拦住，是后续轮次的候选目标",
+    "CHANGELOG 目前只被重复 bullet 与中文软换行两条规则覆盖，仍没有“有行为变更必须写条目”的机械护栏；强制非空会在刚发布后误报，因此仍依赖合并前人工补写"
   ]
 }
