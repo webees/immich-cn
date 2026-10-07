@@ -15,6 +15,8 @@ import re
 import sys
 from pathlib import Path
 
+import yaml
+
 #: 仅作为构建参数、上游 Immich 契约或外部镜像契约，不需要在本项目运行时代码中出现的变量。
 BUILD_ONLY = {
     "IMMICH_BASE",
@@ -140,6 +142,12 @@ NGINX_UPSTREAM_TOKENS = (
     "send_timeout 600s;",
     "proxy_redirect off;",
 )
+COMPOSE_FULL_EXAMPLES = (
+    Path("examples/compose.server.yml"),
+    Path("examples/compose.acceleration.yml"),
+)
+COMPOSE_EXAMPLES = (*COMPOSE_FULL_EXAMPLES, Path("examples/compose.volume.yml"))
+VALKEY_IMAGE = "docker.io/valkey/valkey:9@sha256:c123e3715db63d06d4ad6964884037aa0d5d4d703939b9929954112889708e1d"
 GHCR_MIRROR_DEFAULT = "ghcr.nju.edu.cn"
 GHCR_MIRROR_ENV = "IMMICH_CN_GHCR_MIRROR"
 TERMINOLOGY_DOC = Path("docs/terminology.md")
@@ -546,9 +554,22 @@ def check_china_localization_contract(errors: list[str]) -> None:
             if example not in acceleration:
                 errors.append(f"{CHINA_ACCELERATION_DOC} 未引用可执行示例：{example}")
 
-    for path in (Path("docs/deployment.md"), *sorted(Path("examples").glob("*.yml"))):
-        if CHINA_TIMEZONE not in path.read_text(encoding="utf-8"):
-            errors.append(f"{path} 缺少中国本地化默认时区：{CHINA_TIMEZONE}")
+    if CHINA_TIMEZONE not in Path("docs/deployment.md").read_text(encoding="utf-8"):
+        errors.append(f"docs/deployment.md 缺少中国本地化默认时区：{CHINA_TIMEZONE}")
+    for path in sorted(Path("examples").glob("*.yml")):
+        try:
+            parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except yaml.YAMLError as error:
+            errors.append(f"{path} YAML 解析失败，无法校验中国本地化默认时区：{error}")
+            continue
+        services = parsed.get("services", {}) if isinstance(parsed, dict) else {}
+        for service_name in ("immich-server", "immich-machine-learning"):
+            service = services.get(service_name) if isinstance(services, dict) else None
+            if not isinstance(service, dict):
+                continue
+            environment = service.get("environment")
+            if not isinstance(environment, dict) or environment.get("TZ") != "Asia/Shanghai":
+                errors.append(f"{path}:{service_name} 缺少中国本地化默认时区：{CHINA_TIMEZONE}")
 
 
 def check_documentation_language(errors: list[str]) -> None:
@@ -636,6 +657,25 @@ def check_nginx_upstream_contract(errors: list[str]) -> None:
         errors.append(f"{NGINX_EXAMPLE} 缺少 Immich reverse proxy 配置：{'、'.join(missing)}")
     if re.search(r"add_header\s+Cache-Control[^\n;]*\balways\b", text):
         errors.append(f"{NGINX_EXAMPLE} 的 Cache-Control 使用 always，会把 404/500 等错误响应也标成长期缓存")
+
+
+def check_immich_compose_contract(errors: list[str]) -> None:
+    """Compose 示例必须跟随 Immich 3.3 的媒体路径与核心服务拓扑。"""
+    for path in COMPOSE_EXAMPLES:
+        if not path.exists():
+            errors.append(f"缺失 Compose 示例：{path}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        if "${UPLOAD_LOCATION}:/data" not in text:
+            errors.append(f"{path} 未把 Immich v3.3 媒体目录挂载到 /data")
+        if "/usr/src/app/upload" in text:
+            errors.append(f"{path} 仍使用旧媒体路径 /usr/src/app/upload")
+    for path in COMPOSE_FULL_EXAMPLES:
+        text = path.read_text(encoding="utf-8")
+        if "\n  immich-machine-learning:\n" not in text or "model-cache:/cache" not in text:
+            errors.append(f"{path} 缺少 immich-machine-learning 或 model-cache 持久化")
+        if VALKEY_IMAGE not in text:
+            errors.append(f"{path} 未使用 Immich v3.3 compose 对齐的 Valkey 9 digest")
 
 
 def check_absolute_claims(paths: list[Path], errors: list[str]) -> None:
@@ -1112,6 +1152,7 @@ def main(argv: list[str] | None = None) -> int:
     check_immich_column_contract(errors)
     check_immich_ui_locale_contract(errors)
     check_nginx_upstream_contract(errors)
+    check_immich_compose_contract(errors)
     check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
     check_process_or_legal_claims([*doc_files, Path("CITATION.cff")], errors)
     check_independence_guidance(errors)

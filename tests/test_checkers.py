@@ -429,6 +429,32 @@ def test_check_docs_rejects_long_cache_on_nginx_errors(repo_copy: Path) -> None:
     assert "错误响应" in result.stdout
 
 
+def test_check_docs_rejects_stale_immich_upload_path(repo_copy: Path) -> None:
+    """Immich v3.3 媒体目录是 /data，旧示例不能继续挂载到 /usr/src/app/upload。"""
+    compose = repo_copy / "examples" / "compose.server.yml"
+    mutate(
+        compose,
+        "${UPLOAD_LOCATION}:/data",
+        "${UPLOAD_LOCATION}:/usr/src/app/upload",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "/data" in result.stdout
+
+
+def test_check_docs_requires_machine_learning_in_full_compose(repo_copy: Path) -> None:
+    """完整 Compose 示例缺少 machine-learning 时功能会不完整。"""
+    compose = repo_copy / "examples" / "compose.acceleration.yml"
+    mutate(
+        compose,
+        "  immich-machine-learning:\n",
+        "  immich-machine-learning-disabled:\n",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "immich-machine-learning" in result.stdout
+
+
 def test_check_docs_detects_license_field_drift(repo_copy: Path) -> None:
     """pyproject 的 license 与 LICENSE/CITATION 不一致时必须报错。"""
     pyproject = repo_copy / "pyproject.toml"
@@ -609,7 +635,7 @@ def test_check_docs_rejects_deprecated_scope_phrases(repo_copy: Path) -> None:
 def test_check_docs_requires_china_timezone(repo_copy: Path) -> None:
     """面向中国用户的部署示例必须显式设置中国时区。"""
     compose = repo_copy / "examples" / "compose.server.yml"
-    mutate(compose, "TZ: Asia/Shanghai\n", "")
+    mutate(compose, "      TZ: Asia/Shanghai\n", "")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "中国本地化默认时区" in result.stdout

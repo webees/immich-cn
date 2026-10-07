@@ -9,7 +9,7 @@
 
 ## 方案 A：开箱即用的 Immich 镜像
 
-示例 compose 文件（含 redis 与 database，仍需提供 `.env` 与持久化目录）：[examples/compose.server.yml](../examples/compose.server.yml)。
+示例 compose 文件（含 immich-server、immich-machine-learning、redis 与 database，仍需提供 `.env` 与持久化目录）：[examples/compose.server.yml](../examples/compose.server.yml)。
 
 ```yaml
 # compose.yaml
@@ -27,7 +27,7 @@ services:
       # 数据更新后强制重新导入（镜像内 geodata-date.txt 已是构建时间，一般不需要）
       IMMICH_CN_FORCE_RELOAD: "0"
     volumes:
-      - ${UPLOAD_LOCATION}:/usr/src/app/upload
+      - ${UPLOAD_LOCATION}:/data
       - /etc/localtime:/etc/localtime:ro
     ports:
       - 2283:2283
@@ -36,6 +36,8 @@ services:
       - database
     restart: always
 ```
+
+Immich v3.3.0 官方 compose 将媒体目录挂载到 `/data`；不要把新部署继续写成旧路径 `/usr/src/app/upload`。machine-learning 服务需要持久化 `model-cache`，否则模型会在容器重建后重新下载。
 
 镜像标签：
 
