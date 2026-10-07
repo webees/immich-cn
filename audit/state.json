@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 316,
-  "consecutive_clean": 1,
+  "round": 317,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 204,
+    "findings": 205,
     "clean_rounds": 101,
     "p0": 0,
     "p1": 32,
-    "p2": 127,
+    "p2": 128,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3207,6 +3207,16 @@
       "severity": null,
       "evidence": "构造目标目录中的 `geodata-date.txt` 符号链接并设置 `IMMICH_CN_FORCE_RELOAD=1`。入口脚本先移除顶层符号链接再复制和刷新，外部 sentinel 文件保持原值，目标路径不再是符号链接。当前 `main=293e67d` 的 `make check` 455 passed 仍有效。本轮未发现 P0-P2 问题，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 317,
+      "timestamp": "2026-10-06T07:25:00+08:00",
+      "focus": "错误处理：Retry-After 过去时间",
+      "method": "M1 变异探针",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "把 `_retry_after_seconds` 的下限从 `max(0.0, ...)` 注入为 `max(1.0, ...)`，原有 retry_delay 测试仍全绿，证明过去 HTTP-date 应立即重试的边界没有覆盖。新增 `test_retry_delay_treats_past_http_date_as_immediate`，同一变异立即失败，恢复后目标测试 3 passed；`make check` 456 passed；PR #232 合并 main f6ca304，四项 required checks 全绿；clean_streak 归零。",
+      "pr": "https://github.com/webees/immich-cn/pull/232"
     }
   ],
   "residual_risks": [
@@ -3378,7 +3388,8 @@
     "第 313 轮的数据类字段扫描仍是临时 AST 脚本，未固化为 `make` 目标；当前零参考字段为 0，但后续新增数据类字段时需要重新扫描",
     "第 314 轮只要求至少一个镜像示例使用当前项目版本；文档中其它版本号、上游 Immich 版本与发布标签的逐项一致性仍未自动对拍",
     "第 315 轮的行数下降来自人工去重；没有自动指标能判断“冗余”是否完全消除，后续文档增长时仍可能重新出现重复说明",
-    "第 316 轮只验证了目标目录顶层的 geodata-date 符号链接；源目录与目标目录中的嵌套符号链接未在本轮单独构造"
+    "第 316 轮只验证了目标目录顶层的 geodata-date 符号链接；源目录与目标目录中的嵌套符号链接未在本轮单独构造",
+    "第 317 轮只补齐了过去 HTTP-date 的 0 秒下限；非标准 Retry-After 文本、时区边界和正好等于当前时刻的边界仍未单独覆盖"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
