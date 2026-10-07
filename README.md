@@ -10,21 +10,20 @@ Immich 的反向地理编码默认输出英文地名。本项目的核心范围�
 
 设计重点不是复制某个数据格式或使用方式，而是建立自己的规范模型后再适配消费者：
 
-| 方面 | 设计 |
+| 维度 | 设计 |
 |:--|:--|
+| 代码许可 | 代码 MIT；数据制品另有许可与署名要求 |
 | 构建入口 | 可测试的 Python 包 + 统一命令行 |
-| 默认运行方式 | 不需要 API Key 即可运行，使用 GeoNames 离线行政层级构建 |
-| 可选提供方 | 高德与 Nominatim，带速率限制与磁盘缓存 |
-| 规范数据集 | 自有 SQLite 数据集 `immich-cn-dataset-sqlite-v1.zip`，可直接查询、分析或二次开发 |
-| Immich 适配器 | Immich 文本目录与 zip 是默认适配输出，不定义内部模型 |
-| 发布与镜像 | 发布制品 + GHCR 数据镜像 + 开箱即用的 Immich 服务端镜像；默认使用中国大陆可达的 GHCR 镜像源 |
-| 展示粒度切换 | 同一镜像内用 `IMMICH_CN_PATTERN` 切换，无需重新构建 |
-| 分发与缓存 | `/_app/immutable` 长期缓存 + CDN 回源边界 + Nginx 回源示例 |
-| 更新频率 | 每天自动检查并更新，含 ETag 增量校验与发布指纹 |
-| 来源追溯 | 每次构建记录来源文件 SHA256、ETag、统计与输出摘要 |
-| 发布校验 | 结构、覆盖率、去重、制品哈希、容器冒烟、Trivy 与 Cosign |
+| 外部依赖 | GeoNames、Natural Earth、i18n-iso-countries；可选高德与 Nominatim |
+| 数据格式 | 规范 SQLite 数据集 + Immich 适配输出 |
+| 行政区粒度 | 7 种展示粒度 × 完整/默认，共 14 个变体 |
+| 发布方式 | GitHub 发布 + GHCR 多架构镜像 |
+| 更新频率 | 每天自动检查，变化后自动校验并发布 |
+| 缓存策略 | 静态资源长期缓存；API、照片与视频不缓存 |
+| 来源追溯 | 记录来源哈希、构建配置、发布器修订与输出摘要 |
+| 发布校验 | 结构、覆盖率、去重、哈希、容器冒烟、Trivy 与 Cosign |
 
-## 数据模型与使用方式
+## 数据模型
 
 本项目不以“保留上游相同格式与相同使用方式”为目标。规范数据模型是第一等产物， `immich-cn-dataset-sqlite-v1.zip` 内含带索引的 SQLite 数据库，直接表达地点、四级行政名、国家、来源哈希与构建元数据；支持 SQLite 3 的工具可以查询和二次开发，具体兼容性取决于客户端版本，不要求先理解 Immich 的文本列约定。
 
@@ -36,7 +35,7 @@ Immich 的反向地理编码默认输出英文地名。本项目的核心范围�
 
 新增消费者时增加适配器或导出器，不改规范层；Immich 用户继续使用兼容导出，两者可以独立演进。完整格式说明见 [数据格式](docs/data-format.md)，决策见 [ADR 0001](docs/adr/0001-immich-output-contract.md)。
 
-## 自动数据更新工作流
+## 自动更新
 
 数据更新按设计为无人值守流程：在 GitHub Actions、上游数据源与仓库权限正常时，每天自动检查上游地理数据，发现变化后重新翻译、打包、校验并发布，同时推送新的容器镜像。
 
@@ -56,7 +55,7 @@ Immich 的反向地理编码默认输出英文地名。本项目的核心范围�
 
 ## 快速开始
 
-### 方式一：使用开箱即用的 Immich 镜像（推荐）
+### 方式一：开箱即用镜像
 
 `webees/immich-cn-server` 基于官方 `immich-server`，在启动时把中文地理数据注入到目标目录；仍需要按 Immich 官方要求配置数据库、缓存与持久化目录。示例 Compose 默认通过 `IMMICH_CN_GHCR_MIRROR=ghcr.nju.edu.cn` 拉取；完整示例见 [examples/compose.server.yml](examples/compose.server.yml)。
 
@@ -74,7 +73,7 @@ services:
       IMMICH_CN_FORCE_RELOAD: "1"
 ```
 
-### 方式二：把数据镜像挂载进官方 Immich
+### 方式二：数据镜像挂载
 
 如果你希望继续使用官方 `immich-app/immich-server` 镜像，可以用数据镜像提供文件；示例默认走中国大陆可达的 GHCR 镜像源，可用 `IMMICH_CN_GHCR_MIRROR=ghcr.io` 回退官方源：完整示例见 [examples/compose.volume.yml](examples/compose.volume.yml)。
 
@@ -122,7 +121,7 @@ volumes:
   # - ./i18n-iso-countries/langs:/usr/src/app/node_modules/i18n-iso-countries/langs
 ```
 
-### 方式四：本地构建
+### 方式四：本地自行构建
 
 ```bash
 git clone https://github.com/webees/immich-cn.git && cd immich-cn
@@ -135,7 +134,7 @@ immich-cn all
 
 产物位于 `dist/`：规范数据集 `immich-cn-dataset-sqlite-v1.zip`、Immich 默认粒度 `immich-cn-geodata-admin2-default-v1.zip`、`immich-cn-geodata-admin2-full-v1.zip`（数据增强版）、各展示粒度变体、`immich-cn-checksums-sha256-v1.txt` 与 `immich-cn-manifest-json-v1.json`。
 
-### 方式五：CDN 与静态资源加速
+### 方式五：静态资源加速
 
 需要把 Immich 放在国内 CDN 或反向代理后面时，可以使用 [examples/compose.acceleration.yml](examples/compose.acceleration.yml) 和 [examples/nginx/immich-cn.conf](examples/nginx/immich-cn.conf)。该示例只对 `/_app/immutable/*` 开启长期缓存，HTML、API、原始照片与视频默认绕过，避免把私有内容写进公共缓存。
 
@@ -211,17 +210,16 @@ release.yml ──► 手动创建语义化版本发布
 - [中国本地化与加速](docs/china.md)
 - [Immich 集成契约](docs/immich-integration.md)
 - [规范与约定](docs/conventions.md)
-- [Artifact naming spec v4](docs/artifact-spec.md)
+- [数据格式与制品命名](docs/data-format.md)
 - [规范与约定](docs/conventions.md)
 - [规范数据格式](docs/data-format.md)
 - [Data sources and processing](docs/data-sources.md)
 - [部署指南](docs/deployment.md)
 - [照片拍摄时间与时区](docs/timezone.md)
 - [Packages 与供应链](docs/packages.md)
-- [自动清理与保留策略](docs/maintenance.md)
+- [运维与常见问题](docs/operations.md)
 - [本地开发](docs/development.md)
 - [许可与署名](docs/licensing.md)
-- [常见问题](docs/faq.md)
 
 ## 许可
 

@@ -2,7 +2,7 @@
 
 本文合并命名规范、术语规范与文档严谨性规范，是代码与文档的共同约定。
 
-## 命名
+## 命名规范
 
 模块名必须表达单一职责，避免 `utils`、`helpers`、`common`、`misc` 等无边界名称。
 
@@ -23,7 +23,7 @@
 
 - 测试文件名与被测模块对应，例如 `pipeline.py` → `test_pipeline.py`；
 - 文件名使用小写 snake_case，不使用版本后缀与 `new`、`old`、`final` 等词；
-- 发布资产使用 [制品命名规范 v4](artifact-spec.md)，不生成兼容别名；
+- 发布资产使用 [数据格式与制品命名](data-format.md) 的 v4 规则，不生成兼容别名；
 - 运行时占位符 `{admin_2}` 与制品展示粒度 ID `admin2` 是不同契约，前者不改，后者不写回花括号；
 - 工作流文件名使用 `<动作>-<领域>.yml`，例如 `update-data.yml`、`cleanup.yml`。
 
@@ -31,7 +31,7 @@
 
 架构边界：`dataset.py` 是规范数据层，`packaging.py` 是发布适配层，`pipeline.py` 只编排阶段，`providers/` 只处理外部增强，`validation.py` 只校验不修改制品。
 
-## 术语
+## 术语规范
 
 文档以中文为主，只有专有名词、标识符与无通用中文译名的技术缩写保留英文。
 

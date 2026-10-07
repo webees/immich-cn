@@ -1,6 +1,6 @@
 # 中国本地化与加速
 
-本文是项目范围、本地化现状与加速边界的唯一出处。数据格式、制品命名与部署细节分别见 [数据格式](data-format.md)、[制品命名规范](artifact-spec.md) 与 [部署指南](deployment.md)。
+本文是项目范围、本地化现状与加速边界的唯一出处。数据格式与制品命名见 [数据格式与制品命名](data-format.md)，部署细节见 [部署指南](deployment.md)。
 
 ## 规范定位
 
@@ -85,7 +85,7 @@
 
 Nginx 示例按 Immich 上游建议设置 `proxy_request_buffering off`、`client_body_buffer_size 1024k`、`client_max_body_size 50000M` 与 600 秒超时，且只对成功响应追加 `Cache-Control`。上述规则是部署参考，不同 CDN 对 Cookie 旁路、HTTP/3 与大陆节点的配置不同，必须按实际产品验证。
 
-## jsDelivr 可选通道
+## 可选加速通道
 
 jsDelivr 只作为 GitHub 分支、标签或提交中静态文件的**可选**通道，适合 README、文档与小型配置；它不是数据发布依赖，也不承诺中国大陆线路质量。项目提供的 [jsdelivr_url.py](../scripts/jsdelivr_url.py) 默认使用 `cdn.jsdmirror.com`，可用 `--base` 或 `IMMICH_CN_JSDELIVR_BASE` 替换。
 

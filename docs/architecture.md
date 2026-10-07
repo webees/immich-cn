@@ -138,7 +138,7 @@
 2. **内容指纹而不是时间戳**：`immich_cn.fingerprint` 对"上游文件内容摘要 + 构建配置 + 发布器修订 + manifest schema"求哈希，不含构建时间。在实现与输入不变的前提下，同一份数据与同一版发布器重复计算会得到相同指纹；只有目标摘要、Immich base digest、data image digest、data image 存在性、`auto-release` asset 集合与最新 `data-*` 不可变快照全部匹配时，才可以跳过发布。构建逻辑修复后会主动发布新镜像，不会把旧制品误判成最新。
 3. **失败可见**：任一环节失败会自动创建或更新带 `automation` 标签的 issue，附带运行链接，修复后可用 `workflow_dispatch` 立即重跑（`force-publish` 可强制发布）。
 
-历史垃圾由独立的 `cleanup.yml` 每周清理：Release 快照、Actions 运行与 GHCR 版本按 [保留策略](maintenance.md) 处理，语义版本与稳定标签在默认策略下受保护。
+历史垃圾由独立的 `cleanup.yml` 每周清理：发布快照、Actions 运行与 GHCR 版本按 [运维与常见问题](operations.md) 的保留策略处理，语义版本与稳定标签在默认策略下受保护。
 
 可通过 `workflow_dispatch` 覆盖的参数：`provider`、`immich-version`、`push-images`、 `force-publish`、`snapshot-retention`（默认保留最近 3 个 `data-*` 快照）。
 
