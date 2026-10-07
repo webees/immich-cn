@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 222,
+  "round": 223,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 166,
+    "findings": 167,
     "clean_rounds": 69,
     "p0": 0,
     "p1": 33,
-    "p2": 100,
+    "p2": 101,
     "p3": 42
   },
   "status": "active",
@@ -2261,6 +2261,16 @@
       "severity": "P2",
       "evidence": "项目默认 Immich `release` 当前为 v3.2.4，且 v3.2.4 已内置 `i18n/zh_Hans.json`、`zh_Hant.json` 与同一组 locale alias；原文档只写 v3.3.0 内置，会让默认 release 用户误以为必须升级。修复：文档改为 v3.2.4 与 v3.3.0 均已内置，并新增版本边界负向测试。make check 350 tests、docs、workflow、shell 全绿；PR #169 合并 main 3354096，四项 required checks 全绿。clean_streak 因本轮 findings 重置为 0。",
       "pr": "https://github.com/webees/immich-cn/pull/169"
+    },
+    {
+      "round": 223,
+      "timestamp": "2026-10-07T14:25:00+07:00",
+      "focus": "Compose 媒体路径与 Valkey digest 的 release 版本边界",
+      "method": "M4 上游 v3.2.4/v3.3.0 compose 对拍 + M3 负向 digest 输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "Immich v3.2.4 官方 compose 已使用 `/data`，且 Valkey digest 为 `70739f...`；此前示例误用 v3.3.0 的 `c123...`，并只写 v3.3.0 采用 `/data`。修复：示例与 full-stack smoke 统一为当前 release 线 v3.2.4 的 Valkey digest，文档明确 v3.2.4/v3.3.0 均采用 `/data`，新增 digest 负向测试。make check 351 tests、docs、workflow、shell 全绿，三份 compose 通过 config；PR #170 合并 main 9508b9e，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/170"
     }
   ],
   "residual_risks": [
