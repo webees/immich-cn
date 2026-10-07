@@ -9,15 +9,15 @@
 | `admin2Codes.txt` | GeoNames | CC BY 4.0 | 二级行政区代码表 |
 | `countryInfo.txt` | GeoNames | CC BY 4.0 | 国家名称与元数据 |
 | `alternateNamesV2.zip` | GeoNames | CC BY 4.0 | 中文别名来源 |
-| `{CC}.zip`（CN/HK/TW/MO/JP） | GeoNames | CC BY 4.0 | 国家全量数据转储，用于补充点位与 `ADM3`/`ADM4` |
+| `{CC}.zip`（CN/HK/TW/MO/JP） | GeoNames | CC BY 4.0 | 国家数据转储，用于补充点位与 `ADM3`/`ADM4` |
 | `ne_10m_admin_0_countries.geojson` | Natural Earth v5.1.2 | Public Domain | 国家边界回退 |
 | `i18n-iso-countries@7.0.0` | npm | MIT | 国家名称中文覆盖（旧版 Immich） |
 
-不可变依赖在 `src/immich_cn/settings.py` 中固定版本；Natural Earth 与 i18n-iso-countries 使用不可变标签/版本号。GeoNames 为滚动数据，其每次构建的指纹会记录在 manifest 中。
+不可变依赖在 `src/immich_cn/settings.py` 中固定版本；Natural Earth 与 i18n-iso-countries 使用不可变标签/版本号。GeoNames 为滚动数据，其每次构建的指纹会记录在清单中。
 
 ## 处理流程
 
-### 1. 下载与缓存
+### 1. 下载缓存
 
 `immich_cn.fetching.Fetcher` 负责：
 
@@ -31,7 +31,7 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 
 `restore-keys` 里保留了一条很宽的兜底（`immich-cn-sources-<os>-`），因此工具版本升级后仍可能还原到旧缓存。这是安全的：命中缓存时会把文件摘要同时与缓存元数据和 `spec.expected_sha256` 比对，只要固定摘要变了就删除旧文件重新下载（`tests/test_fetching.py::test_fetcher_ignores_cache_when_pinned_digest_changed` 是这条路径的负向控制——把该比对去掉后该测试会失败）。换句话说，还原旧缓存最多省一次传输，不会让构建拿着旧内容成功。
 
-### 2. 确定地点集合
+### 2. 地点集合
 
 1. 过滤 `cities500.txt`：丢弃缺少有效一级行政区代码的噪声记录（`SG`、`VA` 除外）；
 2. 扫描各国家数据转储，把不在 `cities500` 中、且 GeoNames ID 与经纬度都未出现过的记录写入 `extra_all.txt`；
@@ -42,9 +42,9 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 
 实际覆盖情况（2026-10-07 实测 GeoNames `CN.zip`，`CN.txt` 的 sha256 为 `10b1e064ddce0f2fcc46f1e81faf941ed17d7eb438ac91f62b7259cc236111a6`）：中国大陆数据转储里有 **2,938 条 `ADM3` 要素**、**11,878 条 `ADM4` 要素**，但其中**带 `admin4` 代码的只有 73 条**（带 `admin3` 代码的 1,647 条）。本项目用 `CC.A1.A2[.A3[.A4]]` 代码定位层级，缺少 `admin4` 代码就无法拼出第四级，因此**默认的 `{admin_4}` 变体在中国大陆通常会回退到区县**——不是 GeoNames 没有乡镇要素，而是它们大多缺四级代码。如果必须精确到乡镇，请配置 `AMAP_API_KEY` 并使用 `--provider amap`；此时高德会补齐乡镇层级，其余国家与地区仍由 GeoNames 与 Nominatim 负责。
 
-### 3. 中文名称索引
+### 3. 中文索引
 
-`alternateNamesV2.txt` 有上千万行，直接全量载入既慢又占内存，因此：
+`alternateNamesV2.txt` 有上千万行，直接全量加载既慢又占内存，因此：
 
 1. 先收集本次构建真正需要的 GeoNames ID（地点、行政区、`ADM3`/`ADM4`）；
 2. 单次流式扫描 `alternateNamesV2.txt`，只保留命中的记录；
@@ -59,7 +59,7 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 5. 用 `zhconv` 统一转换为简体（可通过 `--chinese-variant hant` 输出繁体）；
 6. 应用 `config/overrides.toml` 中的人工覆盖。
 
-### 4. 人工覆盖表
+### 4. 人工覆盖
 
 `config/overrides.toml` 分为四段：
 
@@ -74,7 +74,7 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 
 只有在 GeoNames 中文别名缺失或明显不符合中文习惯时才需要在此补充。
 
-### 5. 提供方增强（可选）
+### 5. 提供方增强
 
 | 提供方 | 触发条件 | 粒度 | 速率控制 |
 |:--|:--|:--|:--|
@@ -84,11 +84,11 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 
 高德使用 GCJ-02 坐标，调用前会用 WGS-84 → GCJ-02 转换；提供方结果按坐标写入 JSONL 缓存，缓存命中时不会重复请求上游；缓存未命中、缓存损坏或显式刷新时仍可能产生请求和计费。
 
-### 6. 规范数据集
+### 6. 规范数据
 
 构建阶段先把全部地点、国家、行政层级、中文名、来源和统计写入工作目录中的 `dataset.sqlite`，再以 `immich-cn-dataset-v1.sqlite` 作为成员名打包为 `immich-cn-dataset-sqlite-v1.zip`（两者的区别常被混淆：使用者解压后拿到的是后者）。该 SQLite 数据库使用主键、外键、边界约束和索引，并提供 `localized_places` 查询视图；它不依赖 Immich 的制表符列布局。完整结构见 [数据格式](data-format.md)。
 
-### 7. Immich 适配器打包
+### 7. 适配打包
 
 对每个「展示粒度 × 数据规模」组合：
 
@@ -99,4 +99,4 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 
 最后生成 `immich-cn-manifest-json-v1.json`、`immich-cn-checksums-sha256-v1.txt`、`immich-cn-patterns-tsv-v1.gz` 与 `immich-cn-i18n-json-v1.zip`。 130 MiB 级的明文 `immich-cn-patterns-v1.tsv` 默认不会生成；需要排查时可用 `--keep-raw` 同时保留明文表，镜像构建使用直接流式生成的压缩表 `immich-cn-patterns-tsv-v1.gz`。
 
-`immich-cn-dataset-sqlite-v1.zip` 自带 `NOTICE.txt`；`immich-cn-i18n-json-v1.zip` 与 `build/langs/` 只保留旧版 Immich 实际读取的 `en.json` 和上游 `LICENSE`（自下一次数据发布起生效，已发布快照仍是整套语言包，见 [Packages 说明](packages.md)），避免把整个语言包塞进制品，同时不丢失 MIT 版权声明；每个 geodata zip 和镜像数据目录同时包含 `NOTICE.txt`，保留 GeoNames 等数据源署名。
+`immich-cn-dataset-sqlite-v1.zip` 自带 `NOTICE.txt`；`immich-cn-i18n-json-v1.zip` 与 `build/langs/` 只保留旧版 Immich 实际读取的 `en.json` 和上游 `LICENSE`（自下一次数据发布起生效，已发布快照仍是整套语言包，见 [镜像发布](packages.md)），避免把整个语言包塞进制品，同时不丢失 MIT 版权声明；每个地理数据压缩包和镜像数据目录同时包含 `NOTICE.txt`，保留 GeoNames 等数据源署名。

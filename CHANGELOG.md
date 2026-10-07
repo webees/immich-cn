@@ -9,7 +9,7 @@
 - 文档改为**中文为主**：只有产品名、协议缩写与标识符保留英文，其余技术概念统一使用中文写法（发布、制品、清单、校验和、覆盖率、快照、缓存、指纹、镜像、摘要、标签、展示粒度等），并把术语表从「技术概念用英文」改成「英文 ↔ 中文对照」；
 - 合并重叠文档：`project-scope.md` + `china-localization.md` + `china-acceleration.md` → `docs/china.md`；`terminology.md` + `naming-conventions.md` + `documentation-policy.md` → `docs/conventions.md`。文档数从 21 篇降到 16 篇，护栏锚点同步更新；
 - 继续合并：`artifact-spec.md` → `docs/data-format.md`（数据格式与制品命名合为一篇）、`faq.md` + `maintenance.md` → `docs/operations.md`（运维与常见问题）；`docs/*.md` 降到 12 篇，README + docs 总行数降到约 1,640；
-- 排版统一：README 的维度表改为短标签并字数对齐（代码许可 / 构建入口 / 外部依赖 / 数据格式 / 行政区粒度 / 发布方式 / 更新频率 / 缓存策略 / 来源追溯 / 发布校验），并列的「方式一 ~ 方式五」标题统一为 6 字，各专题文档的二级标题统一为 4–6 字；
+- 排版统一：README 只保留代码许可、构建入口、外部依赖、行政区粒度、发布方式五个维度；文档二级标题统一为 4 字左右，并列的「方式一 ~ 方式五」标题统一为 8 字；
 - 继续中文化剩余文档：`architecture`、`deployment`、`data-sources`、`development`、`licensing`、`timezone`、`operations` 的散文英文（Release/digest/mirror/fallback/dump/full/provider/asset/timezone/container 等）改为中文，标题改为「架构设计」「部署」「数据来源与处理」「许可与署名」等；
 - **制品命名升到 v4**：发布资产改为 canonical-only，不再生成历史别名。`immich-cn-geodata-<profile>-<scope>-v1.zip` 取代 `geodata_admin_2.zip`、`geodata_admin_2_full.zip` 等旧名，也取代过渡期的 `immich-cn-geodata-immich-*`；其他资产统一为 `immich-cn-dataset-sqlite-v1.zip`、`immich-cn-patterns-tsv-v1.gz`、`immich-cn-i18n-json-v1.zip`、`immich-cn-manifest-json-v1.json`、`immich-cn-checksums-sha256-v1.txt`。manifest 的 `artifactSpecVersion` 为 `4`，固定引用旧文件名的使用者需要迁移；
 - 内部模块按职责重命名（`config.py` → `settings.py`、`build.py` → `pipeline.py`、`verify.py` → `validation.py` 等），命名规范见 `docs/naming-conventions.md`；
@@ -19,6 +19,7 @@
 ### 新增
 
 - 新增 `scripts/check_dead_symbols.py` 与 `make audit-dead-symbols`：扫描 `src/` 与 `scripts/` 的模块级定义是否有零引用（`__dunder__` 忽略，外部入口写进 `ALLOWED` 并注明原因），把此前每轮手写的死代码扫描固化成可重复执行的资产；2026-10-07 基线 501 个定义、1 个零引用项（已删除），复查为 0；
+- 文档护栏新增 README 维度表、英文标题、Markdown 表格结构与文档索引唯一性检查，防止排版再次漂移；
 - 新增 `scripts/check_action_pins.py` 与 `make audit-pins`：把每个 Action pin 与注释里的版本 tag 对拍（缺 40 位 SHA、缺版本注释、tag 不存在、tag 指向的 commit 与 pin 不一致都失败）；`check_workflows` 只做离线格式校验，发现不了「pin 停在旧版本但注释写着新版本」这类漂移。实测 6 个工作流 25 个固定引用全部与上游 tag 一致；
 - 新增 `monitor-update.yml` 与 `scripts/check_update_freshness.py`：每 6 小时检查 **Auto Data Update** 的新鲜度，区分 `never_run` / `no_run` / `stalled` / `failed` / `stale_success` / `schedule_stalled` / `ok`，并把「手动 dispatch 成功」与「schedule 仍在触发」分开判定，停摆时创建 `automation` 告警、恢复后自动关闭；
 - 项目定位收敛为“为 Immich 提供中国本地化的 reverse geocoding geodata”；新增 `docs/project-scope.md` 统一 core scope、optional support 与 non-goals，`docs/china-localization.md` 只记录实际证据、缺口和 roadmap；

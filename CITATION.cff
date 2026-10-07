@@ -4,7 +4,7 @@ message: "如果本项目对你的工作有帮助，请引用或链接本仓库�
 type: software
 license: MIT
 repository-code: "https://github.com/webees/immich-cn"
-abstract: "为 Immich 提供中国本地化的 reverse geocoding geodata：核心是中文地名、中文/拼音检索、行政层级和自动 Release/image；地图、EXIF timezone、CDN/cache 与 Nginx 示例是可选辅助能力。"
+abstract: "为 Immich 提供中国本地化的反向地理编码地理数据：核心是中文地名、中文与拼音检索、行政层级、自动发布与镜像；地图、EXIF 时区、CDN 与缓存、Nginx 示例是可选辅助能力。"
 keywords:
   - immich
   - geodata
