@@ -565,6 +565,24 @@ def test_check_docs_detects_package_version_drift(repo_copy: Path) -> None:
     assert "版本号不一致" in result.stdout
 
 
+def test_check_docs_requires_both_langs_paths_in_install_readme(repo_copy: Path) -> None:
+    """数据镜像落地的 README 必须同时给出两个 Immich 版本区间的挂载路径。
+
+    2026-10-07 实测：已发布镜像里的 README 只写了 `Immich < 1.136`，1.136.0 ~ 3.2.x
+    的用户会照它把覆盖包放到 `/usr/src/app/node_modules/`（错误位置）。
+    """
+    install = repo_copy / "docker" / "install.sh"
+    mutate(
+        install,
+        "                          Immich 1.136.0 ~ 3.2.x  -> /usr/src/app/server/node_modules/i18n-iso-countries\n",
+        "",
+    )
+
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "server/node_modules" in result.stdout
+
+
 def test_check_docs_requires_i18n_asset_for_release_users(repo_copy: Path) -> None:
     """geodata zip 不含 langs/，让用户挂载它就必须同时说明要下载 i18n 覆盖包。"""
     deployment = repo_copy / "docs" / "deployment.md"

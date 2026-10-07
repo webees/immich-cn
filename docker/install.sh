@@ -82,7 +82,10 @@ cat > "$target/README.md" <<'EOF'
 本目录由 immich-cn 数据镜像生成。
 
 - geodata/                放到 Immich 的 /build/geodata
-- i18n-iso-countries/     放到 Immich < 1.136 的 node_modules/i18n-iso-countries
+- i18n-iso-countries/     放到 Immich 的 node_modules/i18n-iso-countries：
+                          Immich < 1.136.0        -> /usr/src/app/node_modules/i18n-iso-countries
+                          Immich 1.136.0 ~ 3.2.x  -> /usr/src/app/server/node_modules/i18n-iso-countries
+                          Immich 3.3.0 及以上     不再需要（改读 geodata/countryInfo.txt）
 
 数据来源与许可见 https://github.com/webees/immich-cn/blob/main/docs/licensing.md
 EOF
