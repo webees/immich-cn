@@ -147,7 +147,7 @@ COMPOSE_FULL_EXAMPLES = (
     Path("examples/compose.acceleration.yml"),
 )
 COMPOSE_EXAMPLES = (*COMPOSE_FULL_EXAMPLES, Path("examples/compose.volume.yml"))
-VALKEY_IMAGE = "docker.io/valkey/valkey:9@sha256:c123e3715db63d06d4ad6964884037aa0d5d4d703939b9929954112889708e1d"
+VALKEY_IMAGE = "docker.io/valkey/valkey:9@sha256:70739f85ad2ee01a726a965584a0f94895f01b0c60b3cc8b0aeef11eaa6888cf"
 GHCR_MIRROR_DEFAULT = "ghcr.nju.edu.cn"
 GHCR_MIRROR_ENV = "IMMICH_CN_GHCR_MIRROR"
 TERMINOLOGY_DOC = Path("docs/terminology.md")

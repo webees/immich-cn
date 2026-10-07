@@ -468,6 +468,19 @@ def test_check_docs_requires_machine_learning_in_full_compose(repo_copy: Path) -
     assert "immich-machine-learning" in result.stdout
 
 
+def test_check_docs_requires_current_release_valkey_digest(repo_copy: Path) -> None:
+    """默认 release 线当前为 v3.2.4，应使用对应官方 compose 的 Valkey digest。"""
+    compose = repo_copy / "examples" / "compose.server.yml"
+    mutate(
+        compose,
+        "sha256:70739f85ad2ee01a726a965584a0f94895f01b0c60b3cc8b0aeef11eaa6888cf",
+        "sha256:c123e3715db63d06d4ad6964884037aa0d5d4d703939b9929954112889708e1d",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "Valkey" in result.stdout
+
+
 def test_check_docs_rejects_stale_timezone_api_description(repo_copy: Path) -> None:
     """timezone 文档不能把 PUT 写成无条件批量更新方法。"""
     timezone = repo_copy / "docs" / "timezone.md"
