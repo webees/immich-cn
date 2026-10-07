@@ -1,6 +1,6 @@
-# Data sources and processing
+# 数据来源与处理
 
-## Upstream data sources
+## 上游数据源
 
 | 文件 | 来源 | 许可 | 用途 |
 |:--|:--|:--|:--|
@@ -9,7 +9,7 @@
 | `admin2Codes.txt` | GeoNames | CC BY 4.0 | 二级行政区代码表 |
 | `countryInfo.txt` | GeoNames | CC BY 4.0 | 国家名称与元数据 |
 | `alternateNamesV2.zip` | GeoNames | CC BY 4.0 | 中文别名来源 |
-| `{CC}.zip`（CN/HK/TW/MO/JP） | GeoNames | CC BY 4.0 | 国家全量 dump，用于补充点位与 `ADM3`/`ADM4` |
+| `{CC}.zip`（CN/HK/TW/MO/JP） | GeoNames | CC BY 4.0 | 国家全量数据转储，用于补充点位与 `ADM3`/`ADM4` |
 | `ne_10m_admin_0_countries.geojson` | Natural Earth v5.1.2 | Public Domain | 国家边界回退 |
 | `i18n-iso-countries@7.0.0` | npm | MIT | 国家名称中文覆盖（旧版 Immich） |
 
@@ -25,7 +25,7 @@
 - 指数退避重试（默认 4 次，覆盖 408/425/429/5xx）；
 - 把 ETag、Last-Modified、SHA256、大小写入 `.cache/immich-cn/.meta/<name>.json`，命中缓存时跳过重复下载；
 - 在 `--revalidate` 模式下用 `If-None-Match` / `If-Modified-Since` 校验上游： GeoNames 支持强 ETag，未更新时返回 **304 且不传输正文**，更新时才重新下载；校验过程出错时会尝试回退到本地缓存；缓存不可用或内容无效时仍会失败；
-- 解压 `cities500.zip`、`alternateNamesV2.zip`、国家 dump 与 npm tarball。
+- 解压 `cities500.zip`、`alternateNamesV2.zip`、国家数据转储与 npm 压缩包。
 
 CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每日构建通常只需传输真正发生变化的少数文件。缓存键由 `runner.os`、工具版本与 `src/immich_cn/settings.py` 的摘要组成，上游源定义或版本固定发生变化时会切换到新键； `check_workflows.py` 会拒绝指向不存在文件的 `hashFiles` 路径，避免缓存键的某个维度静默变成空字符串。
 
@@ -34,13 +34,13 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 ### 2. 确定地点集合
 
 1. 过滤 `cities500.txt`：丢弃缺少有效一级行政区代码的噪声记录（`SG`、`VA` 除外）；
-2. 扫描各国家 dump，把不在 `cities500` 中、且 GeoNames ID 与经纬度都未出现过的记录写入 `extra_all.txt`；
-3. `extra_all.txt` 是 full 与非 full 的超集，非 full 打包时按人口阈值过滤；
-4. 顺带从国家 dump 中抽取 `ADM3`/`ADM4` 要素，构造 `CC.A1.A2[.A3[.A4]]` 形式的行政区代码表。
+2. 扫描各国家数据转储，把不在 `cities500` 中、且 GeoNames ID 与经纬度都未出现过的记录写入 `extra_all.txt`；
+3. `extra_all.txt` 是完整与非完整变体的超集，非完整变体打包时按人口阈值过滤；
+4. 顺带从国家数据转储中抽取 `ADM3`/`ADM4` 要素，构造 `CC.A1.A2[.A3[.A4]]` 形式的行政区代码表。
 
 > 第 4 步是本项目不依赖付费 API 也能给出区县、乡镇粒度的关键：GeoNames 只发布 admin1/admin2 的代码表，但各国全量数据中包含部分 `ADM3`/`ADM4` 记录与代码，覆盖程度因国家而异。
 
-实际覆盖情况（2026-10-07 实测 GeoNames `CN.zip`，`CN.txt` 的 sha256 为 `10b1e064ddce0f2fcc46f1e81faf941ed17d7eb438ac91f62b7259cc236111a6`）：中国大陆 dump 里有 **2,938 条 `ADM3` 要素**、**11,878 条 `ADM4` 要素**，但其中**带 `admin4` 代码的只有 73 条**（带 `admin3` 代码的 1,647 条）。本项目用 `CC.A1.A2[.A3[.A4]]` 代码定位层级，缺少 `admin4` 代码就无法拼出第四级，因此**默认的 `{admin_4}` 变体在中国大陆通常会回退到区县**——不是 GeoNames 没有乡镇要素，而是它们大多缺四级代码。如果必须精确到乡镇，请配置 `AMAP_API_KEY` 并使用 `--provider amap`；此时高德会补齐乡镇层级，其余国家/地区仍由 GeoNames 与 Nominatim 负责。
+实际覆盖情况（2026-10-07 实测 GeoNames `CN.zip`，`CN.txt` 的 sha256 为 `10b1e064ddce0f2fcc46f1e81faf941ed17d7eb438ac91f62b7259cc236111a6`）：中国大陆数据转储里有 **2,938 条 `ADM3` 要素**、**11,878 条 `ADM4` 要素**，但其中**带 `admin4` 代码的只有 73 条**（带 `admin3` 代码的 1,647 条）。本项目用 `CC.A1.A2[.A3[.A4]]` 代码定位层级，缺少 `admin4` 代码就无法拼出第四级，因此**默认的 `{admin_4}` 变体在中国大陆通常会回退到区县**——不是 GeoNames 没有乡镇要素，而是它们大多缺四级代码。如果必须精确到乡镇，请配置 `AMAP_API_KEY` 并使用 `--provider amap`；此时高德会补齐乡镇层级，其余国家与地区仍由 GeoNames 与 Nominatim 负责。
 
 ### 3. 中文名称索引
 
@@ -74,15 +74,15 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 
 只有在 GeoNames 中文别名缺失或明显不符合中文习惯时才需要在此补充。
 
-### 5. provider 增强（可选）
+### 5. 提供方增强（可选）
 
-| provider | 触发条件 | 粒度 | 速率控制 |
+| 提供方 | 触发条件 | 粒度 | 速率控制 |
 |:--|:--|:--|:--|
 | `offline` | 默认 | 国家/省/市/区县/乡镇（依 GeoNames 覆盖） | 无网络请求 |
 | `amap` | 设置 `AMAP_API_KEY` | 高德标准的省/市/区/乡镇 | `IMMICH_CN_AMAP_QPS`（默认 3） |
 | `nominatim` | `--provider nominatim` | OSM 行政层级 | 默认 1 QPS，真实 User-Agent |
 
-高德使用 GCJ-02 坐标，调用前会用 WGS-84 → GCJ-02 转换；provider 结果按坐标写入 JSONL 缓存，缓存命中时不会重复请求上游；缓存未命中、缓存损坏或显式刷新时仍可能产生请求和计费。
+高德使用 GCJ-02 坐标，调用前会用 WGS-84 → GCJ-02 转换；提供方结果按坐标写入 JSONL 缓存，缓存命中时不会重复请求上游；缓存未命中、缓存损坏或显式刷新时仍可能产生请求和计费。
 
 ### 6. 规范数据集
 
@@ -90,12 +90,12 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 
 ### 7. Immich 适配器打包
 
-对每个 `pattern × full` 组合：
+对每个「展示粒度 × 数据规模」组合：
 
 1. 流式读取 `cities500.txt` 与 `extra_all.txt`；
 2. 从 `levels.tsv` 取四级名称，按 pattern 组合成展示名，写入第 1、2 列；
-3. 直接写进 zip（不在磁盘上落中间文件），zip 内目录结构为 `geodata/`，与 Immich 读取约定一致；
-4. 追加 `geodata/build-info.json` 说明该变体的 pattern 与 full 状态。
+3. 直接写进压缩包（不在磁盘上落中间文件），包内目录结构为 `geodata/`，与 Immich 读取约定一致；
+4. 追加 `geodata/build-info.json` 说明该变体的展示粒度与数据规模。
 
 最后生成 `immich-cn-manifest-json-v1.json`、`immich-cn-checksums-sha256-v1.txt`、`immich-cn-patterns-tsv-v1.gz` 与 `immich-cn-i18n-json-v1.zip`。 130 MiB 级的明文 `immich-cn-patterns-v1.tsv` 默认不会生成；需要排查时可用 `--keep-raw` 同时保留明文表，镜像构建使用直接流式生成的压缩表 `immich-cn-patterns-tsv-v1.gz`。
 

@@ -22,7 +22,7 @@ make typecheck   # mypy
 make test        # pytest + 覆盖率
 make check       # lint + typecheck + test + docs + workflows + shellcheck
 make smoke       # 用合成数据跑完整流水线（不访问外网）
-make artifacts   # 校验 dist/ 制品（zip / manifest / immich-cn-checksums-sha256-v1.txt）
+make artifacts   # 校验 dist/ 制品（压缩包 / 清单 / immich-cn-checksums-sha256-v1.txt）
 make entrypoint  # 校验容器入口脚本对 IMMICH_CN_PATTERN 的处理
 make build       # 真实构建（首次下载约 260 MiB 压缩数据）
 make clean       # 清理 build/ dist/ 与各类缓存
@@ -37,12 +37,12 @@ python scripts/cleanup.py --help  # 查看 Release/Actions/GHCR 清理参数（�
 | 开启 `--revalidate` 后的日常下载 | 通常仅 cities500 ≈13 MiB；未变化的数据源返回 304 |
 | 解压后的中间文件 | ≈0.95 GiB（alternateNamesV2.txt 749 MiB、CN.txt 126 MiB） |
 | 解析 alternateNamesV2 建立中文名索引 | ≈10 s |
-| 打包 14 个变体（名称组合 + zip 压缩） | ≈1.5 min |
+| 打包 14 个变体（名称组合 + 压缩打包） | ≈1.5 min |
 | GitHub Actions 完整流程 | 约 8~25 min（含 runner 缓存恢复与镜像推送） |
 
 构建结束后会自动删除不再需要的中间产物（解压出的上游原始文件等，合计约 1.1 GiB）。明文变体表 `immich-cn-patterns-v1.tsv` 默认不会生成，只有加 `--keep-raw` 时才会保留并需要自行清理。
 
-zip 压缩级别实测（对 44.8 MiB 的 cities500 片段）：
+压缩级别实测（对 44.8 MiB 的 cities500 片段）：
 
 | 级别 | 耗时 | 体积 |
 |:--|:--|:--|
@@ -68,14 +68,14 @@ immich-cn fingerprint dist/immich-cn-manifest-json-v1.json  # 打印发布指纹
 
 | 参数 | 默认值 | 说明 |
 |:--|:--|:--|
-| `--provider` | `offline` | `offline` / `amap` / `nominatim` / `auto`（auto = 有 Key 用 amap） |
+| `--provider` | `offline` | `offline` / `amap` / `nominatim` / `auto`（auto = 有密钥用 amap） |
 | `--chinese-variant` | `hans` | `hans` 简体 / `hant` 繁体 |
 | `--patterns` | 7 种粒度 | 逗号分隔的展示粒度，如 `{admin_2},{admin_2} {admin_3}` |
 | `--extra-countries` | `CN,HK,TW,MO,JP` | 需要附带国家全量 dump 的地区 |
-| `--min-population` | `100` | 非 full 变体的最小人口阈值 |
+| `--min-population` | `100` | 非完整变体的最小人口阈值 |
 | `--work-dir` / `--dist-dir` / `--cache-dir` / `--config-dir` | `build` / `dist` / `.cache/immich-cn` / `config` | 各目录位置 |
 
-`--provider auto` 在没有 `AMAP_API_KEY` 时会回退到离线模式，并打印一行显式 warning：产物与 `--provider offline` 完全相同，只有 manifest 的 `config.provider` 记为 `offline`。这样「密钥缺失 / 改名 / 过期」不会伪装成一次成功的高德增强构建；`--provider amap` 则是硬要求，缺 Key 直接以 `ConfigError` 失败。
+`--provider auto` 在没有 `AMAP_API_KEY` 时会回退到离线模式，并打印一行显式告警：产物与 `--provider offline` 完全相同，只有清单的 `config.provider` 记为 `offline`。这样「密钥缺失 / 改名 / 过期」不会伪装成一次成功的高德增强构建；`--provider amap` 则是硬要求，缺密钥直接以 `ConfigError` 失败。
 | `--jobs` | CPU 数（最多 8） | 打包并发度 |
 | `--revalidate` | 关 | 用 ETag/Last-Modified 校验上游，未变化不下载（每日自动更新使用） |
 | `--force` | 关 | 强制重新下载全部数据源 |
@@ -88,7 +88,7 @@ immich-cn fingerprint dist/immich-cn-manifest-json-v1.json  # 打印发布指纹
 
 | 变量 | 默认值 | 说明 |
 |:--|:--|:--|
-| `AMAP_API_KEY` | 无 | 高德 Key；未设置时 `--provider amap` 会直接报错 |
+| `AMAP_API_KEY` | 无 | 高德密钥；未设置时 `--provider amap` 会直接报错 |
 | `IMMICH_CN_AMAP_QPS` | `3` | 高德请求速率上限 |
 | `IMMICH_CN_AMAP_BATCH_SIZE` | `20` | 高德批量逆地理编码的每批坐标数 |
 | `IMMICH_CN_AMAP_COUNTRIES` | `CN,HK,MO` | 使用高德的国家码 |

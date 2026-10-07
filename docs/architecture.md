@@ -1,4 +1,4 @@
-# Architecture design
+# 架构设计
 
 ## 目标
 
@@ -6,7 +6,7 @@
 
 1. 从公开数据源生成可查询、可版本化的规范数据集；
 2. 把地名汉化到「国家 → 一级行政区 → 二级行政区 → 三级行政区 → 四级行政区」；
-3. 通过适配器导出 Immich 文本包，并以 Release 与容器镜像发布；
+3. 通过适配器导出 Immich 文本包，并以发布与容器镜像交付；
 4. 让整条链路可以在没有人工干预的情况下周期运行；
 5. 为中国部署场景提供地图、CDN、静态资源和源站缓存的接入边界，但不把私有照片或未授权瓦片纳入公共缓存。
 
@@ -19,7 +19,7 @@
                                         │ fetch（缓存 + SHA256 指纹）
                                         ▼
                     ┌──────────────────────────────────────────────┐
-   数据准备          │ prepare cities500 / extra dumps / admin 表    │
+   数据准备          │ 准备 cities500 / extra 数据转储 / admin 表    │
                     └───────────────────┬──────────────────────────┘
                                         ▼
                     ┌──────────────────────────────────────────────┐
@@ -28,17 +28,17 @@
                     └───────────────────┬──────────────────────────┘
                                         ▼
                     ┌──────────────────────────────────────────────┐
-   增强（可选）      │ provider 链：offline → amap / nominatim       │
+   增强（可选）      │ 提供方链：offline → amap / nominatim          │
                     └───────────────────┬──────────────────────────┘
                                         ▼
                     ┌──────────────────────────────────────────────┐
-   产出             │ SQLite 规范数据集 + Immich geodata/ 适配器    │
+   产出             │ SQLite 规范数据集 + Immich 地理数据适配器     │
                     │ + levels.tsv + immich-cn-patterns-tsv-v1.gz                │
-                    │ → 各展示粒度 zip、manifest、immich-cn-checksums-sha256-v1.txt         │
+                    │ → 各展示粒度压缩包、清单、immich-cn-checksums-sha256-v1.txt           │
                     └───────────────────┬──────────────────────────┘
                                         ▼
                     ┌──────────────────────────────────────────────┐
-   发布             │ GitHub Release  +  GHCR 数据镜像 / Immich 镜像 │
+   发布             │ GitHub 发布 + GHCR 数据镜像 / Immich 镜像     │
                     └──────────────────────────────────────────────┘
 ```
 
@@ -60,34 +60,34 @@
 
 ### 0. 规范模型优先，外部契约只做适配
 
-`immich-cn-dataset-sqlite-v1.zip` 中的 SQLite 数据集是本项目的规范模型，定义字段语义、schema 版本、索引和查询视图；`geodata*.zip` 仅把该模型导出为 Immich 当前需要的文件名、列位置和目录结构。 `levels.tsv`、`immich-cn-patterns-tsv-v1.gz`、`immich-cn-manifest-json-v1.json` 和 provider 缓存则是构建与兼容层，不会反向约束规范字段。未来新增消费者时应增加适配器或导出器，而不是改变规范模型的数据含义。
+`immich-cn-dataset-sqlite-v1.zip` 中的 SQLite 数据集是本项目的规范模型，定义字段语义、结构版本、索引与查询视图；`geodata*.zip` 仅把该模型导出为 Immich 当前需要的文件名、列位置与目录结构。`levels.tsv`、`immich-cn-patterns-tsv-v1.gz`、`immich-cn-manifest-json-v1.json` 与提供方缓存属于构建与兼容层，不会反向约束规范字段。新增消费者时应增加适配器或导出器，而不是改变规范模型的数据含义。
 
 规范字段和用法见 [数据格式](data-format.md)，决策见 [ADR 0001](adr/0001-immich-output-contract.md)。
 
-### 1. 默认无需 API Key
+### 1. 默认无需密钥
 
-本项目的默认设计目标是无需付费 API Key 即可生成国内数据，因此把 provider 拆成可选层：
+本项目的默认设计目标是无需付费密钥即可生成国内数据，因此把提供方拆成可选层：
 
-- `offline`（默认）：只依赖 GeoNames，通过 `admin1CodesASCII.txt`、`admin2Codes.txt` 以及各国家 dump 中的 `ADM3`/`ADM4` 要素自建四级行政层级表。
+- `offline`（默认）：只依赖 GeoNames，通过 `admin1CodesASCII.txt`、`admin2Codes.txt` 以及各国家数据转储中的 `ADM3`/`ADM4` 要素自建四级行政层级表。
 - `amap`：配置 `AMAP_API_KEY` 后启用，用高德补充区县/乡镇，结果按坐标缓存到磁盘。
 - `nominatim`：配置后启用，用 OSM 补充海外数据，严格遵守 1 QPS 与真实 User-Agent 的使用条款。
 - `auto`：有 `AMAP_API_KEY` 时等价于 `amap`，否则等价于 `offline`。
 
-在 GitHub Actions 已授予所需仓库权限、上游服务可访问且未启用可选 provider 的前提下，默认离线路径不额外依赖 Secret，可完成「数据更新 → 校验 → 发布」流程。
+在 GitHub Actions 已授予所需仓库权限、上游服务可访问且未启用可选提供方的前提下，默认离线路径不额外依赖密钥，可完成「数据更新 → 校验 → 发布」流程。
 
 ### 2. 规范数据、展示粒度与适配器解耦
 
-规范数据集保存地点、原始名称、坐标、人口、行政代码和中文四级名称，不包含某个呈现 pattern 的拼接结果。项目再把 7 种粒度 × 2 种数据规模导出为 14 个 Immich zip：
+规范数据集保存地点、原始名称、坐标、人口、行政代码与中文四级名称，不包含某个展示粒度的拼接结果。项目再把 7 种粒度 × 2 种数据规模导出为 14 个 Immich 压缩包：
 
-- Python 侧按 `--patterns` 在打包时组合，产出 Immich 适配器 zip；
+- Python 侧按 `--patterns` 在打包时组合，产出 Immich 适配器压缩包；
 - 镜像侧额外附带 `immich-cn-patterns-tsv-v1.gz`，容器启动时用 `awk` 重写 `cities500.txt` 的第 1、2 列，因此**同一个镜像可以通过 `IMMICH_CN_PATTERN` 切换粒度**，不需要重新构建或下载。
 
-### 3. full 与非 full
+### 3. 完整与非完整
 
-- 非 full（默认，`immich-cn-geodata-admin2-default-v1.zip`）：`cities500.txt` + 国家 dump 中人口 ≥ 100 的记录 + 四个直辖市下辖全部记录。
-- full（`immich-cn-geodata-admin2-full-v1.zip`）：额外包含人口为 0 的行政要素，边界识别更准、导入更慢。
+- 非完整（默认，`immich-cn-geodata-admin2-default-v1.zip`）：`cities500.txt` + 国家数据转储中人口 ≥ 100 的记录 + 四个直辖市下辖全部记录。
+- 完整（`immich-cn-geodata-admin2-full-v1.zip`）：额外包含人口为 0 的行政要素，边界识别更准、导入更慢。
 
-两者共用同一份 `levels.tsv`，打包时按人口阈值过滤，避免重复解析国家 dump。
+两者共用同一份 `levels.tsv`，打包时按人口阈值过滤，避免重复解析国家数据转储。
 
 ### 4. 可审计
 
@@ -96,10 +96,10 @@
 - 每个上游文件的 URL、SHA256、大小、ETag、Last-Modified；
 - 各级行政表条目数、源记录数、输出记录数、中文覆盖率；
 - 规范数据集与 14 个兼容变体各自的 SHA256、格式版本与体积；
-- 使用的 provider 列表；
+- 使用的提供方列表；
 - 构建日期与 `geodata-date.txt` 使用北京时间 `+08:00`。
 
-镜像发布还附带 BuildKit provenance 与 SBOM；server 覆盖镜像在构建前把 Immich tag 解析为 base digest，并用 `tag@digest` 固定本次构建。base digest 参与 change detection，Immich base 更新时会触发 server image 重建。推送后按最终 digest 重新拉取执行入口 smoke test，再用 Trivy 扫描漏洞和许可证。在当次扫描数据库和扫描范围内，数据镜像阻断 `HIGH`/`CRITICAL`； Immich 覆盖镜像与同一 base digest 做差集，只阻断新增漏洞并把继承项写成例外报告。最后通过 GitHub OIDC 使用 Cosign 做 keyless 签名，并对两个最终 digest 执行 `cosign verify`。
+镜像发布还附带 BuildKit 来源证明与 SBOM；服务端覆盖镜像在构建前把 Immich 标签解析为基础镜像摘要，并用 `tag@digest` 固定本次构建。该摘要参与变更检测，Immich 基础镜像更新时会触发服务端镜像重建。推送后按最终摘要重新拉取并执行入口冒烟测试，再用 Trivy 扫描漏洞与许可证。在当次扫描数据库与扫描范围内，数据镜像阻断 `HIGH`/`CRITICAL`；Immich 覆盖镜像与同一基础镜像摘要做差集，只阻断新增漏洞并把继承项写成例外报告。最后通过 GitHub OIDC 使用 Cosign 做无密钥签名，并对两个最终摘要执行 `cosign verify`。
 
 ### 5. 校验前置
 
@@ -124,18 +124,18 @@
    │
    ├─ 1. 条件校验上游：ETag / Last-Modified → 未变化返回 304，0 字节正文
    ├─ 2. 计算发布指纹：sha256(上游文件 SHA256 + 构建配置 + 发布器修订)
-   ├─ 3. 与上一次发布的 immich-cn-manifest-json-v1.json 对比
+   ├─ 3. 与上一次发布的 immich-cn-manifest-json-v1.json 比对
    │      ├─ 相同 → 跳过发布与镜像推送（no-change job 记录摘要）
    │      └─ 不同 → 继续
    ├─ 4. 构建 7 种粒度 × full/非 full，并执行发布前校验
-   ├─ 5. 推送多架构镜像并更新 Release
+   ├─ 5. 推送多架构镜像并更新发布
    └─ 6. 清理超出保留数量的旧 data-* 快照
 ```
 
 三个关键点：
 
 1. **增量校验而不是全量下载**：`immich_cn.fetching.Fetcher` 在 `--revalidate` 下带 `If-None-Match` / `If-Modified-Since` 请求上游；数据源支持强 ETag，未更新时直接返回 304，因此上游返回 304 时正文传输为 0；请求连接和头部仍有少量开销。校验失败时会尝试回退到本地缓存，缓存缺失或损坏时仍会按错误路径失败。
-2. **内容指纹而不是时间戳**：`immich_cn.fingerprint` 对"上游文件内容摘要 + 构建配置 + 发布器修订 + manifest schema"求哈希，不含构建时间。在实现与输入不变的前提下，同一份数据与同一版发布器重复计算会得到相同指纹；只有目标摘要、Immich base digest、data image digest、data image 存在性、`auto-release` asset 集合与最新 `data-*` 不可变快照全部匹配时，才可以跳过发布。构建逻辑修复后会主动发布新镜像，不会把旧制品误判成最新。
+2. **内容指纹而不是时间戳**：`immich_cn.fingerprint` 对「上游文件内容摘要 + 构建配置 + 发布器修订 + 清单结构版本」求哈希，不含构建时间。在实现与输入不变的前提下，同一份数据与同一版发布器重复计算会得到相同指纹；只有目标摘要、Immich 基础镜像摘要、数据镜像摘要、数据镜像存在性、`auto-release` 资产集合与最新 `data-*` 不可变快照全部匹配时，才可以跳过发布。构建逻辑修复后会主动发布新镜像，不会把旧制品误判成最新。
 3. **失败可见**：任一环节失败会自动创建或更新带 `automation` 标签的 issue，附带运行链接，修复后可用 `workflow_dispatch` 立即重跑（`force-publish` 可强制发布）。
 
 历史垃圾由独立的 `cleanup.yml` 每周清理：发布快照、Actions 运行与 GHCR 版本按 [运维与常见问题](operations.md) 的保留策略处理，语义版本与稳定标签在默认策略下受保护。
@@ -150,7 +150,7 @@
 |:--|:--|:--|:--|
 | 构建失败 | ✗ | 跳过 | 创建/更新 `automation` issue 告警 |
 | 上游无变化 | ✓ | 跳过 | `no-change` 记录摘要；关闭历史告警 |
-| 有变化且发布成功 | ✓ | ✓ | 发布 Release 与镜像；关闭历史告警 |
+| 有变化且发布成功 | ✓ | ✓ | 发布与推送镜像；关闭历史告警 |
 | 有变化但发布失败 | ✓ | ✗ | **保留告警**（此时若关闭，会把刚创建的告警立刻关掉） |
 
 `force-publish` 会把"无变化"也走发布分支，因此 `no-change` 与 `release` 必须互斥，否则同一次运行会同时输出"跳过发布"和"已发布"两份互相矛盾的摘要。

@@ -1,4 +1,4 @@
-# Deployment
+# 部署
 
 ## 前置条件
 
@@ -9,7 +9,7 @@
 
 ## 方案 A：开箱即用的 Immich 镜像
 
-示例 compose 文件（含 immich-server、immich-machine-learning、redis 与 database，仍需提供 `.env` 与持久化目录）：[examples/compose.server.yml](../examples/compose.server.yml)。
+示例 Compose 文件（含 immich-server、immich-machine-learning、redis 与数据库，仍需提供 `.env` 与持久化目录）：[examples/compose.server.yml](../examples/compose.server.yml)。
 
 ```yaml
 # compose.yaml
@@ -45,10 +45,10 @@ Immich v3.2.4 与 v3.3.0 官方 compose 均已将媒体目录挂载到 `/data`�
 |:--|:--|
 | `latest` | 最近一次成功构建的数据 + `release` 版 Immich |
 | `release` | 与 Immich `release` 标签对齐 |
-| `release-<日期>` | 当日最新数据，同日重跑可更新；长期固定请使用 digest |
-| `<语义化版本>` | 由 `Release` 工作流生成，两个镜像使用同一项目版本 |
+| `release-<日期>` | 当日最新数据，同日重跑可更新；长期固定请使用摘要 |
+| `<语义化版本>` | 由发布工作流生成，两个镜像使用同一项目版本 |
 
-### Environment variables
+### 环境变量
 
 | 变量 | 默认值 | 说明 |
 |:--|:--|:--|
@@ -103,7 +103,7 @@ services:
       # - ./immich-cn/i18n-iso-countries/langs:/usr/src/app/node_modules/i18n-iso-countries/langs:ro
 ```
 
-## 方案 C：只用 Release 数据
+## 方案 C：只用发布数据
 
 ```bash
 curl -fsSL -o immich-cn-geodata-admin2-default-v1.zip \
@@ -135,12 +135,12 @@ TZ=Asia/Shanghai date +"%Y-%m-%dT%H:%M:%S+08:00" > ./immich-cn/geodata/geodata-d
 
 ## 国内网络与镜像获取
 
-Compose 示例默认使用中国可达的 GHCR mirror：
+Compose 示例默认使用中国可达的 GHCR 镜像源：
 
 - `ghcr.nju.edu.cn`：默认；
-- `docker.m.daocloud.io/ghcr.io`：可选 fallback；
-- `ghcr.dockerproxy.net`：可选 fallback；
-- `ghcr.io`：官方源，作为最终 fallback 或 digest 比对基准。
+- `docker.m.daocloud.io/ghcr.io`：可选回退；
+- `ghcr.dockerproxy.net`：可选回退；
+- `ghcr.io`：官方源，作为最终回退或摘要比对基准。
 
 用 `IMMICH_CN_GHCR_MIRROR` 覆盖默认值：
 
@@ -149,12 +149,12 @@ export IMMICH_CN_GHCR_MIRROR=ghcr.nju.edu.cn
 docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 ```
 
-第三方 mirror 不是官方 origin。它们可能在当前时刻返回与 `ghcr.io` 相同的 digest，但可用性和信任状态会变化。生产环境应：
+第三方镜像源不是官方回源。它们可能在当前时刻返回与 `ghcr.io` 相同的摘要，但可用性和信任状态会变化。生产环境应：
 
-- 从官方 `ghcr.io` 或签名 Release 获取目标 digest；
-- 对比 mirror 的 `docker buildx imagetools inspect` digest；
+- 从官方 `ghcr.io` 或签名发布获取目标摘要；
+- 对比镜像源的 `docker buildx imagetools inspect` 摘要；
 - 长期固定到 `@sha256:<digest>`，不要只写 `latest`；
-- 从 Release 下载数据时使用 `immich-cn-checksums-sha256-v1.txt` 验证内容。
+- 从发布下载数据时使用 `immich-cn-checksums-sha256-v1.txt` 验证内容。
 
 国内网络环境下，地图底图与坐标偏移是另一个问题：本项目输出的坐标来自 GeoNames（WGS-84）。若底图使用 GCJ-02，请阅读 [中国本地化与加速](china.md) 的坐标说明，或改用 WGS-84 底图。
 
@@ -178,8 +178,8 @@ docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 上游数据由 GitHub Actions 按设计每天自动检查更新（北京时间 13:23 / UTC 05:23）；实际执行取决于仓库权限与上游服务可用性：
 
 - 每天用 ETag 条件请求检查 GeoNames、Natural Earth、i18n-iso-countries；
-- 只有数据、构建配置或发布器修订真正变化时才重新构建、发布 Release 与推送镜像；
-- 因此拉取最新镜像即可获得该 Release 当时的完整数据；拉取频率取决于你对数据新鲜度和保留策略的要求。
+- 只有数据、构建配置或发布器修订真正变化时才重新构建、发布与推送镜像；
+- 因此拉取最新镜像即可获得该次发布当时的完整数据；拉取频率取决于你对数据新鲜度和保留策略的要求。
 
 判断当前数据版本：查看 Release 标题日期，或容器内 `/build/geodata/geodata-date.txt`。
 
@@ -196,7 +196,7 @@ docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 
 ## 非官方 Immich 镜像
 
-`imagegenius/immich` 等第三方镜像的目录结构可能不同（未逐一验证），请把 `geodata` 挂载到它实际使用的 geodata 路径，并参考镜像自身的文档。`IMAGES` 目录不一致时，`IMMICH_BUILD_DATA` 也可以显式覆盖。
+`imagegenius/immich` 等第三方镜像的目录结构可能不同（未逐一验证），请把 `geodata` 挂载到它实际使用的地理数据路径，并参考镜像自身的文档。`IMAGES` 目录不一致时，`IMMICH_BUILD_DATA` 也可以显式覆盖。
 
 ## Rollback
 
