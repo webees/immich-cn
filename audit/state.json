@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 266,
+  "round": 267,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 188,
+    "findings": 189,
     "clean_rounds": 76,
     "p0": 0,
     "p1": 28,
-    "p2": 115,
+    "p2": 116,
     "p3": 49
   },
   "status": "active",
@@ -2707,6 +2707,16 @@
       "severity": "P2/P3",
       "evidence": "确认并修复四类问题：① 用户指出文档大量中英混杂；逐行检查 README/docs/CONTRIBUTING/SECURITY，将通用英文词（issue、repository、pull request、force push、review thread、squash、pattern、pull、sidecar 等）改为中文，新增 check_prose_language 护栏并补负向用例，只有产品名、协议缩写、命令、路径、字段名与代码标识符保留英文；② 2026-10-07 Auto Data Update 因 `ghcr.io/immich-app/postgres` 拉取触发 toomanyrequests 失败；在完整服务栈冒烟中增加 PostgreSQL、Valkey、覆盖镜像的 5 次退避拉取重试；③ `cleanup.py` 原先只能清理 auto-release 资产，语义版本 Release 上的旧命名资产没有自动回收机制；新增 `--prune-legacy-assets`，先确认仓库已有规范 v4 替代品，再删除旧命名资产，缺少替代品时只报告不删除，并补纯函数与执行测试；真实 dry-run 识别 v1.0.0~v1.0.4 共 100 个、auto-release 21 个，合计 121 个可删除旧资产，实际删除未执行；④ 容器入口在 source_dir == target 时会误报“目标不可写”，现明确跳过复制并补 check-entrypoint 用例。验证：make check 447 passed，文档/工作流/Shell 契约全绿，make entrypoint 全部通过；PR #208 合并 main 39cccc2，四项 required checks 全绿。仍阻塞：旧资产实际删除需授权；GHCR 版本列表 API 因当前令牌缺 read:packages 返回 403；secret scanning 两个开关需 owner 手动开启。clean_streak 归零。",
       "pr": "https://github.com/webees/immich-cn/pull/208"
+    },
+    {
+      "round": 267,
+      "timestamp": "2026-10-08T15:10:00+07:00",
+      "focus": "Action 固定提交与上游版本标签是否一致",
+      "method": "M4 外部控制面对拍（GitHub API 解析 tag commit）+ M1 负向核对",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`make audit-pins` 首次运行发现 5 个固定引用已漂移：actions/upload-artifact 的 3 处仍指向 043fb46d1a93，但上游 v7 标签当前指向 cf430e030ddb；actions/download-artifact 的 2 处仍指向 3e5f45b2cfb9，但上游 v8 标签当前指向 9000827ccba6。修复：按 GitHub API 解析出的 commit 更新 5 处 pin，保留 # v7/# v8 注释；复查 `make audit-pins` 通过 25 个固定引用。验证：`make check` 447 passed，PR #209 合并 main ecba960，四项 required checks 全绿；该检查仍不在 make check 内，因为需要网络与令牌。",
+      "pr": "https://github.com/webees/immich-cn/pull/209"
     }
   ],
   "residual_risks": [
