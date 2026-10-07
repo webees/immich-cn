@@ -96,7 +96,7 @@ IMMICH_CN_JSDELIVR_BASE=https://cdn.jsdelivr.net \
 - GitHub Release 中的 `immich-cn-geodata-admin2-default-v1.zip` 和 `immich-cn-manifest-json-v1.json` 通过 jsDelivr 请求返回 `404`。jsDelivr 的 GitHub 通道服务的是 Git 树文件，不会自动镜像 Release 附件；
 - 因此当前不能把本项目的大型 Release 资产写成 jsDelivr URL。若未来需要免费 CDN，可选择在仓库中发布小型指针文件，或把公开静态资产放到单独、许可清晰的静态仓库；不要把二进制 zip 提交进主仓库。
 
-大陆线路质量必须实测，不能因为节点域名带 `.cn` 或任何服务商宣传“中国加速”就把它当成有 SLA 的中国大陆 CDN。至少应在主要省份、运营商和早晚高峰做多次测速，并观察 DNS 解析、TLS 握手、首字节和下载完成时间。第三方 mirror 不是可信 origin，必须使用 HTTPS，并优先固定到 commit SHA；下载后仍应用 SHA256 校验内容。线路不理想时，它应当只是可选 fallback，不应替换官方 Release、GHCR 或自有源站。
+大陆线路质量必须实测，不能因为节点域名带 `.cn` 或任何服务商宣传“中国加速”就把它当成有 SLA 的中国大陆 CDN。至少应在主要省份、运营商和早晚高峰做多次测速，并观察 DNS 解析、TLS 握手、首字节和下载完成时间。第三方 mirror 不是可信 origin，必须使用 HTTPS，并优先固定到 commit SHA；下载后仍应用 SHA256 校验内容。线路不理想时，它应当只是可选 fallback，不应替代 digest 校验、官方 GHCR 基准或自有源站。
 
 也不要让 jsDelivr 代理 Immich 的 `/_app/immutable` 构建资源、照片、缩略图、视频或认证 API。那些文件不在本 GitHub 仓库中，且私有媒体不应经过不受你控制的第三方缓存。
 

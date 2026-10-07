@@ -1,13 +1,14 @@
 # 官方镜像 + 数据目录挂载：先用数据镜像把文件释放到宿主机。
 #
-#   docker run --rm -v "$PWD/immich-cn:/out" ghcr.io/webees/immich-cn:latest \
+#   docker run --rm -v "$PWD/immich-cn:/out" \
+#     "${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/webees/immich-cn:latest" \
 #     --target /out --pattern '{admin_2}'
 #
 name: immich
 
 services:
   immich-server:
-    image: ghcr.io/immich-app/immich-server:release
+    image: ${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/immich-app/immich-server:release
     container_name: immich_server
     env_file:
       - .env

@@ -17,7 +17,7 @@ name: immich
 
 services:
   immich-server:
-    image: ghcr.io/webees/immich-cn-server:latest
+    image: ${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/webees/immich-cn-server:latest
     container_name: immich_server
     env_file:
       - .env
@@ -57,7 +57,7 @@ services:
 | `IMMICH_CN_PATTERNS_TABLE` | `/opt/immich-cn/immich-cn-patterns-tsv-v1.gz` | 运行时粒度切换用的变体表，一般无需修改 |
 | `IMMICH_BUILD_DATA` | `/build` | Immich 自身的构建数据目录，跟随官方镜像即可 |
 
-数据镜像（`ghcr.io/webees/immich-cn`）额外支持：
+数据镜像（默认 pull 地址 `${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/webees/immich-cn`）额外支持：
 
 | 变量 | 默认值 | 说明 |
 |:--|:--|:--|
@@ -81,7 +81,8 @@ services:
 
 ```bash
 # 1. 把数据释放到宿主机
-docker run --rm -v "$PWD/immich-cn:/out" ghcr.io/webees/immich-cn:latest \
+docker run --rm -v "$PWD/immich-cn:/out" \
+  "${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/webees/immich-cn:latest" \
   --target /out --pattern '{admin_2} {admin_3}'
 
 # 2. compose 中挂载
@@ -90,7 +91,7 @@ docker run --rm -v "$PWD/immich-cn:/out" ghcr.io/webees/immich-cn:latest \
 ```yaml
 services:
   immich-server:
-    image: ghcr.io/immich-app/immich-server:release
+    image: ${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/immich-app/immich-server:release
     volumes:
       - ./immich-cn/geodata:/build/geodata:ro
       # 国家名称覆盖：仅 Immich 1.136.0 ~ 3.2.x 需要（3.3.0 起改读 countryInfo.txt）
@@ -132,12 +133,26 @@ TZ=Asia/Shanghai date +"%Y-%m-%dT%H:%M:%S+08:00" > ./immich-cn/geodata/geodata-d
 
 ## 国内网络与镜像获取
 
-本项目不内置第三方镜像加速地址，也不把未经核验的镜像站当作官方来源。网络不稳定时，可以：
+Compose 示例默认使用中国可达的 GHCR mirror：
 
-- 为 `docker` 或 `containerd` 配置你信任的 registry mirror，并确认它同步的是 `ghcr.io` 上的同一 digest；
-- 拉取后执行 `docker buildx imagetools inspect` 或 `docker inspect` 记录 digest；
-- 对需要长期固定的镜像使用 `@sha256:<digest>`，不要只写 `latest`；
-- 从 Release 下载数据时使用校验文件验证内容；GitHub 的 `releases/latest/download` 只负责定位，不代表内容已在本机验证。
+- `ghcr.nju.edu.cn`：默认；
+- `docker.m.daocloud.io/ghcr.io`：可选 fallback；
+- `ghcr.dockerproxy.net`：可选 fallback；
+- `ghcr.io`：官方源，作为最终 fallback 或 digest 比对基准。
+
+用 `IMMICH_CN_GHCR_MIRROR` 覆盖默认值：
+
+```bash
+export IMMICH_CN_GHCR_MIRROR=ghcr.nju.edu.cn
+docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
+```
+
+第三方 mirror 不是官方 origin。它们可能在当前时刻返回与 `ghcr.io` 相同的 digest，但可用性和信任状态会变化。生产环境应：
+
+- 从官方 `ghcr.io` 或签名 Release 获取目标 digest；
+- 对比 mirror 的 `docker buildx imagetools inspect` digest；
+- 长期固定到 `@sha256:<digest>`，不要只写 `latest`；
+- 从 Release 下载数据时使用 `immich-cn-checksums-sha256-v1.txt` 验证内容。
 
 国内网络环境下，地图底图与坐标偏移是另一个问题：本项目输出的坐标来自 GeoNames（WGS-84）。若底图使用 GCJ-02，请阅读 [中国本地化方向](china-localization.md) 的坐标说明，或改用 WGS-84 底图。
 
@@ -175,7 +190,7 @@ TZ=Asia/Shanghai date +"%Y-%m-%dT%H:%M:%S+08:00" > ./immich-cn/geodata/geodata-d
 0 5 * * * cd /opt/immich && docker compose pull immich-server && docker compose up -d immich-server
 ```
 
-也可以使用 Watchtower 等工具监听 `ghcr.io/webees/immich-cn-server:latest`。注意：数据变化后 `geodata-date.txt` 会更新，Immich 会在启动时重新导入 geodata；若显式设置 `IMMICH_CN_FORCE_RELOAD=1`，则每次启动都会强制重新导入。
+也可以使用 Watchtower 等工具监听 `${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/webees/immich-cn-server:latest`。注意：数据变化后 `geodata-date.txt` 会更新，Immich 会在启动时重新导入 geodata；若显式设置 `IMMICH_CN_FORCE_RELOAD=1`，则每次启动都会强制重新导入。
 
 ## 非官方 Immich 镜像
 

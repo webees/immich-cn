@@ -20,9 +20,12 @@ Release 日期与数据时间统一使用北京时间（Asia/Shanghai，UTC+08:0
 优先使用容器镜像，可一条命令完成挂载或直接替换 Immich 镜像：
 
 ```bash
-docker pull ghcr.io/webees/immich-cn:latest
-docker pull ghcr.io/webees/immich-cn-server:latest
+export IMMICH_CN_GHCR_MIRROR="${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}"
+docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn:latest"
+docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 ```
+
+以上默认使用中国可达的 GHCR mirror。验证 digest 或需要回退时，把 `IMMICH_CN_GHCR_MIRROR` 设置为 `ghcr.io`；第三方 mirror 不是官方 origin。
 
 详见 [部署指南](https://github.com/webees/immich-cn/blob/main/docs/deployment.md)。
 

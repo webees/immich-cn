@@ -1,10 +1,10 @@
 # 开箱即用：在 official compose.yaml 基础上，只需把 immich-server 的 image 换成
-# ghcr.io/webees/immich-cn-server:latest，并追加 IMMICH_CN_* 环境变量。
+# ghcr.nju.edu.cn/webees/immich-cn-server:latest，并追加 IMMICH_CN_* 环境变量。
 name: immich
 
 services:
   immich-server:
-    image: ghcr.io/webees/immich-cn-server:latest
+    image: ${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/webees/immich-cn-server:latest
     container_name: immich_server
     env_file:
       - .env
@@ -32,7 +32,7 @@ services:
     restart: always
 
   database:
-    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+    image: ${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
     container_name: immich_postgres
     environment:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
