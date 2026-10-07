@@ -40,6 +40,7 @@
 - 明确 Immich 当前 `release` 线 v3.2.4 与 v3.3.0 均已内置中文 UI locale，避免默认镜像用户误以为必须升级才能获得 `zh_Hans` / `zh_Hant`；
 - Compose 示例与发布 smoke 的 Valkey digest 对齐当前 Immich release 线 v3.2.4 官方 compose；媒体目录 `/data` 的版本说明同步覆盖 v3.2.4 与 v3.3.0；
 - 统一 `CONTRIBUTING.md` 与开发文档对 `make check` 的描述，明确包含 lint、typecheck、test、docs、workflows 与 shellcheck，并增加文档契约护栏；
+- Auto Data Update 的 change detection 增加 data image `latest` digest 存在性检查，避免 data image 曾推送失败时因 fingerprint 未变而跳过重建并错误关闭告警；
 - 部署示例默认设置 `TZ: Asia/Shanghai`，并补充国内镜像获取、digest 验证、WGS-84/GCJ-02 偏移与故障排查说明；
 - 规范 SQLite 数据集 `immich-cn-dataset-sqlite-v1.zip` 作为一等制品，Immich 文本格式改由适配器导出，详见 `docs/data-format.md` 与 ADR 0001；
 - `immich-cn artifact resolve` CLI：按 canonical ID、profile+scope 或历史别名解析制品；

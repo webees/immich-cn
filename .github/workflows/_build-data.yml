@@ -159,6 +159,15 @@ jobs:
           fi
           echo "上次 Immich base digest：${previous_base_digest:-未知}"
 
+          previous_data_digest=""
+          if previous_data="$(
+            docker buildx imagetools inspect "ghcr.io/${GITHUB_REPOSITORY}:latest" \
+              --format '{{json .Manifest}}' 2>/dev/null
+          )"; then
+            previous_data_digest="$(printf '%s' "$previous_data" | jq -r '.digest // empty')"
+          fi
+          echo "上次数据镜像 digest：${previous_data_digest:-未知}"
+
           previous=""
           work="$(mktemp -d)"
           if gh release download auto-release --repo "$GITHUB_REPOSITORY" \
@@ -169,11 +178,17 @@ jobs:
             echo "未找到历史 manifest，视为首次构建"
           fi
 
-          if [ -n "$previous" ] && [ "$previous" = "$digest" ] && [ "$previous_base_digest" = "$base_digest" ]; then
+          if [ -n "$previous" ] \
+            && [ "$previous" = "$digest" ] \
+            && [ "$previous_base_digest" = "$base_digest" ] \
+            && [ -n "$previous_data_digest" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "上游数据、构建配置、发布器修订与 Immich base digest 均无变化，跳过镜像推送"
+            echo "上游数据、构建配置、发布器修订、Immich base digest 与 data image 均无变化，跳过镜像推送"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
+            if [ -z "$previous_data_digest" ]; then
+              echo "未找到可复用的 data image latest digest，强制重建镜像"
+            fi
           fi
 
       - name: 汇总构建元信息

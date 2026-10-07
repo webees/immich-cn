@@ -231,6 +231,8 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
         errors.append(f"{path} server 镜像未把解析后的 Immich base digest 固定到构建和 OCI metadata")
     if "previous_base_digest" not in text or "BASE_DIGEST" not in text:
         errors.append(f"{path} change detection 未把 Immich base digest 纳入重建判断")
+    if "previous_data_digest" not in text or '[ -n "$previous_data_digest" ]' not in raw_text:
+        errors.append(f"{path} change detection 未把 data image 存在性纳入重建判断")
     if text.count("imagetools create") < 1 or text.count("${IMAGE_VERSION}") < 2:
         errors.append(f"{path} 缺少数据与 server 镜像的语义化版本标签")
     if (
