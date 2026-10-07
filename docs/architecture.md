@@ -172,10 +172,10 @@
 
 | 文件 | 用途 |
 |:--|:--|
-| `cities500.txt` | 反向地理编码点位，第 1 列是展示名 |
-| `admin1CodesASCII.txt` | 一级行政区名称（第 1 列是展示名） |
-| `admin2Codes.txt` | 二级行政区名称 |
-| `countryInfo.txt` | 国家名称（Immich **3.3.0** 起使用） |
+| `cities500.txt` | 反向地理编码点位，0-based column 1 是展示名 |
+| `admin1CodesASCII.txt` | 一级行政区名称；0-based column 0 是 key，0-based column 1 是名称 |
+| `admin2Codes.txt` | 二级行政区名称；0-based column 0 是 key，0-based column 1 是名称 |
+| `countryInfo.txt` | 国家名称；0-based column 4 是名称（Immich **3.3.0** 起使用） |
 | `geodata-date.txt` | 数据版本，Immich 用它决定是否重新导入 |
 | `ne_10m_admin_0_countries.geojson` | 无城市点时的国家回退 |
 

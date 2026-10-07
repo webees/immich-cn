@@ -106,6 +106,7 @@ UPSTREAM_INTEGRATION_DOC = Path("docs/immich-integration.md")
 UPSTREAM_INTEGRATION_TOKENS = (
     "Integration classes",
     "map.repository.ts",
+    "0-based column",
     "countryInfo.txt",
     "geodata-date.txt",
     "/_app/immutable",
@@ -583,6 +584,21 @@ def check_immich_integration_contract(errors: list[str]) -> None:
         errors.append(f"{UPSTREAM_INTEGRATION_DOC} 缺少上游 integration 契约：{'、'.join(missing)}")
 
 
+def check_immich_column_contract(errors: list[str]) -> None:
+    """Immich TSV 字段说明必须明确 0-based index，避免“第一列”歧义。"""
+    integration = UPSTREAM_INTEGRATION_DOC.read_text(encoding="utf-8")
+    if "`column 1`" in integration and "0-based index" not in integration:
+        errors.append(f"{UPSTREAM_INTEGRATION_DOC} 的 column 术语缺少 0-based index 定义")
+    architecture = Path("docs/architecture.md").read_text(encoding="utf-8")
+    if "0-based column 1 是展示名" not in architecture:
+        errors.append("docs/architecture.md 未明确 cities500.txt 的 0-based column 1 展示名")
+    if "0-based column 0 是 key，0-based column 1 是名称" not in architecture:
+        errors.append("docs/architecture.md 未明确 admin1/admin2 的 key/name 位于 0-based column 0/1")
+    localization = CHINA_LOCALIZATION_DOC.read_text(encoding="utf-8")
+    if "0-based column 1 作为展示名" not in localization:
+        errors.append(f"{CHINA_LOCALIZATION_DOC} 未明确 cities500.txt 的 0-based column 1 展示名")
+
+
 def check_absolute_claims(paths: list[Path], errors: list[str]) -> None:
     """拒绝没有范围、条件与例外的绝对化承诺。"""
     for path in paths:
@@ -1054,6 +1070,7 @@ def main(argv: list[str] | None = None) -> int:
     check_documentation_language(errors)
     check_registry_mirror_contract(errors)
     check_immich_integration_contract(errors)
+    check_immich_column_contract(errors)
     check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
     check_process_or_legal_claims([*doc_files, Path("CITATION.cff")], errors)
     check_independence_guidance(errors)

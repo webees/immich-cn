@@ -19,14 +19,14 @@
 
 | 文件 | 关键字段/行为 |
 |:--|:--|
-| `cities500.txt` | `name` 来自 column 1；`alternateNames` 来自 column 3；坐标来自 column 4/5 |
-| `admin1CodesASCII.txt` | 以 column 1/2 建立 admin1 map |
-| `admin2Codes.txt` | 以 column 1/2 建立 admin2 map |
-| `countryInfo.txt` | 国家名来自 alpha-2、alpha-3 与 column 5 |
+| `cities500.txt` | `name` 来自 0-based column 1；`alternateNames` 来自 0-based column 3；坐标来自 0-based column 4/5 |
+| `admin1CodesASCII.txt` | Immich 以 0-based column 0 为 key、0-based column 1 为名称建立 admin1 map |
+| `admin2Codes.txt` | Immich 以 0-based column 0 为 key、0-based column 1 为名称建立 admin2 map |
+| `countryInfo.txt` | 国家名来自 0-based column 4；alpha-2/alpha-3 分别位于 0-based column 0/1 |
 | `geodata-date.txt` | 与 Immich metadata 中的 `lastUpdate` **相等时跳过 import**，不等时重新 import |
 | `ne_10m_admin_0_countries.geojson` | 没有城市点时的 country fallback |
 
-本项目的职责是让这些文件始终符合上述 column contract，并通过 validation 和 artifact checksum 阻止坏数据发布。我们不在 Immich 数据库中直接写 `geodata_places`，也不覆盖 Immich 的 migration。
+本文的 `column` 一律指 `line.split('\t')` 的 0-based index，避免把 `column 1` 误读成自然语言中的“第一列”。本项目的职责是让这些文件始终符合上述 column contract，并通过 validation 和 artifact checksum 阻止坏数据发布。我们不在 Immich 数据库中直接写 `geodata_places`，也不覆盖 Immich 的 migration。
 
 ## Config and environment
 

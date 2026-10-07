@@ -377,6 +377,19 @@ def test_check_docs_rejects_stale_geodata_import_wording_in_container_script(rep
     assert "不准确的导入条件" in result.stdout
 
 
+def test_check_docs_requires_explicit_immich_column_indexing(repo_copy: Path) -> None:
+    """“第 1 列”在 0-based split 中会产生歧义，必须明确标注索引口径。"""
+    architecture = repo_copy / "docs" / "architecture.md"
+    mutate(
+        architecture,
+        "0-based column 1 是展示名",
+        "第 1 列是展示名",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "0-based column" in result.stdout
+
+
 def test_check_docs_detects_license_field_drift(repo_copy: Path) -> None:
     """pyproject 的 license 与 LICENSE/CITATION 不一致时必须报错。"""
     pyproject = repo_copy / "pyproject.toml"

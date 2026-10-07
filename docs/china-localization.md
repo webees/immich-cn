@@ -67,7 +67,7 @@
 | `蘇州` | 命中苏州市（繁体别名同样在第 3 列） |
 | `昆山` | 命中昆山市（区县层级记录） |
 
-Immich 读取 `cities500.txt` 第 1 列作为展示名、第 3 列作为搜索别名，见上游 `server/src/repositories/map.repository.ts`。本项目把中文写入第 1、2 列，保留第 3 列为上游别名，因此中文显示与拼音/外文检索可以同时工作。
+Immich 读取 `cities500.txt` 的 0-based column 1 作为展示名、0-based column 3 作为搜索别名，见上游 `server/src/repositories/map.repository.ts`。本项目把中文写入 0-based column 1、2，保留 0-based column 3 为上游别名，因此中文显示与拼音/外文检索可以同时工作。
 
 ## 验收证据
 
