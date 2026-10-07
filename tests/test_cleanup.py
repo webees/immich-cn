@@ -118,18 +118,38 @@ def test_run_cleanup_prune_all_keeps_one_per_workflow() -> None:
         RunRecord(2, "CI", "completed", at(10), "b"),
         RunRecord(3, "Release", "completed", at(11), "c"),
         RunRecord(4, "Release", "completed", at(12), "d"),
+        RunRecord(5, "CI", "completed", at(1), "recent-extra"),
     ]
 
     selected = select_runs(
         runs,
-        cutoff=at(0),
+        cutoff=at(7),
         keep_per_workflow=20,
         protected_shas=set(),
         current_run_id=None,
         prune_all=True,
     )
 
-    assert {run.id for run in selected} == {2, 4}
+    assert {run.id for run in selected} == {2, 4, 5}
+
+
+def test_run_cleanup_prune_all_keeps_current_and_protected() -> None:
+    runs = [
+        RunRecord(1, "CI", "completed", at(0), "current"),
+        RunRecord(2, "CI", "completed", at(1), "protected"),
+        RunRecord(3, "CI", "completed", at(2), "delete"),
+    ]
+
+    selected = select_runs(
+        runs,
+        cutoff=at(7),
+        keep_per_workflow=1,
+        protected_shas={"protected"},
+        current_run_id=1,
+        prune_all=True,
+    )
+
+    assert {run.id for run in selected} == {3}
 
 
 def test_package_cleanup_preserves_semver_stable_and_recent_versions() -> None:
