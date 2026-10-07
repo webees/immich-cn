@@ -35,6 +35,7 @@ REPO_SUBSET = (
     "Makefile",
     "pyproject.toml",
     "README.md",
+    "CHANGELOG.md",
     "CITATION.cff",
     "LICENSE",
     "NOTICE",
@@ -782,6 +783,40 @@ def test_check_docs_requires_immich_integration_contract(repo_copy: Path) -> Non
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "Upstream change required" in result.stdout
+
+
+def test_check_docs_requires_immich_import_filter(repo_copy: Path) -> None:
+    """漏记 PPLX/PPLH 过滤会让读者把制品行数当成 Immich 实际导入行数。"""
+    doc = repo_copy / "docs" / "immich-integration.md"
+    text = doc.read_text(encoding="utf-8")
+    assert "PPLX" in text
+    doc.write_text(text.replace("PPLX", "PPL"), encoding="utf-8")
+
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "PPLX" in result.stdout
+
+
+def test_check_docs_detects_duplicate_changelog_bullet(repo_copy: Path) -> None:
+    """合并分支时被重复保留的同一条变更说明必须被拦下。"""
+    changelog = repo_copy / "CHANGELOG.md"
+    lines = changelog.read_text(encoding="utf-8").splitlines()
+    bullet = next(line for line in lines if line.startswith("- "))
+    changelog.write_text("\n".join([*lines, "", bullet]) + "\n", encoding="utf-8")
+
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "bullet 完全相同" in result.stdout
+
+
+def test_check_docs_detects_changelog_soft_break(repo_copy: Path) -> None:
+    """CHANGELOG 同样会被渲染成 Markdown，中文软换行必须一并拦下。"""
+    changelog = repo_copy / "CHANGELOG.md"
+    mutate(changelog, "并补充国内镜像获取", "并补充国内镜像获\n取")
+
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "中文软换行" in result.stdout
 
 
 def test_check_docs_requires_technical_terminology(repo_copy: Path) -> None:

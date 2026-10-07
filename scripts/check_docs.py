@@ -110,6 +110,9 @@ UPSTREAM_INTEGRATION_TOKENS = (
     "Integration classes",
     "map.repository.ts",
     "0-based column",
+    "PPLX",
+    "PPLH",
+    "reverseGeocodeMaxDistance",
     "zh_Hans",
     "zh_Hant",
     "User Settings",
@@ -1089,6 +1092,29 @@ def check_license_consistency(errors: list[str]) -> None:
         errors.append("许可声明不一致：" + "；".join(problems))
 
 
+def check_changelog_bullets(errors: list[str]) -> None:
+    """CHANGELOG 不允许出现内容完全相同的 bullet。
+
+    合并多个分支时同一个条目很容易被重复保留：重复的变更说明会让读者以为发生了
+    两次改动，而逐行 diff 与覆盖率检查都发现不了。这里只比较 bullet（``- `` 开头），
+    因为 ``### 修复`` 这类小节标题在多个版本之间合法复用。
+    """
+    changelog = Path("CHANGELOG.md")
+    if not changelog.exists():
+        errors.append(f"缺失变更日志：{changelog}")
+        return
+    first_seen: dict[str, int] = {}
+    for number, line in enumerate(changelog.read_text(encoding="utf-8").splitlines(), start=1):
+        entry = line.strip()
+        if not entry.startswith("- "):
+            continue
+        previous = first_seen.get(entry)
+        if previous is not None:
+            errors.append(f"{changelog}:{number} 与第 {previous} 行的 bullet 完全相同：{entry}")
+            continue
+        first_seen[entry] = number
+
+
 def check_version_consistency(errors: list[str]) -> None:
     """项目版本号必须在 pyproject / __init__ / CITATION 三处一致。
 
@@ -1187,12 +1213,14 @@ def main(argv: list[str] | None = None) -> int:
     check_manifest_stats_scope(errors)
     render_files = [*doc_files, *_expand(RENDER_EXTRA_GLOBS)]
     contract_text_files = _expand(CONTRACT_TEXT_GLOBS)
-    check_cjk_soft_breaks(render_files, errors)
+    # CHANGELOG 同样会被渲染成 Markdown，但不在 DOC_GLOBS 内，需显式加入软换行检查。
+    check_cjk_soft_breaks([*render_files, Path("CHANGELOG.md")], errors)
     check_citation_spacing(errors)
     check_dataset_member_doc(errors)
     check_immich_countryinfo_boundary(render_files, errors)
     check_adm4_coverage_wording(render_files, errors)
     check_i18n_asset_documented(render_files, errors)
+    check_changelog_bullets(errors)
     check_version_consistency(errors)
     check_license_consistency(errors)
     check_geodata_import_wording([*render_files, *contract_text_files], errors)
