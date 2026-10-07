@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 286,
-  "consecutive_clean": 0,
+  "round": 287,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 196,
-    "clean_rounds": 81,
+    "clean_rounds": 82,
     "p0": 0,
     "p1": 31,
     "p2": 120,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -2907,6 +2907,16 @@
       "severity": "P1",
       "evidence": "构造只读目标目录并仅放入 `cities500.txt`，`docker/entrypoint.sh` 在 `cp -a` 失败后只检查 `cities500.txt` 就沿用目标 geodata，实测 exit=0，Immich 会带着缺少 5 个必需文件的数据启动。修复为统一校验 6 个必需文件，并补正反两个回归：完整只读目标继续成功沿用，部分只读目标输出“缺少必需文件”并 exit 1。`make entrypoint`、`make check` 450 passed、四项 required checks 全绿；PR #221 合并 main d481835；clean_streak 仍为 0。",
       "pr": "https://github.com/webees/immich-cn/pull/221"
+    },
+    {
+      "round": 287,
+      "timestamp": "2026-10-08T18:45:00+08:00",
+      "focus": "错误处理与网络健壮性：永久 404 不重试",
+      "method": "M1 变异探针",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "在 `src/immich_cn/fetching.py` 的 `_RETRY_STATUS` 中注入 404，使用隔离字节码缓存运行 `pytest -q tests/test_fetching.py -k 'does_not_retry_permanent_client_errors or retries_retryable_status'`，目标负向用例失败并显示 404 被请求 4 次；恢复后同一测试 2 passed。主分支内容复跑 `make check` 450 passed，`check_dead_symbols` 通过。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3048,7 +3058,8 @@
     "README「配置总览」由人工维护；现有 `check_docs.py` 只校验文档中出现的环境变量确实有实现，未机械校验每个项目环境变量都出现在快速开始，后续新增配置时需要人工同步并补护栏",
     "Immich release 线当前为 v3.3.0 的记录是 2026-10-08 的时点事实；现有护栏只要求文档同时保留 v3.2.4 与 v3.3.0，不会联网核对 `releases/latest`，上游发布新版本后仍需人工更新",
     "当前状态护栏只拦截中文“旧、历史、此前、曾经”；英文 `legacy` 作为清理脚本与仓库变量标识符仍保留，若这些标识符也需要改名，需要另做公共契约迁移",
-    "只读目录回归用例在 root 用户下跳过，因为权限位对 root 不生效；当前本地与 GitHub Actions 的运行用户均为非 root，真实只读挂载仍未在 CI 中用 mount namespace 复刻"
+    "只读目录回归用例在 root 用户下跳过，因为权限位对 root 不生效；当前本地与 GitHub Actions 的运行用户均为非 root，真实只读挂载仍未在 CI 中用 mount namespace 复刻",
+    "第 287 轮只对 `_RETRY_STATUS` 注入 404 做了单点变异；429、Retry-After、ReadTimeout、Content-Range 与固定摘要路径由既有测试覆盖，但本轮没有逐一重复变异"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
