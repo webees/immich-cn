@@ -6,6 +6,8 @@ import json
 from collections.abc import Callable
 from pathlib import Path
 
+import pytest
+
 from immich_cn.pipeline import run_build
 from immich_cn.settings import BuildOptions
 from immich_cn.validation import (
@@ -228,6 +230,38 @@ def test_overlong_place_name_is_rejected(build_options: BuildOptions) -> None:
     cities.write_text("".join(line + "\n" for line in lines), encoding="utf-8")
 
     assert "cities500-immich-columns" in _failures(result.geodata_dir)
+
+
+@pytest.mark.parametrize(
+    ("field_index", "value", "case"),
+    [
+        (8, "USA", "countryCode 必须为两字符"),
+        (10, "x" * 21, "admin1Code 超过 varchar(20)"),
+        (11, "x" * 81, "admin2Code 超过 varchar(80)"),
+    ],
+)
+def test_invalid_immich_column_values_are_rejected(
+    build_options: BuildOptions,
+    field_index: int,
+    value: str,
+    case: str,
+) -> None:
+    """Immich 列宽和 countryCode 长度必须逐项有负向覆盖。"""
+    result = run_build(build_options)
+    cities = result.geodata_dir / "cities500.txt"
+    lines = cities.read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(lines):
+        fields = line.split("\t")
+        if fields[8] == "US":
+            fields[field_index] = value
+            lines[index] = "\t".join(fields)
+            break
+    else:
+        raise AssertionError("测试前提：样例数据应包含 US 记录")
+    cities.write_text("".join(line + "\n" for line in lines), encoding="utf-8")
+
+    failures = _failures(result.geodata_dir)
+    assert "cities500-immich-columns" in failures, case
 
 
 def test_invalid_modification_date_is_rejected(build_options: BuildOptions) -> None:
