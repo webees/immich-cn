@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 280,
-  "consecutive_clean": 4,
+  "round": 281,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 191,
+    "findings": 192,
     "clean_rounds": 80,
     "p0": 0,
     "p1": 30,
-    "p2": 116,
+    "p2": 117,
     "p3": 49
   },
   "status": "active",
@@ -2847,6 +2847,16 @@
       "severity": null,
       "evidence": "对合成数据完整流水线使用 `/usr/bin/time -l`：0.12 秒 real、最大 RSS 43,991,040 字节（约 42 MiB）、峰值 memory footprint 32,145,912 字节；全流程正常产出 `dist`。对抗性控制：在同一命令上设置 `ulimit -t 0`，进程被资源限制终止并返回 152，证明测量确实受真实 CPU 资源约束而不是恒真。本轮未发现 P0-P2 问题，clean_streak=4。",
       "pr": null
+    },
+    {
+      "round": 281,
+      "timestamp": "2026-10-08T05:00:00+08:00",
+      "focus": "测试有效性：Immich 列宽与 countryCode 边界",
+      "method": "M1 变异探针",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "将 `ADMIN1_CODE_MAX_CHARS` 从 20 改为 21 后，完整 `tests/test_validation.py` 仍全绿，证明 countryCode/admin1Code/admin2Code 的列宽边界没有负向覆盖。补三个参数化用例：countryCode 非两字符、admin1Code 21 字符、admin2Code 81 字符；复跑同一变异后 admin1Code 用例立即失败。make check 453 passed；PR #217 合并 main ca5b737，四项 required checks 全绿；clean_streak 归零。",
+      "pr": "https://github.com/webees/immich-cn/pull/217"
     }
   ],
   "residual_risks": [
