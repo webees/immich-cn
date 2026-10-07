@@ -143,7 +143,7 @@ def test_check_docs_detects_missing_notice_reference(repo_copy: Path) -> None:
 
 def test_check_docs_detects_numeric_drift(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
-    mutate(readme, "共 14 个 geodata 变体", "共 13 个 geodata 变体")
+    mutate(readme, "共 14 个 geodata variant", "共 13 个 geodata variant")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "13 个 geodata 变体" in result.stdout
@@ -568,6 +568,24 @@ def test_check_docs_requires_jsdelivr_release_limit(repo_copy: Path) -> None:
     assert "Release 资产" in result.stdout
 
 
+def test_check_docs_requires_english_data_update_badge(repo_copy: Path) -> None:
+    """GitHub badge alt text 过长会溢出，必须使用英文短标签。"""
+    readme = repo_copy / "README.md"
+    mutate(readme, "[![Data Update]", "[![全自动更新数据]")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "badge" in result.stdout
+
+
+def test_check_docs_requires_technical_terminology(repo_copy: Path) -> None:
+    """术语规范必须保留英文核心技术术语，防止文档重新退化为一味中文化。"""
+    terminology = repo_copy / "docs" / "terminology.md"
+    mutate(terminology, "| `artifact` |", "| `制品` |")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "artifact" in result.stdout
+
+
 def test_check_docs_rejects_process_claims(repo_copy: Path) -> None:
     """历史过程断言（例如“未从同类项目移植”）无法由当前树验证，必须被拒绝。"""
     readme = repo_copy / "README.md"
@@ -839,8 +857,8 @@ def test_check_workflows_detects_incomplete_failure_notifier(repo_copy: Path) ->
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
     mutate(
         workflow,
-        "  notify-failure:\n    name: 失败通知\n    needs: [build, release, no-change, resolve-previous-failure]\n",
-        "  notify-failure:\n    name: 失败通知\n    needs: [build, release, no-change]\n",
+        "  notify-failure:\n    name: Notify Failure\n    needs: [build, release, no-change, resolve-previous-failure]\n",
+        "  notify-failure:\n    name: Notify Failure\n    needs: [build, release, no-change]\n",
     )
     result = run_checker(repo_copy, "check_workflows.py")
     assert result.returncode == 1

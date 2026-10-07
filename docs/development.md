@@ -1,4 +1,4 @@
-# 本地开发
+# Local development
 
 ## 环境
 
@@ -82,7 +82,7 @@ immich-cn fingerprint dist/immich-cn-manifest-json-v1.json  # 打印发布指纹
 | `--clean` | 关 | 执行前清空 work/dist |
 | `--quiet` | 关 | 只输出警告与错误 |
 
-### Provider 环境变量
+### Provider environment variables
 
 | 变量 | 默认值 | 说明 |
 |:--|:--|:--|
@@ -170,5 +170,5 @@ PYTHONPYCACHEPREFIX=$(mktemp -d) .venv/bin/python -m pytest -q -x
 1. 合并到 `main` 后 CI 自动执行；
 2. 需要发版本时先同步 `pyproject.toml`、`src/immich_cn/__init__.py` 与 `CITATION.cff` 的版本号（`scripts/check_docs.py` 会拒绝三处不一致）；
 3. 手动触发 `Release` 工作流并填写相同版本号，预检查会拒绝版本漂移；
-4. 数据每天由 `全自动更新数据` 工作流自动更新（含 ETag 增量校验与发布指纹对比），产出滚动 Release 与不可变 `data-*` 快照；
-5. 需要立即更新时手动触发 `全自动更新数据`，勾选 `force-publish` 可强制发布。
+4. 数据每天由 `Auto Data Update` workflow 自动更新（含 ETag incremental validation 与 release fingerprint comparison），产出滚动 Release 与不可变 `data-*` snapshot；
+5. 需要立即更新时手动触发 `Auto Data Update`，勾选 `force-publish` 可强制发布。

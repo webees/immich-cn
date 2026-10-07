@@ -1,4 +1,4 @@
-# 制品命名规范 v4
+# Artifact naming spec v4
 
 v4 只发布 canonical 文件名，不生成历史别名。Release tag 承载版本与日期，文件名承载制品类型、adapter、profile、scope 与 schema。
 
@@ -14,9 +14,9 @@ immich-cn.geodata.<profile>.<scope>.v<schema>
 | `scope` | `default` 或 `full` |
 | `schema` | 制品 schema 版本，当前为 `v1` |
 
-## 发布资产名
+## Release asset names
 
-| 制品 | 文件名 |
+| Artifact | File name |
 |:--|:--|
 | Immich geodata | `immich-cn-geodata-<profile>-<scope>-v1.zip` |
 | SQLite 规范数据集 | `immich-cn-dataset-sqlite-v1.zip` |
@@ -116,7 +116,7 @@ immich-cn-geodata-admin2-admin3-full-v1.zip
 - `immich-cn-checksums-sha256-v1.txt` 只登记 manifest 的 `artifacts` 与 `assets`（外加 manifest 自身），不扫描目录，历史残留不会被签名；
 - `scripts/check_artifacts.py` 会拒绝任何未登记的残留文件（旧命名、临时文件），并提示清理或改用 `immich-cn all --clean`。
 
-## 解析 canonical 制品
+## Resolve canonical artifact
 
 ```bash
 immich-cn artifact resolve --manifest immich-cn-manifest-json-v1.json \

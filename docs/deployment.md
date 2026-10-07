@@ -1,4 +1,4 @@
-# 部署指南
+# Deployment
 
 ## 前置条件
 
@@ -46,7 +46,7 @@ services:
 | `release-<日期>` | 当日最新数据，同日重跑可更新；长期固定请使用 digest |
 | `<语义化版本>` | 由 `Release` 工作流生成，两个镜像使用同一项目版本 |
 
-### 环境变量
+### Environment variables
 
 | 变量 | 默认值 | 说明 |
 |:--|:--|:--|
@@ -181,7 +181,7 @@ TZ=Asia/Shanghai date +"%Y-%m-%dT%H:%M:%S+08:00" > ./immich-cn/geodata/geodata-d
 
 `imagegenius/immich` 等第三方镜像的目录结构可能不同（未逐一验证），请把 `geodata` 挂载到它实际使用的 geodata 路径，并参考镜像自身的文档。`IMAGES` 目录不一致时，`IMMICH_BUILD_DATA` 也可以显式覆盖。
 
-## 回滚
+## Rollback
 
 - 镜像方案：优先固定到 `sha-<短提交>` 或 digest；`release-<日期>` 只适合当日跟踪；
 - 数据方案：从 [Releases](https://github.com/webees/immich-cn/releases) 下载 `data-<日期>` 或 `data-<日期>-sha-<短提交>` 不可变快照。

@@ -1,4 +1,4 @@
-# 自动清理
+# Cleanup and retention
 
 仓库会持续产生 Release 快照、Actions 运行记录和 GHCR 镜像版本。为避免无限堆积， `cleanup.yml` 每周自动执行一次，也支持手动 dry-run 与受控 apply。
 

@@ -1,4 +1,4 @@
-# 许可与署名
+# Licensing and attribution
 
 仓库根目录的 [NOTICE](../NOTICE) 汇总了各数据源的署名要求，本文件给出完整说明与再分发注意事项。
 
