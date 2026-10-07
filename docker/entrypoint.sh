@@ -17,12 +17,19 @@ fi
 # Immich 导入需要这 6 个文件；源数据不完整时必须立刻报错，
 # 否则容器会带着残缺数据启动，问题被推迟到 Immich 导入阶段才暴露。
 REQUIRED_FILES="admin1CodesASCII.txt admin2Codes.txt cities500.txt countryInfo.txt geodata-date.txt ne_10m_admin_0_countries.geojson"
-missing_files=""
-for name in $REQUIRED_FILES; do
-  if [ ! -f "$source_dir/$name" ]; then
-    missing_files="${missing_files} ${name}"
-  fi
-done
+missing_required_files() {
+  local dir="$1"
+  local missing=""
+  local name
+  for name in $REQUIRED_FILES; do
+    if [ ! -f "$dir/$name" ]; then
+      missing="${missing} ${name}"
+    fi
+  done
+  printf '%s' "$missing"
+}
+
+missing_files="$(missing_required_files "$source_dir")"
 if [ -n "$missing_files" ]; then
   echo "immich-cn: 数据源缺少必需文件：${missing_files# }" >&2
   echo "immich-cn: 请检查 IMMICH_CN_GEODATA_DIR=${source_dir}" >&2
@@ -47,10 +54,11 @@ if [ "$source_dir" = "$target" ]; then
   echo "immich-cn: 源目录与目标目录相同，跳过复制，直接使用 ${target}" >&2
 elif ! cp -a "$source_dir/." "$target/" 2>/dev/null; then
   # 用户可能把 /build/geodata 以只读方式挂载进来
-  if [ -f "$target/cities500.txt" ]; then
+  target_missing="$(missing_required_files "$target")"
+  if [ -z "$target_missing" ]; then
     echo "immich-cn: ${target} 不可写，沿用其中已有的 geodata" >&2
   else
-    echo "immich-cn: 无法写入 ${target}，且目录中没有可用的 geodata" >&2
+    echo "immich-cn: 无法写入 ${target}，且现有 geodata 缺少必需文件：${target_missing# }" >&2
     exit 1
   fi
 fi

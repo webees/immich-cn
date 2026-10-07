@@ -145,6 +145,63 @@ unwritable_target_case() {
 
 unwritable_target_case
 
+# 只读目标目录中已有完整 geodata 时必须可继续运行。
+readonly_complete_target_case() {
+  if [ "$(id -u)" = "0" ]; then
+    echo "跳过：以 root 运行，文件权限不生效"
+    return
+  fi
+  local root="$work/ro-complete"
+  mkdir -p "$root/geodata"
+  cp -a "$repo_root/build/geodata/." "$root/geodata/"
+  chmod 0444 "$root/geodata"/*
+  chmod 0555 "$root/geodata"
+  local output
+  output="$(IMMICH_BUILD_DATA="$root" \
+      IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
+      IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
+      bash "$repo_root/docker/entrypoint.sh" true 2>&1)"
+  chmod 0755 "$root/geodata"
+  chmod 0644 "$root/geodata"/*
+  if ! printf '%s' "$output" | grep -q "沿用其中已有的 geodata"; then
+    echo "失败：只读目标已有完整 geodata 时未沿用：${output}" >&2
+    exit 1
+  fi
+  echo "通过：只读目标已有完整 geodata 时可继续运行"
+}
+
+# 只读目标目录中只有部分文件时必须失败，不能带着残缺数据启动。
+readonly_partial_target_case() {
+  if [ "$(id -u)" = "0" ]; then
+    echo "跳过：以 root 运行，文件权限不生效"
+    return
+  fi
+  local root="$work/ro-partial"
+  mkdir -p "$root/geodata"
+  cp "$repo_root/build/geodata/cities500.txt" "$root/geodata/cities500.txt"
+  chmod 0555 "$root/geodata"
+  local output
+  if output="$(IMMICH_BUILD_DATA="$root" \
+      IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
+      IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
+      bash "$repo_root/docker/entrypoint.sh" true 2>&1)"; then
+    chmod 0755 "$root/geodata"
+    echo "失败：只读目标只有部分 geodata 时不应成功" >&2
+    exit 1
+  fi
+  chmod 0755 "$root/geodata"
+  if ! printf '%s' "$output" | grep -q "缺少必需文件"; then
+    echo "失败：只读目标数据不完整时未给出明确提示：${output}" >&2
+    exit 1
+  fi
+  echo "通过：只读目标数据不完整时拒绝启动"
+}
+
+readonly_complete_target_case
+readonly_partial_target_case
+
 # 变体表与数据不匹配时必须失败，而不是"看起来成功但一字未改"。
 mismatch_case() {
   local data="$work/mismatch/geodata"
