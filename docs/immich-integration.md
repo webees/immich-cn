@@ -11,7 +11,8 @@
 | Container wrapper | 在启动前复制数据、设置粒度或生成时间戳 | `immich-cn-server`、`immich-cn-install` |
 | Delivery layer | Nginx/CDN 只处理公开 static asset 和网络可达性 | `/_app/immutable/*`、GHCR mirror |
 | API utility | 通过 Immich public API 对已有 metadata 做显式操作；v3.3.0+ 优先 `PATCH /api/assets`，旧版仅在 404/405 时回退 `PUT` | `scripts/set_asset_timezone.py` |
-| Upstream change required | 不在本项目做不安全 patch 或 UI fork | 全局 UI timezone、任意地图瓦片、UI translation |
+| Upstream built-in locale | 使用 Immich 已提供的界面语言，不 fork UI | `zh_Hans`、`zh_Hant` |
+| Upstream change required | 不在本项目做不安全 patch 或 UI fork | 全局 UI timezone、任意地图瓦片 |
 
 ## Reverse geocoding contract
 
@@ -45,6 +46,12 @@
 | `IMMICH_ALLOW_EXTERNAL_PLUGINS` | external plugin 开关 | 默认不启用 |
 
 改变这些变量会改变 Immich 的运行时行为，不应被包装脚本静默覆盖。项目只提供明确默认值或文档说明。
+
+## UI locale and experience
+
+Immich v3.3.0 已内置 [zh_Hans.json](https://github.com/immich-app/immich/blob/v3.3.0/i18n/zh_Hans.json) 与 [zh_Hant.json](https://github.com/immich-app/immich/blob/v3.3.0/i18n/zh_Hant.json)。Web 端还会把浏览器 locale 别名映射到内置语言：`zh-CN` / `zh-SG` → `zh-Hans`，`zh-TW` / `zh-HK` / `zh-MO` → `zh-Hant`。用户可在 **User Settings → App Settings → Language** 中选择语言；这是 per-user preference，上游没有提供统一强制所有用户的 server 环境变量。
+
+本项目不维护 Immich UI translation fork，也不通过字符串替换修改前端 bundle。中文地名、检索和 reverse geocoding 数据与 UI locale 是独立契约：前者由本项目提供，后者由 Immich 上游和用户设置决定。
 
 ## Static assets and cache
 
