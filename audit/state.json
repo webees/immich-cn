@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 297,
-  "consecutive_clean": 0,
+  "round": 298,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 199,
-    "clean_rounds": 88,
+    "clean_rounds": 89,
     "p0": 0,
     "p1": 31,
     "p2": 123,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M4 契约快照",
+  "last_method": "M5 真实数据抽样",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3017,6 +3017,16 @@
       "severity": null,
       "evidence": "按用户要求把项目版本从三段式改为 `<Immich 版本>.<项目修订>`：当前上游 Immich `3.3.0` 对应项目 `3.3.0.1`，Git 标签为 `v3.3.0.1`，镜像标签为 `3.3.0.1`。同步更新 pyproject、__init__、CITATION、Release 工作流、cleanup 稳定版本保护、文档与测试；`make check` 452 passed，PR #225 合并 main 1e7ecaa，四项 required checks 全绿。该轮改变版本契约与护栏，按审计规则用 wait 记录并重置 clean_streak。",
       "pr": "https://github.com/webees/immich-cn/pull/225"
+    },
+    {
+      "round": 298,
+      "timestamp": "2026-10-08T23:30:00+08:00",
+      "focus": "不可变发布快照：数据与摘要复核",
+      "method": "M5 真实数据抽样",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "下载 `data-2026-10-08` 的默认地理数据包、manifest 与校验和：文件 sha256 `c3c3278574905753c296922b63c5f00c2de7518ffa6814461fa0cb33765dd61c` 与 manifest、`immich-cn-checksums-sha256-v1.txt` 三方一致；`cities500.txt` 256,658 行、空展示名 0、重复 GeoNames ID 0；北京、上海、苏州样本的 country/admin1/admin2 字段正确。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3169,7 +3179,8 @@
     "第 294 轮资产与 digest 是 2026-10-08 的时点快照；滚动 `auto-release`、`latest` 与 `release` 标签可继续变化，文档护栏只校验命名与标签规则，不固定未来 digest",
     "第 295 轮的依赖覆盖护栏只检查 job 级 `if`；step 级 `always()` 与 `!cancelled()` 不在覆盖范围，若未来把关键收敛逻辑拆到 step 条件中需要另加检查",
     "第 296 轮把 `IMMICH_CN_LANGS_DIR` 的契约固定为包含 `langs/` 子目录；若外部用户此前传入扁平的 `en.json` 目录，现在会被拒绝，需要按其目录结构调整或使用 `--geodata-only`",
-    "第 297 轮的四段式版本要求前三段与 Immich 上游版本对齐，但现有护栏不会联网核对当前上游 release；发布前仍需人工确认 Immich 版本并选择对应的第四段修订号"
+    "第 297 轮的四段式版本要求前三段与 Immich 上游版本对齐，但现有护栏不会联网核对当前上游 release；发布前仍需人工确认 Immich 版本并选择对应的第四段修订号",
+    "第 298 轮只核验了 `data-2026-10-08` 的默认地理数据包，未重新下载并逐项校验全部 19 个资产；其余资产的摘要仍依赖 manifest/checksums 与既有 `check_artifacts` 护栏"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
