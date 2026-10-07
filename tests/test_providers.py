@@ -10,6 +10,7 @@ import pytest
 from immich_cn.domain import Place, PlaceNames
 from immich_cn.errors import ConfigError
 from immich_cn.logging_config import get_logger
+from immich_cn.providers import build_chain
 from immich_cn.providers.amap import AMAP_ENDPOINT, AmapEnricher, AmapOptions, _parse_regeocode
 from immich_cn.providers.geo import out_of_china, wgs84_to_gcj02
 from immich_cn.providers.nominatim import NOMINATIM_ENDPOINT, NominatimEnricher, NominatimOptions, _parse
@@ -26,6 +27,68 @@ def make_place(*, latitude: str = "31.30408", longitude: str = "120.59538", coun
 
 
 # ---- 坐标转换 -------------------------------------------------------------
+
+
+def test_build_chain_warns_when_auto_degrades_to_offline(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """`auto` 缺密钥时必须留下告警，否则「secret 丢了」看起来像一次成功构建。"""
+    monkeypatch.delenv("AMAP_API_KEY", raising=False)
+    options = BuildOptions(
+        work_dir=tmp_path / "build",
+        dist_dir=tmp_path / "dist",
+        cache_dir=tmp_path / "cache",
+        provider="auto",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        chain = build_chain(options)
+
+    assert chain.names == []
+    assert "回退到离线模式" in caplog.text
+
+
+def test_build_chain_is_quiet_for_explicit_offline(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """显式 offline 是用户本意，不该产生降级告警。"""
+    monkeypatch.delenv("AMAP_API_KEY", raising=False)
+    options = BuildOptions(
+        work_dir=tmp_path / "build",
+        dist_dir=tmp_path / "dist",
+        cache_dir=tmp_path / "cache",
+        provider="offline",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        chain = build_chain(options)
+
+    assert chain.names == []
+    assert "回退到离线模式" not in caplog.text
+
+
+def test_build_chain_is_quiet_when_auto_has_key(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setenv("AMAP_API_KEY", "test-key")
+    options = BuildOptions(
+        work_dir=tmp_path / "build",
+        dist_dir=tmp_path / "dist",
+        cache_dir=tmp_path / "cache",
+        provider="auto",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        chain = build_chain(options)
+
+    assert chain.names == ["amap"]
+    assert "回退到离线模式" not in caplog.text
 
 
 def test_out_of_china() -> None:

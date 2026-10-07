@@ -74,6 +74,8 @@ immich-cn fingerprint dist/immich-cn-manifest-json-v1.json  # 打印发布指纹
 | `--extra-countries` | `CN,HK,TW,MO,JP` | 需要附带国家全量 dump 的地区 |
 | `--min-population` | `100` | 非 full 变体的最小人口阈值 |
 | `--work-dir` / `--dist-dir` / `--cache-dir` / `--config-dir` | `build` / `dist` / `.cache/immich-cn` / `config` | 各目录位置 |
+
+`--provider auto` 在没有 `AMAP_API_KEY` 时会回退到离线模式，并打印一行显式 warning：产物与 `--provider offline` 完全相同，只有 manifest 的 `config.provider` 记为 `offline`。这样「密钥缺失 / 改名 / 过期」不会伪装成一次成功的高德增强构建；`--provider amap` 则是硬要求，缺 Key 直接以 `ConfigError` 失败。
 | `--jobs` | CPU 数（最多 8） | 打包并发度 |
 | `--revalidate` | 关 | 用 ETag/Last-Modified 校验上游，未变化不下载（每日自动更新使用） |
 | `--force` | 关 | 强制重新下载全部数据源 |
