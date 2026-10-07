@@ -287,6 +287,27 @@ def test_prune_release_assets_refuses_disjoint_manifest(tmp_path: Path) -> None:
         _prune_release_assets(_Client(), args)
 
 
+def test_prune_release_assets_continues_after_individual_failure(tmp_path: Path) -> None:
+    """单个 Release 资产删除失败时仍要尝试后续资产，最后统一报错。"""
+    (tmp_path / "keep.zip").write_bytes(b"x")
+    deleted: list[int] = []
+
+    class _Client:
+        def release_assets(self, tag: str) -> list[tuple[int, str]]:
+            return [(1, "keep.zip"), (2, "bad.zip"), (3, "later.zip")]
+
+        def delete_release_asset(self, asset_id: int) -> None:
+            if asset_id == 2:
+                raise CleanupError("HTTP 500")
+            deleted.append(asset_id)
+
+    args = SimpleNamespace(dist_dir=tmp_path, prune_release_assets="auto-release", apply=True)
+    with pytest.raises(CleanupError, match="资产清理部分失败：1 项"):
+        _prune_release_assets(_Client(), args)
+
+    assert deleted == [3]
+
+
 def test_verify_release_assets_requires_exact_match(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """发布后 reconciliation 必须同时拒绝缺失和多余资产。"""
     (tmp_path / "expected.zip").write_bytes(b"x")

@@ -449,10 +449,19 @@ def _prune_release_assets(client: GitHubClient, args: argparse.Namespace) -> int
     stale = select_stale_assets(assets, keep)
     mode = "APPLY" if args.apply else "DRY-RUN"
     print(f"[{mode}] Release {args.prune_release_assets}：现有 {len(assets)} 个资产，待删除 {len(stale)} 个")
+    failures: list[str] = []
     for asset_id, name in stale:
         print(f"  - {name}")
         if args.apply:
-            client.delete_release_asset(asset_id)
+            try:
+                client.delete_release_asset(asset_id)
+            except CleanupError as error:
+                failures.append(f"{name}: {error}")
+    if failures:
+        detail = "；".join(failures[:5])
+        if len(failures) > 5:
+            detail += f"；另有 {len(failures) - 5} 项"
+        raise CleanupError(f"Release {args.prune_release_assets} 资产清理部分失败：{len(failures)} 项：{detail}")
     return 0
 
 
