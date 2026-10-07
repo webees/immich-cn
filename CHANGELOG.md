@@ -67,6 +67,7 @@
 
 ### 修复
 
+- README 与 FAQ 明确 GitHub `schedule` 可能延迟甚至整轮跳过（2026-10-06/07 实测只有一次 `schedule` 运行），把「每天更新」限定为设计频率并指向 `monitor-update.yml` 的告警路径与 30 小时容忍窗口；`check_discoverable` 扩展到 `.github/workflows/*.yml`，新增工作流未在文档中被点名即失败；
 - 新增 `scripts/check_audit_ledger.py` 与 `make audit-ledger`：审计账本的汇总值必须能按轮次从 `history` 复算，并校验 `round` 唯一递增、verdict/severity 匹配与 `consecutive_clean` 正确；据此修正账本两类真实漂移（`totals` 与明细脱钩、三轮带 P3 却标 clean），旧值保留在 `totalsSuperseded`、改判理由写入条目；
 - `docs/packages.md` 明确镜像 tag 不带 `v` 前缀（Git Release 是 `vX.Y.Z`，镜像 tag 是 `X.Y.Z`，2026-10-07 实测带前缀返回 `not found`），补上可直接复制的拉取示例，并解释 Packages 页面上 `sha256-<digest>` 是 Cosign/attestation 的 OCI referrer tag 而非发布镜像；新增 `check_image_tag_examples` 护栏拒绝不符合发布契约的 tag 示例；
 - 缓存键引用了已重命名的模块（`config.py`），导致哈希维度静默为空；现改为 `settings.py` 并由护栏拦截同类死路径；

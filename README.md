@@ -43,6 +43,7 @@ Immich 的反向地理编码默认输出英文地名。本项目的 core scope �
 | Stage | Behavior |
 |:--|:--|
 | Trigger | `每天北京时间 13:23`（UTC 05:23）定时执行，也支持手动 `workflow_dispatch` |
+| Liveness | GitHub 的 `schedule` 可能延迟甚至整轮跳过（2026-10-06/07 实测只有一次 `schedule` 运行）；`monitor-update.yml` 每 6 小时检查 `Auto Data Update` 的新鲜度，超过 30 小时没有触发、运行停住、最近一次失败或长期没有成功时创建 `automation` issue，恢复后自动评论并关闭 |
 | Upstream validation | 用 `ETag` / `Last-Modified` conditional request validate GeoNames、Natural Earth、i18n-iso-countries；未变化时 **304，不传输 body** |
 | Change detection | 用「source file SHA256 + build config + publisher revision」计算 release fingerprint，与上一次 release 对比；无变化则跳过 release，避免无意义的 version 和重复导入 |
 | Build | 重新生成四级行政 hierarchy、汉化 `cities500`、导出 7 种 pattern × full/default 共 14 个 geodata variant 与 canonical dataset |

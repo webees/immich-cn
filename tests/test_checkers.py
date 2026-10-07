@@ -89,6 +89,16 @@ def mutate(path: Path, old: str, new: str) -> None:
 # --------------------------------------------------------------------------
 
 
+def test_check_docs_requires_workflow_documented(repo_copy: Path) -> None:
+    """新增工作流必须在文档里被点名，否则用户不知道它存在、也没有失败排查入口。"""
+    workflow = repo_copy / ".github" / "workflows" / "secret-automation.yml"
+    workflow.write_text("name: Secret\non:\n  schedule:\n    - cron: '0 0 * * *'\n", encoding="utf-8")
+
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "secret-automation.yml" in result.stdout
+
+
 def test_check_docs_passes_on_repo_copy(repo_copy: Path) -> None:
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 0, result.stdout + result.stderr
