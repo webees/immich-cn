@@ -316,6 +316,28 @@ def test_check_docs_detects_citation_punct_space(repo_copy: Path) -> None:
     assert "中文标点后出现空格" in result.stdout
 
 
+def test_check_docs_detects_missing_hk_district(repo_copy: Path) -> None:
+    """hk_districts 少一个区，该区地名就会丢掉「香港岛/九龙/新界」前缀。"""
+    overrides = repo_copy / "config" / "overrides.toml"
+    mutate(overrides, '"沙田区" = "新界"\n', "")
+    # 生效表是「代码默认表 + 文件覆盖」的合并结果，因此两处都要移除才算真正缺失
+    local = repo_copy / "src" / "immich_cn" / "localization.py"
+    mutate(local, '    "沙田区": "新界",\n', "")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "沙田区" in result.stdout
+    assert "香港区议会分区" in result.stdout
+
+
+def test_check_docs_detects_wrong_hk_district_region(repo_copy: Path) -> None:
+    """区域归属写错（例如把沙田划到九龙）同样要报错。"""
+    overrides = repo_copy / "config" / "overrides.toml"
+    mutate(overrides, '"沙田区" = "新界"', '"沙田区" = "九龙"')
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "区域归属与官方划分不符" in result.stdout
+
+
 def test_check_docs_detects_language_priority_drift(repo_copy: Path) -> None:
     """文档里的中文语言优先级链必须与 LANGUAGE_PRIORITY 同序。"""
     doc = repo_copy / "docs" / "data-sources.md"

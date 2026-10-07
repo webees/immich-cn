@@ -682,6 +682,48 @@ def check_geodata_import_wording(paths: list[Path], errors: list[str]) -> None:
                 )
 
 
+#: 香港 18 个区议会分区及官方所属区域；缺一个就会让该区地名丢掉「香港岛/九龙/新界」前缀。
+HK_DISTRICTS = {
+    "中西区": "香港岛",
+    "湾仔区": "香港岛",
+    "东区": "香港岛",
+    "南区": "香港岛",
+    "油尖旺区": "九龙",
+    "深水埗区": "九龙",
+    "九龙城区": "九龙",
+    "黄大仙区": "九龙",
+    "观塘区": "九龙",
+    "葵青区": "新界",
+    "荃湾区": "新界",
+    "屯门区": "新界",
+    "元朗区": "新界",
+    "北区": "新界",
+    "大埔区": "新界",
+    "沙田区": "新界",
+    "西贡区": "新界",
+    "离岛区": "新界",
+}
+
+
+def check_hk_districts(errors: list[str]) -> None:
+    """config/overrides.toml 的 hk_districts 必须覆盖香港 18 区且区域归属正确。"""
+    from immich_cn.localization import NameOverrides
+
+    mapping = NameOverrides.load(Path("config/overrides.toml")).hk_districts
+    missing = sorted(name for name in HK_DISTRICTS if name not in mapping)
+    if missing:
+        errors.append(
+            f"hk_districts 缺少香港区议会分区：{'、'.join(missing)}（这些区名会丢失「香港岛/九龙/新界」前缀）"
+        )
+    wrong = sorted(
+        f"{name}→{mapping[name]}"
+        for name, region in HK_DISTRICTS.items()
+        if name in mapping and mapping[name] != region
+    )
+    if wrong:
+        errors.append(f"hk_districts 的区域归属与官方划分不符：{'、'.join(wrong)}")
+
+
 def check_language_priority_doc(errors: list[str]) -> None:
     """docs/data-sources.md 的中文语言优先级链必须与实现同序。
 
@@ -800,6 +842,7 @@ def main(argv: list[str] | None = None) -> int:
     check_version_consistency(errors)
     check_geodata_import_wording(render_files, errors)
     check_language_priority_doc(errors)
+    check_hk_districts(errors)
     check_asset_names(render_files, errors)
 
     for error in errors:
