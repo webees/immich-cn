@@ -2,15 +2,15 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 244,
+  "round": 245,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 184,
-    "clean_rounds": 71,
+    "findings": 174,
+    "clean_rounds": 69,
     "p0": 0,
-    "p1": 33,
-    "p2": 117,
-    "p3": 43
+    "p1": 28,
+    "p2": 109,
+    "p3": 40
   },
   "status": "active",
   "last_method": "M9",
@@ -448,7 +448,7 @@
       "focus": "测试有效性（断言能否失败、覆盖是否真实）",
       "method": "M1 变异探针",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "覆盖率为 85%（2191 statements，262 miss）。三组关键语义变异全部 KILLED：移除 clean_removable 的 work_dir 边界、禁用 zip 符号链接检测、移除 admin2 的 CN/TW/JP 地区检查。恢复后 169 个单测、ruff、mypy、docs/workflows/shellcheck、制品与 entrypoint 全部通过；未发现 P0-P2 问题",
       "pr": null
     },
@@ -488,7 +488,7 @@
       "focus": "工作流逻辑（条件、输出、权限、失败路径）",
       "method": "M10 shell/工作流安全审查",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "复核 4 个工作流权限、条件、输出、并发与失败路径；check_run_blocks/check_jobs/check_action_pins/check_release_replacements 全部通过，入口脚本 10 个场景通过。actionlint 仅报 3 项 info/style（ls 文件名、重定向风格、jq 单引号），均为受控输入或误报，无 P0-P2；172 个单测与全套本地门禁通过",
       "pr": null
     },
@@ -528,7 +528,7 @@
       "focus": "安全（zip slip、注入、密钥泄漏、供应链、权限）",
       "method": "M10 shell/容器安全审查",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "远端 Dependabot 开放告警 0，pip-audit 无已知漏洞；secret scanning、push protection 已启用，外部 Actions 保持 commit SHA 固定且工作流检查通过。源码扫描未发现 eval/exec/pickle/shell=True，API Key 仍脱敏。175 个单测与全套本地门禁通过；未发现 P0-P2",
       "pr": null
     },
@@ -538,7 +538,7 @@
       "focus": "性能与资源（内存、磁盘、重复计算、可流式化）",
       "method": "M8 资源与性能剖析",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "真实 levels.tsv 的 659 万字段微基准：当前 normalize_level 1.39s，语义安全快速路径 1.19s（-12.6%），端到端收益有限；另一版本虽 1.15s，但会改变 NBSP/制表符语义，对抗样例已证明不等价并拒绝采用。未做低收益改写；175 个单测和全套门禁通过，无 P0-P2",
       "pr": null
     },
@@ -568,7 +568,7 @@
       "focus": "死代码与未使用配置（含只写不读的变量）",
       "method": "M7 死代码与引用计数",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "Vulture 80% 无发现；60% 仅报 ZipInfo/TarInfo 属性，均被标准库内部消费，人工确认 8 项全是假阳性。ruff F401/F841、mypy 与模块级引用计数无新增死代码；177 个单测和完整门禁通过，无 P0-P2",
       "pr": null
     },
@@ -578,7 +578,7 @@
       "focus": "文档与实现一致性（命令/路径/标签/数字）",
       "method": "M9 文档-实现逐条核对",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "核对 README/docs、CLI/make/env、镜像标签与两个 compose 示例；在临时 .env 环境下 compose config 均 exit=0。3 个文档负向护栏通过，make docs 无漂移；未发现 P0-P2",
       "pr": null
     },
@@ -598,7 +598,7 @@
       "focus": "容器与 shell 脚本（引用、权限、只读挂载、路径差异）",
       "method": "M6 边界与异常输入",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "对抗实验：令 IMMICH_CN_GEODATA_DIR 等于 /build/geodata，实测 cp 返回失败、入口脚本仍 exit=0，前后目录 SHA256 汇总一致，数据完整；唯一异常是误报“不可写，沿用已有 geodata”，属 P3 提示噪声。另有 178 个单测、ruff、mypy、docs/workflows/shellcheck、制品与入口脚本全套门禁通过；未发现 P0-P2",
       "pr": null
     },
@@ -667,10 +667,12 @@
       "timestamp": "2026-10-06T14:27:00+07:00",
       "focus": "死代码与未使用配置（含只写不读的变量）",
       "method": "M7 死代码与引用计数",
-      "verdict": "clean",
+      "verdict": "findings",
       "severity": "P3",
       "evidence": "vulture 80% 无发现；60% 仅报 SHELL_SUFFIXES 未使用及 4 个标准库属性假阳性，逐项引用计数后确认只有 SHELL_SUFFIXES 是真实死常量。该问题无行为影响且按规则仅记 P3，不做纯风格改动。ruff F401/F841、mypy、augmented assignment 人工检查均未发现只写不读变量；187 个单测与完整门禁通过，未发现 P0-P2",
-      "pr": null
+      "pr": null,
+      "reclassifiedFrom": "clean",
+      "reclassificationReason": "objective 的 clean 判定要求「无 P0-P3 已确认缺陷」；该轮记录了确认的 P3 且刻意不修，因此不再计为 clean（2026-10-07 收紧口径）"
     },
     {
       "round": 64,
@@ -767,10 +769,12 @@
       "timestamp": "2026-10-06T15:14:00+07:00",
       "focus": "死代码与未使用配置（含只写不读的变量）",
       "method": "M7 死代码与引用计数",
-      "verdict": "clean",
+      "verdict": "findings",
       "severity": "P3",
       "evidence": "vulture 80% 无发现；60% 仍只额外报告 SHELL_SUFFIXES 真死常量及 4 个标准库属性假阳性，按规则仅记录 P3 不修改。ruff F401/F841、mypy、augmented assignment 与模块级引用计数未发现只写不读变量；193 个单测与完整门禁通过，未发现 P0-P2",
-      "pr": null
+      "pr": null,
+      "reclassifiedFrom": "clean",
+      "reclassificationReason": "objective 的 clean 判定要求「无 P0-P3 已确认缺陷」；该轮记录了确认的 P3 且刻意不修，因此不再计为 clean（2026-10-07 收紧口径）"
     },
     {
       "round": 74,
@@ -838,7 +842,7 @@
       "focus": "性能与资源（内存、磁盘、重复计算、可流式化）",
       "method": "M8 资源与性能剖析",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "潜在优化逐一实测后均不值得改：新增缓存摘要校验对 308,067,976 字节缓存总耗时 0.20s；alternateNames 限制 split 数在 200 万行上 0.343s，比完整 split 0.340s 无收益，拒绝引入。既有 patterns 表缓存与直接 gzip 优化仍有效。196 个单测与完整门禁通过，未发现 P0-P2",
       "pr": null
     },
@@ -867,10 +871,12 @@
       "timestamp": "2026-10-06T16:05:00+07:00",
       "focus": "死代码与未使用配置（含只写不读的变量）",
       "method": "M7 死代码与引用计数",
-      "verdict": "clean",
+      "verdict": "findings",
       "severity": "P3",
       "evidence": "vulture 80% 无发现；60% 仍只报告 SHELL_SUFFIXES 旧 P3 和标准库属性假阳性。人工引用计数发现 PackageResult 的 dist_dir/patterns_table/manifest/checksums 在仓库内只写不读，但该 dataclass 属于 Python 返回 API，无行为影响，按规则仅记新 P3 不修改。ruff/mypy/augmented assignment 无新增死代码；197 个单测与完整门禁通过，未发现 P0-P2",
-      "pr": null
+      "pr": null,
+      "reclassifiedFrom": "clean",
+      "reclassificationReason": "objective 的 clean 判定要求「无 P0-P3 已确认缺陷」；该轮记录了确认的 P3 且刻意不修，因此不再计为 clean（2026-10-07 收紧口径）"
     },
     {
       "round": 84,
@@ -928,7 +934,7 @@
       "focus": "全自动资料更新端到端（构建、扫描、签名、Release）",
       "method": "M10 真实 workflow_dispatch",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "run 37456007647 在 ee27b06 成功：完整构建、双镜像推送、按 digest smoke、Trivy 差分扫描（数据新增 0、server 新增 0、继承 51 显式例外）、Cosign、auto-release 更新及 data-2026-10-06-sha-ee27b06 快照创建；无 P0-P2",
       "pr": null
     },
@@ -938,7 +944,7 @@
       "focus": "版本化 Release 与语义化镜像标签",
       "method": "M10 真实 Release workflow",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "run 37458560868 成功创建 v1.0.0 Release；两个镜像 1.0.0 标签分别指向 sha256:e62ed721... 与 sha256:46c7fbd2...，与 latest 一致；Cosign v3.0.6 对两个 digest 验证通过；无 P0-P2",
       "pr": null
     },
@@ -948,7 +954,7 @@
       "focus": "重复版本拒绝与不可变发布标签",
       "method": "M10 负向发布实验",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "重复运行 Release v1.0.0（run 37460208392）在预检查阶段以“v1.0.0 已存在”退出 1，未进入构建或覆盖镜像标签；负向控制真实可失败，无 P0-P2",
       "pr": null
     },
@@ -968,7 +974,7 @@
       "focus": "项目定位、外部契约与干净 clone",
       "method": "M4 契约快照 + 独立 clone",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "远端全新 clone 66d6ddc9a60eb9be57d6784894ffe912c2f0b5aa：README 不再含“独立重写/上游项目关系”，ADR 0001 存在且明确外部契约与内部模型边界；独立 clone 上 make check 通过，205 个测试与全部契约全绿；无 P0-P3",
       "pr": "https://github.com/webees/immich-cn/pull/87"
     },
@@ -978,7 +984,7 @@
       "focus": "真实定时更新（schedule）与供应链闭环",
       "method": "M10 远端定时工作流验证",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "真实 schedule run 37461020382 在 66d6ddc 成功完成构建、双镜像推送、digest smoke、Trivy 差分扫描、Cosign、Release 更新及 data-2026-10-06-sha-66d6ddc 快照；latest 数据/server digest 为 ab661069... 与 1e001b5a...，两者 Cosign 验证通过；无 P0-P3",
       "pr": null
     },
@@ -998,7 +1004,7 @@
       "focus": "许可证修复的真实发布验证",
       "method": "M10 真实 workflow_dispatch + 制品/镜像抽样",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "run 37463376062 在 c47dfb6 成功；auto-release i18n-iso-countries.zip 含根级 LICENSE 和完整语言文件，数据镜像与 server 镜像的 /opt/immich-cn/i18n-iso-countries/langs/LICENSE 均读出 MIT 版权声明；构建、扫描、签名和 Release 全绿；无 P0-P3",
       "pr": "https://github.com/webees/immich-cn/pull/88"
     },
@@ -1018,7 +1024,7 @@
       "focus": "1.0.1 修复版真实发布与签名",
       "method": "M10 真实 Release + digest 验证",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "run 37467097677 成功创建 v1.0.1；两个 1.0.1 镜像分别为 ffef081f... 与 552d023b...，Cosign v3.0.6 验证通过；v1.0.1 Release 的 i18n zip 含 MIT LICENSE 与版权声明；无 P0-P3",
       "pr": "https://github.com/webees/immich-cn/pull/90"
     },
@@ -1038,7 +1044,7 @@
       "focus": "1.0.2 OCI 元数据与签名发布",
       "method": "M10 真实 Release + registry API",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "run 37470558692 成功创建 v1.0.2；两个镜像 annotation 均为 image.version=1.0.2、org.immich-cn.data-date=2026-10-06、revision=8c0eac1...；digest 分别 2d5babcf... 与 74fa3375...，Cosign v3.0.6 验证通过；无 P0-P3",
       "pr": "https://github.com/webees/immich-cn/pull/91"
     },
@@ -1058,7 +1064,7 @@
       "focus": "1.0.3 geodata 署名发布验证",
       "method": "M10 真实 Release + 镜像/制品抽样",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "run 37473793907 成功创建 v1.0.3；Release geodata.zip、数据镜像和 server 镜像均可读出 geodata/NOTICE.txt；两个镜像 OCI version=1.0.3、data-date=2026-10-06、revision=b9a65ad...；digest 84e21235... 与 7f89f49e... Cosign 验证通过；无 P0-P3",
       "pr": "https://github.com/webees/immich-cn/pull/92"
     },
@@ -1078,7 +1084,7 @@
       "focus": "1.0.4 组合许可元数据发布验证",
       "method": "M10 真实 Release + registry API",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "run 37477328248 成功创建 v1.0.4；server 镜像 OCI 标签为 version=1.0.4、data-date=2026-10-06、revision=c7a758f...、licenses=AGPL-3.0-only AND MIT；数据镜像 licenses=MIT；digest f2d180f1... 与 e37186d8... Cosign 验证通过；无 P0-P3",
       "pr": "https://github.com/webees/immich-cn/pull/93"
     },
@@ -1088,7 +1094,7 @@
       "focus": "固定 SHA 独立 clone、Release 与 Ruleset 复验",
       "method": "M4 干净 clone + 外部状态快照",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "全新 clone c7a758f04d5441892998063b768da63b68eec6f9 上 make check 通过，212 个测试与全部契约全绿；v1.0.4 Release 非草稿、20 个资产；Ruleset 无 bypass actor，启用了强推/删除禁止、squash PR、thread resolution、strict checks 和线性历史；无 P0-P3",
       "pr": null
     },
@@ -1098,7 +1104,7 @@
       "focus": "CLI、环境变量与文档契约",
       "method": "M4 契约快照 + 负向测试",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "immich-cn --help 可执行；check_docs 通过；9 个 check_docs 负向测试通过，证明未实现环境变量、非法 CLI 参数和路径漂移会失败",
       "pr": null
     },
@@ -1108,7 +1114,7 @@
       "focus": "工作流权限与失败路径",
       "method": "M10 条件/权限审查",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "check_workflows 通过；权限下沉、依赖覆盖和 failure notifier 的负向测试通过",
       "pr": null
     },
@@ -1118,7 +1124,7 @@
       "focus": "Shell 与归档安全",
       "method": "M6 边界输入",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "check_shell 通过；shell 全角变量名、zip path traversal、zip symlink 的负向测试均按预期失败",
       "pr": null
     },
@@ -1128,7 +1134,7 @@
       "focus": "Release 制品完整性与署名",
       "method": "M3 负向制品实验",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "重新下载 v1.0.4 的 manifest/geodata/i18n/SHA256SUMS；选中文件 SHA256 全部匹配，两个 zip 完整；geodata NOTICE 与 i18n MIT LICENSE 均可读出",
       "pr": null
     },
@@ -1138,7 +1144,7 @@
       "focus": "文档数值与可发现性",
       "method": "M9 文档-实现核对",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "check_docs 通过；numeric、discoverable、missing NOTICE reference 负向测试通过",
       "pr": null
     },
@@ -1148,7 +1154,7 @@
       "focus": "下载、缓存、续传与截断",
       "method": "M1 网络故障注入",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "tests/test_fetch.py 28 个测试全部通过，覆盖 416、206 校验、缓存摘要、截断和重试",
       "pr": null
     },
@@ -1158,7 +1164,7 @@
       "focus": "geodata Schema 与坐标边界",
       "method": "M6 异常输入",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "tests/test_verify.py 与 tests/test_geonames.py 共 46 个测试通过",
       "pr": null
     },
@@ -1168,7 +1174,7 @@
       "focus": "打包、幂等与 pattern 组合",
       "method": "M2/M4 边界快照",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "tests/test_pipeline.py 与 tests/test_patterns.py 共 38 个测试通过",
       "pr": null
     },
@@ -1178,7 +1184,7 @@
       "focus": "Provider 独立性与速率限制",
       "method": "M1 边界/故障注入",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "tests/test_providers.py 与 tests/test_ratelimit.py 共 24 个测试通过",
       "pr": null
     },
@@ -1188,7 +1194,7 @@
       "focus": "基础镜像、许可证与配置默认值",
       "method": "M10 静态审查",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "tests/test_security.py 与 tests/test_defaults.py 6 个测试通过；workflow 契约通过；无 P0-P3",
       "pr": null
     },
@@ -1198,7 +1204,7 @@
       "focus": "中文别名优先级与字形回退",
       "method": "M5 解析样本",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "tests/test_chinese.py 15 个测试通过，覆盖繁简变体、日本汉字回退和名称筛选",
       "pr": null
     },
@@ -1208,7 +1214,7 @@
       "focus": "行政层级与港澳结构",
       "method": "M5 层级样本",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "tests/test_hierarchy.py 9 个测试通过",
       "pr": null
     },
@@ -1218,7 +1224,7 @@
       "focus": "发布指纹敏感性",
       "method": "M1 变异探针",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "tests/test_fingerprint.py 9 个测试通过，覆盖源、配置、schema、工具版本和修订变化",
       "pr": null
     },
@@ -1228,7 +1234,7 @@
       "focus": "真实 geodata 抽样",
       "method": "M5 真实数据抽样",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "v1.0.4 geodata.zip 抽样北京/苏州/香港/台北/纽约/新加坡，展示名和 19 列结构符合预期",
       "pr": null
     },
@@ -1238,7 +1244,7 @@
       "focus": "manifest 结构与摘要",
       "method": "M4 独立复算",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "v1.0.4 manifest 通过独立 jq 断言：tool revision、12 个源、14 个变体、pattern 表和非空 SHA256 全部一致",
       "pr": null
     },
@@ -1248,7 +1254,7 @@
       "focus": "未使用代码与字节码完整性",
       "method": "M7 静态引用计数",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "ruff F401/F841/RUF100 无发现；隔离缓存 compileall 全量通过",
       "pr": null
     },
@@ -1258,7 +1264,7 @@
       "focus": "Package 版本标签与双架构",
       "method": "M4 registry 快照",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "两个 Package 的 1.0.4 tag 均存在，registry manifest 均含 linux/amd64 与 linux/arm64",
       "pr": null
     },
@@ -1268,7 +1274,7 @@
       "focus": "回滚路径与版本标签不可覆盖",
       "method": "M4 历史版本对拍",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "v1.0.3 与 v1.0.4 Release 各有 20 个资产；四个对应镜像 digest 均不同且可分别解析",
       "pr": null
     },
@@ -1278,7 +1284,7 @@
       "focus": "严格类型与格式化",
       "method": "M10 静态检查",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "mypy --strict 23 个源文件通过；ruff lint 与 format check 通过",
       "pr": null
     },
@@ -1288,7 +1294,7 @@
       "focus": "镜像漏洞差集与继承例外",
       "method": "M3 独立下载扫描报告",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "v1.0.4 数据镜像新增漏洞 0，server 新增漏洞 0；官方基础镜像继承 HIGH/CRITICAL 51 条，均有显式例外记录",
       "pr": null
     },
@@ -1308,7 +1314,7 @@
       "focus": "规范数据集真实发布验收",
       "method": "M5 真实数据下载与独立复算",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "工作流 37484356200 在 10727b6 上完整成功：真实构建、Release、双镜像推送、digest pull、Trivy、Cosign 与失败告警路径全部执行；data-2026-10-06-sha-10727b6 与 auto-release 均含 dataset.sqlite.zip（74,481,479 字节，sha256:356cbaf6…）；独立下载后 SHA256 与 manifest 一致，SQLite integrity_check=ok，places/place_names 均 1,318,848 行；数据镜像 digest sha256:2e398d66…，server 镜像 digest sha256:5f5c2e00…，均含 amd64/arm64 与 provenance 证明",
       "pr": null
     },
@@ -1318,7 +1324,7 @@
       "focus": "真实 ARM64 镜像运行与跨架构一致性",
       "method": "M5 真实制品运行与跨架构对拍",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "本地 Docker server 为 linux/arm64；按 digest 拉取数据镜像后以 {admin_2} {admin_3} 实际输出 256,644 行并命中苏州市 昆山市；arm64 与 amd64 的 cities500.txt SHA256 同为 47efd54d…；server 镜像 arm64 入口完成 pattern 应用与 force-reload 后 ARM64_SERVER_INJECTION_OK",
       "pr": null
     },
@@ -1328,7 +1334,7 @@
       "focus": "无变化幂等路径与跳过发布",
       "method": "M4 发布指纹对拍与工作流真值路径",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "工作流 37495379935 在相同 10727b6/上游数据上再次运行；本次与上次指纹均为 65196960…，changed=false；QEMU、Buildx、GHCR 登录、双镜像推送、digest smoke、Trivy、Cosign、版本标签全部 skipped，Release job skipped，no-change job success；既有 dataset.sqlite.zip digest、数据镜像 2e398d66… 与 server 镜像 5f5c2e00… 均未变化",
       "pr": null
     },
@@ -1338,7 +1344,7 @@
       "focus": "多线程限速竞态",
       "method": "M1 并发探针与无锁对照变异",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "RateLimiter(3, 0.3s) 在 9 线程同时 acquire 下三次运行的最大滚动窗口并发均为 3，耗时 0.602/0.611/0.610s；故意无锁的对照实现五次均在同一探针下出现 6 次并发，证明探针能发现真实违规",
       "pr": null
     },
@@ -1358,7 +1364,7 @@
       "focus": "缓存跨进程追加边界",
       "method": "M1 多进程并发探针",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "4 个进程并发向同一 JSONL 缓存追加 100 条/进程，连续 5 轮最终均加载到 400 条且 invalid_lines=0；探针脚本 work/audit/cache_cross_process_probe.py 可复现",
       "pr": null
     },
@@ -1378,7 +1384,7 @@
       "focus": "真实 Release 全资产预算回归",
       "method": "M4 不可变制品契约快照",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "下载 data-2026-10-06-sha-10727b6 全部 21 个资产（679 MiB），新护栏校验 17 个压缩包、20 项校验和全部通过，规范数据集压缩比 3.43、SQLite 解压后 255,381,504 字节，均未触发 1 GiB/2 GiB/200 阈值",
       "pr": null
     },
@@ -1388,7 +1394,7 @@
       "focus": "完整 Immich 服务栈与中文数据导入",
       "method": "M5 真实服务栈运行与 HTTP 健康检查",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "用 digest 固定的 immich-cn-server 5f5c2e00… 启动 PostgreSQL、Valkey 与 Immich；三容器均 healthy，GET /api/server/ping 返回 200 {\"res\":\"pong\"}；日志显示 Successfully imported 249337 geodata records in 2.78s 与 Geodata import completed；容器内 cities500 共 256,644 行且命中苏州市 昆山市；测试栈已正常停止",
       "pr": null
     },
@@ -1408,7 +1414,7 @@
       "focus": "GitHub Runner 完整服务栈发布验证",
       "method": "M5 真实发布运行与日志/digest 复算",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "工作流 37500812382 在 3289477 成功：完整 Immich 服务栈 smoke 步骤 success，PostgreSQL/Valkey/Immich 启动后 Geodata import completed；数据镜像 digest 3e6d804c…、server 镜像 digest 7adda686… 均有 amd64/arm64；新 Release data-2026-10-06-sha-3289477 含 21 个资产，dataset.sqlite.zip 74,481,479 字节、sha256:25b01dcf…；Trivy、Cosign、Release 与告警关闭均成功",
       "pr": null
     },
@@ -1428,7 +1434,7 @@
       "focus": "清理策略 apply 后稳定性",
       "method": "M4 真实清理与保护标签回归",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "cleanup 工作流 37506455496 apply 成功，删除 immich-cn 19 个、immich-cn-server 13 个带标签旧版本；清理后 latest/2026-10-06/sha-3289477/1.0.4 与 server 对应标签全部仍可解析；data-2026-10-06-sha-3289477 与 auto-release 资产未变；再次 dry-run 37506702983 显示 Release 0、Actions 0、两个 GHCR 包各 0",
       "pr": null
     },
@@ -1438,7 +1444,7 @@
       "focus": "制品命名规范 v2",
       "method": "M4 canonical manifest 契约与真实 Release 验证",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "新增 profile/scope/schema canonical ID、canonical 文件名和 alias 映射；真实 Release data-2026-10-06-sha-c9f714e 的 manifest.json 为 artifactSpecVersion=2、14 个 artifacts、2 个 aliases；兼容文件名保持不变；make check 232 项通过；工作流 37508426221 完整发布、服务栈 smoke 与镜像 digest be190cbe…/d42b9b9e… 成功",
       "pr": "https://github.com/webees/immich-cn/pull/101"
     },
@@ -1448,7 +1454,7 @@
       "focus": "稳定前 prune-all 清理边界",
       "method": "M4 真实 API dry-run 与保护标签回归",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "cleanup 工作流 37510660680 以 prune-all=true 做 dry-run：计划删除 7 个旧 Release、0 个 Actions、每个 GHCR 包 5 个旧带标签版本；最新 sha-c9f714e、latest/release 与语义版本未进入删除集，所有 untagged 子 manifest 均未选中",
       "pr": null
     },
@@ -1458,7 +1464,7 @@
       "focus": "canonical 制品解析使用方式",
       "method": "M4 CLI 契约与 manifest 解析回归",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "新增 immich-cn artifact resolve，支持 ID/alias/profile+scope；纯函数与 CLI 测试覆盖成功/缺失/歧义路径；make check 235 项通过；PR #102 合并到 main a0be15b，PR 提交与合并 tree 相同且 4 项 required check runs 成功",
       "pr": "https://github.com/webees/immich-cn/pull/102"
     },
@@ -1468,7 +1474,7 @@
       "focus": "legacy 文件名到 canonical ID 迁移映射",
       "method": "M4 manifest 契约与 resolver 回归",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "manifest 新增 legacyAliases，14 个旧变体全部映射到 canonical ID；resolver 支持 legacy alias；制品校验要求 alias 目标合法且文件存在；make check 235 项、smoke/artifacts 17 包 21 校验和通过；PR #103 合并 main d5455c6，tree 与 PR 提交相同且 4 项 check runs 成功",
       "pr": "https://github.com/webees/immich-cn/pull/103"
     },
@@ -1498,7 +1504,7 @@
       "focus": "v4 canonical-only 正式发布复验",
       "method": "M4 真实 Release 资产与 manifest 复算",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "工作流 37518185514 在 cdc0ba3 完整成功并发布 data-2026-10-06；Release 19 个文件全部为 canonical 名，无 aliases/legacyAliases/variants；manifest artifactSpecVersion=4，首条 ID immich-cn.geodata.admin2-admin3-admin4.default.v1，文件 immich-cn-geodata-admin2-admin3-admin4-default-v1.zip；完整 Immich 服务栈 smoke 通过；数据镜像 digest fa8b3db5…、server 镜像 digest f7fa6bf7…；d03791f main CI 4 项全绿",
       "pr": "https://github.com/webees/immich-cn/pull/105"
     },
@@ -1508,7 +1514,7 @@
       "focus": "发布资产命名跨文档契约",
       "method": "M9 文档-实现逐条核对",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "新增 check_asset_names 扫描所有文档资产名，拒绝重复 immich-cn-geodata-immich-、legacy 名和未登记资产名；两个负向测试通过；make check 238 项；PR #107 合并 main 15aca5f，4 项 required check runs 全绿",
       "pr": "https://github.com/webees/immich-cn/pull/107"
     },
@@ -1538,7 +1544,7 @@
       "focus": "清理 apply 后稳态与保护标签回归",
       "method": "M4 真实清理与保护标签回归",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "PR #108 重试修复合并后，cleanup 工作流 37523646048 以 release-retention=1 apply 成功：待删除 Release 0、Actions 0、GHCR immich-cn 2、immich-cn-server 3，无 HTTP 500；Release 列表只剩 v1.0.0~v1.0.4、auto-release 与 data-2026-10-06，旧 sha-c9f714e 快照已不存在；再次 dry-run 37524779477 显示 0/0/0/0；immich-cn 的 latest/2026-10-06/sha-cdc0ba3/1.0.4 与 server 的 latest/release/release-2026-10-06/sha-cdc0ba3/1.0.4 全部可解析；data-2026-10-06 的 19 个资产仍为 canonical 名；main 6b55ccf CI 成功",
       "pr": null
     },
@@ -1598,7 +1604,7 @@
       "focus": "新增文档护栏的 CI 接线与端到端有效性",
       "method": "M10 工作流接线审查 + 变异探针复核",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "CI 静态检查 job 显式执行 python scripts/check_docs.py，且属于 required check「静态检查与单元测试 (Python 3.x)」；第 151-155 轮新增的 5 个护栏（数据源清单、模块名表、Markdown 链接、环境变量默认值、manifest 字段）各带负向测试与元级变异探针，若护栏未被 main 调用或规则失效，对应测试会在 CI 失败；本机 make check 252 项通过",
       "pr": null
     },
@@ -1608,7 +1614,7 @@
       "focus": "“全自动”用词与 documentation-policy 的一致性",
       "method": "M9 全文档逐条核对",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "逐条复核全仓库「全自动」出现位置：README 首段带“设计目标…运行前提见后文”、全自动章节首段写明 GitHub Actions/上游/权限前提；architecture 同名章节首段写明实际运行依赖；README 徽章、development/faq 引用属于工作流标识符；CHANGELOG 属历史记录不追溯改写；未发现无条件的“保证更新”表述",
       "pr": null
     },
@@ -1658,7 +1664,7 @@
       "focus": "已发布 manifest 的可追溯性与上游 304 语义",
       "method": "M4 契约快照 + 独立复算 + 真实 HTTP 条件请求对拍",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "下载 Release data-2026-10-06 的 manifest：15 个顶层键、artifactSpecVersion=4、schemaVersion=1、generatedAt 可解析、tool.version=1.0.4、tool.revision=cdc0ba3c154f27c6e0e6a6ed25a7fe3d8f974291 与产生该 Release 的 run 37518185514 headSha 完全一致；12 个 sources 均带 url/sha256/sizeBytes/etag，仅 naturalEarthCountries 的 lastModified 为 null，用真实响应头核实 raw.githubusercontent.com 不发 Last-Modified（非缺陷）；14 个 artifacts 与 17 个 assets 的 sha256 全部为 64 位十六进制；与独立下载的 checksums 对拍：18 行、0 处不一致、无 checksums 有而 manifest 未登记的项，artifacts 与 assets 同名文件哈希一致；再独立下载 immich-cn-i18n-json-v1.zip（191847 字节）实测 sha256=cc0d06ab… 同时等于 manifest 与 checksums 记录、尺寸与 sizeBytes 一致。期间发现的 ETag 差异经真实条件请求判定为假阳性：记录值 W/\"aa4f64…\" 是 gzip 表示，带 Accept-Encoding: gzip, deflate（httpx 默认）请求返回 304/0 字节，不带则返回 200/13287234 字节，属同一资源不同表示，revalidate 路径正确",
       "pr": null
     },
@@ -1748,7 +1754,7 @@
       "focus": "增量校验（304）在全部真实上游上的有效性",
       "method": "M4 契约快照 + 对真实上游的条件请求对拍",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "用已发布 manifest（data-2026-10-06）里记录的验证器，对全部 12 个上游源做条件请求：10 个 GeoNames 源（cities500、admin1CodesASCII、admin2Codes、countryInfo、alternateNamesV2、country_dump_CN/HK/TW/MO/JP）携带记录的 ETag 全部返回 HTTP 304；country_dump 与 cities500 之外还用 cities500 验证了 If-Modified-Since 回退分支同样返回 304；i18nIsoCountries（registry.npmjs.org tarball）携带记录 ETag 返回 304 且响应回显同一 ETag/Last-Modified；naturalEarthCountries 的 ETag 属 gzip 表示，第 162 轮已用 Accept-Encoding: gzip, deflate（httpx 默认）验证返回 304/0 字节，不带该头则返回 200/13287234 字节——同一资源不同表示，非缺陷。合计 12/12 源的验证器在当前上游仍然有效，与文档「未变化时返回 304 且不传输正文」一致；本轮未发现缺陷，故 clean",
       "pr": null
     },
@@ -1768,7 +1774,7 @@
       "focus": "Immich 适配器契约与 1.136.0 路径分界",
       "method": "M5 上游对拍（上游 Dockerfile 与 config.repository.ts）+ M4 契约快照",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "两项文档声明经上游源码核对全部成立：(1) langs 路径分界——immich-app/immich 的 server/Dockerfile 在 v1.135.0 为 WORKDIR /usr/src/app 且 COPY --from=prod /usr/src/app/node_modules ./node_modules（故 <1.136.0 的挂载点是 /usr/src/app/node_modules/i18n-iso-countries/langs），v1.136.0 改为 WORKDIR /usr/src/app/server 与 ./server/node_modules（故 >=1.136.0 用 /usr/src/app/server/node_modules/…），与文档注释的版本标注逐字一致；(2) geodata 适配器契约——v3.3.0 的 server/src/repositories/config.repository.ts 定义 buildFolder=dto.IMMICH_BUILD_DATA||'/build'、geodata=join(buildFolder,'geodata')，resourcePaths.geodata 恰为 geodata-date.txt、admin1CodesASCII.txt、admin2Codes.txt、cities500.txt（constants.ts 的 citiesFile）、countryInfo.txt、ne_10m_admin_0_countries.geojson 六项，与本仓库 docs/architecture.md 的适配器表 6/6 同名同目录，IMMICH_BUILD_DATA 覆盖行为也与部署文档一致；本轮未发现缺陷，故 clean",
       "pr": null
     },
@@ -1828,7 +1834,7 @@
       "focus": "清理逻辑对运行记录的保护边界",
       "method": "M10 代码与文档逐条核对 + 真实 API 只读复算",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "三项都对齐：(1) 代码——select_runs 只把 status=='completed' 且未被 keep 集合命中的运行列为删除项，因此任何 in_progress/queued 运行天然不会被删（比文档承诺的『当前正在执行』更强），build_plan 的 protected_shas 取自语义版本 tag 对应的提交、current_run_id 取自 GITHUB_RUN_ID；(2) 测试——test_run_cleanup_preserves_cutoff_latest_per_workflow_protected_and_current 显式放入一条 in_progress 运行并断言它不在删除集；(3) 真实数据——用只读客户端对线上仓库复算：382 条运行全部 completed、5 个语义版本 SHA 进入保护集，按最激进的保留策略（1 天 / 每工作流 1 次）计划删除 16 条（CI 13 + Update Data 3），其中非 completed 的 0 条、命中保护 SHA 的 0 条；本轮未发现缺陷，故 clean",
       "pr": null
     },
@@ -1838,7 +1844,7 @@
       "focus": "数据集 schema 文档与真实库的三方一致性",
       "method": "M4 契约快照（schema.json + sqlite PRAGMA + 文档逐字段比对）",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "解压自建数据集（/tmp/rebuild177/dist1/immich-cn-dataset-sqlite-v1.zip）后三方比对：(1) docs/data-format.md 为 places 列出的 15 个字段与 PRAGMA table_info(places) 完全一致（geoname_id/name/ascii_name/country_code/latitude/longitude/population/feature_class/feature_code/admin1_code~admin4_code/source/in_default）；(2) schema.json 的 primaryTables（6 张表）、views（localized_places）、storage.file（immich-cn-dataset-v1.sqlite，与第 168 轮修正后的归档成员名一致）与库中 sqlite_master 完全对应，无声明缺失或未声明对象；(3) schema.json 的 format=immich-cn.dataset/1、schemaVersion=1 与 dataset_meta 中的 format/schemaVersion 一致；行数自洽：places 与 place_names 均为 1,318,848，sources 12 条与 manifest 的 12 个上游源一致；本轮未发现缺陷，故 clean",
       "pr": null
     },
@@ -1848,7 +1854,7 @@
       "focus": "hant 变体正确性与作业并发下的内容确定性",
       "method": "M5 真实双构建对拍（--jobs 1 vs --jobs 8）+ 繁体抽查",
       "verdict": "clean",
-      "severity": "none",
+      "severity": null,
       "evidence": "同源缓存下跑两次繁体构建（--chinese-variant hant，patterns={admin_2},{admin_3}，--jobs 1 与 --jobs 8），逐成员比对 zip 内容：4 个 geodata 变体中唯一不同的成员是 geodata/geodata-date.txt（构建时间戳，属设计内差异），cities500.txt、admin1CodesASCII.txt、admin2Codes.txt、countryInfo.txt、ne_10m_admin_0_countries.geojson 全部逐字节一致——说明数据内容与并发度无关，未出现线程竞争导致的错序或串行写入问题；繁体抽查：北京市（不变）、苏州→蘇州市、澳门堂区→花地瑪堂區、admin3 变体 1790964→寶山區、8617227→阿拉善右旗，说明第 176/177 轮新增的简体覆盖项会经 to_variant 正确转为繁体；本轮未发现缺陷，故 clean",
       "pr": null
     },
@@ -2481,6 +2487,16 @@
       "severity": "P3",
       "evidence": "对公开 GHCR 包逐 tag 解析 digest：immich-cn 的 latest=2026-10-06=sha-cdc0ba3 同一 digest，immich-cn-server 的 latest=release=release-2026-10-06=sha-cdc0ba3 同一 digest；两个 index 均含 linux/amd64、linux/arm64 与 2 个 attestation manifest，attestation 同时带 spdx.dev/Document 与 slsa.dev/provenance/v1；用 cosign v3 容器按 issuer+identity-regexp 校验两个包均 exit 0，改成非本仓库 identity 则 exit 1 且 SAN 显示签名来自 _build-data.yml@refs/heads/main（负向控制有效）。确认问题：① docs/packages.md 用 `<语义化版本>` 描述镜像 tag，实测 `ghcr.io/webees/immich-cn:v1.0.4` not found 而 `1.0.4` 存在——文档未说明 Git Release 是 vX.Y.Z、镜像 tag 是 X.Y.Z；② Packages 页面上的 `sha256-<digest>` OCI referrer tag（Cosign/attestation）无任何文档解释。修复：标签表改 `<X.Y.Z>`、写明前缀差异、补 3 条可复制 pull 示例、解释 referrer tag；新增 `check_image_tag_examples` 校验文档里写死的 tag 必须符合真实推送形态，并在示例全部消失时报「护栏可能已失效」避免恒真。另核实 server 镜像缺少 org.opencontainers.image.base.digest 是「最后一次发布（cdc0ba3）早于标签提交 1a5ccc3」造成，读取路径 `imagetools inspect --format json .Image | to_entries[0].value.config.Labels` 实测可用，下次发布会自愈，非缺陷。make check 394 tests 全绿；PR #187 合并 main 6ab52cb，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/187"
+    },
+    {
+      "round": 245,
+      "timestamp": "2026-10-08T00:20:00+07:00",
+      "focus": "审计账本自身的一致性（结论证据能否被第三方复算）",
+      "method": "M4 契约快照（账本明细 vs 汇总）+ M7 引用计数 + 全新目录 clone 复现",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "在干净 clone（6ab52cb，fresh venv）跑完整门禁：make check 394 passed + docs/workflows/shell 全绿、make smoke / make artifacts（15 个压缩包、18 项校验和）/ make entrypoint（5 项）全通过、actionlint exit 0、单测连跑 3 次结果一致（无 flaky）；另实测两次相隔 >60s 的构建得到同一发布指纹 e7c60441288143be41971a6f5f3b98cd8e8b290d360a8ee3fac0791a5ce160e7，证明「发布指纹不含构建时间」的文档描述成立（字节级镜像可复现因此按设计 N/A，而非常绿）。但同一轮复核账本自身发现两处真实完整性缺陷：① totals 与 history 脱钩——声明 findings=184/clean_rounds=71/p1=33/p2=117/p3=43，由 history 复算只有 170/72/28/108/40，最终 ACHIEVED 无法被第三方复核；② 第 63/73/83 轮记录了确认的 P3 却标为 clean，与 objective 的「clean 须无 P0-P3 已确认缺陷」冲突。修复：新增 `scripts/check_audit_ledger.py`（口径=按轮次从 history 复算，含 round=max、唯一且递增、verdict 合法性、severity 与 verdict 匹配、totals、consecutive_clean），配 12 个用例（含 totals 漂移、陈旧 clean_rounds、重复/乱序 round、consecutive_clean 不符等负向控制）；账本按 objective 收紧口径重算并保留旧值于 totalsSuperseded、把 63/73/83 改判 findings 并写入 reclassifiedFrom 与理由、把 63 处 `severity: none` 归一为 null；重算后 findings=173/clean_rounds=69/p1=28/p2=108/p3=40，validator exit 0。此次是收紧标准（clean 变少）而非放宽，符合禁止「修改验收标准凑轮数」。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -2576,5 +2592,52 @@
     "GHCR 包的「可见性」与「关联仓库」本轮未用 API 确认（本地 token 缺 read:packages，API 返回 403），只确认了包可匿名 pull、tag 与 digest 一致；要完成 objective 里「验证 Package 页面、可见性、关联仓库」这一步需要具备 read:packages 的凭据",
     "Cosign/attestation 的 OCI referrer tag（sha256-*）被 cleanup 保护因此永不回收：已观察到至少一个孤儿 referrer（sha256-3e6d804c…，对应镜像 tag 已不存在）。保护优先于整洁是对的，但 Packages 版本列表会长期增长，需要时再设计「仅回收无对应镜像的 referrer」的清理规则",
     "check_image_tag_examples 只扫描 DOC_GLOBS（README/docs/CONTRIBUTING/SECURITY）；examples/*.yml 的镜像引用走 ${IMMICH_CN_GHCR_MIRROR} 占位符，不受该规则覆盖，若将来在示例里写死 tag 需要把该目录纳入扫描"
+  ],
+  "totalsSuperseded": {
+    "asOf": "2026-10-07",
+    "declared": {
+      "findings": 184,
+      "clean_rounds": 71,
+      "p0": 0,
+      "p1": 33,
+      "p2": 117,
+      "p3": 43
+    },
+    "reason": "人工累计，无法由 history 复算（findings 声明 184 / 实际 170，clean_rounds 声明 71 / 实际 72）；自本轮起 totals 一律由 history 复算"
+  },
+  "totalsBasis": "history",
+  "ledgerNotes": [
+    {
+      "date": "2026-10-07",
+      "change": "统一账本口径：totals 由 history 复算；clean 判定按 objective 要求排除任何已确认 P0-P3",
+      "normalizedSeverityNone": 63,
+      "reclassifiedRounds": [
+        63,
+        73,
+        83
+      ],
+      "effects": {
+        "findings": [
+          184,
+          173
+        ],
+        "clean_rounds": [
+          71,
+          69
+        ],
+        "p1": [
+          33,
+          28
+        ],
+        "p2": [
+          117,
+          108
+        ],
+        "p3": [
+          43,
+          40
+        ]
+      }
+    }
   ]
 }
