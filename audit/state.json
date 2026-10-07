@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 306,
-  "consecutive_clean": 0,
+  "round": 307,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 202,
-    "clean_rounds": 94,
+    "clean_rounds": 95,
     "p0": 0,
     "p1": 32,
     "p2": 125,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3107,6 +3107,16 @@
       "severity": "P1",
       "evidence": "构造只读目标，保留全部必需文件但把 `cities500.txt` 截断为 0 字节；原 `docker/entrypoint.sh` 仍 exit=0 并沿用该目录。修复为 entrypoint/install 均用 `-s` 校验必需文件，并新增只读目标零字节与源目录零字节两个负向回归。`make entrypoint`、`make check` 453 passed；PR #228 合并 main 0cceb66，四项 required checks 全绿；clean_streak 归零。",
       "pr": "https://github.com/webees/immich-cn/pull/228"
+    },
+    {
+      "round": 307,
+      "timestamp": "2026-10-09T03:15:00+08:00",
+      "focus": "错误处理与网络健壮性：Retry-After 上限",
+      "method": "M2 阈值反演",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "把 `_MAX_RETRY_DELAY` 从 120.0 反演为 60.0，隔离字节码缓存后运行目标重试测试，HTTP-date Retry-After 用例立即失败并显示 60.0；恢复后 2 个目标测试通过。当前 `main=0cceb66` 的 `make check` 453 passed 仍有效。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3268,7 +3278,8 @@
     "第 303 轮的 AST 检查是临时脚本，尚未固化成 `make` 目标；数据类字段只写不读的问题仍可能在其他类中再次出现",
     "第 304 轮只对 pyproject 的 Container Image URL 做了静态契约校验；其他项目 URL、外部文档链接与页面可达性仍未纳入自动联网检查",
     "第 305 轮只验证了 release.yml 的四段式版本正则；其他工作流条件、权限与失败路径没有在本轮逐一重新注入",
-    "第 306 轮只拒绝 0 字节必需文件；只包含空白或结构上不可解析的非空文件仍由后续 Immich 导入/构建校验负责，不在入口脚本内做完整语义解析"
+    "第 306 轮只拒绝 0 字节必需文件；只包含空白或结构上不可解析的非空文件仍由后续 Immich 导入/构建校验负责，不在入口脚本内做完整语义解析",
+    "第 307 轮只反演了 Retry-After 的 120 秒上限；指数退避上限、HTTP 状态重试集合与网络异常分支由既有测试覆盖，但本轮没有逐一反演"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
