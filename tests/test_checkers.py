@@ -568,6 +568,17 @@ def test_check_docs_requires_jsdelivr_release_limit(repo_copy: Path) -> None:
     assert "Release 资产" in result.stdout
 
 
+def test_check_docs_requires_china_jsdelivr_default(repo_copy: Path) -> None:
+    """加速文档必须保留中国默认节点和用户可配置入口。"""
+    acceleration = repo_copy / "docs" / "china-acceleration.md"
+    text = acceleration.read_text(encoding="utf-8")
+    assert "cdn.jsdmirror.com" in text
+    acceleration.write_text(text.replace("cdn.jsdmirror.com", "cdn.jsdelivr.net"), encoding="utf-8")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "cdn.jsdmirror.com" in result.stdout
+
+
 def test_check_docs_requires_english_data_update_badge(repo_copy: Path) -> None:
     """GitHub badge alt text 过长会溢出，必须使用英文短标签。"""
     readme = repo_copy / "README.md"

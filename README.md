@@ -137,6 +137,8 @@ immich-cn all
 
 jsDelivr 等免费 CDN 只作为 GitHub 分支、tag 或 commit 中静态文件的**可选**通道；它不能直接代理 GitHub Release asset，也不保证中国大陆线路质量。完整 cache matrix、jsDelivr 实测边界、地图同源加速和 validation 命令见 [中国网络与加速](docs/china-acceleration.md)。
 
+默认 CDN 构址使用中国加速候选 `cdn.jsdmirror.com`，可用 `IMMICH_CN_JSDELIVR_BASE` 或 `scripts/jsdelivr_url.py --base` 改为用户信任的 endpoint；第三方 mirror 必须验证 TLS 和 SHA256，不能视为官方 origin。
+
 ### 生效与刷新
 
 1. 重启 Immich，启动日志出现 `geodata records imported` 表示数据已导入。

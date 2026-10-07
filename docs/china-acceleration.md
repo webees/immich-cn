@@ -55,20 +55,40 @@ Nginx 源站（示例配置）
 
 ## 免费 CDN 可选通道：jsDelivr
 
-jsDelivr 可以作为 GitHub 仓库静态文件的**可选**加速通道，适合 README、文档、小型配置或不含隐私的构建元数据。它不是本项目的默认依赖，也不承诺中国大陆线路质量。
+jsDelivr 可以作为 GitHub 仓库静态文件的**可选**加速通道，适合 README、文档、小型配置或不含隐私的构建元数据。它不是数据发布依赖，也不承诺中国大陆线路质量。
 
 可用形式是 `/gh/<owner>/<repo>@<ref>/<path>`。`ref` 可以是分支、Git tag 或提交 SHA：
 
 ```text
 # 仅用于查看最新文档，不适合作为生产固定地址
-https://cdn.jsdelivr.net/gh/webees/immich-cn@main/README.md
+https://cdn.jsdmirror.com/gh/webees/immich-cn@main/README.md
 
 # 提交或语义化 tag：内容稳定，适合长期引用
-https://cdn.jsdelivr.net/gh/webees/immich-cn@d04f0ee/docs/china-localization.md
-https://cdn.jsdelivr.net/gh/webees/immich-cn@v1.0.4/README.md
+https://cdn.jsdmirror.com/gh/webees/immich-cn@d04f0ee/docs/china-localization.md
+https://cdn.jsdmirror.com/gh/webees/immich-cn@v1.0.4/README.md
 ```
 
-2026-10-07 实测结果：
+项目提供的 [jsdelivr_url.py](../scripts/jsdelivr_url.py) 默认使用中国加速候选
+`cdn.jsdmirror.com`，用户可用 `--base` 或 `IMMICH_CN_JSDELIVR_BASE` 替换：
+
+```bash
+python scripts/jsdelivr_url.py --ref v1.0.4 --path README.md
+IMMICH_CN_JSDELIVR_BASE=https://cdn.jsdelivr.net \
+  python scripts/jsdelivr_url.py --ref v1.0.4 --path README.md
+```
+
+节点可用性不能只看域名，必须验证 TLS、响应状态、内容摘要和实际线路。2026-10-07 对
+`/gh/webees/immich-cn@main/README.md` 的探测结果如下：
+
+| endpoint | 探测结果 | 默认策略 |
+|:--|:--|:--|
+| `cdn.jsdmirror.com` / `cdn.jsdmirror.cn` | `200` | 默认中国加速候选，仍须校验内容 |
+| `jsd.onmicrosoft.cn` | `200` | 可选备用 |
+| `cdn.jsdelivr.net` | `200` | 官方 fallback |
+| `gcore.jsdelivr.net` / `fastly.jsdelivr.net` | `200` | 官方多 CDN fallback |
+| `cdn.jsdelivr.us` | `302` | 仅作可选节点，先验证重定向目标 |
+| `jsd.cdn.zzko.cn` | TLS certificate expired | 不纳入默认或自动 fallback |
+| `test.jsdelivr.us` | 未验证 | 不纳入默认地址 |
 
 - `@main`、提交 SHA 和 `v1.0.4` 的仓库文件返回 `200`；
 - 语义化 tag 的响应带 `Cache-Control: public, max-age=31536000, immutable`，适合固定版本；
@@ -76,7 +96,7 @@ https://cdn.jsdelivr.net/gh/webees/immich-cn@v1.0.4/README.md
 - GitHub Release 中的 `immich-cn-geodata-admin2-default-v1.zip` 和 `immich-cn-manifest-json-v1.json` 通过 jsDelivr 请求返回 `404`。jsDelivr 的 GitHub 通道服务的是 Git 树文件，不会自动镜像 Release 附件；
 - 因此当前不能把本项目的大型 Release 资产写成 jsDelivr URL。若未来需要免费 CDN，可选择在仓库中发布小型指针文件，或把公开静态资产放到单独、许可清晰的静态仓库；不要把二进制 zip 提交进主仓库。
 
-大陆线路质量必须实测，不能因为 jsDelivr 官方文档提到“靠近中国城市的节点”就把它当成有 SLA 的中国大陆 CDN。至少应在主要省份、运营商和早晚高峰做多次测速，并观察 DNS 解析、TLS 握手、首字节和下载完成时间。线路不理想时，它应当只是可选 fallback，不应替换官方 Release、GHCR 或自有源站。
+大陆线路质量必须实测，不能因为节点域名带 `.cn` 或任何服务商宣传“中国加速”就把它当成有 SLA 的中国大陆 CDN。至少应在主要省份、运营商和早晚高峰做多次测速，并观察 DNS 解析、TLS 握手、首字节和下载完成时间。第三方 mirror 不是可信 origin，必须使用 HTTPS，并优先固定到 commit SHA；下载后仍应用 SHA256 校验内容。线路不理想时，它应当只是可选 fallback，不应替换官方 Release、GHCR 或自有源站。
 
 也不要让 jsDelivr 代理 Immich 的 `/_app/immutable` 构建资源、照片、缩略图、视频或认证 API。那些文件不在本 GitHub 仓库中，且私有媒体不应经过不受你控制的第三方缓存。
 
