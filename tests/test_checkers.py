@@ -316,6 +316,15 @@ def test_check_docs_detects_citation_punct_space(repo_copy: Path) -> None:
     assert "中文标点后出现空格" in result.stdout
 
 
+def test_check_docs_detects_language_priority_drift(repo_copy: Path) -> None:
+    """文档里的中文语言优先级链必须与 LANGUAGE_PRIORITY 同序。"""
+    doc = repo_copy / "docs" / "data-sources.md"
+    mutate(doc, "zh-Hans > zh-CN >", "zh-CN > zh-Hans >")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "中文语言优先级与实现不一致" in result.stdout
+
+
 def test_check_docs_rejects_stale_geodata_import_wording(repo_copy: Path) -> None:
     """上游是「相等则跳过」，写成「按新旧比较」必须被拦下。"""
     faq = repo_copy / "docs" / "faq.md"

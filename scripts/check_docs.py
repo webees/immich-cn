@@ -682,6 +682,28 @@ def check_geodata_import_wording(paths: list[Path], errors: list[str]) -> None:
                 )
 
 
+def check_language_priority_doc(errors: list[str]) -> None:
+    """docs/data-sources.md 的中文语言优先级链必须与实现同序。
+
+    这条链决定同一个地名在多个中文别名里选哪一个（zh-Hans 优先于 zh-Hant 等），
+    实现是 `localization.LANGUAGE_PRIORITY`；文档抄错或实现被重排都会静默改变选名结果。
+    """
+    from immich_cn.localization import LANGUAGE_PRIORITY
+
+    path = Path("docs/data-sources.md")
+    doc = path.read_text(encoding="utf-8")
+    # 链本身可能被抄错顺序（例如首项不再是 zh-Hans），所以不能把首项写死
+    chain = r"zh(?:-[A-Za-z]+)*"
+    match = re.search(rf"^\s*({chain}(?:\s*>\s*{chain})+)\s*$", doc, re.MULTILINE)
+    if match is None:
+        errors.append(f"{path} 未列出中文语言优先级链，护栏可能已失效")
+        return
+    documented = [item.strip().lower() for item in match.group(1).split(">")]
+    actual = [item.lower() for item in LANGUAGE_PRIORITY]
+    if documented != actual:
+        errors.append(f"{path} 的中文语言优先级与实现不一致：文档 {documented}，实现 {actual}")
+
+
 def check_version_consistency(errors: list[str]) -> None:
     """项目版本号必须在 pyproject / __init__ / CITATION 三处一致。
 
@@ -777,6 +799,7 @@ def main(argv: list[str] | None = None) -> int:
     check_i18n_asset_documented(render_files, errors)
     check_version_consistency(errors)
     check_geodata_import_wording(render_files, errors)
+    check_language_priority_doc(errors)
     check_asset_names(render_files, errors)
 
     for error in errors:
