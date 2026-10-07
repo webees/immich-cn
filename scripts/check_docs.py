@@ -164,6 +164,61 @@ README_DIMENSION_LABELS = ("代码许可", "构建入口", "外部依赖", "行�
 README_DOC_LINK = re.compile(r"^\s*-\s+\[[^\]]+\]\((docs/[^)#]+\.md)\)", re.MULTILINE)
 ENGLISH_ONLY_HEADING = re.compile(r"^#{2,6}\s+[A-Za-z][A-Za-z0-9 /&+-]*$")
 TABLE_SEPARATOR = re.compile(r"^\|(?:\s*:?-{2,}:?\s*\|)+\s*$")
+PROSE_ENGLISH_TERMS = (
+    "release",
+    "image",
+    "artifact",
+    "manifest",
+    "digest",
+    "workflow",
+    "pipeline",
+    "validation",
+    "coverage",
+    "fingerprint",
+    "snapshot",
+    "provider",
+    "fallback",
+    "profile",
+    "scope",
+    "mirror",
+    "rollback",
+    "asset",
+    "metadata",
+    "contract",
+    "dump",
+    "canonical",
+    "attestation",
+    "keyless",
+    "sidecar",
+    "locale",
+    "hierarchy",
+    "runtime",
+    "provenance",
+    "smoke",
+    "ingest",
+    "search",
+    "builder",
+    "runner",
+    "repository",
+    "branch",
+    "commit",
+    "tag",
+    "issue",
+    "pull",
+    "push",
+    "merge",
+    "review",
+    "squash",
+    "force",
+    "actor",
+    "pattern",
+    "full",
+    "base",
+    "source",
+    "dataset",
+    "adapter",
+)
+PROSE_ENGLISH_PATTERN = re.compile(r"\b(" + "|".join(map(re.escape, PROSE_ENGLISH_TERMS)) + r")\b", re.IGNORECASE)
 TECHNICAL_TERMS = (
     "artifact",
     "manifest",
@@ -917,6 +972,26 @@ def check_markdown_layout(paths: list[Path], errors: list[str]) -> None:
             index += 1
 
 
+def check_prose_language(paths: list[Path], errors: list[str]) -> None:
+    """散文中的通用英文词必须有中文写法，代码标识符与专有名词除外。"""
+    for path in paths:
+        lines = path.read_text(encoding="utf-8").splitlines()
+        in_fence = False
+        for number, line in enumerate(lines, start=1):
+            stripped = line.strip()
+            if stripped.startswith(("```", "~~~")):
+                in_fence = not in_fence
+                continue
+            if in_fence:
+                continue
+            prose = re.sub(r"`[^`]*`", " ", line)
+            prose = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", prose)
+            prose = re.sub(r"https?://\S+", " ", prose)
+            match = PROSE_ENGLISH_PATTERN.search(prose)
+            if match:
+                errors.append(f"{path}:{number} 散文使用了应中文化的英文词 {match.group(1)!r}：{stripped[:120]}")
+
+
 def _manifest_top_level_keys() -> set[str]:
     """从实现提取 manifest 顶层字段：as_manifest 的返回字面量与 packaging 的赋值。"""
     import ast
@@ -1269,6 +1344,22 @@ def check_changelog_bullets(errors: list[str]) -> None:
         first_seen[entry] = number
 
 
+def check_changelog_unreleased_sections(errors: list[str]) -> None:
+    """CHANGELOG 的未发布小节不能只有标题而没有条目。"""
+    changelog = Path("CHANGELOG.md")
+    text = changelog.read_text(encoding="utf-8")
+    match = re.search(r"^## \[Unreleased\]\s*$", text, re.MULTILINE)
+    if match is None:
+        errors.append(f"{changelog} 缺少 [Unreleased] 小节")
+        return
+    section = text[match.end() :].split("\n## ", 1)[0]
+    headings = re.findall(r"^### (.+)$", section, re.MULTILINE)
+    for heading in headings:
+        block = section.split(f"### {heading}", 1)[1].split("\n### ", 1)[0]
+        if not re.search(r"^- ", block, re.MULTILINE):
+            errors.append(f"{changelog} 的未发布小节「{heading}」只有标题没有条目")
+
+
 def check_version_consistency(errors: list[str]) -> None:
     """项目版本号必须在 pyproject / __init__ / CITATION 三处一致。
 
@@ -1353,6 +1444,7 @@ def main(argv: list[str] | None = None) -> int:
     check_readme_dimensions(errors)
     check_readme_doc_index(errors)
     check_markdown_layout([*doc_files, Path("CHANGELOG.md")], errors)
+    check_prose_language(doc_files, errors)
     check_china_localization_contract(errors)
     check_documentation_language(errors)
     check_registry_mirror_contract(errors)
@@ -1379,6 +1471,7 @@ def main(argv: list[str] | None = None) -> int:
     check_adm4_coverage_wording(render_files, errors)
     check_i18n_asset_documented(render_files, errors)
     check_changelog_bullets(errors)
+    check_changelog_unreleased_sections(errors)
     check_version_consistency(errors)
     check_license_consistency(errors)
     check_geodata_import_wording([*render_files, *contract_text_files], errors)

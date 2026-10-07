@@ -157,7 +157,7 @@ PYTHONPYCACHEPREFIX=$(mktemp -d) .venv/bin/python -m pytest -q -x
 
 ## 新增展示粒度
 
-1. 确认新 pattern 只用 `{admin_1}` ~ `{admin_4}` / `{country}` 占位符；
+1. 确认新的展示粒度只使用 `{admin_1}` ~ `{admin_4}` / `{country}` 占位符；
 2. 在 `--patterns` 中追加，例如 `--patterns '{admin_1} {admin_2}'`；
 3. 组合规则与去重逻辑在 `src/immich_cn/display.py`，无需改打包代码。
 

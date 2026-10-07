@@ -26,6 +26,41 @@ PACKAGE_TAGS = {"latest", "release"}
 PACKAGE_NAMES = ("immich-cn", "immich-cn-server")
 RETRY_STATUS = {408, 425, 429, 500, 502, 503, 504}
 MAX_ATTEMPTS = 4
+CANONICAL_ASSET = re.compile(
+    r"^immich-cn-(?:"
+    r"geodata-[a-z0-9-]+-(?:default|full)-v[0-9]+\.zip|"
+    r"dataset-sqlite-v[0-9]+\.zip|"
+    r"patterns-tsv-v[0-9]+\.gz|"
+    r"i18n-json-v[0-9]+\.zip|"
+    r"manifest-json-v[0-9]+\.json|"
+    r"checksums-sha256-v[0-9]+\.txt"
+    r")$"
+)
+LEGACY_RELEASE_ASSETS = frozenset(
+    {
+        "SHA256SUMS",
+        "dataset.sqlite.zip",
+        "geodata.zip",
+        "geodata_admin_2.zip",
+        "geodata_admin_2_admin_3.zip",
+        "geodata_admin_2_admin_3_admin_4.zip",
+        "geodata_admin_2_admin_3_admin_4_full.zip",
+        "geodata_admin_2_admin_3_full.zip",
+        "geodata_admin_2_admin_4.zip",
+        "geodata_admin_2_admin_4_full.zip",
+        "geodata_admin_2_full.zip",
+        "geodata_admin_3.zip",
+        "geodata_admin_3_admin_4.zip",
+        "geodata_admin_3_admin_4_full.zip",
+        "geodata_admin_3_full.zip",
+        "geodata_admin_4.zip",
+        "geodata_admin_4_full.zip",
+        "geodata_full.zip",
+        "i18n-iso-countries.zip",
+        "manifest.json",
+        "patterns.tsv.gz",
+    }
+)
 
 
 class CleanupError(RuntimeError):
@@ -200,6 +235,24 @@ def select_stale_assets(assets: list[tuple[int, str]], keep: set[str]) -> list[t
     （v4 迁移后 auto-release 上留下 21 个 pre-v4 资产）。这里按名单排序，便于复现与断言。
     """
     return sorted(((asset_id, name) for asset_id, name in assets if name not in keep), key=lambda item: item[1])
+
+
+def select_legacy_assets(
+    assets: list[tuple[int, str]],
+    *,
+    canonical_available: bool = False,
+) -> tuple[list[tuple[int, str]], list[tuple[int, str]]]:
+    """返回 ``(可安全删除的旧资产, 缺少规范资产的旧资产)``。
+
+    仓库中已经存在规范 v4 资产时，才删除旧命名资产；否则保留并在输出中标记为
+    待人工确认，避免把仍作为唯一分发入口的历史版本清空。
+    """
+    legacy = [(asset_id, name) for asset_id, name in assets if name in LEGACY_RELEASE_ASSETS]
+    if not legacy:
+        return [], []
+    has_canonical = canonical_available or any(CANONICAL_ASSET.fullmatch(name) for _, name in assets)
+    ordered = sorted(legacy, key=lambda item: item[1])
+    return (ordered, []) if has_canonical else ([], ordered)
 
 
 def select_package_versions(
@@ -497,6 +550,11 @@ def _parser() -> argparse.ArgumentParser:
         metavar="TAG",
         help="验证 Release 资产与 --dist-dir 文件清单完全一致；不一致时返回 1",
     )
+    parser.add_argument(
+        "--prune-legacy-assets",
+        action="store_true",
+        help="仓库中已有规范 v4 替代品时删除旧命名发布资产（缺省 dry-run）",
+    )
     parser.add_argument("--dist-dir", type=Path, default=Path("dist"), help="--prune-release-assets 使用的本地清单目录")
     return parser
 
@@ -558,10 +616,53 @@ def _verify_release_assets(client: GitHubClient, args: argparse.Namespace) -> in
     return 1
 
 
+def _prune_legacy_assets(client: GitHubClient, args: argparse.Namespace) -> int:
+    """删除已有规范替代品的旧命名发布资产；缺少规范资产的发布只报告不删除。"""
+    releases = client.list_releases()
+    observed = {release.tag_name: client.release_assets(release.tag_name) for release in releases}
+    canonical_available = any(CANONICAL_ASSET.fullmatch(name) for assets in observed.values() for _, name in assets)
+    mode = "APPLY" if args.apply else "DRY-RUN"
+    deletable_total = 0
+    manual_total = 0
+    failures: list[str] = []
+    for release in releases:
+        assets = observed[release.tag_name]
+        deletable, manual = select_legacy_assets(assets, canonical_available=canonical_available)
+        if not deletable and not manual:
+            continue
+        if deletable:
+            print(f"[{mode}] Release {release.tag_name}：待删除旧资产 {len(deletable)} 个")
+        if manual:
+            manual_total += len(manual)
+            print(f"[{mode}] Release {release.tag_name}：缺少规范替代品，保留旧资产 {len(manual)} 个")
+        for asset_id, name in deletable:
+            print(f"  - {name}")
+            if args.apply:
+                try:
+                    client.delete_release_asset(asset_id)
+                except CleanupError as error:
+                    failures.append(f"{release.tag_name}/{name}: {error}")
+        for _, name in manual:
+            print(f"  ! {name}（无规范替代品，跳过）")
+        deletable_total += len(deletable)
+    print(f"[{mode}] 旧命名资产：可删除 {deletable_total} 个，需人工确认 {manual_total} 个")
+    if failures:
+        detail = "；".join(failures[:5])
+        if len(failures) > 5:
+            detail += f"；另有 {len(failures) - 5} 项"
+        raise CleanupError(f"旧命名资产清理部分失败：{len(failures)} 项：{detail}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    if args.prune_release_assets and args.verify_release_assets:
-        print("::error::--prune-release-assets 与 --verify-release-assets 不能同时使用", file=sys.stderr)
+    modes = (
+        bool(args.prune_release_assets),
+        bool(args.verify_release_assets),
+        args.prune_legacy_assets,
+    )
+    if sum(modes) > 1:
+        print("::error::Release 资产清理模式不能同时使用", file=sys.stderr)
         return 2
     settings = CleanupSettings(
         release_retention=args.release_retention,
@@ -579,6 +680,8 @@ def main(argv: list[str] | None = None) -> int:
             return _prune_release_assets(client, args)
         if args.verify_release_assets:
             return _verify_release_assets(client, args)
+        if args.prune_legacy_assets:
+            return _prune_legacy_assets(client, args)
         plan = build_plan(client, settings, allow_empty_packages=args.allow_empty_packages)
         print_plan(plan, apply=args.apply)
         if args.apply:

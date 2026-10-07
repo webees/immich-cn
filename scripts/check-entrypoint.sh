@@ -95,6 +95,26 @@ missing_source_case() {
 
 missing_source_case
 
+# 源目录与目标目录相同时应明确跳过复制，而不是误报“目标不可写”。
+same_source_target_case() {
+  local root="$work/same-source-target"
+  mkdir -p "$root/build/geodata"
+  cp -a "$repo_root/build/geodata/." "$root/build/geodata/"
+  local output
+  output="$(IMMICH_BUILD_DATA="$root/build" \
+      IMMICH_CN_GEODATA_DIR="$root/build/geodata" \
+      IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
+      bash "$repo_root/docker/entrypoint.sh" true 2>&1)"
+  if ! printf '%s' "$output" | grep -q "源目录与目标目录相同"; then
+    echo "失败：源目录与目标目录相同时未给出明确提示：${output}" >&2
+    exit 1
+  fi
+  echo "通过：源目录与目标目录相同时明确跳过复制"
+}
+
+same_source_target_case
+
 # 目标目录不可写且没有现成数据时，必须给出"无法写入"提示（第 6 轮修过的分支）。
 unwritable_target_case() {
   if [ "$(id -u)" = "0" ]; then

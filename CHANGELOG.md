@@ -20,6 +20,7 @@
 
 - 新增 `scripts/check_dead_symbols.py` 与 `make audit-dead-symbols`：扫描 `src/` 与 `scripts/` 的模块级定义是否有零引用（`__dunder__` 忽略，外部入口写进 `ALLOWED` 并注明原因），把此前每轮手写的死代码扫描固化成可重复执行的资产；2026-10-07 基线 501 个定义、1 个零引用项（已删除），复查为 0；
 - 文档护栏新增 README 维度表、英文标题、Markdown 表格结构与文档索引唯一性检查，防止排版再次漂移；
+- 文档散文语言护栏新增通用英文词检查：发布、镜像、制品、清单、摘要、工作流、校验、覆盖率、指纹、快照、提供方、回退、展示粒度、来源、数据集、适配器等必须使用中文，只有代码标识符、协议缩写与专有名词保留英文；
 - 新增 `scripts/check_action_pins.py` 与 `make audit-pins`：把每个 Action pin 与注释里的版本 tag 对拍（缺 40 位 SHA、缺版本注释、tag 不存在、tag 指向的 commit 与 pin 不一致都失败）；`check_workflows` 只做离线格式校验，发现不了「pin 停在旧版本但注释写着新版本」这类漂移。实测 6 个工作流 25 个固定引用全部与上游 tag 一致；
 - 新增 `monitor-update.yml` 与 `scripts/check_update_freshness.py`：每 6 小时检查 **Auto Data Update** 的新鲜度，区分 `never_run` / `no_run` / `stalled` / `failed` / `stale_success` / `schedule_stalled` / `ok`，并把「手动 dispatch 成功」与「schedule 仍在触发」分开判定，停摆时创建 `automation` 告警、恢复后自动关闭；
 - 项目定位收敛为“为 Immich 提供中国本地化的 reverse geocoding geodata”；新增 `docs/project-scope.md` 统一 core scope、optional support 与 non-goals，`docs/china-localization.md` 只记录实际证据、缺口和 roadmap；
@@ -75,6 +76,9 @@
 
 ### 修复
 
+- 完整 Immich 服务栈冒烟在拉取 PostgreSQL、Valkey 与覆盖镜像时增加 5 次退避重试，避免单次镜像仓库限流把自动更新误判为失败；
+- 容器入口在源数据目录与目标目录相同时明确跳过复制，不再误报“目标不可写”；
+- `cleanup.py` 新增 `--prune-legacy-assets`：仅当仓库中已有规范 v4 替代品时回收旧命名 Release 资产，缺少替代品的历史发布保持不动；
 - 数据镜像落地目录里的 `README.md` 补齐 i18n 挂载说明：此前只写「Immich < 1.136 的 `node_modules/i18n-iso-countries`」，1.136.0 ~ 3.2.x 的用户会照它把覆盖包放到错误位置；现在同时给出 `/usr/src/app/node_modules/...`、`/usr/src/app/server/node_modules/...` 与「3.3.0 起不再需要」，`check_docs.check_langs_mounts` 会强制这两个路径都保留；
 - `check_artifacts` 现在校验 i18n 语言包的裁剪契约：`immich-cn-i18n-json-v1.zip` 必须且只能含 `LICENSE` 与 `langs/en.json`，出现其它 `langs/*.json` 或缺 `langs/en.json` 都失败（此前只检查 LICENSE 文本，裁剪是否生效无人把关）；同时把 README / docs/packages / docs/data-sources 的措辞限定为「自下一次数据发布起」——2026-10-07 实测已发布的 `data-2026-10-06` 与 `auto-release` 仍是 74 个成员、191,847 字节的整套语言包（sha256 与各自 manifest 一致），文档此前把未发布的行为写成了既成事实；
 - `--provider auto` 在缺少 `AMAP_API_KEY` 时不再静默降级：新增显式 warning（产物与 `--provider offline` 完全相同，manifest 里 `config.provider` 记为 `offline`），避免「密钥缺失 / 改名 / secret 过期」伪装成一次成功的高德增强构建；`--provider amap` 仍然是硬要求，缺 Key 直接 `ConfigError`；`docs/development.md` 记录该行为；

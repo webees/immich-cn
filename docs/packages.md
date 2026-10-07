@@ -68,8 +68,8 @@ Compose 示例通过 `IMMICH_CN_GHCR_MIRROR` 选择前缀。2026-10-07 对两个
 docker pull ghcr.io/webees/immich-cn:1.0.4
 # 某个控制面提交
 docker pull ghcr.io/webees/immich-cn-server:sha-cdc0ba3
-# 最可追溯的写法：固定摘要
-docker pull ghcr.io/webees/immich-cn@sha256:fa8b3db5c1879f8e5ba1f37f49983d0f3b568d896b9135944c2bcc2b0042747f
+# 最可追溯的写法：固定摘要（摘要值以 imagetools inspect 的当前输出为准）
+docker pull ghcr.io/webees/immich-cn@sha256:<digest>
 ```
 
 在 GitHub Packages 页面上还会看到 `sha256-<digest>` 形式的标签。它们不是本项目的发布标签，而是 GHCR 为 Cosign 签名与证明对象这类 OCI 引用对象生成的引用标签：以镜像摘要命名的那个标签指向的是签名、证明对象，不是镜像本身。请勿把这类标签当作镜像拉取，也不要手动删除；`cleanup.yml` 会保护 `sha256-*` / `sha256:*` 版本。

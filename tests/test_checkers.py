@@ -152,6 +152,24 @@ def test_check_docs_rejects_broken_markdown_table(repo_copy: Path) -> None:
     assert "表格缺少表头或分隔行" in result.stdout
 
 
+def test_check_docs_rejects_english_prose(repo_copy: Path) -> None:
+    """通用英文词重新写回散文时必须被报出，代码标识符不受影响。"""
+    readme = repo_copy / "README.md"
+    mutate(readme, "创建带 `automation` 标签的议题", "创建带 `automation` 标签的 issue")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "散文使用了应中文化的英文词" in result.stdout
+
+
+def test_check_docs_rejects_empty_changelog_section(repo_copy: Path) -> None:
+    """CHANGELOG 的未发布小节不能只有标题而没有条目。"""
+    changelog = repo_copy / "CHANGELOG.md"
+    mutate(changelog, "### 修复\n\n-", "### 修复\n\n### 空小节\n\n-")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "只有标题没有条目" in result.stdout
+
+
 def test_check_docs_detects_undocumented_env_var(repo_copy: Path) -> None:
     target = repo_copy / "src" / "immich_cn" / "domain.py"
     mutate(target, "GEO_COLUMNS = 19", 'GEO_COLUMNS = 19\nUNDOCUMENTED = "IMMICH_CN_UNDOCUMENTED_PROBE"')
