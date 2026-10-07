@@ -364,6 +364,19 @@ def test_check_docs_rejects_stale_geodata_import_wording(repo_copy: Path) -> Non
     assert "不准确的导入条件" in result.stdout
 
 
+def test_check_docs_rejects_stale_geodata_import_wording_in_container_script(repo_copy: Path) -> None:
+    """容器入口注释同样会指导维护者，不能绕过上游导入条件护栏。"""
+    entrypoint = repo_copy / "docker" / "entrypoint.sh"
+    mutate(
+        entrypoint,
+        "# Immich 只在 geodata-date.txt 与上次记录相等时跳过导入，这里给出显式刷新开关。",
+        "# Immich 只在 geodata-date.txt 比上次导入更新时才重新导入，这里给出显式开关。",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "不准确的导入条件" in result.stdout
+
+
 def test_check_docs_detects_license_field_drift(repo_copy: Path) -> None:
     """pyproject 的 license 与 LICENSE/CITATION 不一致时必须报错。"""
     pyproject = repo_copy / "pyproject.toml"

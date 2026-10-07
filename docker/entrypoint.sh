@@ -66,7 +66,7 @@ if [ "$pattern" != "{admin_2}" ]; then
   immich-cn-apply-pattern --source "$target" --table "$patterns_table" --pattern "$pattern"
 fi
 
-# Immich 只在 geodata-date.txt 比上次导入更新时才重新导入，这里给出显式开关。
+# Immich 只在 geodata-date.txt 与上次记录相等时跳过导入，这里给出显式刷新开关。
 if [ "${IMMICH_CN_FORCE_RELOAD:-0}" = "1" ]; then
   # 源数据可能把该文件写成符号链接；写前先删除，避免追随到目标目录之外。
   rm -f "$target/geodata-date.txt"

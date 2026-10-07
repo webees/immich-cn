@@ -42,6 +42,8 @@ RENDER_EXTRA_GLOBS = (
     "examples/*.yml",
     "examples/nginx/*.conf",
 )
+#: 容器脚本中的注释会直接指导维护者判断 Immich 运行时行为，也纳入上游契约措辞检查。
+CONTRACT_TEXT_GLOBS = ("docker/*.sh",)
 CODE_GLOBS = (
     "src/**/*.py",
     "docker/*",
@@ -854,7 +856,7 @@ def check_geodata_import_wording(paths: list[Path], errors: list[str]) -> None:
     上游 map.repository.ts 的判断是 `geocodingMetadata?.lastUpdate === geodataDate`
     就 return：与上次记录**相等**才跳过，任何不同的值（更新或更旧）都会重新导入。
     """
-    stale_phrases = ("比上次导入时间更新", "不新于上次导入时间")
+    stale_phrases = ("比上次导入时间更新", "比上次导入更新", "不新于上次导入时间", "不新于上次导入")
     for path in paths:
         text = path.read_text(encoding="utf-8")
         for phrase in stale_phrases:
@@ -1060,6 +1062,7 @@ def main(argv: list[str] | None = None) -> int:
     check_manifest_field_docs(errors)
     check_manifest_stats_scope(errors)
     render_files = [*doc_files, *_expand(RENDER_EXTRA_GLOBS)]
+    contract_text_files = _expand(CONTRACT_TEXT_GLOBS)
     check_cjk_soft_breaks(render_files, errors)
     check_citation_spacing(errors)
     check_dataset_member_doc(errors)
@@ -1068,7 +1071,7 @@ def main(argv: list[str] | None = None) -> int:
     check_i18n_asset_documented(render_files, errors)
     check_version_consistency(errors)
     check_license_consistency(errors)
-    check_geodata_import_wording(render_files, errors)
+    check_geodata_import_wording([*render_files, *contract_text_files], errors)
     check_language_priority_doc(errors)
     check_hk_districts(errors)
     check_asset_names(render_files, errors)
