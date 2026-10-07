@@ -13,12 +13,15 @@ from scripts.cleanup import (
     CleanupPlan,
     CleanupSettings,
     GitHubClient,
+    Inventory,
     PackageVersionRecord,
     ReleaseRecord,
     RunRecord,
     _prune_release_assets,
     _verify_release_assets,
     apply_plan,
+    build_plan,
+    print_plan,
     select_package_versions,
     select_releases,
     select_runs,
@@ -209,6 +212,73 @@ def test_package_cleanup_protects_digest_like_tags() -> None:
     assert [version.id for version in selected] == [4]
 
 
+class _PlanClient:
+    """build_plan 只依赖这四个方法。"""
+
+    def __init__(self, package_versions: dict[str, list[PackageVersionRecord]]) -> None:
+        self.package_versions = package_versions
+
+    def list_releases(self) -> list[ReleaseRecord]:
+        return [ReleaseRecord(1, "auto-release", at(1)), ReleaseRecord(2, "data-2026-10-07", at(1))]
+
+    def commit_sha_for_tag(self, tag: str) -> str:
+        del tag
+        return ""
+
+    def list_runs(self) -> list[RunRecord]:
+        return [RunRecord(1, "CI", "completed", at(0), "sha", "success", "push")]
+
+    def list_package_versions(self, package: str) -> list[PackageVersionRecord]:
+        return list(self.package_versions.get(package, []))
+
+
+def test_build_plan_reports_observed_inventory() -> None:
+    """「0 待删除」必须附带真实读到的数量，否则无法区分空列表与没有可删项。"""
+    client = _PlanClient(
+        {
+            "immich-cn": [PackageVersionRecord(1, at(1), ("latest",))],
+            "immich-cn-server": [PackageVersionRecord(2, at(1), ("release",))],
+        }
+    )
+
+    plan = build_plan(client, CleanupSettings(3, 30, 20, 20, False))
+
+    assert plan.inventory.releases == 2
+    assert plan.inventory.runs == 1
+    assert plan.inventory.package_versions == {"immich-cn": 1, "immich-cn-server": 1}
+    assert "immich-cn=1" in plan.inventory.describe()
+
+
+def test_build_plan_rejects_empty_package_inventory() -> None:
+    """读到空版本列表时必须失败，而不是打印「0 待删除」然后绿灯。"""
+    client = _PlanClient({"immich-cn": [], "immich-cn-server": [PackageVersionRecord(2, at(1), ("release",))]})
+
+    with pytest.raises(CleanupError, match="返回 0 个版本"):
+        build_plan(client, CleanupSettings(3, 30, 20, 20, False))
+
+
+def test_build_plan_allows_empty_package_inventory_when_opted_in() -> None:
+    """包确实尚未创建时，显式开关可以放行，但不会让这个状态变成默认通过。"""
+    client = _PlanClient({"immich-cn": [], "immich-cn-server": []})
+
+    plan = build_plan(client, CleanupSettings(3, 30, 20, 20, False), allow_empty_packages=True)
+
+    assert plan.package_versions == {"immich-cn": (), "immich-cn-server": ()}
+    assert plan.total == 0
+
+
+def test_print_plan_reports_inventory_even_with_nothing_to_delete(capsys: pytest.CaptureFixture[str]) -> None:
+    client = _PlanClient({"immich-cn": [], "immich-cn-server": []})
+    plan = build_plan(client, CleanupSettings(3, 30, 20, 20, False), allow_empty_packages=True)
+
+    print_plan(plan, apply=False)
+
+    output = capsys.readouterr().out
+    assert "[DRY-RUN] 观察到 Release 2 个" in output
+    assert "GHCR 版本 immich-cn=0、immich-cn-server=0" in output
+    assert "[DRY-RUN] 待删除 Release：0" in output
+
+
 def test_apply_plan_continues_after_individual_failure() -> None:
     """一个删除失败不能阻断其他 release/package 的清理。"""
     deleted: list[str] = []
@@ -237,6 +307,7 @@ def test_apply_plan_continues_after_individual_failure() -> None:
                 PackageVersionRecord(11, at(2), ("sha-def",)),
             )
         },
+        inventory=Inventory(releases=2, runs=0, package_versions={"immich-cn": 2}),
     )
 
     with pytest.raises(CleanupError, match="清理部分失败：1 项"):
