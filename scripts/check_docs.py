@@ -202,7 +202,8 @@ INTERNAL_FILES = {"immich-cn-patterns-v1.tsv"}
 LEGACY_ASSET_PREFIXES = ("geodata_admin_", "geodata_full", "geodata.zip")
 
 #: 价值完全依赖"能被找到"的文件：必须在 README 或 docs 中被引用，否则等于隐藏文件。
-DISCOVERABLE_GLOBS = ("NOTICE", "examples/*.yml", "examples/nginx/*.conf", "docs/*.md")
+#: 工作流也必须在文档里被点名，否则用户看不到「自动更新/清理/监控」到底由谁执行
+DISCOVERABLE_GLOBS = ("NOTICE", "examples/*.yml", "examples/nginx/*.conf", "docs/*.md", ".github/workflows/*.yml")
 
 #: 文档里以这些后缀出现的反引号路径必须是仓库中真实存在的文件
 FILE_SUFFIXES = (".py", ".sh", ".toml", ".json", ".yml", ".yaml", ".md", ".cff", ".cfg", ".txt")
