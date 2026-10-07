@@ -164,7 +164,7 @@ def test_check_docs_requires_every_default_pattern_in_readme(repo_copy: Path) ->
 
 def test_check_docs_detects_numeric_drift(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
-    mutate(readme, "共 14 个 geodata variant", "共 13 个 geodata variant")
+    mutate(readme, "共 14 个地理数据变体", "共 13 个地理数据变体")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "13 个 geodata 变体" in result.stdout
@@ -248,7 +248,7 @@ def test_check_docs_detects_undocumented_source(repo_copy: Path) -> None:
 
 def test_check_docs_detects_stale_module_name(repo_copy: Path) -> None:
     """命名规范表里的现行模块名在源码中不存在时必须被报出。"""
-    naming = repo_copy / "docs" / "naming-conventions.md"
+    naming = repo_copy / "docs" / "conventions.md"
     mutate(
         naming,
         "| `artifacts.py` | `artifact_spec.py` |",
@@ -261,7 +261,7 @@ def test_check_docs_detects_stale_module_name(repo_copy: Path) -> None:
 
 def test_check_docs_detects_legacy_module_resurrection(repo_copy: Path) -> None:
     """命名规范表标记为旧名的模块重新出现时必须被报出。"""
-    naming = repo_copy / "docs" / "naming-conventions.md"
+    naming = repo_copy / "docs" / "conventions.md"
     mutate(naming, "| `models.py` | `domain.py` |", "| `domain.py` | `domain.py` |")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
@@ -416,12 +416,12 @@ def test_check_docs_requires_explicit_immich_column_indexing(repo_copy: Path) ->
     architecture = repo_copy / "docs" / "architecture.md"
     mutate(
         architecture,
-        "0-based column 1 是展示名",
+        "第 1 列（0 基）是展示名",
         "第 1 列是展示名",
     )
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
-    assert "0-based column" in result.stdout
+    assert "0 基" in result.stdout
 
 
 def test_check_docs_rejects_ui_translation_as_upstream_requirement(repo_copy: Path) -> None:
@@ -429,12 +429,12 @@ def test_check_docs_rejects_ui_translation_as_upstream_requirement(repo_copy: Pa
     integration = repo_copy / "docs" / "immich-integration.md"
     mutate(
         integration,
-        "| Upstream change required | 不在本项目做不安全 patch 或 UI fork | 全局 UI timezone、任意地图瓦片 |",
-        "| Upstream change required | 不在本项目做不安全 patch 或 UI fork | 全局 UI timezone、任意地图瓦片、UI translation |",
+        "| 必须由上游修改 | 不在本项目做不安全补丁或界面复刻 | 全局界面时区、任意地图瓦片 |",
+        "| 必须由上游修改 | 不在本项目做不安全补丁或界面复刻 | 全局界面时区、任意地图瓦片、界面翻译 |",
     )
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
-    assert "UI translation" in result.stdout
+    assert "界面翻译" in result.stdout
 
 
 def test_check_docs_requires_current_release_locale_boundary(repo_copy: Path) -> None:
@@ -690,7 +690,7 @@ def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
 def test_check_docs_requires_china_localization_anchor(repo_copy: Path) -> None:
     """README 丢掉 canonical positioning 时必须失败，避免范围再次漂移。"""
     readme = repo_copy / "README.md"
-    mutate(readme, "immich-cn 为 Immich 提供中国本地化的 reverse geocoding geodata", "Immich 数据工具")
+    mutate(readme, "immich-cn 为 Immich 提供中国本地化的反向地理编码地理数据", "Immich 数据工具")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "中国本地化定位锚点" in result.stdout
@@ -698,7 +698,7 @@ def test_check_docs_requires_china_localization_anchor(repo_copy: Path) -> None:
 
 def test_check_docs_requires_china_localization_areas(repo_copy: Path) -> None:
     """core/optional scope 表被删掉一项时必须失败，避免路线图只剩宣传性描述。"""
-    localization = repo_copy / "docs" / "china-localization.md"
+    localization = repo_copy / "docs" / "china.md"
     mutate(localization, "| 检索 |", "| 查询 |")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
@@ -707,11 +707,11 @@ def test_check_docs_requires_china_localization_areas(repo_copy: Path) -> None:
 
 def test_check_docs_requires_project_scope_sections(repo_copy: Path) -> None:
     """canonical scope 必须显式区分 core、optional 和 non-goals。"""
-    scope = repo_copy / "docs" / "project-scope.md"
-    mutate(scope, "## Optional support", "## Other")
+    scope = repo_copy / "docs" / "china.md"
+    mutate(scope, "## 可选支持", "## 其他")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
-    assert "Optional support" in result.stdout
+    assert "可选支持" in result.stdout
 
 
 def test_check_docs_rejects_deprecated_scope_phrases(repo_copy: Path) -> None:
@@ -736,16 +736,16 @@ def test_check_docs_requires_china_acceleration_entrypoint(repo_copy: Path) -> N
     """README 必须把 CDN 与静态资源加速列为中国本地化的一等能力。"""
     readme = repo_copy / "README.md"
     text = readme.read_text(encoding="utf-8")
-    assert "docs/china-acceleration.md" in text
-    readme.write_text(text.replace("docs/china-acceleration.md", "docs/china-localization.md"), encoding="utf-8")
+    assert "docs/china.md" in text
+    readme.write_text(text.replace("docs/china.md", "docs/other.md"), encoding="utf-8")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
-    assert "docs/china-acceleration.md" in result.stdout
+    assert "docs/china.md" in result.stdout
 
 
 def test_check_docs_requires_acceleration_cache_boundary(repo_copy: Path) -> None:
     """加速文档必须明确不可变静态资源与 API 的缓存边界。"""
-    acceleration = repo_copy / "docs" / "china-acceleration.md"
+    acceleration = repo_copy / "docs" / "china.md"
     text = acceleration.read_text(encoding="utf-8")
     assert "/_app/immutable/" in text
     acceleration.write_text(text.replace("/_app/immutable/", "/assets/"), encoding="utf-8")
@@ -756,7 +756,7 @@ def test_check_docs_requires_acceleration_cache_boundary(repo_copy: Path) -> Non
 
 def test_check_docs_requires_acceleration_examples(repo_copy: Path) -> None:
     """加速文档必须引用可直接部署的 compose 与 Nginx 示例。"""
-    acceleration = repo_copy / "docs" / "china-acceleration.md"
+    acceleration = repo_copy / "docs" / "china.md"
     mutate(acceleration, "../examples/compose.acceleration.yml", "../examples/compose.server.yml")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
@@ -765,16 +765,16 @@ def test_check_docs_requires_acceleration_examples(repo_copy: Path) -> None:
 
 def test_check_docs_requires_jsdelivr_release_limit(repo_copy: Path) -> None:
     """免费 CDN 说明必须保留 Release 附件不能被 jsDelivr 直接代理的边界。"""
-    acceleration = repo_copy / "docs" / "china-acceleration.md"
-    mutate(acceleration, "Release 资产", "Release 文件")
+    acceleration = repo_copy / "docs" / "china.md"
+    mutate(acceleration, "发布资产", "发布文件")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
-    assert "Release 资产" in result.stdout
+    assert "发布资产" in result.stdout
 
 
 def test_check_docs_requires_china_jsdelivr_default(repo_copy: Path) -> None:
     """加速文档必须保留中国默认节点和用户可配置入口。"""
-    acceleration = repo_copy / "docs" / "china-acceleration.md"
+    acceleration = repo_copy / "docs" / "china.md"
     text = acceleration.read_text(encoding="utf-8")
     assert "cdn.jsdmirror.com" in text
     acceleration.write_text(text.replace("cdn.jsdmirror.com", "cdn.jsdelivr.net"), encoding="utf-8")
@@ -817,10 +817,10 @@ def test_check_docs_requires_ghcr_mirror_override(repo_copy: Path) -> None:
 def test_check_docs_requires_immich_integration_contract(repo_copy: Path) -> None:
     """Immich 上游依赖和不可修改边界必须有契约文档。"""
     doc = repo_copy / "docs" / "immich-integration.md"
-    mutate(doc, "Upstream change required", "Other change")
+    mutate(doc, "必须由上游修改", "其他改动")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
-    assert "Upstream change required" in result.stdout
+    assert "必须由上游修改" in result.stdout
 
 
 def test_check_docs_requires_immich_import_filter(repo_copy: Path) -> None:
@@ -859,7 +859,7 @@ def test_check_docs_detects_changelog_soft_break(repo_copy: Path) -> None:
 
 def test_check_docs_requires_technical_terminology(repo_copy: Path) -> None:
     """术语规范必须保留英文核心技术术语，防止文档重新退化为一味中文化。"""
-    terminology = repo_copy / "docs" / "terminology.md"
+    terminology = repo_copy / "docs" / "conventions.md"
     mutate(terminology, "| `artifact` |", "| `制品` |")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
@@ -889,7 +889,7 @@ def test_check_docs_requires_independence_guidance(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     mutate(
         readme,
-        "核查范围、关键词与边界见 [docs/documentation-policy.md](docs/documentation-policy.md)。",
+        "核查范围、关键词与边界见 [规范与约定](docs/conventions.md)。",
         "核查范围、关键词与边界见项目维护记录。",
     )
     result = run_checker(repo_copy, "check_docs.py")
@@ -911,7 +911,7 @@ def test_check_docs_requires_upstream_acknowledgement_at_bottom(repo_copy: Path)
     link = (
         "- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)："
         "早期中文 Immich geodata 思路提供了启发；本项目按独立实现组织，"
-        "当前树未引用或打包该项目的代码与人工整理数据（核查方式见 [文档严谨性规范](docs/documentation-policy.md)）。"
+        "当前树未引用或打包该项目的代码与人工整理数据（核查方式见 [规范与约定](docs/conventions.md)）。"
     )
     mutated = readme.read_text(encoding="utf-8").replace(link, "")
     mutated = mutated.replace("## 数据模型与使用方式", f"{link}\n\n## 数据模型与使用方式")
@@ -1441,10 +1441,10 @@ def test_check_docs_requires_concrete_image_tag_example(repo_copy: Path) -> None
 def test_check_docs_requires_referrer_tag_explanation(repo_copy: Path) -> None:
     """Packages 页面上的 sha256-<digest> referrer tag 必须被解释，否则读者会当成镜像。"""
     packages = repo_copy / "docs" / "packages.md"
-    mutate(packages, "OCI referrer", "容器镜像")
+    mutate(packages, "OCI 引用对象", "容器镜像")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
-    assert "referrer" in result.stdout
+    assert "引用标签" in result.stdout
 
 
 def test_check_workflows_requires_update_monitor(repo_copy: Path) -> None:

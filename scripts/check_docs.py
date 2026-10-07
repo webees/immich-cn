@@ -90,36 +90,36 @@ PROCESS_OR_LEGAL_CLAIMS: dict[str, str] = {
 
 #: README 独立性段落的锚点；正文改写时需同步更新本契约。
 INDEPENDENCE_ANCHOR = "本项目按独立实现组织"
-INDEPENDENCE_SECTION_END = "## Data model and usage"
+INDEPENDENCE_SECTION_END = "## 数据模型与使用方式"
 
 #: 中国本地化是项目的主方向，README、专题文档、部署示例和时区默认值必须一致。
-CHINA_LOCALIZATION_DOC = Path("docs/china-localization.md")
-CHINA_LOCALIZATION_ANCHOR = "immich-cn 为 Immich 提供中国本地化的 reverse geocoding geodata"
+CHINA_LOCALIZATION_DOC = Path("docs/china.md")
+CHINA_LOCALIZATION_ANCHOR = "immich-cn 为 Immich 提供中国本地化的反向地理编码地理数据"
 CHINA_LOCALIZATION_AREAS = ("显示", "检索", "地图", "体验", "加速", "数据")
 CHINA_LOCALIZATION_PHASES = ("阶段 1", "阶段 2", "阶段 3", "阶段 4")
 CHINA_TIMEZONE = "TZ: Asia/Shanghai"
 MAKE_CHECK_DESCRIPTION = "lint + typecheck + test + docs + workflows + shellcheck"
 CHINA_LOCALIZATION_OVERCLAIM = "完整行政区层级"
-CHINA_ACCELERATION_DOC = Path("docs/china-acceleration.md")
-PROJECT_SCOPE_DOC = Path("docs/project-scope.md")
-PROJECT_SCOPE_ANCHOR = "Canonical positioning"
-PROJECT_SCOPE_SECTIONS = ("Core scope", "Optional support", "Non-goals")
+CHINA_ACCELERATION_DOC = Path("docs/china.md")
+PROJECT_SCOPE_DOC = Path("docs/china.md")
+PROJECT_SCOPE_ANCHOR = "规范定位"
+PROJECT_SCOPE_SECTIONS = ("核心范围", "可选支持", "非目标")
 FORBIDDEN_SCOPE_PHRASES = ("本地化增强套件", "本地化不止于翻译", "六个层面", "六个支柱")
 UPSTREAM_INTEGRATION_DOC = Path("docs/immich-integration.md")
 UPSTREAM_INTEGRATION_TOKENS = (
-    "Integration classes",
+    "集成类别",
     "map.repository.ts",
-    "0-based column",
+    "0 基",
     "PPLX",
     "PPLH",
     "reverseGeocodeMaxDistance",
-    "Column limits",
+    "列约束",
     "cities500-immich-columns",
-    "Place search",
+    "地点检索",
     "searchPlaces",
     "zh_Hans",
     "zh_Hant",
-    "User Settings",
+    "用户设置",
     "countryInfo.txt",
     "geodata-date.txt",
     "/_app/immutable",
@@ -127,7 +127,7 @@ UPSTREAM_INTEGRATION_TOKENS = (
     "IMMICH_CONFIG_FILE",
     "IMMICH_HELMET_FILE",
     "IMMICH_TRUSTED_PROXIES",
-    "Upstream change required",
+    "必须由上游修改",
 )
 CHINA_ACCELERATION_TOKENS = (
     "CDN",
@@ -135,7 +135,7 @@ CHINA_ACCELERATION_TOKENS = (
     "cdn.jsdmirror.com",
     "IMMICH_CN_JSDELIVR_BASE",
     "jsdelivr_url.py",
-    "Release 资产",
+    "发布资产",
     "Cache-Control",
     "/_app/immutable/",
     "/api/",
@@ -158,7 +158,7 @@ COMPOSE_EXAMPLES = (*COMPOSE_FULL_EXAMPLES, Path("examples/compose.volume.yml"))
 VALKEY_IMAGE = "docker.io/valkey/valkey:9@sha256:70739f85ad2ee01a726a965584a0f94895f01b0c60b3cc8b0aeef11eaa6888cf"
 GHCR_MIRROR_DEFAULT = "ghcr.nju.edu.cn"
 GHCR_MIRROR_ENV = "IMMICH_CN_GHCR_MIRROR"
-TERMINOLOGY_DOC = Path("docs/terminology.md")
+TERMINOLOGY_DOC = Path("docs/conventions.md")
 TECHNICAL_TERMS = (
     "artifact",
     "manifest",
@@ -420,7 +420,7 @@ def check_numeric_contracts(errors: list[str]) -> None:
         errors.append("文档错误：默认构建直接流式写 immich-cn-patterns-tsv-v1.gz，不生成明文 immich-cn-patterns-v1.tsv")
 
     expected_variants = len(build_variants(DEFAULT_PATTERNS))
-    for match in re.finditer(r"(\d+)\s*个\s*geodata\s+(?:变体|variant)", doc_text):
+    for match in re.finditer(r"(\d+)\s*个\s*(?:geodata\s*|地理数据)?(?:变体|variant)", doc_text):
         if int(match.group(1)) != expected_variants:
             errors.append(f"文档称 {match.group(1)} 个 geodata 变体，实际生成 {expected_variants} 个")
 
@@ -497,7 +497,7 @@ def check_source_contracts(errors: list[str]) -> None:
             errors.append(f"上游数据源 {source.name} 未在 docs/data-sources.md 记录（期望出现 {marker!r}）")
 
 
-#: docs/naming-conventions.md 的模块映射表行：| `old.py` | `current.py` | 职责 |
+#: docs/conventions.md 的模块映射表行：| `old.py` | `current.py` | 职责 |
 MODULE_TABLE_ROW = re.compile(
     r"^\|\s*`([a-z_][a-z0-9_]*\.py)`\s*\|\s*`([a-z_][a-z0-9_]*\.py)`\s*\|",
     re.MULTILINE,
@@ -506,7 +506,7 @@ MODULE_TABLE_ROW = re.compile(
 
 def check_module_name_table(errors: list[str]) -> None:
     """命名规范表里的现行模块名必须存在，旧模块名必须已经消失。"""
-    path = Path("docs/naming-conventions.md")
+    path = Path("docs/conventions.md")
     rows = MODULE_TABLE_ROW.findall(path.read_text(encoding="utf-8"))
     if not rows:
         errors.append(f"{path} 的模块命名表未解析到任何映射，护栏可能已失效")
@@ -570,12 +570,8 @@ def check_china_localization_contract(errors: list[str]) -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
     if CHINA_LOCALIZATION_ANCHOR not in readme:
         errors.append(f"README 缺少中国本地化定位锚点：{CHINA_LOCALIZATION_ANCHOR}")
-    if "docs/project-scope.md" not in readme:
-        errors.append("README 必须链接 docs/project-scope.md，统一 core/optional scope 与 non-goals")
-    if "docs/china-localization.md" not in readme:
-        errors.append("README 必须链接 docs/china-localization.md，说明本地化边界与路线图")
-    if "docs/china-acceleration.md" not in readme:
-        errors.append("README 必须链接 docs/china-acceleration.md，说明 CDN 与静态资源加速边界")
+    if "docs/china.md" not in readme:
+        errors.append("README 必须链接 docs/china.md，统一范围、本地化边界与加速边界")
     if CHINA_LOCALIZATION_OVERCLAIM in readme:
         errors.append(f"README 不应把当前未完成的目标写成既成事实：{CHINA_LOCALIZATION_OVERCLAIM}")
     for phrase in FORBIDDEN_SCOPE_PHRASES:
@@ -636,14 +632,14 @@ def check_china_localization_contract(errors: list[str]) -> None:
 
 
 def check_documentation_language(errors: list[str]) -> None:
-    """GitHub 页面短标签和技术术语必须使用英文，并保留术语规范入口。"""
+    """文档以中文为主，只有专有名词与标识符保留英文，并保留术语入口。"""
     readme = Path("README.md").read_text(encoding="utf-8")
     if "[![Data Update]" not in readme:
         errors.append("README 的 data update badge alt text 必须使用英文简写 [![Data Update]")
     if "[![全自动更新数据]" in readme:
         errors.append("README 的 data update badge 仍使用过长的中文 alt text")
-    if "docs/terminology.md" not in readme:
-        errors.append("README 必须链接 docs/terminology.md，明确技术术语使用英文")
+    if "docs/conventions.md" not in readme:
+        errors.append("README 必须链接 docs/conventions.md，明确术语与命名约定")
     if not TERMINOLOGY_DOC.exists():
         errors.append(f"缺失技术术语规范：{TERMINOLOGY_DOC}")
         return
@@ -687,8 +683,8 @@ def check_image_tag_examples(doc_files: list[Path], errors: list[str]) -> None:
     if checked == 0:
         errors.append("文档中没有任何具体的 GHCR 镜像 tag 示例，镜像 tag 护栏可能已失效")
     packages = Path("docs/packages.md")
-    if packages.exists() and "OCI referrer" not in packages.read_text(encoding="utf-8"):
-        errors.append(f"{packages} 未说明 Packages 页面上的 sha256-<digest> referrer tag 不是发布镜像")
+    if packages.exists() and "OCI 引用对象" not in packages.read_text(encoding="utf-8"):
+        errors.append(f"{packages} 未说明软件包页面上的 sha256-<digest> 引用标签不是发布镜像")
 
 
 def check_immich_integration_contract(errors: list[str]) -> None:
@@ -706,28 +702,25 @@ def check_immich_integration_contract(errors: list[str]) -> None:
 
 
 def check_immich_column_contract(errors: list[str]) -> None:
-    """Immich TSV 字段说明必须明确 0-based index，避免“第一列”歧义。"""
+    """Immich TSV 字段说明必须明确 0 基下标，避免“第一列”歧义。"""
     integration = UPSTREAM_INTEGRATION_DOC.read_text(encoding="utf-8")
-    if "`column 1`" in integration and "0-based index" not in integration:
-        errors.append(f"{UPSTREAM_INTEGRATION_DOC} 的 column 术语缺少 0-based index 定义")
+    if "第 1 列" in integration and "0 基下标" not in integration:
+        errors.append(f"{UPSTREAM_INTEGRATION_DOC} 的列术语缺少 0 基下标定义")
     architecture = Path("docs/architecture.md").read_text(encoding="utf-8")
-    if "0-based column 1 是展示名" not in architecture:
-        errors.append("docs/architecture.md 未明确 cities500.txt 的 0-based column 1 展示名")
-    if "0-based column 0 是 key，0-based column 1 是名称" not in architecture:
-        errors.append("docs/architecture.md 未明确 admin1/admin2 的 key/name 位于 0-based column 0/1")
-    localization = CHINA_LOCALIZATION_DOC.read_text(encoding="utf-8")
-    if "0-based column 1 作为展示名" not in localization:
-        errors.append(f"{CHINA_LOCALIZATION_DOC} 未明确 cities500.txt 的 0-based column 1 展示名")
+    if "第 1 列（0 基）是展示名" not in architecture:
+        errors.append("docs/architecture.md 未明确 cities500.txt 的第 1 列（0 基）是展示名")
+    if "第 0 列（0 基）是键，第 1 列（0 基）是名称" not in architecture:
+        errors.append("docs/architecture.md 未明确 admin1/admin2 的键与名称位于第 0、1 列（0 基）")
+    if "第 1 列（0 基）作为展示名" not in integration:
+        errors.append(f"{UPSTREAM_INTEGRATION_DOC} 未明确 cities500.txt 的第 1 列（0 基）作为展示名")
 
 
 def check_immich_ui_locale_contract(errors: list[str]) -> None:
     """Immich 已内置中文 locale，不应再把它列为需要上游修改。"""
     integration = UPSTREAM_INTEGRATION_DOC.read_text(encoding="utf-8")
     for line in integration.splitlines():
-        if line.startswith("| Upstream change required |") and "UI translation" in line:
-            errors.append(
-                f"{UPSTREAM_INTEGRATION_DOC} 不应把 Immich 已内置的 UI translation 列为 upstream change required"
-            )
+        if line.startswith("| 必须由上游修改 |") and "界面翻译" in line:
+            errors.append(f"{UPSTREAM_INTEGRATION_DOC} 不应把 Immich 已内置的界面翻译列为「必须由上游修改」")
     localization = CHINA_LOCALIZATION_DOC.read_text(encoding="utf-8")
     if "zh_Hans" not in localization or "zh_Hant" not in localization:
         errors.append(f"{CHINA_LOCALIZATION_DOC} 未记录 Immich 内置的中文 UI locale")
@@ -783,7 +776,7 @@ def check_timezone_api_contract(errors: list[str]) -> None:
 def check_absolute_claims(paths: list[Path], errors: list[str]) -> None:
     """拒绝没有范围、条件与例外的绝对化承诺。"""
     for path in paths:
-        if path.name == "documentation-policy.md":
+        if path.name == "conventions.md":
             continue
         text = path.read_text(encoding="utf-8")
         for phrase, replacement in ABSOLUTE_CLAIMS.items():
@@ -794,7 +787,7 @@ def check_absolute_claims(paths: list[Path], errors: list[str]) -> None:
 def check_process_or_legal_claims(paths: list[Path], errors: list[str]) -> None:
     """拒绝无法从当前树验证的历史过程断言与法律结论。"""
     for path in paths:
-        if path.name == "documentation-policy.md":
+        if path.name == "conventions.md":
             continue
         text = path.read_text(encoding="utf-8")
         for phrase, replacement in PROCESS_OR_LEGAL_CLAIMS.items():
@@ -806,16 +799,17 @@ def check_independence_guidance(errors: list[str]) -> None:
     """README 的独立性声明必须标注为项目声明，并指向核查范围与边界。"""
     readme = Path("README.md").read_text(encoding="utf-8")
     head, _, _ = readme.partition(INDEPENDENCE_SECTION_END)
-    if INDEPENDENCE_ANCHOR not in head:
+    paragraph = next((line for line in head.splitlines() if INDEPENDENCE_ANCHOR in line), "")
+    if not paragraph:
         errors.append(f"README 独立性声明缺少锚点短语：{INDEPENDENCE_ANCHOR}")
-    if "docs/documentation-policy.md" not in head:
-        errors.append("README 独立性声明必须链接 docs/documentation-policy.md 的核查范围与边界")
+    elif "docs/conventions.md" not in paragraph:
+        errors.append("README 独立性声明必须链接 docs/conventions.md 的核查范围与边界")
 
 
 def check_sla_promises(paths: list[Path], errors: list[str]) -> None:
     """拒绝无法保证的响应时间承诺。"""
     for path in paths:
-        if path.name == "documentation-policy.md":
+        if path.name == "conventions.md":
             continue
         for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
             match = SLA_PROMISE.search(line)
