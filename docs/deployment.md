@@ -43,32 +43,13 @@ Immich 官方 compose 当前将媒体目录挂载到 `/data`。machine-learning 
 
 ### 环境变量
 
-| 变量 | 默认值 | 说明 |
-|:--|:--|:--|
-| `IMMICH_CN_PATTERN` | `{admin_2}` | 展示粒度，取值见 README |
-| `IMMICH_CN_FORCE_RELOAD` | `0` | 设为 `1` 时把 `geodata-date.txt` 更新为当前时间，强制 Immich 重新导入 |
-| `IMMICH_CN_GEODATA_DIR` | `/opt/immich-cn/geodata` | 镜像内数据源目录，一般无需修改 |
-| `IMMICH_CN_LANGS_DIR` | `/opt/immich-cn/i18n-iso-countries/langs` | 镜像内国家名称目录（Immich 1.136.0 ~ 3.2.x） |
-| `IMMICH_CN_PATTERNS_TABLE` | `/opt/immich-cn/immich-cn-patterns-tsv-v1.gz` | 运行时粒度切换用的变体表，一般无需修改 |
-| `IMMICH_BUILD_DATA` | `/build` | Immich 自身的构建数据目录，跟随官方镜像即可 |
+两个镜像的完整变量、默认值与数据镜像参数见 [README 配置总览](../README.md#配置总览)。部署时通常只需要：
 
-数据镜像（默认拉取地址 `${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/webees/immich-cn`）额外支持：
-
-| 变量 | 默认值 | 说明 |
-|:--|:--|:--|
-| `IMMICH_CN_TARGET` | `/out` | `--target` 的等价环境变量，指定释放目录 |
-
-数据镜像入口 `immich-cn-install` 的参数：
-
-| 参数 | 说明 |
-|:--|:--|
-| `--target <目录>` | 释放目标目录（等价 `IMMICH_CN_TARGET`） |
-| `--pattern '<pattern>'` | 覆盖展示粒度，例如 `--pattern '{admin_2} {admin_3}'` |
-| `--geodata-only` | 只释放 `geodata/`，不复制 `i18n-iso-countries/` 国家名覆盖（Immich 3.3.0 起改读 `countryInfo.txt`，不再需要该覆盖） |
-
-> `IMMICH_CN_DATA_DATE` 是构建参数写入的只读元信息（镜像内可见），无需手动设置。
-
-`TZ=Asia/Shanghai` 是面向中国用户的默认示例。若宿主机已正确设置时区，也可以保留 `/etc/localtime` 挂载；两者同时存在时，容器内的 `TZ` 环境变量优先。
+- `IMMICH_CN_PATTERN`（默认 `{admin_2}`）在启动时切换展示粒度，等价于数据镜像的 `--pattern`；
+- `IMMICH_CN_FORCE_RELOAD=1` 把 `geodata-date.txt` 改写为当前时间，强制 Immich 重新导入；
+- 数据镜像入口 `immich-cn-install` 还接受 `--target <目录>`（等价 `IMMICH_CN_TARGET`）与 `--geodata-only`（只释放 `geodata/`，Immich 3.3.0 起不再需要国家名覆盖）；
+- `IMMICH_CN_DATA_DATE` 是镜像内只读的数据批次元信息，无需设置；
+- `TZ=Asia/Shanghai` 是中国本地化默认值；与 `/etc/localtime` 挂载同时存在时，容器内 `TZ` 优先。
 
 ## 数据方案
 
@@ -108,23 +89,11 @@ mkdir -p i18n-iso-countries
 unzip -o immich-cn-i18n-json-v1.zip -d i18n-iso-countries
 ```
 
-解压后得到 `geodata/` 与 `i18n-iso-countries/langs/en.json`，按数据方案的方式挂载即可。注意国家名称覆盖是**独立资产**：`immich-cn-geodata-*.zip` 里没有 `langs/`，只下载它会缺失 Immich 1.136.0 ~ 3.2.x 需要的国家名覆盖（3.3.0 起 Immich 改读 `countryInfo.txt`，不再需要）。
+解压后得到 `geodata/` 与 `i18n-iso-countries/langs/en.json`，按数据方案挂载即可。国家名称覆盖是**独立资产**：`immich-cn-geodata-*.zip` 内没有 `langs/`，只下载它会缺失 Immich 1.136.0 ~ 3.2.x 需要的覆盖。
 
 ## 刷新生效
 
-1. 重启 Immich，确认日志出现 `geodata records imported`；
-2. 进入「系统管理 → 任务」，执行一次「提取元数据 → 全部」刷新已有照片；
-3. 之后新增照片会自动使用新的地名，无需再次刷新。
-
-如果替换数据后 Immich 没有重新导入，说明 `geodata-date.txt` 与上次记录的值**完全相同**。判断条件只比较相等，不比较先后：
-
-```bash
-# 官方镜像 + 挂载方案
-TZ=Asia/Shanghai date +"%Y-%m-%dT%H:%M:%S+08:00" > ./immich-cn/geodata/geodata-date.txt
-
-# 镜像方案
-# 把 IMMICH_CN_FORCE_RELOAD 设为 1 后重启容器
-```
+重启 Immich，确认日志出现 `geodata records imported`；随后在「系统管理 → 任务」执行一次「提取元数据 → 全部」刷新已有照片，之后新增照片会自动使用新地名。若替换数据后没有重新导入，说明 `geodata-date.txt` 与上次记录**完全相等**（上游只比较相等，不比较先后），改写方式见 [运维与常见问题](operations.md)。
 
 ## 国内网络
 
@@ -163,13 +132,7 @@ docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 
 ### 更新频率
 
-上游数据由 GitHub Actions 按设计每天自动检查更新（北京时间 13:23 / UTC 05:23）；实际执行取决于仓库权限与上游服务可用性：
-
-- 每天用 ETag 条件请求检查 GeoNames、Natural Earth、i18n-iso-countries；
-- 只有数据、构建配置或发布器修订真正变化时才重新构建、发布与推送镜像；
-- 因此拉取最新镜像即可获得该次发布当时的完整数据；拉取频率取决于你对数据新鲜度和保留策略的要求。
-
-判断当前数据版本：查看发布标题日期，或容器内 `/build/geodata/geodata-date.txt`。
+上游数据由 GitHub Actions 按设计每天自动检查更新（北京时间 13:23 / UTC 05:23），只有数据、构建配置或发布器修订真正变化时才重新构建、发布与推送镜像；实际执行取决于仓库权限与上游服务可用性。机制细节见 [README 自动更新](../README.md#自动更新)。判断当前数据版本：查看发布标题日期，或容器内 `/build/geodata/geodata-date.txt`。
 
 ### 自动跟随
 
