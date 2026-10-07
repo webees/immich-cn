@@ -61,7 +61,7 @@ fi
 langs_missing=""
 if [ -n "$langs_root" ] && [ -d "$langs_root" ]; then
   for name in LICENSE en.json; do
-    if [ ! -s "$langs_root/$name" ]; then
+    if [ ! -s "$langs_root/langs/$name" ]; then
       langs_missing="${langs_missing} ${name}"
     fi
   done

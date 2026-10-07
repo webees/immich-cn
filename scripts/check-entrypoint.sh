@@ -437,7 +437,7 @@ install_readme_symlink_case() {
 
   IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
     IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
-    sh "$repo_root/docker/install.sh" --target "$root/out" >/dev/null
+    sh "$repo_root/docker/install.sh" --target "$root/out" --geodata-only >/dev/null
 
   if [ "$(cat "$root/outside.txt")" != "sentinel" ]; then
     echo "失败：install.sh 跟随符号链接写出了目标目录" >&2
