@@ -1083,6 +1083,19 @@ def test_check_workflows_requires_project_version_consistency(repo_copy: Path) -
     assert "缺少输入版本与 pyproject.toml 的一致性检查" in result.stdout
 
 
+def test_check_workflows_requires_versioned_release_images(repo_copy: Path) -> None:
+    """版本化 Release 不能关闭 image push，否则不会产生对应 package tag。"""
+    workflow = repo_copy / ".github" / "workflows" / "release.yml"
+    mutate(
+        workflow,
+        "          PUSH_IMAGES: ${{ inputs.push-images }}\n",
+        "",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "image version tag" in result.stdout
+
+
 def test_check_workflows_requires_release_preflight_checkout(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "release.yml"
     mutate(
