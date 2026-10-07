@@ -29,6 +29,18 @@
 
 本文的 `column` 一律指 `line.split('\t')` 的 0-based index，避免把 `column 1` 误读成自然语言中的“第一列”。本项目的职责是让这些文件始终符合上述 column contract，并通过 validation 和 artifact checksum 阻止坏数据发布。我们不在 Immich 数据库中直接写 `geodata_places`，也不覆盖 Immich 的 migration。
 
+### Import filter and search radius
+
+读取 `cities500.txt` 时，上游会先按 `feature code` 丢掉一部分记录，这一步发生在本项目无法干预的 import 阶段：
+
+- `feature code`（0-based column 7）为 `PPLX` 且 `country code`（0-based column 8）不是 `AU` 的记录被跳过；
+- `feature code` 为 `PPLH` 的记录在所有国家都被跳过；
+- 只有落在 `reverseGeocodeMaxDistance`（上游常量，25 km）内、且未被上述规则丢弃的城市点才参与 reverse geocoding；没有命中时回退到 `ne_10m_admin_0_countries.geojson`，此时 `state` 与 `city` 为 `null`。
+
+所以制品行数不等于 Immich 实际写入 `geodata_places` 的行数。2026-10-07 对当时全量制品实测：256,626 行中有 7,307 行会被跳过（7,278 行 `PPLX` 非 `AU`，29 行 `PPLH`），其中 `CN` 77 行。复算方式：解压任一 geodata 制品，对 `geodata/cities500.txt` 按 0-based column 7/8 统计。
+
+本项目不预先删除这些行。过滤规则是 Immich 的版本行为，制品仍需保持 GeoNames 语义完整；差异只在上文量化，不作为“全部记录都会出现在 Immich”的依据。
+
 ## Config and environment
 
 以下变量属于 Immich upstream contract，可用于部署层调整：
