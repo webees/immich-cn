@@ -51,6 +51,8 @@ Nginx 源站（示例配置）
 7. **保留可观测性**：记录命中率、回源率、5xx、首字节时间和缓存状态；不要把 `X-Cache-Status` 暴露为敏感信息。
 8. **源站只对 CDN 开放**：生产环境应限制 Immich 源站端口，使用防火墙或私网回源，避免用户绕过 WAF 和缓存策略直连。
 
+Nginx 示例还按 Immich 上游 reverse proxy 建议设置 `proxy_request_buffering off`、`client_body_buffer_size 1024k`、`client_max_body_size 50000M` 与 600 秒 WebSocket/传输超时。静态资源规则只对成功响应追加 `Cache-Control`，错误响应不会被标成一年公共缓存。
+
 上述规则是部署参考，不代表任意 CDN 的一次配置即可生效。不同供应商对 Cookie 旁路、HTTP/3、动态加速和大陆节点准入的配置不同，必须按实际产品验证。
 
 ## 免费 CDN 可选通道：jsDelivr
