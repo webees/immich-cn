@@ -2,15 +2,15 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 209,
-  "consecutive_clean": 1,
+  "round": 210,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 154,
+    "findings": 155,
     "clean_rounds": 68,
     "p0": 0,
     "p1": 33,
     "p2": 90,
-    "p3": 40
+    "p3": 41
   },
   "status": "active",
   "last_method": "M4",
@@ -2131,6 +2131,16 @@
       "severity": null,
       "evidence": "从 https://github.com/webees/immich-cn/releases/latest/download 独立下载 manifest、checksums 和 i18n asset。latest 解析为 data-2026-10-06，19 个 Release 资产，无 legacy 名。manifest 声明 17 个 assets，checksums 18 项（含 manifest 自身）；逐项比较均一致。独立下载的 immich-cn-i18n-json-v1.zip SHA256 为 cc0d06ab07d0b36ee68feb8c5f8320f11e89e9bdf9f8944498e0637e97cec2d8，与 manifest 一致。make check 334 tests、docs、workflow、shell 全绿。无已确认缺陷，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 210,
+      "timestamp": "2026-10-07T13:05:00+07:00",
+      "focus": "Immich base digest 是否参与 Auto Data Update 的 change detection",
+      "method": "M6 发布逻辑静态审计 + M3 workflow 负向输入 + 外部 OCI label 探测",
+      "verdict": "findings",
+      "severity": "P3",
+      "evidence": "发现 server image 虽然已用 tag@digest 构建，但 base digest 未参与 changed 判断；Immich base tag 更新而 geodata fingerprint 不变时会错误跳过 server image 重建。修复：change detection 解析 Immich base digest，并读取上次 server image 的 org.opencontainers.image.base.digest label；只有 geodata fingerprint 与 base digest 都相同时才跳过。base digest 通过 step output 传给 server build，Trivy 继续复用同一 digest；check_workflows 增加重建判断护栏。当前已发布 server image 尚无 base digest label，实测 previous_base_digest=<missing>，因此下一次运行会正确触发重建。make check 335 tests、docs、workflow、shell 全绿；PR #158 合并 main 73f6117，四项 required checks 与 main CI 全绿。真实 scheduled push-images 运行尚未发生，base digest change detection 仍需下一次运行复验。",
+      "pr": "https://github.com/webees/immich-cn/pull/158"
     }
   ],
   "residual_risks": [
