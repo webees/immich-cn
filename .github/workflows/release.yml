@@ -110,11 +110,16 @@ jobs:
       - name: 验证 semantic version image tags
         env:
           VERSION: ${{ inputs.version }}
+          EXPECTED_DATA_DIGEST: ${{ needs.build.outputs.digest }}
+          EXPECTED_SERVER_DIGEST: ${{ needs.build.outputs.server-digest }}
         run: |
           set -euo pipefail
-          for image in "ghcr.io/${GITHUB_REPOSITORY}" "ghcr.io/${GITHUB_REPOSITORY}-server"; do
-            docker manifest inspect "${image}:${VERSION}" >/dev/null
-          done
+          data_image="ghcr.io/${GITHUB_REPOSITORY}:${VERSION}"
+          server_image="ghcr.io/${GITHUB_REPOSITORY}-server:${VERSION}"
+          actual_data_digest="$(docker buildx imagetools inspect "$data_image" --format '{{json .Manifest}}' | jq -r .digest)"
+          actual_server_digest="$(docker buildx imagetools inspect "$server_image" --format '{{json .Manifest}}' | jq -r .digest)"
+          test "$actual_data_digest" = "$EXPECTED_DATA_DIGEST"
+          test "$actual_server_digest" = "$EXPECTED_SERVER_DIGEST"
 
       - name: 创建 Release
         env:

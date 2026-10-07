@@ -63,7 +63,7 @@ Compose 示例通过 `IMMICH_CN_GHCR_MIRROR` 选择 prefix。2026-10-07 对两�
 
 生产环境应固定到 Git SHA 或完整 digest；日期标签只用于当日跟踪。
 
-语义化版本 `Release` 必须同时推送两个 image；工作流在创建版本化 Release 前会拒绝 `push-images=false`，避免出现只有 GitHub Release、没有对应 package tag 的半成品版本。
+语义化版本 `Release` 必须同时推送两个 image；工作流在创建版本化 Release 前会拒绝 `push-images=false`，并对两个 version tag 的 registry digest 与本次构建输出做比对，避免出现只有 GitHub Release、没有对应 package tag 或 tag 指向其他镜像的半成品版本。
 
 ## 供应链证据
 
