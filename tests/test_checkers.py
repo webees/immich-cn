@@ -878,6 +878,19 @@ def test_check_docs_requires_ghcr_mirror_override(repo_copy: Path) -> None:
     assert "IMMICH_CN_GHCR_MIRROR" in result.stdout
 
 
+def test_check_docs_requires_canonical_container_url(repo_copy: Path) -> None:
+    """pyproject 的 Container Image 必须指向真实存在的仓库包页面。"""
+    pyproject = repo_copy / "pyproject.toml"
+    mutate(
+        pyproject,
+        'https://github.com/webees/immich-cn/pkgs/container/immich-cn"',
+        'https://github.com/webees/immich-cn/pkgs/container/immich-cn%2Fgeodata"',
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "Container Image" in result.stdout
+
+
 def test_check_docs_requires_immich_integration_contract(repo_copy: Path) -> None:
     """Immich 上游依赖和不可修改边界必须有契约文档。"""
     doc = repo_copy / "docs" / "immich-integration.md"
