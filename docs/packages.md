@@ -68,7 +68,7 @@ Compose 示例通过 `IMMICH_CN_GHCR_MIRROR` 选择 prefix。2026-10-07 对两�
 每次镜像发布都会：
 
 - 生成 BuildKit provenance 与 SBOM；
-- 在构建前把 Immich tag 解析为 digest，并用 `tag@digest` 固定本次 server 基础镜像，同时写入 OCI `org.opencontainers.image.base.digest`；
+- 在构建前把 Immich tag 解析为 digest，并用 `tag@digest` 固定本次 server 基础镜像，同时写入 OCI `org.opencontainers.image.base.digest`；该 digest 参与发布变化判断，Immich base 更新会触发 server image 重建；
 - 在数据目录中保留 i18n 语言文件的上游 `LICENSE`；
 - 执行 Trivy 漏洞和许可证扫描；在当次扫描数据库与扫描范围内，数据镜像的 `HIGH`/`CRITICAL` 阻断， Immich 覆盖镜像只阻断相对官方基础镜像新增的漏洞，继承项写入显式例外报告；
 - 通过 GitHub OIDC 使用 Cosign keyless 签名；

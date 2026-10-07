@@ -224,8 +224,10 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
         errors.append(f"{path} 缺少 server 覆盖镜像相对官方基础镜像的漏洞差集检查")
     if text.count("cosign sign --yes") < 2:
         errors.append(f"{path} 缺少数据或 server 镜像的 Cosign keyless 签名")
-    if "IMMICH_BASE_DIGEST=@${base_digest}" not in text or "org.opencontainers.image.base.digest" not in text:
+    if "IMMICH_BASE_DIGEST=@${BASE_DIGEST}" not in text or "org.opencontainers.image.base.digest" not in text:
         errors.append(f"{path} server 镜像未把解析后的 Immich base digest 固定到构建和 OCI metadata")
+    if "previous_base_digest" not in text or "BASE_DIGEST" not in text:
+        errors.append(f"{path} change detection 未把 Immich base digest 纳入重建判断")
     if text.count("imagetools create") < 1 or text.count("${IMAGE_VERSION}") < 2:
         errors.append(f"{path} 缺少数据与 server 镜像的语义化版本标签")
     if (

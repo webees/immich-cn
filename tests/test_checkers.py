@@ -840,10 +840,20 @@ def test_check_workflows_requires_image_supply_chain(repo_copy: Path) -> None:
 
 def test_check_workflows_requires_server_base_digest(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
-    mutate(workflow, "IMMICH_BASE_DIGEST=@${base_digest}", "IMMICH_BASE_DIGEST=")
+    mutate(workflow, "IMMICH_BASE_DIGEST=@${BASE_DIGEST}", "IMMICH_BASE_DIGEST=")
     result = run_checker(repo_copy, "check_workflows.py")
     assert result.returncode == 1
     assert "base digest" in result.stdout
+
+
+def test_check_workflows_requires_base_digest_in_change_detection(repo_copy: Path) -> None:
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    text = workflow.read_text(encoding="utf-8")
+    assert "previous_base_digest" in text
+    workflow.write_text(text.replace("previous_base_digest", "previous_base"), encoding="utf-8")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "重建判断" in result.stdout
 
 
 def test_check_workflows_requires_full_stack_smoke(repo_copy: Path) -> None:
