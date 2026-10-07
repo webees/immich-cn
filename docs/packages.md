@@ -54,14 +54,25 @@ Compose 示例通过 `IMMICH_CN_GHCR_MIRROR` 选择 prefix。2026-10-07 对两�
 | `immich-cn` | `latest` | 最近一次成功构建的数据 |
 | `immich-cn` | `YYYY-MM-DD` | 当日最新数据，同日重跑可更新 |
 | `immich-cn` | `sha-<短提交>` | 对应控制面代码提交 |
-| `immich-cn` | `<语义化版本>` | `Release` 工作流创建的版本标签 |
+| `immich-cn` | `<X.Y.Z>` | `Release` 工作流创建的版本标签 |
 | `immich-cn-server` | `latest` | 最近数据 + 默认 Immich `release` |
 | `immich-cn-server` | `release` | 与 Immich `release` 标签对齐 |
 | `immich-cn-server` | `release-YYYY-MM-DD` | 当日最新数据与 Immich `release`，同日重跑可更新 |
 | `immich-cn-server` | `sha-<短提交>` | 对应控制面代码提交 |
-| `immich-cn-server` | `<语义化版本>` | `Release` 工作流创建的版本标签 |
+| `immich-cn-server` | `<X.Y.Z>` | `Release` 工作流创建的版本标签 |
 
-生产环境应固定到 Git SHA 或完整 digest；日期标签只用于当日跟踪。
+镜像的版本标签**不带 `v` 前缀**：Git 侧的 Release tag 是 `vX.Y.Z`，GHCR 上的镜像 tag 是 `X.Y.Z`。2026-10-07 实测：带 `v` 前缀的镜像 tag 返回 `not found`，不带前缀的同一个版本可以正常解析。生产环境应固定到 Git SHA 或完整 digest；日期标签只用于当日跟踪。
+
+```bash
+# 语义版本（Release 工作流推送）
+docker pull ghcr.io/webees/immich-cn:1.0.4
+# 某个控制面提交
+docker pull ghcr.io/webees/immich-cn-server:sha-cdc0ba3
+# 最可追溯的写法：固定 digest
+docker pull ghcr.io/webees/immich-cn@sha256:fa8b3db5c1879f8e5ba1f37f49983d0f3b568d896b9135944c2bcc2b0042747f
+```
+
+在 GitHub Packages 页面上还会看到 `sha256-<digest>` 形式的 tag。它们不是本项目的发布标签，而是 GHCR 为 Cosign 签名与 attestation 这类 OCI referrer 生成的引用标签：以镜像 digest 命名的那个 tag 指向的是签名/证明对象，不是镜像本身。请勿把这类 tag 当作镜像拉取，也不要手动删除；`cleanup.yml` 会保护 `sha256-*` / `sha256:*` 版本。
 
 语义化版本 `Release` 必须同时推送两个 image；工作流在创建版本化 Release 前会拒绝 `push-images=false`，并对两个 version tag 的 registry digest 与本次构建输出做比对，避免出现只有 GitHub Release、没有对应 package tag 或 tag 指向其他镜像的半成品版本。
 
