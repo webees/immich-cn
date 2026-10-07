@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 291,
-  "consecutive_clean": 5,
+  "round": 292,
+  "consecutive_clean": 6,
   "totals": {
     "findings": 196,
-    "clean_rounds": 86,
+    "clean_rounds": 87,
     "p0": 0,
     "p1": 31,
     "p2": 120,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -2957,6 +2957,16 @@
       "severity": null,
       "evidence": "在 `src/immich_cn/display.py` 的 `_validate_keys` 中把 admin_N 必需条件注入 `False and ...`，隔离字节码缓存后运行 `pytest -q tests/test_display.py -k 'validate_pattern_rejects_invalid or validate_pattern_error_message_is_actionable'`，6 个负向断言全部失败；恢复后同一测试 7 passed。主分支复跑 `make check` 450 passed，`check_dead_symbols` 通过。本轮未发现 P0-P2 问题，clean_streak=5。",
       "pr": null
+    },
+    {
+      "round": 292,
+      "timestamp": "2026-10-08T20:50:00+08:00",
+      "focus": "校验与阈值：countryInfo 边界翻转",
+      "method": "M2 阈值反演",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "把 `_check_country_info` 的 `ratio >= 1.0` 反演为 `ratio > 1.0`，隔离字节码缓存后运行 `pytest -q tests/test_validation.py -k 'threshold_boundary or threshold_passes_but_strict_fails'`，阈值命中 10/10 的用例立即失败；恢复后同一组 10 个边界用例全部通过。主分支复跑 `make check` 450 passed，`check_dead_symbols` 通过。本轮未发现 P0-P2 问题，clean_streak=6。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3103,7 +3113,8 @@
     "第 288 轮抽样来自滚动 `auto-release`，不是不可变 `data-*` 快照；内容与 2026-10-08 生成时间一致，但滚动发布后续可被新构建覆盖，不能把该样本当作长期固定黄金样本",
     "第 289 轮负向实验覆盖归档路径穿越与压缩比，未构造 zip symlink 成员；symlink 分支由 `check_zip_members` 静态检查覆盖，但本轮没有独立运行该分支",
     "第 290 轮性能数据来自最小合成数据集，不能外推到真实 131 万级地点构建；真实下载与打包耗时仍以 docs/development.md 的实测数据为准",
-    "第 291 轮只变异了展示粒度的 admin_N 必需条件；占位符未知、重复去重、空值回退与 CJK 空格折叠分支没有逐一重复变异"
+    "第 291 轮只变异了展示粒度的 admin_N 必需条件；占位符未知、重复去重、空值回退与 CJK 空格折叠分支没有逐一重复变异",
+    "第 292 轮只反演了 countryInfo 的 100% 阈值；admin 总体/分地区、CN CJK、HK CJK、admin2 代码率与可解析率由既有边界测试覆盖，但本轮没有逐一反演其比较运算符"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
