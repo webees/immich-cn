@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 216,
+  "round": 217,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 161,
+    "findings": 162,
     "clean_rounds": 68,
     "p0": 0,
     "p1": 33,
-    "p2": 95,
+    "p2": 96,
     "p3": 42
   },
   "status": "active",
@@ -2201,6 +2201,16 @@
       "severity": "P2",
       "evidence": "集成契约把 UI translation 列为需要上游修改，但 Immich v3.3.0 已内置 `i18n/zh_Hans.json` 与 `i18n/zh_Hant.json`，并在 `web/src/lib/utils/i18n.ts` 中把 zh-CN/zh-SG 映射为 zh-Hans、zh-TW/zh-HK/zh-MO 映射为 zh-Hant。修复：新增 upstream built-in locale 分类，明确 User Settings → App Settings → Language 是 per-user preference，项目不 fork UI；增加逐行护栏和负向测试。make check 343 tests、docs、workflow、shell 全绿；PR #164 合并 main 7267e7a，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/164"
+    },
+    {
+      "round": 217,
+      "timestamp": "2026-10-07T12:25:00+07:00",
+      "focus": "Nginx 示例对 Immich 上传、WebSocket 与错误缓存的契约",
+      "method": "M4 上游 reverse proxy 文档快照 + M3 负向配置实验",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "Nginx 示例缺少 Immich 官方要求的 `proxy_request_buffering off`，大文件上传会被代理层先落盘；也缺少 600 秒 WebSocket/传输超时与 `proxy_redirect off`。此外静态资源的 `Cache-Control` 使用 `always`，会让 404/500 也被标成一年公共缓存。修复：补齐 `client_body_buffer_size 1024k`、`client_max_body_size 50000M`、600 秒 timeout 和 redirect 配置；Cache-Control 仅对成功响应添加；新增 Nginx 契约护栏与负向测试，真实 `nginx -t` 通过。make check 345 tests、docs、workflow、shell 全绿；PR #165 合并 main 6c1641a，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/165"
     }
   ],
   "residual_risks": [
