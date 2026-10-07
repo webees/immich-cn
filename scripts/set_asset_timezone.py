@@ -29,19 +29,24 @@ def _client(base_url: str, api_key: str) -> httpx.Client:
     )
 
 
-def _request_json(client: httpx.Client, method: str, url: str, **kwargs: Any) -> dict[str, Any]:
+def _request(client: httpx.Client, method: str, url: str, **kwargs: Any) -> httpx.Response:
     for attempt in range(1, 4):
         response = client.request(method, url, **kwargs)
         if response.status_code not in RETRY_STATUS and response.status_code < 500:
-            response.raise_for_status()
-            payload = response.json()
-            if not isinstance(payload, dict):
-                raise ValueError(f"Immich API returned non-object JSON: {url}")
-            return payload
+            return response
         if attempt == 3:
-            response.raise_for_status()
+            return response
         time.sleep(2**attempt)
-    raise RuntimeError(f"Immich API request failed: {url}")
+    raise RuntimeError(f"Immich API request failed: {url}")  # pragma: no cover
+
+
+def _request_json(client: httpx.Client, method: str, url: str, **kwargs: Any) -> dict[str, Any]:
+    response = _request(client, method, url, **kwargs)
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict):
+        raise ValueError(f"Immich API returned non-object JSON: {url}")
+    return payload
 
 
 def iter_assets(client: httpx.Client) -> Iterator[dict[str, Any]]:
@@ -105,11 +110,20 @@ def apply_timezone(
     updated = 0
     for start in range(0, len(ids), batch_size):
         batch = list(ids[start : start + batch_size])
-        response = client.request(
-            "PUT",
+        # Immich v3.3.0 起推荐 PATCH；v1.136.0 等旧版本只有 PUT。
+        response = _request(
+            client,
+            "PATCH",
             "/api/assets",
             json={"ids": batch, "timeZone": timezone},
         )
+        if response.status_code in {404, 405}:
+            response = _request(
+                client,
+                "PUT",
+                "/api/assets",
+                json={"ids": batch, "timeZone": timezone},
+            )
         response.raise_for_status()
         updated += len(batch)
     return updated

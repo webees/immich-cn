@@ -10,7 +10,7 @@
 | Config/env | 通过 Immich 官方 environment variable 或 config file 改变行为 | `TZ`、`IMMICH_CONFIG_FILE`、`IMMICH_HELMET_FILE`、`IMMICH_TRUSTED_PROXIES` |
 | Container wrapper | 在启动前复制数据、设置粒度或生成时间戳 | `immich-cn-server`、`immich-cn-install` |
 | Delivery layer | Nginx/CDN 只处理公开 static asset 和网络可达性 | `/_app/immutable/*`、GHCR mirror |
-| API utility | 通过 Immich public API 对已有 metadata 做显式操作 | `scripts/set_asset_timezone.py` |
+| API utility | 通过 Immich public API 对已有 metadata 做显式操作；v3.3.0+ 优先 `PATCH /api/assets`，旧版仅在 404/405 时回退 `PUT` | `scripts/set_asset_timezone.py` |
 | Upstream change required | 不在本项目做不安全 patch 或 UI fork | 全局 UI timezone、任意地图瓦片、UI translation |
 
 ## Reverse geocoding contract

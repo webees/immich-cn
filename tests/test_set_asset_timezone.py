@@ -34,7 +34,7 @@ def test_apply_timezone_uses_bulk_update_api() -> None:
     requests: list[dict[str, object]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.method == "PUT"
+        assert request.method == "PATCH"
         assert request.url.path == "/api/assets"
         requests.append(json.loads(request.content))
         return httpx.Response(204)
@@ -47,3 +47,19 @@ def test_apply_timezone_uses_bulk_update_api() -> None:
         {"ids": ["a", "b"], "timeZone": "Asia/Shanghai"},
         {"ids": ["c"], "timeZone": "Asia/Shanghai"},
     ]
+
+
+def test_apply_timezone_falls_back_to_put_for_old_immich() -> None:
+    methods: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        methods.append(request.method)
+        if request.method == "PATCH":
+            return httpx.Response(405)
+        return httpx.Response(204)
+
+    with httpx.Client(base_url="http://immich", transport=httpx.MockTransport(handler)) as client:
+        updated = apply_timezone(client, ["a"], "Asia/Shanghai")
+
+    assert updated == 1
+    assert methods == ["PATCH", "PUT"]
