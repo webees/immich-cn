@@ -44,6 +44,7 @@
 - Auto Data Update 还会比较 `auto-release` 资产与本次 `dist` 清单；缺失、多余或 legacy 资产会强制重新发布并由 reconciliation 回收，避免 Release 不完整时错误进入 no-change；
 - 版本化 Release 强制要求 `push-images=true`；拒绝创建没有对应 `immich-cn` / `immich-cn-server` semantic version tag 的 GitHub Release；
 - 强化版本发布护栏：不仅检查错误文案，还要求真实存在 `push-images != true` 拒绝条件，防止恒假条件造成假通过；
+- 版本化发布在创建 GitHub Release 前验证两个 `image:VERSION` tag 已存在，避免构建后追加版本标签被跳过时留下无镜像 Release；
 - 部署示例默认设置 `TZ: Asia/Shanghai`，并补充国内镜像获取、digest 验证、WGS-84/GCJ-02 偏移与故障排查说明；
 - 规范 SQLite 数据集 `immich-cn-dataset-sqlite-v1.zip` 作为一等制品，Immich 文本格式改由适配器导出，详见 `docs/data-format.md` 与 ADR 0001；
 - `immich-cn artifact resolve` CLI：按 canonical ID、profile+scope 或历史别名解析制品；
