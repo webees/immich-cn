@@ -252,6 +252,8 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
         errors.append(f"{path} full-stack smoke 未验证 geodata_places 已写入数据库")
     if "/api/server/config" not in text:
         errors.append(f"{path} full-stack smoke 未验证 Immich API/config 可访问")
+    if "mapLightStyleUrl" not in text or "mapDarkStyleUrl" not in text:
+        errors.append(f"{path} full-stack smoke 未核对当前 Immich 地图配置字段")
     if text.count("aquasecurity/setup-trivy@") < 1 or text.count("trivy image") < 5:
         errors.append(f"{path} 缺少数据或 server 镜像的 Trivy 漏洞/许可证扫描")
     if text.count("comm -13") < 1 or "trivy-server-base-vuln.tsv" not in text:

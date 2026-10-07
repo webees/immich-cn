@@ -1208,6 +1208,14 @@ def test_check_workflows_requires_api_config_probe(repo_copy: Path) -> None:
     assert "API/config" in result.stdout
 
 
+def test_check_workflows_requires_current_map_config_fields(repo_copy: Path) -> None:
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(workflow, "mapLightStyleUrl", "legacyMapLightStyleUrl")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "地图配置字段" in result.stdout
+
+
 def test_check_workflows_requires_distinct_oci_version_and_data_date(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
     mutate(workflow, "org.immich-cn.data-date", "org.immich-cn.unlabeled-date")
