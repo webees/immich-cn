@@ -68,6 +68,7 @@
 
 ### 修复
 
+- `check_artifacts` 现在校验 i18n 语言包的裁剪契约：`immich-cn-i18n-json-v1.zip` 必须且只能含 `LICENSE` 与 `langs/en.json`，出现其它 `langs/*.json` 或缺 `langs/en.json` 都失败（此前只检查 LICENSE 文本，裁剪是否生效无人把关）；同时把 README / docs/packages / docs/data-sources 的措辞限定为「自下一次数据发布起」——2026-10-07 实测已发布的 `data-2026-10-06` 与 `auto-release` 仍是 74 个成员、191,847 字节的整套语言包（sha256 与各自 manifest 一致），文档此前把未发布的行为写成了既成事实；
 - `--provider auto` 在缺少 `AMAP_API_KEY` 时不再静默降级：新增显式 warning（产物与 `--provider offline` 完全相同，manifest 里 `config.provider` 记为 `offline`），避免「密钥缺失 / 改名 / secret 过期」伪装成一次成功的高德增强构建；`--provider amap` 仍然是硬要求，缺 Key 直接 `ConfigError`；`docs/development.md` 记录该行为；
 - README 的展示粒度表补齐默认发布的 7 种 pattern（此前只有 5 种，`{admin_2} {admin_4}` 与 `{admin_3} {admin_4}` 对应的 `immich-cn-geodata-admin2-admin4-*.zip` / `admin3-admin4-*.zip` 已在 Release 里发布却无文档入口）；`check_docs` 新增 `check_pattern_table`，要求表格覆盖实现里的 `DEFAULT_PATTERNS`；
 - 补上「固定摘要变化后不得复用旧缓存」的负向控制（`test_fetcher_ignores_cache_when_pinned_digest_changed`）：去掉缓存命中时的 `spec.expected_sha256` 比对后该测试会失败，证明 CI 里很宽的 `actions/cache` `restore-keys` 兜底不会让构建拿着旧内容成功；`docs/data-sources.md` 记录这条兜底为什么安全；

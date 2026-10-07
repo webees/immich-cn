@@ -144,6 +144,17 @@ def check_zips(dist: Path, errors: list[str]) -> int:
                 else:
                     if "MIT License" not in license_text or "Copyright" not in license_text:
                         errors.append(f"{path.name} 的 LICENSE 不是完整的 MIT 版权声明")
+                # 语言包必须被裁剪过：旧版 Immich 只读 langs/en.json，把整套语言包塞进
+                # 制品会白白放大体积（2026-10-06 的发布里曾含 73 个语言文件）。
+                members = set(archive.namelist())
+                if "langs/en.json" not in members:
+                    errors.append(f"{path.name} 缺少 langs/en.json")
+                extra_langs = sorted(name for name in members if name.startswith("langs/") and name != "langs/en.json")
+                if extra_langs:
+                    errors.append(
+                        f"{path.name} 含 {len(extra_langs)} 个非必需语言文件（如 {extra_langs[0]}），"
+                        "应只保留 langs/en.json"
+                    )
                 checked += 1
                 continue
             entry = "geodata/cities500.txt"
