@@ -125,3 +125,17 @@ make audit-pins
 ```
 
 2026-10-07 实测：6 个工作流共 25 个固定引用，全部与上游 tag 一致（11 个不同 action，含 `actions/*`、`docker/*`、`aquasecurity/setup-trivy`、`sigstore/cosign-installer`）。
+
+## 死代码扫描
+
+「死代码与未使用配置」是固定的审计焦点，但此前每轮都靠手写扫描脚本，结论无法对拍：第 63/73/83 轮连续命中同一个零引用常量 `SHELL_SUFFIXES`，直到第 262 轮才真正删除。`scripts/check_dead_symbols.py` 把口径固定成：
+
+- 扫描 `src/**/*.py` 与 `scripts/*.py` 的模块级 `def` / `async def` / `class` 与大写常量；
+- 在仓库文本范围内（源码、测试、工作流、Makefile、文档、CHANGELOG）搜索名字；只在定义行出现即视为零引用；
+- `__dunder__` 名字忽略；确认是外部入口（Protocol 方法、`__all__` 导出、被宿主反射调用）的写进 `ALLOWED` 并注明原因，而不是放宽规则。
+
+```bash
+make audit-dead-symbols
+```
+
+2026-10-07 的基线：501 个模块级定义里唯一零引用项是 `SHELL_SUFFIXES`（已删除）；删除后复查为「没有零引用定义」。
