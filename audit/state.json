@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 319,
-  "consecutive_clean": 2,
+  "round": 320,
+  "consecutive_clean": 3,
   "totals": {
     "findings": 205,
-    "clean_rounds": 103,
+    "clean_rounds": 104,
     "p0": 0,
     "p1": 32,
     "p2": 128,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M3 负向制品实验",
+  "last_method": "M4 契约快照",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3237,6 +3237,16 @@
       "severity": null,
       "evidence": "构造带 `S_IFLNK` external_attr 的 zip 成员，`check_zip_members` 立即返回“归档成员 'link' 是符号链接”。该分支此前只在残余风险中列出，本轮独立执行了负向实验。`main=f6ca304` 的 `make check` 456 passed 仍有效。本轮未发现 P0-P2 问题，clean_streak=2。",
       "pr": null
+    },
+    {
+      "round": 320,
+      "timestamp": "2026-10-06T08:40:00+08:00",
+      "focus": "资源契约：镜像压缩层体积",
+      "method": "M4 契约快照",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "通过 `docker buildx imagetools inspect` 读取 `ghcr.io/webees/immich-cn:latest` 的 amd64 子 manifest，压缩层合计 29,055,552 字节（27.71 MiB / 29.06 MB）。docs/packages.md 记录的是 2026-10-07 发布示例的约 29.6 MB，属于不同数据批次的时点值，不构成当前契约漂移。`main=f6ca304` 的 `make check` 456 passed 仍有效。本轮未发现 P0-P2 问题，clean_streak=3。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3411,7 +3421,8 @@
     "第 316 轮只验证了目标目录顶层的 geodata-date 符号链接；源目录与目标目录中的嵌套符号链接未在本轮单独构造",
     "第 317 轮只补齐了过去 HTTP-date 的 0 秒下限；非标准 Retry-After 文本、时区边界和正好等于当前时刻的边界仍未单独覆盖",
     "第 318 轮只反演了中国 admin2 代码率阈值；其他地区代码率与总体代码率阈值未在本轮逐一反演",
-    "第 319 轮的 zip 符号链接检测依赖 external_attr 是否保留 POSIX 模式；未保留模式的归档仍由路径越界、压缩比和内容校验覆盖，但没有通用的“符号链接语义”检测"
+    "第 319 轮的 zip 符号链接检测依赖 external_attr 是否保留 POSIX 模式；未保留模式的归档仍由路径越界、压缩比和内容校验覆盖，但没有通用的“符号链接语义”检测",
+    "第 320 轮只核对数据镜像的压缩层体积；服务端镜像、arm64 变体和本地解压后体积没有在本轮重新测量，docs/packages.md 的 2026-10-07 示例值仍是时点数据"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
