@@ -23,6 +23,7 @@ from immich_cn.artifact_spec import (
     validate_artifact_id,
     validate_canonical_filename,
 )
+from immich_cn.localization import SPECIAL_ADMIN_TOP_LEVEL
 
 GEO_COLUMNS = 19
 MAX_ARCHIVE_UNCOMPRESSED_BYTES = 2 * 1024**3
@@ -237,6 +238,83 @@ def check_dataset(dist: Path, errors: list[str]) -> None:
                 connection.close()
 
 
+def _dataset_admin_areas(dataset: Path) -> dict[tuple[int, str], str]:
+    """读出规范数据集里 ``admin_areas`` 的 ``(level, code) -> name``。"""
+    with zipfile.ZipFile(dataset) as archive, tempfile.TemporaryDirectory(prefix="immich-cn-admin-") as temporary:
+        sqlite_path = Path(temporary) / DATASET_MEMBER
+        with archive.open(DATASET_MEMBER) as source, sqlite_path.open("wb") as target:
+            shutil.copyfileobj(source, target)
+        connection = sqlite3.connect(f"file:{sqlite_path}?mode=ro", uri=True)
+        try:
+            return {
+                (int(level), str(code)): str(name)
+                for level, code, name in connection.execute("SELECT level, code, name FROM admin_areas")
+            }
+        finally:
+            connection.close()
+
+
+def _adapter_admin_names(geodata: Path) -> dict[tuple[int, str], str]:
+    """读出 Immich 适配器里 admin1/admin2 表的 ``(level, code) -> name``。"""
+    names: dict[tuple[int, str], str] = {}
+    with zipfile.ZipFile(geodata) as archive:
+        for member, level in (("geodata/admin1CodesASCII.txt", 1), ("geodata/admin2Codes.txt", 2)):
+            for line in archive.read(member).decode("utf-8").splitlines():
+                fields = line.split("\t")
+                if len(fields) >= 2 and fields[0]:
+                    names[(level, fields[0])] = fields[1]
+    return names
+
+
+def check_admin_area_consistency(dist: Path, errors: list[str]) -> None:
+    """规范数据集与 Immich 适配器必须给出同一份行政层级名称。
+
+    两者由同一次构建产出，规范数据集是事实源。唯一的例外是 HK/MO 的 level-1：GeoNames
+    把区/堂区当作 admin1，而 Immich 会把 admin1Name 当"省/州"展示，因此适配器按
+    ``SPECIAL_ADMIN_TOP_LEVEL`` 刻意改写成特别行政区名称。除此之外的任何差异都说明
+    两份制品已经不来自同一次构建，必须失败而不是任其漂移。
+    """
+    dataset = dist / DATASET_FILE
+    candidates = sorted(dist.glob("immich-cn-geodata-*-default-v1.zip"))
+    if not dataset.exists() or not candidates:
+        return  # 缺件由 check_required_files / check_dataset 负责报错
+    geodata = candidates[0]
+    try:
+        dataset_admin = _dataset_admin_areas(dataset)
+        adapter_admin = _adapter_admin_names(geodata)
+    except (zipfile.BadZipFile, OSError, sqlite3.Error, UnicodeDecodeError, KeyError) as error:
+        errors.append(f"无法比对 admin 层级一致性（{geodata.name} vs {DATASET_FILE}）：{error}")
+        return
+    if not dataset_admin or not adapter_admin:
+        errors.append("admin 层级一致性检查没有可比较的数据，护栏可能已失效")
+        return
+
+    mismatches: list[str] = []
+    for (level, code), adapter_name in sorted(adapter_admin.items()):
+        dataset_name = dataset_admin.get((level, code))
+        if dataset_name is None or dataset_name == adapter_name:
+            continue
+        country = code.split(".")[0]
+        override = SPECIAL_ADMIN_TOP_LEVEL.get(country)
+        if level == 1 and override is not None and adapter_name == override:
+            continue
+        mismatches.append(f"{code}: dataset={dataset_name!r} adapter={adapter_name!r}")
+    if mismatches:
+        errors.append(
+            f"规范数据集与 Immich 适配器的 admin 名称有 {len(mismatches)} 处未记录差异："
+            + "；".join(mismatches[:5])
+            + "（只允许 HK/MO 的 level-1 显式覆盖）"
+        )
+
+    for country, expected in sorted(SPECIAL_ADMIN_TOP_LEVEL.items()):
+        codes = [code for level, code in adapter_admin if level == 1 and code.startswith(f"{country}.")]
+        if not codes:
+            continue
+        wrong = [code for code in codes if adapter_admin[(1, code)] != expected]
+        if wrong:
+            errors.append(f"{country} 的 admin1 特别行政区覆盖未生效：{wrong[:3]} 的名称不是 {expected!r}")
+
+
 def check_zip_members(path: Path, archive: zipfile.ZipFile, errors: list[str]) -> None:
     """拒绝可能造成 Zip Slip 或符号链接逃逸的归档成员。"""
     for info in archive.infolist():
@@ -372,6 +450,7 @@ def main(argv: list[str] | None = None) -> int:
     check_dist_entries(args.dist, errors)
     zips = check_zips(args.dist, errors)
     check_dataset(args.dist, errors)
+    check_admin_area_consistency(args.dist, errors)
     verified = check_checksums(args.dist, errors)
 
     for error in errors:

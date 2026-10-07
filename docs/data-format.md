@@ -31,6 +31,12 @@
 
 `localized_places` 视图把 `places`、`place_names` 与 `countries` 联起来，查询时不必手工拼接表。
 
+### 与 Immich 适配器的已知差异
+
+规范数据集的 `admin_areas` 与 Immich 适配器的 `admin1CodesASCII.txt` 由同一次构建产出，正常情况下逐条一致（2026-10-06 的发布里 level-2 有 33,661 条可比记录、0 处差异）。唯一例外是 **HK/MO 的 level-1**：GeoNames 把区/堂区当作 admin1，而 Immich 会把 `admin1Name` 当"省/州"展示，因此适配器按 `SPECIAL_ADMIN_TOP_LEVEL` 把这两个国家/地区的 level-1 统一写成 `香港特别行政区` / `澳门特别行政区`，规范数据集则保留可从地点记录推导的 `香港` / `澳门`。
+
+2026-10-06 的发布中这正好是 26 条（HK 18 + MO 8）。`scripts/check_artifacts.py` 会比对两份制品的 `admin_areas` 与 `admin1CodesASCII.txt`/`admin2Codes.txt`：除上述覆盖之外的任何差异都会失败，覆盖被静默去掉（两侧「恰好一致」）同样会失败，因此这个例外不会扩大成未记录的漂移。
+
 ## 直接查询
 
 ```bash

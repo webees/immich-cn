@@ -1645,6 +1645,96 @@ def test_check_shell_detects_cjk_adjacent_variable(repo_copy: Path) -> None:
 # --------------------------------------------------------------------------
 
 
+def _admin_dist(
+    root: Path,
+    *,
+    dataset_rows: list[tuple[int, str, str]],
+    admin1_rows: list[tuple[str, str]],
+    admin2_rows: list[tuple[str, str]] | None = None,
+) -> Path:
+    """构造只含 admin 表的 dataset + geodata 制品，用于一致性护栏的负向控制。"""
+    dist = root / "dist"
+    dist.mkdir()
+    with zipfile.ZipFile(dist / "immich-cn-geodata-admin2-default-v1.zip", "w") as archive:
+        archive.writestr(
+            "geodata/admin1CodesASCII.txt",
+            "".join(f"{code}\t{name}\t{name}\t\n" for code, name in admin1_rows),
+        )
+        archive.writestr(
+            "geodata/admin2Codes.txt",
+            "".join(f"{code}\t{name}\t{name}\t\n" for code, name in (admin2_rows or [])),
+        )
+
+    database = dist / "_admin.sqlite"
+    connection = sqlite3.connect(database)
+    try:
+        connection.execute("CREATE TABLE admin_areas (level INTEGER, code TEXT, name TEXT, PRIMARY KEY (level, code))")
+        connection.executemany("INSERT INTO admin_areas(level, code, name) VALUES (?, ?, ?)", dataset_rows)
+        connection.commit()
+    finally:
+        connection.close()
+    with zipfile.ZipFile(dist / "immich-cn-dataset-sqlite-v1.zip", "w") as archive:
+        archive.write(database, "immich-cn-dataset-v1.sqlite")
+    return dist
+
+
+def test_check_artifacts_admin_area_consistency_passes_on_identical_tables(tmp_path: Path) -> None:
+    dist = _admin_dist(
+        tmp_path,
+        dataset_rows=[(1, "CN.04", "江苏省"), (2, "CN.04.SZ", "苏州市")],
+        admin1_rows=[("CN.04", "江苏省")],
+        admin2_rows=[("CN.04.SZ", "苏州市")],
+    )
+    errors: list[str] = []
+    check_artifacts.check_admin_area_consistency(dist, errors)
+    assert errors == []
+
+
+def test_check_artifacts_admin_area_consistency_allows_documented_hk_override(tmp_path: Path) -> None:
+    """HK/MO 的 level-1 覆盖是刻意的：适配器写特别行政区，规范数据集保留推导名。"""
+    dist = _admin_dist(
+        tmp_path,
+        dataset_rows=[(1, "HK.NYL", "香港"), (1, "MO.11875154", "澳门")],
+        admin1_rows=[("HK.NYL", "香港特别行政区"), ("MO.11875154", "澳门特别行政区")],
+    )
+    errors: list[str] = []
+    check_artifacts.check_admin_area_consistency(dist, errors)
+    assert errors == []
+
+
+def test_check_artifacts_admin_area_consistency_detects_lost_hk_override(tmp_path: Path) -> None:
+    """覆盖被静默去掉时，两份制品会「恰好一致」，必须靠覆盖生效检查拦住。"""
+    dist = _admin_dist(
+        tmp_path,
+        dataset_rows=[(1, "HK.NYL", "香港")],
+        admin1_rows=[("HK.NYL", "香港")],
+    )
+    errors: list[str] = []
+    check_artifacts.check_admin_area_consistency(dist, errors)
+    assert any("覆盖未生效" in error for error in errors), errors
+
+
+def test_check_artifacts_admin_area_consistency_detects_undocumented_drift(tmp_path: Path) -> None:
+    """非 HK/MO 的名称不一致说明两份制品不同源，必须失败。"""
+    dist = _admin_dist(
+        tmp_path,
+        dataset_rows=[(1, "CN.04", "江苏省"), (2, "CN.04.SZ", "苏州市")],
+        admin1_rows=[("CN.04", "江苏")],
+        admin2_rows=[("CN.04.SZ", "苏州市")],
+    )
+    errors: list[str] = []
+    check_artifacts.check_admin_area_consistency(dist, errors)
+    assert any("未记录差异" in error for error in errors), errors
+
+
+def test_check_artifacts_admin_area_consistency_flags_empty_inventory(tmp_path: Path) -> None:
+    """两侧都没有可比数据时不能算通过，否则护栏会变成恒真。"""
+    dist = _admin_dist(tmp_path, dataset_rows=[], admin1_rows=[])
+    errors: list[str] = []
+    check_artifacts.check_admin_area_consistency(dist, errors)
+    assert any("护栏可能已失效" in error for error in errors), errors
+
+
 def _make_dist(root: Path) -> Path:
     dist = root / "dist"
     dist.mkdir()
@@ -1655,6 +1745,8 @@ def _make_dist(root: Path) -> Path:
         with zipfile.ZipFile(dist / name, "w") as archive:
             archive.writestr("geodata/cities500.txt", lines)
             archive.writestr("geodata/NOTICE.txt", "GeoNames CC BY 4.0\n")
+            archive.writestr("geodata/admin1CodesASCII.txt", "CN.22\t北京市\t北京市\t1816670\n")
+            archive.writestr("geodata/admin2Codes.txt", "CN.22.11876380\t北京市\t北京市\t11876380\n")
     patterns = dist / "immich-cn-patterns-tsv-v1.gz"
     with gzip.open(patterns, "wt", encoding="utf-8") as handle:
         handle.write("geoname_id\t{admin_2}\n1\t测试\n")
@@ -1678,6 +1770,9 @@ def _make_dist(root: Path) -> Path:
                 ('schemaVersion', '1');
             INSERT INTO places(geoname_id) VALUES (1);
             INSERT INTO place_names(geoname_id) VALUES (1);
+            INSERT INTO admin_areas(level, code, name) VALUES
+                (1, 'CN.22', '北京市'),
+                (2, 'CN.22.11876380', '北京市');
             """
         )
         connection.commit()
