@@ -31,6 +31,7 @@
 - 自动清理新增失败告警与恢复收敛：失败时创建或更新带 `automation` 标签的 issue，成功时评论并关闭历史告警；所有自动化 issue 标题搜索由静态护栏强制限定标签范围；
 - 修正容器入口脚本对 Immich geodata 重新导入条件的过时注释，并把 `docker/*.sh` 纳入同一上游契约措辞护栏，避免容器维护说明与文档再次漂移；
 - 统一 Immich TSV 字段说明为明确的 0-based column 口径，修正 `admin1CodesASCII.txt` / `admin2Codes.txt` 的 key/name 位置描述，并增加文档护栏；
+- `set_asset_timezone.py` 改用 Immich v3.3.0 推荐的 `PATCH /api/assets`，仅在 `404`/`405` 时回退旧版 `PUT`，避免继续依赖已标记 deprecated 的 bulk update 方法；
 - 部署示例默认设置 `TZ: Asia/Shanghai`，并补充国内镜像获取、digest 验证、WGS-84/GCJ-02 偏移与故障排查说明；
 - 规范 SQLite 数据集 `immich-cn-dataset-sqlite-v1.zip` 作为一等制品，Immich 文本格式改由适配器导出，详见 `docs/data-format.md` 与 ADR 0001；
 - `immich-cn artifact resolve` CLI：按 canonical ID、profile+scope 或历史别名解析制品；
