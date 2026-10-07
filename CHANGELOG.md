@@ -19,6 +19,7 @@
 - 缩小 Docker 镜像与语言包：数据镜像移除不必要的 `gzip` 包和多条 `RUN` 层，`immich-cn-i18n-json-v1.zip` 只发布旧版 Immich 实际读取的 `en.json` 与上游 `LICENSE`，不再复制整个 i18n 语言包；
 - CI 增加合成构建镜像 10 MiB 尺寸预算与语言包最小化检查；实测数据镜像本地显示由约 16.1 MB 降到约 14.5 MB（合成数据，具体值随基础镜像和数据变化）；
 - 项目生成的 Release 日期、构建时间、`geodata-date.txt` 和作业摘要统一使用北京时间 `Asia/Shanghai (+08:00)`；GitHub 页面自身的时间仍由 GitHub 与浏览器时区决定；
+- README 的更新 badge 改为英文 `Data Update`，新增 `docs/terminology.md`，明确技术术语优先使用英文、中文只用于用户目标、风险和操作说明；
 - 部署示例默认设置 `TZ: Asia/Shanghai`，并补充国内镜像获取、digest 验证、WGS-84/GCJ-02 偏移与故障排查说明；
 - 规范 SQLite 数据集 `immich-cn-dataset-sqlite-v1.zip` 作为一等制品，Immich 文本格式改由适配器导出，详见 `docs/data-format.md` 与 ADR 0001；
 - `immich-cn artifact resolve` CLI：按 canonical ID、profile+scope 或历史别名解析制品；

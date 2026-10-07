@@ -87,3 +87,9 @@ git grep -n -i -e zinglix -e geodata-cn HEAD -- \
 - **安全**：必须写明扫描器、数据库/时间、扫描范围和例外，不写“无漏洞”。
 - **数据质量**：必须写明抽样范围、阈值、上游覆盖和已知缺口，不写“全部正确”。
 - **性能**：必须写明机器、数据规模、日期和测量方式。
+
+## 技术术语语言
+
+中文用于用户目标、部署步骤、风险、限制和结论；技术概念统一使用英文术语。命令、路径、环境变量、字段名、文件名、workflow/job 名、状态、协议、API 名称保持原文。技术文档不得为了“中文化”而把 `artifact`、`manifest`、`checksum`、`workflow`、`pipeline`、`cache`、`validation`、`coverage` 等术语改写成新的中文名词。
+
+核心术语和使用边界见 [术语规范](terminology.md)。面向 GitHub 页面显示的短标签使用英文，避免 badge 或导航文字过长；纯中文 workflow 标题、badge alt text 或已有外部 job 名不应继续扩展。

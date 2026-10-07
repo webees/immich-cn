@@ -1,4 +1,4 @@
-name: 全自动更新数据
+name: Auto Data Update
 
 # 每天自动检查上游地理数据（GeoNames / Natural Earth / i18n-iso-countries）：
 #   1. 用 ETag/Last-Modified 条件校验上游，未变化时不传输正文；
@@ -45,7 +45,7 @@ concurrency:
 
 jobs:
   build:
-    name: 检查上游并构建
+    name: Validate and Build
     uses: ./.github/workflows/_build-data.yml
     secrets: inherit
     permissions:
@@ -59,7 +59,7 @@ jobs:
       force-publish: ${{ inputs.force-publish || false }}
 
   release:
-    name: 发布数据（Release）
+    name: Publish Release
     needs: build
     if: needs.build.outputs.changed == 'true' || inputs.force-publish
     runs-on: ubuntu-latest
@@ -172,7 +172,7 @@ jobs:
           DIGEST: ${{ needs.build.outputs.digest }}
         run: |
           {
-            echo "## 全自动更新数据 ${DATE}"
+            echo "## Auto Data Update ${DATE}"
             echo ""
             echo "- 上游数据：**已变化**，已重新构建并发布"
             echo "- 数据镜像摘要：\`${DIGEST:-未推送}\`"
@@ -181,7 +181,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   no-change:
-    name: 无变化时跳过发布
+    name: No Change
     needs: build
     permissions:
       contents: read
@@ -193,14 +193,14 @@ jobs:
       - name: 写入作业摘要
         run: |
           {
-            echo "## 全自动更新数据检查"
+            echo "## Auto Data Update Validation"
             echo ""
             echo "上游数据、构建配置与发布器修订均无变化，已跳过发布与镜像推送。"
             echo "本次仍完成了上游 ETag 条件校验与完整构建。"
           } >> "$GITHUB_STEP_SUMMARY"
 
   notify-failure:
-    name: 失败通知
+    name: Notify Failure
     needs: [build, release, no-change, resolve-previous-failure]
     if: failure()
     runs-on: ubuntu-latest
@@ -235,7 +235,7 @@ jobs:
           fi
 
   resolve-previous-failure:
-    name: 成功时关闭历史告警
+    name: Resolve Previous Failure
     needs: [build, release]
     # 仅当"构建成功且发布没有失败"时关闭历史告警：
     #   build 成功 + release 跳过（无变化）→ 关闭

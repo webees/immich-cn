@@ -1,4 +1,4 @@
-# 架构设计
+# Architecture design
 
 ## 目标
 
@@ -10,7 +10,7 @@
 4. 让整条链路可以在没有人工干预的情况下周期运行；
 5. 为中国部署场景提供地图、CDN、静态资源和源站缓存的接入边界，但不把私有照片或未授权瓦片纳入公共缓存。
 
-## 流水线分层
+## Pipeline layers
 
 ```
                     ┌──────────────────────────────────────────────┐
@@ -181,7 +181,7 @@
 
 分界点经上游源码核对：Immich **3.2.4 及以下**（含 3.0.0 ~ 3.2.4）在 `server/src/repositories/map.repository.ts` 里 `import { getName } from 'i18n-iso-countries'`，需要 `i18n-iso-countries/langs/en.json` 覆盖；**3.3.0 起**该 import 被移除，改为读取 `countryInfo.txt`（`resourcePaths.geodata.countryInfo`）。镜像中同时提供两种覆盖文件，切版本时按上表挂载即可。
 
-## 中国本地化接入层
+## China localization delivery layer
 
 数据构建与网络加速是两层不同职责：
 

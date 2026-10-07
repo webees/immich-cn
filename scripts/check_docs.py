@@ -78,7 +78,7 @@ PROCESS_OR_LEGAL_CLAIMS: dict[str, str] = {
 
 #: README 独立性段落的锚点；正文改写时需同步更新本契约。
 INDEPENDENCE_ANCHOR = "本项目按独立实现组织"
-INDEPENDENCE_SECTION_END = "## 数据模型与使用方式"
+INDEPENDENCE_SECTION_END = "## Data model and usage"
 
 #: 中国本地化是项目的主方向，README、专题文档、部署示例和时区默认值必须一致。
 CHINA_LOCALIZATION_DOC = Path("docs/china-localization.md")
@@ -89,6 +89,23 @@ CHINA_TIMEZONE = "TZ: Asia/Shanghai"
 CHINA_LOCALIZATION_OVERCLAIM = "完整行政区层级"
 CHINA_ACCELERATION_DOC = Path("docs/china-acceleration.md")
 CHINA_ACCELERATION_TOKENS = ("CDN", "jsDelivr", "Release 资产", "Cache-Control", "/_app/immutable/", "/api/")
+TERMINOLOGY_DOC = Path("docs/terminology.md")
+TECHNICAL_TERMS = (
+    "artifact",
+    "manifest",
+    "checksum",
+    "workflow",
+    "pipeline",
+    "cache",
+    "coverage",
+    "validation",
+    "fingerprint",
+    "release",
+    "image",
+    "digest",
+    "provenance",
+    "SBOM",
+)
 
 #: 时间承诺（“会在 N 天内回复”）无法保证，必须改为“通常”并注明不是承诺。
 #: 已经带“通常”的句式视为合规，不再重复报警（否则护栏会自相矛盾）。
@@ -306,7 +323,7 @@ def check_numeric_contracts(errors: list[str]) -> None:
         errors.append("文档错误：默认构建直接流式写 immich-cn-patterns-tsv-v1.gz，不生成明文 immich-cn-patterns-v1.tsv")
 
     expected_variants = len(build_variants(DEFAULT_PATTERNS))
-    for match in re.finditer(r"(\d+)\s*个 geodata 变体", doc_text):
+    for match in re.finditer(r"(\d+)\s*个\s*geodata\s+(?:变体|variant)", doc_text):
         if int(match.group(1)) != expected_variants:
             errors.append(f"文档称 {match.group(1)} 个 geodata 变体，实际生成 {expected_variants} 个")
 
@@ -461,6 +478,24 @@ def check_china_localization_contract(errors: list[str]) -> None:
     for path in (Path("docs/deployment.md"), *sorted(Path("examples").glob("*.yml"))):
         if CHINA_TIMEZONE not in path.read_text(encoding="utf-8"):
             errors.append(f"{path} 缺少中国本地化默认时区：{CHINA_TIMEZONE}")
+
+
+def check_documentation_language(errors: list[str]) -> None:
+    """GitHub 页面短标签和技术术语必须使用英文，并保留术语规范入口。"""
+    readme = Path("README.md").read_text(encoding="utf-8")
+    if "[![Data Update]" not in readme:
+        errors.append("README 的 data update badge alt text 必须使用英文简写 [![Data Update]")
+    if "[![全自动更新数据]" in readme:
+        errors.append("README 的 data update badge 仍使用过长的中文 alt text")
+    if "docs/terminology.md" not in readme:
+        errors.append("README 必须链接 docs/terminology.md，明确技术术语使用英文")
+    if not TERMINOLOGY_DOC.exists():
+        errors.append(f"缺失技术术语规范：{TERMINOLOGY_DOC}")
+        return
+    terminology = TERMINOLOGY_DOC.read_text(encoding="utf-8")
+    missing = [term for term in TECHNICAL_TERMS if f"| `{term}` |" not in terminology]
+    if missing:
+        errors.append(f"{TERMINOLOGY_DOC} 术语表缺少英文核心术语：{'、'.join(missing)}")
 
 
 def check_absolute_claims(paths: list[Path], errors: list[str]) -> None:
@@ -931,6 +966,7 @@ def main(argv: list[str] | None = None) -> int:
     check_referenced_paths(doc_files, errors)
     check_project_positioning(errors)
     check_china_localization_contract(errors)
+    check_documentation_language(errors)
     check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
     check_process_or_legal_claims([*doc_files, Path("CITATION.cff")], errors)
     check_independence_guidance(errors)

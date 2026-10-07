@@ -15,7 +15,7 @@ GHCR 中有两个容器包，它们不是重复镜像，也不是可互换别名
 
 许可证也不同：`immich-cn` 的数据处理层按 MIT 发布；`immich-cn-server` 包含上游 Immich server 代码，按当前组合方式声明为 `AGPL-3.0-only AND MIT`。具体再分发义务应结合镜像内实际文件确认。
 
-## 镜像大小与取舍
+## Image size and tradeoffs
 
 镜像大小要区分两个数字：
 
