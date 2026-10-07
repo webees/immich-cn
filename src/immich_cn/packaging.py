@@ -50,8 +50,6 @@ class PackageResult:
     artifacts: list[Path] = field(default_factory=list)
     variants: list[dict[str, object]] = field(default_factory=list)
     dataset: Path | None = None
-    patterns_table: Path | None = None
-    manifest: Path | None = None
     checksums: Path | None = None
 
 
@@ -110,11 +108,9 @@ def package_all(options: BuildOptions, result: BuildResult) -> PackageResult:
     compressed = options.dist_dir / PATTERNS_FILE
     if options.keep_raw:
         rows = write_patterns_table(patterns_table, levels=levels, patterns=options.patterns)
-        package_result.patterns_table = patterns_table
         compressed_patterns_table(patterns_table, compressed)
     else:
         rows = write_compressed_patterns_table(compressed, levels=levels, patterns=options.patterns)
-        package_result.patterns_table = compressed
     package_result.artifacts.append(compressed)
     logger.info("变体表写出完成：%d 行 -> %s", rows, compressed.name)
 
@@ -128,7 +124,6 @@ def package_all(options: BuildOptions, result: BuildResult) -> PackageResult:
     package_result.artifacts.append(package_result.dataset)
 
     manifest = _write_manifest(options, result, package_result)
-    package_result.manifest = manifest
     checksums = _write_checksums(options.dist_dir, [*package_result.artifacts, manifest])
     package_result.checksums = checksums
     if not options.keep_raw:
