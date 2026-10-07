@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 218,
+  "round": 219,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 163,
+    "findings": 164,
     "clean_rounds": 68,
     "p0": 0,
     "p1": 33,
-    "p2": 97,
+    "p2": 98,
     "p3": 42
   },
   "status": "active",
@@ -2221,6 +2221,16 @@
       "severity": "P2",
       "evidence": "Immich v3.3.0 官方 compose 将媒体卷挂载到 `/data`，示例仍使用旧路径 `/usr/src/app/upload`；完整示例还缺少 `immich-machine-learning`、`model-cache` 与官方 Valkey 9 digest。修复：三份示例统一 `/data`，完整示例补齐 machine-learning/model-cache 和 `shm_size`，Valkey 固定到官方 9.x digest，发布 smoke 使用同一摘要；文档护栏改为按 service 解析 YAML，修正时区检查被其他服务掩盖的假通过。make check 347 tests、docs、workflow、shell 全绿，三份 compose 均通过 `docker compose config`；PR #166 合并 main 4a48356，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/166"
+    },
+    {
+      "round": 219,
+      "timestamp": "2026-10-07T13:05:00+07:00",
+      "focus": "timezone 文档与 PATCH/PUT 兼容实现一致性",
+      "method": "M9 文档-实现逐条核对 + M3 负向文档输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "第 215 轮已把 `set_asset_timezone.py` 改为 PATCH 优先、404/405 回退 PUT，但 `docs/timezone.md` 仍把 PUT 写成无条件批量更新方法。修复：改为明确 PATCH 优先和 fallback 边界，新增 timezone API 文档契约护栏与负向测试。make check 348 tests、docs、workflow、shell 全绿；PR #167 合并 main 3429798，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/167"
     }
   ],
   "residual_risks": [
