@@ -274,7 +274,7 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
     if "snapshot_ok" not in text or '[ "$snapshot_ok" = true ]' not in raw_text:
         errors.append(f"{path} change detection 未把最新 data-* 不可变快照纳入重建判断")
     if text.count("imagetools create") < 1 or text.count("${IMAGE_VERSION}") < 2:
-        errors.append(f"{path} 缺少数据与 server 镜像的语义化版本标签")
+        errors.append(f"{path} 缺少数据与 server 镜像的 Immich 对齐版本标签")
     if (
         text.count("org.opencontainers.image.version=${{ steps.tool.outputs.version }}") < 1
         or text.count("org.opencontainers.image.version=${TOOL_VERSION}") < 1
@@ -295,7 +295,7 @@ def check_version_release(path: Path, workflow: dict[str, Any], errors: list[str
     if "image-version: ${{ inputs.version }}" not in text:
         errors.append(f"{path} 未把 Release 版本传递给镜像构建")
     if (
-        "验证 semantic version image tags" not in text
+        "验证 Immich 对齐版本镜像标签" not in text
         or "EXPECTED_DATA_DIGEST" not in text
         or "EXPECTED_SERVER_DIGEST" not in text
         or "actual_data_digest" not in text
@@ -306,6 +306,8 @@ def check_version_release(path: Path, workflow: dict[str, Any], errors: list[str
         errors.append(f"{path} 创建 Release 前未验证两个 image version tag 的 digest 与本次构建一致")
     if "tomllib" not in text or "repo_version=" not in text:
         errors.append(f"{path} 缺少输入版本与 pyproject.toml 的一致性检查")
+    if r"^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$" not in text:
+        errors.append(f"{path} 未限制四段式 Immich 对齐版本号")
     if (
         "PUSH_IMAGES: ${{ inputs.push-images }}" not in text
         or "版本化发布必须推送镜像" not in text
@@ -741,7 +743,7 @@ def check_hash_files_paths(path: Path, workflow: dict[str, Any], errors: list[st
 
     `hashFiles` 对不存在的路径返回空字符串，缓存键的该维度会静默消失。
     真实事故：`src/immich_cn/config.py` 改名 `settings.py` 后缓存键变成
-    `immich-cn-sources-Linux-1.0.4--<run_id>`，上游配置变化不再使缓存键失效。
+    `immich-cn-sources-Linux-3.3.0.1--<run_id>`，上游配置变化不再使缓存键失效。
     """
     for text in _iter_strings(workflow):
         calls = HASH_FILES_CALL.findall(text)

@@ -18,8 +18,8 @@ keywords:
   - docker
 authors:
   - name: webees
-version: 1.0.4
-date-released: 2026-10-06
+version: 3.3.0.1
+date-released: 2026-10-08
 references:
   - type: software
     title: immich-geodata-cn

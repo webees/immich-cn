@@ -291,12 +291,12 @@ jsDelivr 等免费 CDN 只作为 GitHub 分支、标签或提交中静态文件�
         └──► 发布：auto-release（滚动）+ data-*（不可变快照，保留 3 个）
 
 ci.yml ──► ruff + mypy + pytest + 容器入口校验 + Docker 冒烟构建
-release.yml ──► 手动创建语义化版本发布
+release.yml ──► 手动创建 Immich 对齐版本发布
 ```
 
 - `update-data.yml`：**自动数据更新**，包含增量校验、指纹比对、发布、快照清理与失败通知。
 - `ci.yml`：每次提交执行静态检查、单元测试与镜像冒烟构建。
-- `release.yml`：手动创建语义化版本发布（总是强制重新构建与推送）。
+- `release.yml`：手动创建 Immich 对齐版本发布（格式为 `X.Y.Z.N`，总是强制重新构建与推送）。
 - `cleanup.yml`：每周清理超出保留策略的 `data-*` 快照、Actions 运行记录与 GHCR 版本；稳定前可启用 `prune-all`。
 - `monitor-update.yml`：每 6 小时检查自动数据更新的新鲜度；定时任务未触发、运行卡住、最近一次失败或长期没有成功时创建 `automation` 告警议题，恢复后自动关闭。
 

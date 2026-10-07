@@ -20,7 +20,7 @@ on:
         type: string
         default: release
       image-version:
-        description: 额外的项目语义化版本标签；为空则不追加
+        description: 额外的项目 Immich 对齐版本标签；为空则不追加
         type: string
         default: ""
       server-platforms:

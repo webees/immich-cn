@@ -605,7 +605,7 @@ def test_check_docs_detects_missing_data_license_exception(repo_copy: Path) -> N
 def test_check_docs_detects_version_drift(repo_copy: Path) -> None:
     """pyproject / __init__ / CITATION 三处版本号必须一致。"""
     citation = repo_copy / "CITATION.cff"
-    mutate(citation, "version: 1.0.4", "version: 1.0.5")
+    mutate(citation, "version: 3.3.0.1", "version: 3.3.0.2")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "版本号不一致" in result.stdout
@@ -614,10 +614,19 @@ def test_check_docs_detects_version_drift(repo_copy: Path) -> None:
 def test_check_docs_detects_package_version_drift(repo_copy: Path) -> None:
     """包的 __version__ 与 pyproject 漂移时同样要报错（镜像 OCI version 取自前者）。"""
     init = repo_copy / "src" / "immich_cn" / "__init__.py"
-    mutate(init, '__version__ = "1.0.4"', '__version__ = "1.0.3"')
+    mutate(init, '__version__ = "3.3.0.1"', '__version__ = "3.3.0.0"')
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "版本号不一致" in result.stdout
+
+
+def test_check_docs_requires_four_part_project_version(repo_copy: Path) -> None:
+    """项目版本必须与 Immich 对齐为四段式，而不是三段式。"""
+    init = repo_copy / "src" / "immich_cn" / "__init__.py"
+    mutate(init, '__version__ = "3.3.0.1"', '__version__ = "3.3.0"')
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "四段式" in result.stdout
 
 
 def test_check_docs_requires_both_langs_paths_in_install_readme(repo_copy: Path) -> None:
@@ -1226,7 +1235,7 @@ def test_check_workflows_requires_post_build_versioned_image_tags(repo_copy: Pat
     workflow = repo_copy / ".github" / "workflows" / "release.yml"
     mutate(
         workflow,
-        "      - name: 验证 semantic version image tags\n",
+        "      - name: 验证 Immich 对齐版本镜像标签\n",
         "      - name: disabled verification\n",
     )
     result = run_checker(repo_copy, "check_workflows.py")
@@ -1467,9 +1476,9 @@ def test_check_workflows_rejects_non_canonical_hardcoded_package(repo_copy: Path
 
 
 def test_check_docs_rejects_v_prefixed_image_tag(repo_copy: Path) -> None:
-    """镜像 tag 不带 v 前缀；写成 v1.0.4 会让用户 pull 直接 not found。"""
+    """镜像 tag 不带 v 前缀；写成 v3.3.0.1 会让用户 pull 直接 not found。"""
     packages = repo_copy / "docs" / "packages.md"
-    mutate(packages, "ghcr.io/webees/immich-cn:1.0.4", "ghcr.io/webees/immich-cn:v1.0.4")
+    mutate(packages, "ghcr.io/webees/immich-cn:3.3.0.1", "ghcr.io/webees/immich-cn:v3.3.0.1")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "不符合发布契约" in result.stdout
