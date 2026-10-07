@@ -748,6 +748,7 @@ def check_image_tag_examples(doc_files: list[Path], errors: list[str]) -> None:
     任何机械护栏能发现。
     """
     checked = 0
+    doc_text = "\n".join(path.read_text(encoding="utf-8") for path in doc_files)
     for path in doc_files:
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
             for tag in IMAGE_REFERENCE.findall(line):
@@ -755,10 +756,16 @@ def check_image_tag_examples(doc_files: list[Path], errors: list[str]) -> None:
                 if not IMAGE_TAG_PATTERN.match(tag):
                     errors.append(
                         f"{path}:{number} 的镜像 tag {tag!r} 不符合发布契约"
-                        "（语义版本不带 v 前缀，可用形态见 docs/packages.md）"
+                        "（Immich 对齐版本不带 v 前缀，可用形态见 docs/packages.md）"
                     )
     if checked == 0:
         errors.append("文档中没有任何具体的 GHCR 镜像 tag 示例，镜像 tag 护栏可能已失效")
+    init_match = re.search(
+        r'__version__\s*=\s*"([^"]+)"',
+        Path("src/immich_cn/__init__.py").read_text(encoding="utf-8"),
+    )
+    if init_match and f"ghcr.io/webees/immich-cn:{init_match.group(1)}" not in doc_text:
+        errors.append(f"文档缺少当前项目版本 {init_match.group(1)} 的 GHCR 镜像示例")
     packages = Path("docs/packages.md")
     if packages.exists() and "OCI 引用对象" not in packages.read_text(encoding="utf-8"):
         errors.append(f"{packages} 未说明软件包页面上的 sha256-<digest> 引用标签不是发布镜像")

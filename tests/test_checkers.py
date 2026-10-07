@@ -1507,6 +1507,15 @@ def test_check_docs_rejects_v_prefixed_image_tag(repo_copy: Path) -> None:
     assert "不符合发布契约" in result.stdout
 
 
+def test_check_docs_requires_current_project_version_image_example(repo_copy: Path) -> None:
+    """镜像示例必须包含当前四段式项目版本，不能退回三段式。"""
+    packages = repo_copy / "docs" / "packages.md"
+    mutate(packages, "ghcr.io/webees/immich-cn:3.3.0.1", "ghcr.io/webees/immich-cn:3.3.0")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "当前项目版本" in result.stdout
+
+
 def test_check_docs_requires_concrete_image_tag_example(repo_copy: Path) -> None:
     """没有任何具体 tag 示例时护栏会失效，必须显式报错而不是静默通过。"""
     changed = 0
