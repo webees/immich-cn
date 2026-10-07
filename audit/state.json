@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 220,
-  "consecutive_clean": 0,
+  "round": 221,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 165,
-    "clean_rounds": 68,
+    "clean_rounds": 69,
     "p0": 0,
     "p1": 33,
     "p2": 99,
     "p3": 42
   },
   "status": "active",
-  "last_method": "M6",
+  "last_method": "M5",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -2241,6 +2241,16 @@
       "severity": "P2",
       "evidence": "`_prune_release_assets --apply` 遇到单个 Release 资产删除失败会立即中断，后续旧资产不会继续清理；这与 `apply_plan` 的“单项失败不阻断其他项”原则不一致。修复：逐项捕获 CleanupError，继续处理后续资产，结束后统一汇总失败并返回非零；新增负向测试验证失败项不阻断 later.zip。make check 349 tests、docs、workflow、shell 全绿；PR #168 合并 main 6df3f6e，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/168"
+    },
+    {
+      "round": 221,
+      "timestamp": "2026-10-07T13:45:00+07:00",
+      "focus": "真实仓库 cleanup dry-run 与保护策略",
+      "method": "M5 真实外部状态只读对拍",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "触发 GitHub Actions `cleanup.yml` workflow_dispatch（apply=false）于 main 6df3f6e。运行成功：GITHUB_TOKEN 具备 Actions/Contents/Packages write；计划删除 Release 0、Actions 运行 0、GHCR `immich-cn` 0、`immich-cn-server` 0。该结果确认当前真实仓库没有超出保留策略的对象，且工作流内 token 能访问用户级 Packages API；本地 `gh` token 缺少 read:packages 不影响 Actions 路径。没有发现缺陷，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
