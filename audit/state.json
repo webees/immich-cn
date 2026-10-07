@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 301,
-  "consecutive_clean": 4,
+  "round": 302,
+  "consecutive_clean": 5,
   "totals": {
     "findings": 199,
-    "clean_rounds": 92,
+    "clean_rounds": 93,
     "p0": 0,
     "p1": 31,
     "p2": 123,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3057,6 +3057,16 @@
       "severity": null,
       "evidence": "把 `validate_artifact_id` / `validate_canonical_filename` 的 `fullmatch` 注入为 `match`，现有测试仍全绿；核对正则本身已带 `^...$`，该变异是等价变异，不应记为缺陷。控制变异把 `ARTIFACT_ID_PATTERN` 的字符类放宽为允许下划线，`tests/test_artifact_spec.py` 立即失败；恢复后 4 个测试全绿。主分支 `1e7ecaa` 的 `make check` 452 passed 仍有效。本轮未发现 P0-P2 问题，clean_streak=4。",
       "pr": null
+    },
+    {
+      "round": 302,
+      "timestamp": "2026-10-09T01:10:00+08:00",
+      "focus": "校验与阈值：admin2 可解析率边界",
+      "method": "M2 阈值反演",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "把 `cities500-cn-admin2-resolvable` 的 `resolved_ratio >= min_cn_admin2_resolved_ratio` 反演为 `>`，隔离字节码缓存后运行目标边界测试，99/100=0.99 的命中用例立即失败；恢复后同一测试通过。主分支 `1e7ecaa` 的 `make check` 452 passed 仍有效。本轮未发现 P0-P2 问题，clean_streak=5。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3213,7 +3223,8 @@
     "第 298 轮只核验了 `data-2026-10-08` 的默认地理数据包，未重新下载并逐项校验全部 19 个资产；其余资产的摘要仍依赖 manifest/checksums 与既有 `check_artifacts` 护栏",
     "第 299 轮的 Action pin 对拍依赖 GitHub API 与有效 `GITHUB_TOKEN`；本地 `make audit-pins` 默认不注入 token 时会报缺少凭据，本轮通过临时环境变量完成，CI 侧仍需确保凭据存在",
     "第 300 轮 cProfile 数据来自最小合成数据集，导入开销占比高，不能外推到真实 131 万级地点构建；真实构建的性能结论仍以 docs/development.md 的实测为准",
-    "第 301 轮只验证了制品命名正则的锚点与控制字符类；其他生产正则与分支没有在本轮逐一做等价性判定"
+    "第 301 轮只验证了制品命名正则的锚点与控制字符类；其他生产正则与分支没有在本轮逐一做等价性判定",
+    "第 302 轮只反演了 admin2 可解析率阈值；其他覆盖率阈值由既有边界测试覆盖，但本轮没有逐一反演"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
