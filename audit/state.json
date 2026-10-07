@@ -2,11 +2,11 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 256,
-  "consecutive_clean": 0,
+  "round": 257,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 181,
-    "clean_rounds": 73,
+    "clean_rounds": 74,
     "p0": 0,
     "p1": 28,
     "p2": 113,
@@ -2607,6 +2607,16 @@
       "severity": "P2",
       "evidence": "实测用合成数据跑 `provider=auto` 且不设 `AMAP_API_KEY`：`resolve_provider()` 返回 offline，构建全程成功，日志里**没有任何一行**提到 provider 或降级（只有 manifest 末尾 `config.provider=offline`、`providers=[]` 留痕）。后果：CI 里 `AMAP_API_KEY` 缺失、改名或 secret 过期时，日常构建会产出与 `--provider offline` 完全相同的制品并报绿，「未执行高德增强」被当成一次成功构建——正对 objective 的「禁止把未执行/未检查/未知判为成功」。对照：`--provider amap` 是硬要求，缺 Key 直接 ConfigError（amap.py:53/67），只有 auto 会静默。修复：`build_chain` 在 requested=auto 且解析结果非 amap 时打印显式 warning（说明产物与 offline 完全相同）；`docs/development.md` 记录两种 provider 的差别；3 个用例（auto 缺 Key 必告警、显式 offline 不得告警、auto 有 Key 时链路为 ['amap'] 且不告警）。端到端复跑同一合成构建，日志出现该 warning。make check 423 tests 全绿；PR #198 合并 main b863dca，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/198"
+    },
+    {
+      "round": 257,
+      "timestamp": "2026-10-08T07:25:00+07:00",
+      "focus": "auto-release 回收计划与两条安全闸的真实取证",
+      "method": "M3 负向实验（对真实 Release 做 dry-run / 拒绝路径）+ M4 契约快照（dist 清单 vs Release 资产）",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "先对齐清单来源：干净 clone 的 smoke `dist/` 恰好 19 个文件名，与 `data-2026-10-06` 发布的资产集合逐行相同（diff 为空），因此可以安全地当成本次 dist 清单。真实 dry-run（`--prune-release-assets auto-release --dist-dir dist`，不带 --apply）：`现有 40 个资产，待删除 21 个`，逐条列出 SHA256SUMS、dataset.sqlite.zip、geodata.zip、geodata_admin_2*.zip（12 个）、geodata_full.zip、i18n-iso-countries.zip、manifest.json、patterns.tsv.gz——全部是 v4 之前的旧名，19 个 canonical 资产全部保留。两条安全闸也用真实 Release 验证：空清单 → `::error::… 中没有文件，拒绝使用空清单` exit 1；清单与 Release 无交集 → `::error::… 没有任何交集，拒绝删除（疑似清单来源错误）` exit 1。收尾闸 `--verify-release-assets` 在清理前正确报 `缺少 0 个，多出 21 个` 并 exit 1。本轮未发现缺陷，clean_streak=1；这也是删除那 21 个不可逆资产前需要的证据。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -2688,7 +2698,7 @@
     "第 171 轮的 304 验证针对的是「记录在 manifest 里的验证器与当前上游是否仍然匹配」（用 HEAD 条件请求完成，未传输正文），并不等于逐行执行了 fetcher 的代码路径；后者由 tests/test_fetching.py 的 MockTransport 用例覆盖，两者互补但不能互相替代",
     "Immich 改读 countryInfo.txt 的分界点（3.3.0）是 2026-10-07 对 v1.136.0/v2.7.5/v3.0.0~v3.2.4/v3.3.0 核对的结果；上游后续再调整国家名来源时文档与护栏都需要重新核对，不能把该结论长期视为不变",
     "update-data 新增的固定下载地址自检要等下一次真实数据发布才会在 CI 中执行；在此之前只有本地原样复跑（返回 200）作为证据，不能声称已在发布流程中验证",
-    "auto-release 上仍有 21 个 pre-v4 legacy 资产未删除（geodata_admin_2.zip、dataset.sqlite.zip、SHA256SUMS、manifest.json、patterns.tsv.gz 等）；下一次 update-data 运行会按新逻辑自动回收，删除发布资产不可逆，需用户确认是否立即触发",
+    "auto-release 上仍有 21 个 pre-v4 legacy 资产未删除；round 257 已对真实 Release 做过 dry-run 取证，待删除清单是 SHA256SUMS、dataset.sqlite.zip、geodata.zip、geodata_admin_2.zip、geodata_admin_2_admin_3.zip、geodata_admin_2_admin_3_admin_4.zip、geodata_admin_2_admin_3_admin_4_full.zip、geodata_admin_2_admin_3_full.zip、geodata_admin_2_admin_4.zip、geodata_admin_2_admin_4_full.zip、geodata_admin_2_full.zip、geodata_admin_3.zip、geodata_admin_3_admin_4.zip、geodata_admin_3_admin_4_full.zip、geodata_admin_3_full.zip、geodata_admin_4.zip、geodata_admin_4_full.zip、geodata_full.zip、i18n-iso-countries.zip、manifest.json、patterns.tsv.gz（19 个 canonical 资产全部保留）。下一次 update-data 运行会按新逻辑自动回收，删除发布资产不可逆，仍需用户确认是否立即触发",
     "中文软换行已由 check_cjk_soft_breaks 拦住，但它只覆盖 README/docs/CONTRIBUTING/SECURITY/CHANGELOG 与 CITATION.cff；examples/、.github/*.md 与 NOTICE 不在 DOC_GLOBS 内，后续若在这些位置写中文说明仍需人工注意",
     "droppedCities / droppedExtra 已进入 manifest，但既有发布物（data-2026-10-06 及更早）没有这两个字段；需要等下一次数据发布后才能用真实 manifest 复验拆分数值，在那之前只有合成构建与本地独立测量作为证据",
     "manifest 的 stats 现已在 artifact-spec 说明为规范层 full 口径，但 outputPlaces/perCountry 与具体 zip 行数天然不同（default 变体约为 1/5）；后续若引入按变体统计的字段，需要明确命名区分，避免再次被误读",
