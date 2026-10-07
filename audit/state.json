@@ -2695,7 +2695,7 @@
       "method": "M9 文档-实现逐条核对 + M1 变异探针（新增排版护栏）",
       "verdict": "findings",
       "severity": "P3",
-      "evidence": "确认三处文档缺陷：① README 维度表已膨胀到 9 行，偏离用户指定的五个核心维度；② docs/development.md 的 CLI 参数表被 `--provider auto` 段落从中间打断，后续 6 行失去表头；③ 多篇文档仍有 Pipeline layers、Local development、Rollback、Provider environment variables 等纯英文二级标题，且 README 文档索引重复列出 conventions/data-format，并出现 Data sources and processing 英文标签。修复：README 只保留代码许可、构建入口、外部依赖、行政区粒度、发布方式五个维度，方式一至方式五统一为 8 字；全部二级以下纯英文标题改为中文短标题；文档索引去重并覆盖全部 docs/*.md；CLI 表格恢复连续；CITATION.cff 与 pyproject.toml 描述改为中文。新增 check_readme_dimensions、check_readme_doc_index、check_markdown_layout，并补 4 个负向用例：增加维度行、英文标题、重复索引、正文打断表格均能精确失败。验证：make check 443 passed，文档契约检查通过 15 个文档、56 个实现文件，工作流与 Shell 契约全绿；PR #207 合并 main 281e43e，四项 required checks 全绿；clean_streak 归零。",
+      "evidence": "确认三处文档缺陷：① README 维度表已膨胀到 9 行，偏离用户指定的五个核心维度；② docs/development.md 的 CLI 参数表被 `--provider auto` 段落从中间打断，后续 6 行失去表头；③ 多篇文档仍有 Pipeline layers、Local development、Rollback、Provider environment variables 等纯英文二级标题，且 README 文档索引重复列出 conventions/data-format，并出现 Data sources and processing 英文标签。修复：README 只保留代码许可、构建入口、外部依赖、行政区粒度、发布方式五个维度，方式一至方式五统一为 8 字；全部二级以下纯英文标题改为中文短标题；文档索引去重并覆盖全部 docs/*.md；CLI 表格恢复连续；CITATION.cff 与 pyproject.toml 描述改为中文。新增 check_readme_dimensions、check_readme_doc_index、check_markdown_layout，并补 4 个负向用例：增加维度行、英文标题、重复索引、正文打断表格均能精确失败。同时把 GitHub 仓库描述改为中文，并整理 topics 为 automation、container-registry、reverse-geocoding 等 18 项。验证：make check 443 passed，文档契约检查通过 15 个文档、56 个实现文件，工作流与 Shell 契约全绿；PR #207 合并 main 281e43e，四项 required checks 全绿；clean_streak 归零。",
       "pr": "https://github.com/webees/immich-cn/pull/207"
     }
   ],
