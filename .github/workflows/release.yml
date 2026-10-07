@@ -17,7 +17,7 @@ on:
         type: string
         default: release
       push-images:
-        description: 是否推送镜像到 GHCR
+        description: 是否推送镜像到 GHCR；版本化发布必须保持开启
         type: boolean
         default: true
 
@@ -47,8 +47,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ inputs.version }}
+          PUSH_IMAGES: ${{ inputs.push-images }}
         run: |
           set -euo pipefail
+          if [ "$PUSH_IMAGES" != "true" ]; then
+            echo "::error::版本化发布必须推送镜像；不能创建没有对应 semantic version image tag 的 Release"
+            exit 1
+          fi
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
             echo "::error::版本号必须是语义化版本，例如 1.1.0"
             exit 1
