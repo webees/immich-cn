@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 240,
+  "round": 242,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 180,
+    "findings": 182,
     "clean_rounds": 71,
     "p0": 0,
     "p1": 33,
-    "p2": 114,
+    "p2": 116,
     "p3": 42
   },
   "status": "active",
-  "last_method": "M9",
+  "last_method": "M3",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -2441,6 +2441,26 @@
       "severity": "P2",
       "evidence": "对照上游 `server/src/repositories/map.repository.ts` 与 `constants.ts` 逐条核对：列索引、`geodata-date.txt` 相等跳转、admin map key 格式均一致，但契约文档漏记 import filter——`feature code`（0-based column 7）为 `PPLX` 且 country 非 `AU`、以及全部 `PPLH` 的记录在导入阶段被丢弃，且只有 `reverseGeocodeMaxDistance`（25 km）内城市点参与 reverse geocoding。实测当前全量制品 256,626 行中 7,307 行会被跳过（7,278 `PPLX` 非 `AU` + 29 `PPLH`），其中 `CN` 77 行；此前文档未量化该差异，读者会把制品行数当成 Immich 实际导入行数。同时发现 `CHANGELOG.md` 第 53/55 行是完全相同的 actionlint bullet（合并残留），而 CHANGELOG 不在任何护栏扫描范围内。修复：新增 Import filter and search radius 小节与复算方式、删除重复 bullet、`UPSTREAM_INTEGRATION_TOKENS` 增加 `PPLX`/`PPLH`/`reverseGeocodeMaxDistance`、新增 `check_changelog_bullets`、把 CHANGELOG 纳入中文软换行扫描、`repo_copy` 子集补 `CHANGELOG.md`，并加 3 个负向用例。make check 366 tests 全绿；PR #183 合并 main cb561f1，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/183"
+    },
+    {
+      "round": 241,
+      "timestamp": "2026-10-07T21:35:00+07:00",
+      "focus": "Immich geodata_places 列约束与 Natural Earth 要素契约",
+      "method": "M4 契约快照（对照上游 schema）+ M2 阈值反演（列宽边界）",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对照上游 `server/src/schema/tables/geodata-places.table.ts` 与 `natural-earth-countries.table.ts`：geodata_places 有 `name varchar(200) NOT NULL`、`countryCode char(2)`、`admin1Code varchar(20)`、`admin2Code varchar(80)`、`modificationDate date NOT NULL`；naturalearth_countries 的 `admin`/`admin_a3`/`type`/`coordinates(polygon)` 全部 NOT NULL，来源是 GeoJSON 的 `properties.ADMIN`/`ADM0_A3`/`TYPE` 与面几何。旧校验只查列数、数值范围、重复 ID 与覆盖率，这些缺口都要等 Immich import 才暴露；`_check_geojson` 更只是「能解析 + features 非空」，近乎恒真。修复：新增 `cities500-immich-columns` 与 `cities500-modification-date`，`natural-earth` 改为逐要素校验四个字段与面几何；合成 GeoJSON 改为带 TYPE 的 Polygon；新增 4 个负向用例；文档新增 Column limits 表并由护栏要求保留。真实制品复核：256,626 行、258 个要素上新增检查 0 违规（无假拒绝）。make check 370 tests 全绿；PR #184 合并 main 3f46c37，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/184"
+    },
+    {
+      "round": 242,
+      "timestamp": "2026-10-07T22:05:00+07:00",
+      "focus": "检索契约的 smoke 断言是否等价于 Immich 真实谓词",
+      "method": "M3 负向实验（真实 PostgreSQL + pg_trgm 复现上游 SQL）+ M9 文档-实现核对",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "full-stack smoke 原先用 `name LIKE '苏州市%'` 断言中文检索，而上游 `search.repository.ts:searchPlaces` 用的是 `f_unaccent(...) %>> f_unaccent($1)`（strict word similarity）对 name/admin2Name/admin1Name/alternateNames 四列取并集。本地用 PostgreSQL 17 + pg_trgm + Immich 的 `f_unaccent` 复现：`strict_word_similarity('苏州市','苏州')=0.4` 低于默认阈值 0.5，`%>>` 为假而 LIKE 为真，两者召回不等价——别名或 admin 中文名回归时用户搜不到，smoke 仍全绿（假通过）。修复：workflow 改为直接执行上游谓词并对 `苏州市`/`苏州`/`Suzhou`/`蘇州`/`昆山` 断言至少 1 条命中；`check_workflows` 新增 `check_immich_search_smoke` 要求保留 `%>>` 且禁止 `LIKE '苏州市%'`；文档新增 Place search 小节。取证：把 data-2026-10-06 的 admin2-default 制品（256,644 行）按上游规则解析 admin 名后导入真实 PostgreSQL，workflow 中那段 loop 原样执行 exit 0（苏州市 79、苏州 1、Suzhou 6、蘇州 1、昆山 2），无意义查询 0 命中证明断言可失败。make check 372 tests、actionlint 全绿；PR #185 合并 main 0665dc9，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/185"
     }
   ],
   "residual_risks": [
@@ -2524,6 +2544,11 @@
     "第 240 轮记录的 import filter 跳过行数（256,626 行中 7,307 行；CN 77 行）与 reverseGeocodeMaxDistance=25 km 都是 2026-10-07 对 v3.3.0 源码与当时制品的快照；上游改过滤规则、改常量或 GeoNames 分布变化后都必须重新测量，不能把这两个数字当成永久契约",
     "第 240 轮只把 import filter 写进文档并加短语级护栏，未改成可联网比对上源码的检查；护栏只能证明文档还在写这三个关键词，不能证明文档写的语义仍然等于上游代码",
     "`_check_geojson` 目前只断言文件可解析且 `features` 非空，未校验 Immich 实际读取的 `properties.ADMIN` / `ADM0_A3` / `TYPE` 与 `geometry.coordinates`；当前 258 个要素全部具备这些字段（已实测），但护栏无法在源被替换成缺字段的 FeatureCollection 时拦住，是后续轮次的候选目标",
-    "CHANGELOG 目前只被重复 bullet 与中文软换行两条规则覆盖，仍没有“有行为变更必须写条目”的机械护栏；强制非空会在刚发布后误报，因此仍依赖合并前人工补写"
+    "CHANGELOG 目前只被重复 bullet 与中文软换行两条规则覆盖，仍没有“有行为变更必须写条目”的机械护栏；强制非空会在刚发布后误报，因此仍依赖合并前人工补写",
+    "第 242 轮的搜索契约只在发布路径的 full-stack smoke 中执行，PR CI 不跑；护栏只能保证 workflow 里还有 %>> 谓词，不能保证某次 PR 的别名/admin 名改动已被真实检索验证",
+    "第 242 轮实测 `苏州` 仅 1 条命中，且该命中来自 alternateNames 里的独立 `苏州` token，而不是展示名；一旦 GeoNames 去掉这个别名，中文两字查询会立刻归零。这是真阳性护栏，但修复方式是补 config/overrides.toml 而不是放宽断言",
+    "搜索契约依赖上游 `f_unaccent`、`pg_trgm.strict_word_similarity_threshold` 默认值 0.5 与 `searchPlaces` 的四列并集；Immich 调整函数、阈值或字段集合时，smoke 的语义会改变，需要重新核对上游源码",
+    "第 241 轮的 `natural-earth` 强校验依赖当前 pin 的 Natural Earth 版本带 ADMIN/ADM0_A3/TYPE 与面几何（实测 258/258）；升级 NATURAL_EARTH_VERSION 时必须重新核对字段名与几何类型，否则会出现正确拒绝",
+    "geodata_places 列宽检查用的是上游当前 schema（varchar(200)/char(2)/20/80）；Immich 若放宽或收紧这些列，本项目的构建期门禁需要同步调整"
   ]
 }
