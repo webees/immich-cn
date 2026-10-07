@@ -486,9 +486,22 @@ jobs:
           country_count="$(docker exec "$postgres" \
             psql -U immich -d immich -tAc 'SELECT count(*) FROM naturalearth_countries;')"
           test "$country_count" -gt 0
-          suzhou_count="$(docker exec "$postgres" \
-            psql -U immich -d immich -tAc "SELECT count(*) FROM geodata_places WHERE name LIKE '苏州市%';")"
-          test "$suzhou_count" -gt 0
+
+          # 复刻 Immich search.repository.ts:searchPlaces 的谓词（%>> strict word
+          # similarity）。用 LIKE 断言等于假通过：LIKE 命中而 %>> 不命中时，用户在
+          # Immich 里其实搜不到这个地点。
+          for query in 苏州市 苏州 Suzhou 蘇州 昆山; do
+            hits="$(docker exec "$postgres" psql -U immich -d immich -tAc "
+              SELECT count(*) FROM geodata_places
+              WHERE f_unaccent(name) %>> f_unaccent('$query')
+                 OR f_unaccent(\"admin2Name\") %>> f_unaccent('$query')
+                 OR f_unaccent(\"admin1Name\") %>> f_unaccent('$query')
+                 OR f_unaccent(\"alternateNames\") %>> f_unaccent('$query');")"
+            if [ "${hits:-0}" -lt 1 ]; then
+              echo "::error::Immich place 搜索 '$query' 无命中，检索契约已回归"
+              exit 1
+            fi
+          done
 
           docker exec "$server" node -e '
             fetch("http://127.0.0.1:2283/api/server/config")

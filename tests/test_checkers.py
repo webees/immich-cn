@@ -1347,6 +1347,35 @@ def test_check_workflows_requires_nginx_config_validation(repo_copy: Path) -> No
     assert "nginx -t" in result.stdout
 
 
+def test_check_workflows_requires_immich_search_predicate(repo_copy: Path) -> None:
+    """地点搜索 smoke 必须用 Immich 的 %>> 谓词，缺失即失败。"""
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(
+        workflow,
+        "WHERE f_unaccent(name) %>> f_unaccent('$query')",
+        "WHERE f_unaccent(name) LIKE f_unaccent('$query')",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "searchPlaces" in result.stdout
+
+
+def test_check_workflows_rejects_like_based_place_search(repo_copy: Path) -> None:
+    """把地点搜索断言改回 name LIKE 属于假通过，必须被拦下。"""
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(
+        workflow,
+        "          for query in 苏州市 苏州 Suzhou 蘇州 昆山; do",
+        '          suzhou_count="$(docker exec "$postgres" psql -U immich -d immich -tAc "SELECT count(*) '
+        "FROM geodata_places WHERE name LIKE '苏州市%';\")\"\n"
+        '          test "$suzhou_count" -gt 0\n'
+        "          for query in 苏州市 苏州 Suzhou 蘇州 昆山; do",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "假通过" in result.stdout
+
+
 def test_check_workflows_requires_actionlint_ci_step(repo_copy: Path) -> None:
     """CI 缺少 actionlint 时 workflow 语法与 shell 问题可能无人拦截。"""
     workflow = repo_copy / ".github" / "workflows" / "ci.yml"

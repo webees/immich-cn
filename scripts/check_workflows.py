@@ -585,6 +585,24 @@ def check_actionlint_in_ci(path: Path, workflow: dict[str, Any], errors: list[st
         errors.append(f"{path} 缺少固定 digest 的 actionlint workflow 校验")
 
 
+def check_immich_search_smoke(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """full-stack smoke 必须用 Immich 自己的 place 搜索谓词验证检索。
+
+    上游 ``search.repository.ts:searchPlaces`` 用 ``%>>``（strict word similarity）
+    而不是 LIKE。用 ``name LIKE '苏州市%'`` 断言时，别名或 admin 名丢失导致用户
+    在 Immich 里搜不到，smoke 依然全绿——属于假通过。
+    """
+    if path.name != "_build-data.yml":
+        return
+    # PyYAML 会把长 run 字符串折行，直接检查原始文本才能匹配准确的 shell 片段。
+    del workflow
+    text = path.read_text(encoding="utf-8")
+    if "f_unaccent(name) %>> f_unaccent(" not in text:
+        errors.append(f"{path} 未用 Immich searchPlaces 的 %>> 谓词验证地点搜索")
+    if "name LIKE '苏州市%'" in text:
+        errors.append(f"{path} 仍用 LIKE 断言地点搜索；LIKE 与 Immich 的 %>> 召回不同，属于假通过")
+
+
 def check_image_size_budget(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
     """CI 必须给出镜像尺寸预算，并阻止冗余语言包重新进入镜像。"""
     if path.name != "ci.yml":
@@ -706,6 +724,7 @@ def main() -> int:
         checkout_total += check_checkout_credentials(path, workflow, errors)
         check_examples_compose_validation(path, workflow, errors)
         check_actionlint_in_ci(path, workflow, errors)
+        check_immich_search_smoke(path, workflow, errors)
         check_image_size_budget(path, workflow, errors)
         check_china_timezone(path, workflow, errors)
         check_published_url_verification(path, workflow, errors)
