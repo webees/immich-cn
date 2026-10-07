@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 214,
+  "round": 215,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 159,
+    "findings": 160,
     "clean_rounds": 68,
     "p0": 0,
     "p1": 33,
-    "p2": 93,
+    "p2": 94,
     "p3": 42
   },
   "status": "active",
@@ -2181,6 +2181,16 @@
       "severity": "P2",
       "evidence": "文档混用“第 1 列”描述 `line.split('\\t')` 的索引，且 `docs/architecture.md` 对 `admin1CodesASCII.txt` / `admin2Codes.txt` 只写“第 1 列是展示名”，容易被读成第一列名称。上游 v3.3.0 `loadAdmin()` 实际使用 `lineSplit[0]` 作为 key、`lineSplit[1]` 作为名称。修复：三份核心文档统一为明确的 0-based column 口径，逐字段说明 cities500、admin1/admin2 与 countryInfo；护栏改为逐文档、逐关键字段断言。make check 341 tests、docs、workflow、shell 全绿；PR #162 合并 main bf00176，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/162"
+    },
+    {
+      "round": 215,
+      "timestamp": "2026-10-07T11:45:00+07:00",
+      "focus": "Immich bulk asset timezone API 版本兼容",
+      "method": "M4 上游 API 契约快照 + M6 兼容路径测试",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`scripts/set_asset_timezone.py` 固定调用 `PUT /api/assets`；Immich v3.3.0 已把该端点标记 deprecated，官方替代为 `PATCH /api/assets`，但 v1.136.0 等旧版本仍只有 PUT。修复：优先 PATCH，仅在 404/405 时回退 PUT；搜索与批量更新统一使用 408/425/429/5xx 重试；新增 PATCH 正常路径与 PUT fallback 测试，文档同步说明。make check 342 tests、docs、workflow、shell 全绿；PR #163 合并 main 429076c，四项 required checks 全绿。真实 Immich 实例尚未执行批量写入复验。",
+      "pr": "https://github.com/webees/immich-cn/pull/163"
     }
   ],
   "residual_risks": [
