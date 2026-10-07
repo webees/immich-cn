@@ -405,6 +405,18 @@ jobs:
           postgres="immich-cn-postgres-${suffix}"
           redis="immich-cn-redis-${suffix}"
           server="immich-cn-server-${suffix}"
+          pull_with_retry() {
+            image="$1"
+            for attempt in $(seq 1 5); do
+              if docker pull "$image" >/dev/null; then
+                return 0
+              fi
+              echo "拉取 $image 失败，第 ${attempt} 次重试"
+              sleep $((attempt * 5))
+            done
+            echo "::error::拉取 $image 连续 5 次失败"
+            return 1
+          }
           cleanup() {
             docker rm -f "$server" "$postgres" "$redis" >/dev/null 2>&1 || true
             docker network rm "$network" >/dev/null 2>&1 || true
@@ -412,6 +424,9 @@ jobs:
           trap cleanup EXIT
 
           docker network create "$network" >/dev/null
+          pull_with_retry "$REDIS_IMAGE"
+          pull_with_retry "$POSTGRES_IMAGE"
+          pull_with_retry "$server_image"
           docker run -d --name "$redis" --network "$network" "$REDIS_IMAGE" >/dev/null
           docker run -d --name "$postgres" --network "$network" \
             -e POSTGRES_PASSWORD=immich-smoke-password \

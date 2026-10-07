@@ -59,7 +59,7 @@ Immich v3.2.4 与 v3.3.0 官方 compose 均已将媒体目录挂载到 `/data`�
 | `IMMICH_CN_PATTERNS_TABLE` | `/opt/immich-cn/immich-cn-patterns-tsv-v1.gz` | 运行时粒度切换用的变体表，一般无需修改 |
 | `IMMICH_BUILD_DATA` | `/build` | Immich 自身的构建数据目录，跟随官方镜像即可 |
 
-数据镜像（默认 pull 地址 `${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/webees/immich-cn`）额外支持：
+数据镜像（默认拉取地址 `${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/webees/immich-cn`）额外支持：
 
 | 变量 | 默认值 | 说明 |
 |:--|:--|:--|

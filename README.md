@@ -39,14 +39,14 @@
 | 阶段 | 行为 |
 |:--|:--|
 | 触发 | `每天北京时间 13:23`（UTC 05:23）定时执行，也支持手动 `workflow_dispatch` |
-| 存活性 | GitHub 的 `schedule` 可能延迟甚至整轮跳过（2026-10-06/07 实测只有一次 `schedule` 运行）；`monitor-update.yml` 每 6 小时检查 `Auto Data Update` 的新鲜度，超过 30 小时没有触发、运行停住、最近一次失败或长期没有成功时创建带 `automation` 标签的 issue，恢复后自动评论并关闭 |
+| 存活性 | GitHub 的 `schedule` 可能延迟甚至整轮跳过（2026-10-06/07 实测只有一次 `schedule` 运行）；`monitor-update.yml` 每 6 小时检查 `Auto Data Update` 的新鲜度，超过 30 小时没有触发、运行停住、最近一次失败或长期没有成功时创建带 `automation` 标签的议题，恢复后自动评论并关闭 |
 | 上游校验 | 用 `ETag` / `Last-Modified` 条件请求校验 GeoNames、Natural Earth、i18n-iso-countries；未变化时返回 **304，不传输正文** |
 | 变更检测 | 用「来源文件 SHA256 + 构建配置 + 发布器修订」计算发布指纹，与上一次发布对比；无变化则跳过发布，避免无意义的版本与重复导入 |
 | 构建 | 重新生成四级行政层级、汉化 `cities500`、导出 7 种展示粒度 × 完整/默认共 14 个地理数据变体与规范数据集 |
 | 校验 | 文件完整性、GeoNames ID 去重、CN/HK/TW/MO 展示名零缺失、国家名称覆盖率全部通过才允许发布 |
 | 发布 | 更新滚动发布 `auto-release`、创建当日至多一个不可变快照 `data-YYYY-MM-DD`（同日后续修订用 `data-YYYY-MM-DD-sha-<短 SHA>`）、推送两个多架构镜像 |
 | 保留策略 | 默认保留最近 3 个 `data-*` 快照；达到策略期限后自动清理，手动修改策略除外 |
-| 失败处理 | 任一阶段失败自动创建或更新带 `automation` 标签的 issue，并附上运行链接 |
+| 失败处理 | 任一阶段失败自动创建或更新带 `automation` 标签的议题，并附上运行链接 |
 
 你只需要定期 `docker compose pull`，或使用发布的固定地址 `releases/latest/download/immich-cn-geodata-admin2-default-v1.zip`，即可持续获得最新数据。
 
@@ -199,7 +199,7 @@ release.yml ──► 手动创建语义化版本发布
 - `ci.yml`：每次提交执行静态检查、单元测试与镜像冒烟构建。
 - `release.yml`：手动创建语义化版本发布（总是强制重新构建与推送）。
 - `cleanup.yml`：每周清理旧 `data-*` 快照、Actions 运行历史与 GHCR 版本；稳定前可启用 `prune-all`。
-- `monitor-update.yml`：每 6 小时检查自动数据更新的新鲜度；定时任务未触发、运行卡住、最近一次失败或长期没有成功时创建 `automation` 告警 issue，恢复后自动关闭。
+- `monitor-update.yml`：每 6 小时检查自动数据更新的新鲜度；定时任务未触发、运行卡住、最近一次失败或长期没有成功时创建 `automation` 告警议题，恢复后自动关闭。
 
 ## 文档索引
 

@@ -17,11 +17,13 @@ from scripts.cleanup import (
     PackageVersionRecord,
     ReleaseRecord,
     RunRecord,
+    _prune_legacy_assets,
     _prune_release_assets,
     _verify_release_assets,
     apply_plan,
     build_plan,
     print_plan,
+    select_legacy_assets,
     select_package_versions,
     select_releases,
     select_runs,
@@ -90,6 +92,43 @@ def test_release_cleanup_prune_all_keeps_only_newest_snapshot() -> None:
     selected = select_releases(releases, retention=14, prune_all=True)
 
     assert [release.tag_name for release in selected] == ["data-2026-10-06"]
+
+
+def test_select_legacy_assets_requires_canonical_replacement() -> None:
+    """只有同一发布已有规范 v4 资产时，旧命名资产才可自动删除。"""
+    canonical = "immich-cn-geodata-admin2-default-v1.zip"
+    deletable, manual = select_legacy_assets([(1, "geodata.zip"), (2, canonical)])
+    assert deletable == [(1, "geodata.zip")]
+    assert manual == []
+
+    deletable, manual = select_legacy_assets([(1, "geodata.zip")])
+    assert deletable == []
+    assert manual == [(1, "geodata.zip")]
+
+    deletable, manual = select_legacy_assets([(1, "geodata.zip")], canonical_available=True)
+    assert deletable == [(1, "geodata.zip")]
+    assert manual == []
+
+
+def test_prune_legacy_assets_apply_deletes_only_safe_assets() -> None:
+    """执行模式只删除有规范替代品的旧资产，并保留缺少替代品的历史发布。"""
+    deleted: list[int] = []
+
+    class _Client:
+        def list_releases(self) -> list[ReleaseRecord]:
+            return [ReleaseRecord(1, "v1.0.0", at(1)), ReleaseRecord(2, "v1.0.4", at(0))]
+
+        def release_assets(self, tag: str) -> list[tuple[int, str]]:
+            if tag == "v1.0.0":
+                return [(10, "geodata.zip")]
+            return [(20, "geodata.zip"), (21, "immich-cn-geodata-admin2-default-v1.zip")]
+
+        def delete_release_asset(self, asset_id: int) -> None:
+            deleted.append(asset_id)
+
+    args = SimpleNamespace(apply=True)
+    assert _prune_legacy_assets(_Client(), args) == 0
+    assert deleted == [10, 20]
 
 
 def test_run_cleanup_preserves_cutoff_latest_per_workflow_protected_and_current() -> None:

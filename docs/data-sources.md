@@ -10,7 +10,7 @@
 | `countryInfo.txt` | GeoNames | CC BY 4.0 | 国家名称与元数据 |
 | `alternateNamesV2.zip` | GeoNames | CC BY 4.0 | 中文别名来源 |
 | `{CC}.zip`（CN/HK/TW/MO/JP） | GeoNames | CC BY 4.0 | 国家数据转储，用于补充点位与 `ADM3`/`ADM4` |
-| `ne_10m_admin_0_countries.geojson` | Natural Earth v5.1.2 | Public Domain | 国家边界回退 |
+| `ne_10m_admin_0_countries.geojson` | Natural Earth v5.1.2 | 公有领域 | 国家边界回退 |
 | `i18n-iso-countries@7.0.0` | npm | MIT | 国家名称中文覆盖（旧版 Immich） |
 
 不可变依赖在 `src/immich_cn/settings.py` 中固定版本；Natural Earth 与 i18n-iso-countries 使用不可变标签/版本号。GeoNames 为滚动数据，其每次构建的指纹会记录在清单中。
@@ -93,7 +93,7 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 对每个「展示粒度 × 数据规模」组合：
 
 1. 流式读取 `cities500.txt` 与 `extra_all.txt`；
-2. 从 `levels.tsv` 取四级名称，按 pattern 组合成展示名，写入第 1、2 列；
+2. 从 `levels.tsv` 取四级名称，按展示粒度组合成展示名，写入第 1、2 列；
 3. 直接写进压缩包（不在磁盘上落中间文件），包内目录结构为 `geodata/`，与 Immich 读取约定一致；
 4. 追加 `geodata/build-info.json` 说明该变体的展示粒度与数据规模。
 
