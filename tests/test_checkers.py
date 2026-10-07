@@ -1007,6 +1007,17 @@ def test_check_workflows_requires_base_digest_in_change_detection(repo_copy: Pat
     assert "重建判断" in result.stdout
 
 
+def test_check_workflows_requires_data_image_in_change_detection(repo_copy: Path) -> None:
+    """data image 缺失时不能因 fingerprint 未变而跳过重建。"""
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    text = workflow.read_text(encoding="utf-8")
+    assert "previous_data_digest" in text
+    workflow.write_text(text.replace("previous_data_digest", "previous_data"), encoding="utf-8")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "data image 存在性" in result.stdout
+
+
 def test_check_workflows_requires_full_stack_smoke(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
     mutate(
