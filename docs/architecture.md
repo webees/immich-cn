@@ -107,7 +107,7 @@
 - `geodata-date.txt` 是否为合法 ISO 时间；
 - `cities500.txt` 列数、GeoNames ID 唯一性；
 - 中国与香港记录的中文名称覆盖率是否达到阈值；
-- 中国记录的中文名称是否**零缺失**（`cities500-cn-cjk-strict`，与打包阶段的同名校验一致；阈值检查允许少量缺失，严格检查不允许）；
+- 中文地区（CN/HK/TW/MO）记录的中文名称是否**零缺失**（`chinese-regions-cjk-strict`，与打包阶段的同名判断一致；阈值检查允许少量缺失，严格检查不允许）；
 - `countryInfo.txt` 中文覆盖率；
 - `ne_10m_admin_0_countries.geojson` 是否为合法 FeatureCollection。
 

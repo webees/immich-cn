@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from immich_cn.errors import VerifyError
-from immich_cn.localization import has_cjk
+from immich_cn.localization import CHINESE_OUTPUT_REGIONS, has_cjk
 from immich_cn.logging_config import get_logger
 
 logger = get_logger("verify")
@@ -241,6 +241,8 @@ def _check_cities500(
     cn_chinese = 0
     hk_total = 0
     hk_chinese = 0
+    #: 中文地区的严格统计：code -> [总记录数, 含中文条数]，打包阶段对这四个地区零容忍
+    strict_regions: dict[str, list[int]] = {code: [0, 0] for code in sorted(CHINESE_OUTPUT_REGIONS)}
     cn_with_admin2 = 0
     cn_admin2_resolved = 0
     with path.open("r", encoding="utf-8") as handle:
@@ -272,6 +274,10 @@ def _check_cities500(
             if geoname_id in seen:
                 duplicates += 1
             seen.add(geoname_id)
+            if fields[8] in strict_regions:
+                strict_regions[fields[8]][0] += 1
+                if has_cjk(fields[1]):
+                    strict_regions[fields[8]][1] += 1
             if fields[8] == "CN":
                 cn_total += 1
                 if has_cjk(fields[1]):
@@ -297,16 +303,17 @@ def _check_cities500(
         )
     )
     # 阈值检查允许少量缺失（可用 --min-cn-ratio 调整），但打包阶段对 CN/HK/TW/MO 是
-    # 零容忍：只要有一条展示名不含中文就拒绝发布。verify 必须给出同样的结论，
-    # 否则「篡改一行中文名」这类回归会在验证阶段假通过。
-    missing_cn = cn_total - cn_chinese
-    detail = (
-        f"中国记录 {cn_total} 条，全部含中文"
-        if missing_cn == 0
-        else f"中国记录 {cn_total} 条，其中 {missing_cn} 条不含中文；"
-        "打包阶段会拒绝这类制品，若为上游缺别名请补 config/overrides.toml"
+    # 零容忍：有一条展示名不含中文就拒绝发布。verify 必须给出同样的结论，否则
+    # 「少数地名变英文」这类回归会在验证阶段假通过——实测把 1 条 HK 改成 Central
+    # 时 hk 阈值检查仍报 99.7% PASS。
+    gaps = {code: region[0] - region[1] for code, region in strict_regions.items() if region[0]}
+    detail = "；".join(
+        f"{code} {strict_regions[code][0]} 条" + ("" if gap == 0 else f"缺 {gap}") for code, gap in gaps.items()
     )
-    results.append(CheckResult("cities500-cn-cjk-strict", cn_total > 0 and missing_cn == 0, detail))
+    strict_ok = bool(gaps) and all(gap == 0 for gap in gaps.values())
+    if not strict_ok:
+        detail += "；打包阶段会拒绝这类制品，若为上游缺别名请补 config/overrides.toml"
+    results.append(CheckResult("chinese-regions-cjk-strict", strict_ok, detail))
     if cn_total:
         admin_ratio = cn_with_admin2 / cn_total
         results.append(

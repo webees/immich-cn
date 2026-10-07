@@ -500,6 +500,35 @@ def test_cities500_cjk_ratio_threshold_boundary(tmp_path: Path) -> None:
     assert check(8).passed is False, check(8).detail
 
 
+def test_hk_cjk_threshold_passes_but_strict_fails(tmp_path: Path) -> None:
+    """HK 阈值是 99%：100 条里缺 1 条仍通过阈值检查，严格检查必须失败。"""
+    rows = [
+        geo_row(
+            2_000_000 + i,
+            "沙田区" if i else "Sha Tin",
+            country="HK",
+            admin1="NST",
+            latitude=str(22 + i / 1000),
+            longitude=str(114 + i / 1000),
+        )
+        for i in range(100)
+    ]
+    path = tmp_path / "cities-hk.txt"
+    write_lines(path, rows)
+    results = {
+        result.name: result
+        for result in _check_cities500(
+            path,
+            min_cn_cjk_ratio=0.0,
+            min_hk_cjk_ratio=0.99,
+            min_cn_admin2_code_ratio=0.0,
+        )
+    }
+
+    assert results["cities500-hk-cjk"].passed is True  # 99/100 = 99%，达到阈值
+    assert results["chinese-regions-cjk-strict"].passed is False  # 但严格检查必须失败
+
+
 def test_cities500_cjk_strict_requires_zero_missing(tmp_path: Path) -> None:
     """阈值检查允许少量缺失，严格检查必须零容忍（与打包期护栏一致）。"""
 
@@ -516,10 +545,10 @@ def test_cities500_cjk_strict_requires_zero_missing(tmp_path: Path) -> None:
 
     partial = check(9)
     assert partial["cities500-cn-cjk"] is True  # 9/10 达到 90% 阈值
-    assert partial["cities500-cn-cjk-strict"] is False  # 但严格检查必须失败
+    assert partial["chinese-regions-cjk-strict"] is False  # 但严格检查必须失败
 
     full = check(10)
-    assert full["cities500-cn-cjk-strict"] is True
+    assert full["chinese-regions-cjk-strict"] is True
 
 
 def test_cities500_admin2_code_ratio_threshold_boundary(tmp_path: Path) -> None:
