@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 235,
+  "round": 236,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 175,
+    "findings": 176,
     "clean_rounds": 71,
     "p0": 0,
     "p1": 33,
-    "p2": 109,
+    "p2": 110,
     "p3": 42
   },
   "status": "active",
@@ -2391,6 +2391,16 @@
       "severity": "P2",
       "evidence": "`auto-release` 成功但 `data-*` 不可变快照创建失败时，下一次 fingerprint 不变会跳过 release，并可能由 no-change 关闭告警，缺失快照不会修复。修复：change detection 读取最新 `data-*` 快照 manifest 并比较 fingerprint；缺失或不一致时强制进入发布。新增 workflow 护栏、负向测试与架构说明。make check 359 tests、docs、workflow、shell 全绿；PR #178 合并 main 25db541，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/178"
+    },
+    {
+      "round": 236,
+      "timestamp": "2026-10-07T19:25:00+07:00",
+      "focus": "版本 image tag 指向的 digest 是否与本次构建一致",
+      "method": "M6 供应链审计 + M3 workflow 负向输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "版本发布 post-build 检查最初只确认两个 `image:VERSION` tag 存在，没有证明 tag 指向本次 build 产生的 digest；并发或错误 retag 可能导致版本 Release 指向其他镜像。修复：暴露 reusable workflow `server-digest`，对两个 version tag 的 registry digest 与 build 输出做精确比较；护栏要求两个精确比较条件，并通过 mutation 测试验证删除比较会被拦截。make check 360 tests、docs、workflow、shell 全绿；PR #179 合并 main aca8e7d，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/179"
     }
   ],
   "residual_risks": [
