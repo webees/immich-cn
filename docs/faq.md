@@ -48,7 +48,14 @@ Immich 使用"最近的点"做反向地理编码，边界处的误差是原理�
 
 ## 国内拉取 GHCR 镜像不稳定怎么办？
 
-可以配置你信任的 registry mirror，但必须验证它同步的是同一 digest；不要把任意镜像站当作官方来源。长期部署请固定到 `@sha256:<digest>`。数据 Release 下载后应使用 `immich-cn-checksums-sha256-v1.txt` 复核，具体命令见 [部署指南](deployment.md)。
+项目 Compose 示例默认使用中国可达的 `ghcr.nju.edu.cn`，并保留 `docker.m.daocloud.io/ghcr.io`、`ghcr.dockerproxy.net` 和官方 `ghcr.io` 作为可配置 endpoint。通过 `IMMICH_CN_GHCR_MIRROR` 覆盖：
+
+```bash
+export IMMICH_CN_GHCR_MIRROR=ghcr.nju.edu.cn
+docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
+```
+
+第三方 mirror 不是官方 origin；必须从 `ghcr.io` 或签名 Release 获取目标 digest，再验证 mirror 返回相同 digest。长期部署请固定到 `@sha256:<digest>`。数据 Release 下载后应使用 `immich-cn-checksums-sha256-v1.txt` 复核，具体命令见 [部署指南](deployment.md)。
 
 ## 可以把 Immich 放在国内 CDN 后面吗？
 

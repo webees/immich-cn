@@ -103,6 +103,8 @@ CHINA_ACCELERATION_TOKENS = (
     "/_app/immutable/",
     "/api/",
 )
+GHCR_MIRROR_DEFAULT = "ghcr.nju.edu.cn"
+GHCR_MIRROR_ENV = "IMMICH_CN_GHCR_MIRROR"
 TERMINOLOGY_DOC = Path("docs/terminology.md")
 TECHNICAL_TERMS = (
     "artifact",
@@ -528,6 +530,20 @@ def check_documentation_language(errors: list[str]) -> None:
     missing = [term for term in TECHNICAL_TERMS if f"| `{term}` |" not in terminology]
     if missing:
         errors.append(f"{TERMINOLOGY_DOC} 术语表缺少英文核心术语：{'、'.join(missing)}")
+
+
+def check_registry_mirror_contract(errors: list[str]) -> None:
+    """中国 deploy 示例必须默认使用可达 GHCR mirror，并保留用户覆盖入口。"""
+    required_docs = (Path("README.md"), Path("docs/deployment.md"), Path("docs/packages.md"))
+    for path in (*required_docs, *sorted(Path("examples").glob("compose.*.yml"))):
+        if not path.exists():
+            errors.append(f"缺少 GHCR mirror 契约文件：{path}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        if GHCR_MIRROR_DEFAULT not in text:
+            errors.append(f"{path} 未默认使用中国 GHCR mirror：{GHCR_MIRROR_DEFAULT}")
+        if GHCR_MIRROR_ENV not in text:
+            errors.append(f"{path} 未提供 GHCR mirror 覆盖入口：{GHCR_MIRROR_ENV}")
 
 
 def check_absolute_claims(paths: list[Path], errors: list[str]) -> None:
@@ -999,6 +1015,7 @@ def main(argv: list[str] | None = None) -> int:
     check_project_positioning(errors)
     check_china_localization_contract(errors)
     check_documentation_language(errors)
+    check_registry_mirror_contract(errors)
     check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
     check_process_or_legal_claims([*doc_files, Path("CITATION.cff")], errors)
     check_independence_guidance(errors)

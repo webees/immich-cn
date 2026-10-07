@@ -610,6 +610,28 @@ def test_check_docs_requires_english_data_update_badge(repo_copy: Path) -> None:
     assert "badge" in result.stdout
 
 
+def test_check_docs_requires_ghcr_mirror_default(repo_copy: Path) -> None:
+    """中国部署文档必须默认使用可达 GHCR mirror。"""
+    readme = repo_copy / "README.md"
+    text = readme.read_text(encoding="utf-8")
+    assert "ghcr.nju.edu.cn" in text
+    readme.write_text(text.replace("ghcr.nju.edu.cn", "ghcr.io"), encoding="utf-8")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "ghcr.nju.edu.cn" in result.stdout
+
+
+def test_check_docs_requires_ghcr_mirror_override(repo_copy: Path) -> None:
+    """Compose 示例必须允许用户切换到官方或其他 mirror。"""
+    compose = repo_copy / "examples" / "compose.server.yml"
+    text = compose.read_text(encoding="utf-8")
+    assert "IMMICH_CN_GHCR_MIRROR" in text
+    compose.write_text(text.replace("IMMICH_CN_GHCR_MIRROR", "REMOVED_GHCR_MIRROR"), encoding="utf-8")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "IMMICH_CN_GHCR_MIRROR" in result.stdout
+
+
 def test_check_docs_requires_technical_terminology(repo_copy: Path) -> None:
     """术语规范必须保留英文核心技术术语，防止文档重新退化为一味中文化。"""
     terminology = repo_copy / "docs" / "terminology.md"

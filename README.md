@@ -17,7 +17,7 @@ Immich 的反向地理编码默认输出英文地名。本项目的 core scope �
 | Optional providers | 高德 / Nominatim provider，带 rate limit 与 disk cache |
 | Canonical dataset | 自有 SQLite dataset `immich-cn-dataset-sqlite-v1.zip`，可直接查询、分析或二次开发 |
 | Immich adapter | Immich text directory 与 zip 是默认 adapter，不定义内部 model |
-| Release and images | Release artifact + GHCR data image + 开箱即用的 Immich server image |
+| Release and images | Release artifact + GHCR data image + 开箱即用的 Immich server image；默认使用中国可达 GHCR mirror |
 | Pattern switching | 同一 image 内用 `IMMICH_CN_PATTERN` 切换，无需重新构建 |
 | Delivery and cache | `/_app/immutable` long cache + CDN 回源边界 + Nginx origin 示例 |
 | Update cadence | 每天自动检查并更新，含 ETag incremental validation 与 release fingerprint |
@@ -57,13 +57,13 @@ Immich 的反向地理编码默认输出英文地名。本项目的 core scope �
 
 ### 方式一：使用开箱即用的 Immich image（推荐）
 
-`ghcr.io/webees/immich-cn-server` 基于官方 `immich-server`，在启动时把中文 geodata 注入到目标目录；仍需要按 Immich 官方要求配置 database、cache 和持久化目录。示例 compose 文件（含 redis 与 database，需按 Immich 官方要求提供 `.env` 与持久化目录）：[examples/compose.server.yml](examples/compose.server.yml)。
+`webees/immich-cn-server` 基于官方 `immich-server`，在启动时把中文 geodata 注入到目标目录；仍需要按 Immich 官方要求配置 database、cache 和持久化目录。示例 compose 默认通过 `IMMICH_CN_GHCR_MIRROR=ghcr.nju.edu.cn` 拉取；完整示例见 [examples/compose.server.yml](examples/compose.server.yml)。
 
 ```yaml
 # docker-compose.yml（只列出需要改动的部分）
 services:
   immich-server:
-    image: ghcr.io/webees/immich-cn-server:latest
+    image: ${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/webees/immich-cn-server:latest
     environment:
       # 中国本地化默认时区
       TZ: Asia/Shanghai
@@ -75,19 +75,21 @@ services:
 
 ### 方式二：把 data image 挂载进官方 Immich
 
-如果你希望继续使用官方 `immich-app/immich-server` image，可以用 data image 提供文件：完整示例见 [examples/compose.volume.yml](examples/compose.volume.yml)。
+如果你希望继续使用官方 `immich-app/immich-server` image，可以用 data image 提供文件；示例默认走中国 GHCR mirror，可用 `IMMICH_CN_GHCR_MIRROR=ghcr.io` 回退官方源：完整示例见 [examples/compose.volume.yml](examples/compose.volume.yml)。
 
 ```yaml
 services:
   immich-server:
-    image: ghcr.io/immich-app/immich-server:release
+    image: ${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/immich-app/immich-server:release
     volumes:
       - ./immich-cn/geodata:/build/geodata:ro
 ```
 
 ```bash
 # 一次性把 data image 中的文件复制到宿主机目录
-docker run --rm -v "$PWD/immich-cn:/out" ghcr.io/webees/immich-cn:latest --target /out
+docker run --rm -v "$PWD/immich-cn:/out" \
+  "${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/webees/immich-cn:latest" \
+  --target /out
 ```
 
 ### 方式三：下载 Release 数据

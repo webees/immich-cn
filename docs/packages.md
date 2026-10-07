@@ -7,6 +7,19 @@ GHCR 中有两个容器包，它们不是重复镜像，也不是可互换别名
 | `ghcr.io/webees/immich-cn` | 纯数据镜像，把 geodata 释放到宿主机目录 | Alpine | `immich-cn-install` | `linux/amd64`, `linux/arm64` |
 | `ghcr.io/webees/immich-cn-server` | 开箱即用的 Immich server 覆盖镜像 | 官方 `immich-server` | `immich-cn-entrypoint` + `start.sh` | `linux/amd64`, `linux/arm64` |
 
+## China pull addresses
+
+`ghcr.io` 是 canonical image source，也是签名和 digest 的比对基准；在中国大陆默认使用可覆盖的 registry mirror：
+
+| Mirror | Pull prefix | 状态 |
+|:--|:--|:--|
+| `ghcr.nju.edu.cn` | `ghcr.nju.edu.cn/` | 默认，不是官方 origin |
+| `docker.m.daocloud.io` | `docker.m.daocloud.io/ghcr.io/` | 可选 fallback |
+| `ghcr.dockerproxy.net` | `ghcr.dockerproxy.net/` | 可选 fallback |
+| `ghcr.io` | `ghcr.io/` | 官方源，最终 fallback 与 digest 基准 |
+
+Compose 示例通过 `IMMICH_CN_GHCR_MIRROR` 选择 prefix。2026-10-07 对两个 package 的 `latest` 做了 manifest 对比，三个 mirror 与 `ghcr.io` 返回相同 digest；这不构成长期可用性或安全性保证。生产环境仍应从官方源确认 digest，再把 mirror 当作同一 digest 的传输通道。
+
 ## 为什么有两个
 
 `immich-cn` 只负责分发数据，适合继续使用官方 Immich 镜像并挂载数据目录的用户。 `immich-cn-server` 在官方 server 镜像启动前注入数据，适合希望减少手工挂载步骤的用户。
