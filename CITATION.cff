@@ -4,7 +4,7 @@ message: "如果本项目对你的工作有帮助，请引用或链接本仓库�
 type: software
 license: MIT
 repository-code: "https://github.com/webees/immich-cn"
-abstract: "面向中国用户的 Immich 本地化增强套件，提供中文地名与检索、行政区层级、地图与坐标说明、时区体验、CDN 与静态资源加速边界、部署排障，以及全自动数据构建、校验、Release 与容器镜像发布。"
+abstract: "为 Immich 提供中国本地化的 reverse geocoding geodata：核心是中文地名、中文/拼音检索、行政层级和自动 Release/image；地图、EXIF timezone、CDN/cache 与 Nginx 示例是可选辅助能力。"
 keywords:
   - immich
   - geodata

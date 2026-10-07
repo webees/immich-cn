@@ -1,6 +1,6 @@
-# 中国本地化
+# 中国本地化范围
 
-本项目的定位是**面向中国用户的 Immich 本地化增强套件**。目标不是复制某个数据包，而是围绕中国大陆用户的显示、检索、地图、使用体验、访问加速与数据质量，建立一条可验证、可自动更新、可追溯到来源的本地化链路。
+本文只说明 China localization 的实际范围、证据和缺口。项目 canonical positioning 与 non-goals 以 [Project scope](project-scope.md) 为准：core scope 是 reverse geocoding geodata，map、EXIF timezone、CDN/cache 和 Nginx 是 optional support。
 
 ## 本地化边界
 
@@ -9,16 +9,16 @@
 - 中国地图瓦片、GCJ-02 坐标转换不修改 Immich 核心；本项目只说明影响并给出可选部署方案。
 - 数据质量结论必须能由已发布制品、manifest 或独立复算复核，不能只靠项目介绍中的断言。
 
-## 六个支柱与实测现状
+## Core and optional areas
 
-| 层面 | 目标 | 当前证据 | 主要缺口 |
-|:--|:--|:--|:--|
-| 显示 | 中文地名，并按省/市/区县/乡镇逐级回退 | CN 34,897 条记录的展示名全部含中文（100%）；CN/HK/TW/MO 已在打包期做零缺失校验 | `{admin_3}` 只对 613 条 CN 点位改变展示名（1.8%），`{admin_4}` 只对 10 条改变（0.03%），离线数据大多止于市级 |
-| 检索 | 中文、拼音、英文与繁体均可检索 | 已核对苏州市可命中 `Suzhou`、`Suzhou Shi`、`su zhou`、`蘇州`；中文在展示名，别名保留在 `cities500.txt` 第 3 列 | 检索质量取决于 GeoNames `alternateNamesV2` 覆盖率，项目尚未逐地名生成拼音 |
-| 地图 | 可配置底图、坐标一致、来源可追溯 | Immich 支持配置 Light/Dark map style；本项目已说明 WGS-84 与 GCJ-02 的差异 | 上游默认依赖 `tiles.immich.cloud`，自定义外部域名还受 CSP 限制；本项目不托管或再分发地图瓦片 |
-| 体验 | 中文使用习惯、时区、刷新与排障路径一致 | 示例 compose 默认 `TZ: Asia/Shanghai`；中文地名生效、任务刷新、回滚与 FAQ 已文档化 | 中文 UI 本体来自 Immich 上游；本项目不维护 Immich 界面翻译分支 |
-| 加速 | 面向中国网络的 CDN、静态资源缓存与首屏体验 | Immich 已对 `/_app/immutable` 设置一年 immutable 缓存；项目提供 Nginx 源站和 CDN 接入边界 | 不提供公共 CDN 节点、不缓存私有照片；大陆 CDN 合规与备案需使用者自行确认 |
-| 数据 | 四级行政区可追溯、可量化、可复核 | GeoNames 快照、源 SHA256、覆盖率与制品摘要均进入 manifest | GeoNames 的 CN dump 中 `ADM3` 要素 2,938 条、`ADM4` 要素 11,878 条，但带 `admin3` 代码的只有 1,647 条、带 `admin4` 代码的只有 73 条 |
+| Area | Type | Goal | Evidence | Gap |
+|:--|:--|:--|:--|:--|
+| 显示 | Core | 中文地名，并按省/市/区县/乡镇逐级回退 | CN 34,897 条记录的展示名全部含中文（100%）；CN/HK/TW/MO 已在打包期做零缺失校验 | `{admin_3}` 只对 613 条 CN 点位改变展示名（1.8%），`{admin_4}` 只对 10 条改变（0.03%），离线数据大多止于市级 |
+| 检索 | Core | 中文、拼音、英文与繁体均可检索 | 已核对苏州市可命中 `Suzhou`、`Suzhou Shi`、`su zhou`、`蘇州`；中文在展示名，别名保留在 `cities500.txt` 第 3 列 | 检索质量取决于 GeoNames `alternateNamesV2` coverage，项目尚未逐地名生成拼音 |
+| 地图 | Optional | 可配置底图、坐标一致、来源可追溯 | Immich 支持配置 Light/Dark map style；项目已说明 WGS-84 与 GCJ-02 的差异 | 上游默认依赖 `tiles.immich.cloud`，自定义外部域名还受 CSP 限制；项目不托管或再分发地图瓦片 |
+| 体验 | Optional | 中文使用习惯、时区、刷新与排障路径一致 | 示例 compose 默认 `TZ: Asia/Shanghai`；中文地名生效、任务刷新、回滚与 FAQ 已文档化 | 中文 UI 本体来自 Immich 上游；项目不维护 Immich 界面翻译分支 |
+| 加速 | Optional | 面向中国网络的 CDN、静态资源缓存与首屏体验 | Immich 已对 `/_app/immutable` 设置一年 immutable 缓存；项目提供 Nginx origin 和 CDN 接入边界 | 不提供公共 CDN 节点、不缓存私有照片；大陆 CDN 合规与备案需使用者自行确认 |
+| 数据 | Core | 四级行政区可追溯、可量化、可复核 | GeoNames 快照、source SHA256、coverage 与 artifact digest 均进入 manifest | GeoNames 的 CN dump 中 `ADM3` 要素 2,938 条、`ADM4` 要素 11,878 条，但带 `admin3` 代码的只有 1,647 条、带 `admin4` 代码的只有 73 条 |
 
 上述数字来自 2026-10-07 对 GeoNames 与中国大陆已发布制品的测量，不是永久常量。上游为滚动数据，重新发布后应重新测量。
 

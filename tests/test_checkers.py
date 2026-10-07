@@ -310,7 +310,11 @@ def test_check_docs_detects_quote_soft_break(repo_copy: Path) -> None:
 def test_check_docs_detects_citation_punct_space(repo_copy: Path) -> None:
     """CITATION.cff 折叠标量会在中文标点后留下空格，必须被拦下。"""
     citation = repo_copy / "CITATION.cff"
-    mutate(citation, "面向中国用户的 Immich 本地化增强套件，提供", "面向中国用户的 Immich 本地化增强套件， 提供")
+    mutate(
+        citation,
+        "为 Immich 提供中国本地化的 reverse geocoding geodata：核心",
+        ("为 Immich 提供中国本地化的 reverse geocoding geodata： 核心"),
+    )
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "中文标点后出现空格" in result.stdout
@@ -502,21 +506,39 @@ def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
 
 
 def test_check_docs_requires_china_localization_anchor(repo_copy: Path) -> None:
-    """README 丢掉中国本地化定位时必须失败，避免方向再次退化成单纯数据包。"""
+    """README 丢掉 canonical positioning 时必须失败，避免范围再次漂移。"""
     readme = repo_copy / "README.md"
-    mutate(readme, "面向中国用户的 Immich 本地化增强套件", "Immich 数据工具")
+    mutate(readme, "immich-cn 为 Immich 提供中国本地化的 reverse geocoding geodata", "Immich 数据工具")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "中国本地化定位锚点" in result.stdout
 
 
-def test_check_docs_requires_china_localization_pillars(repo_copy: Path) -> None:
-    """六支柱被删掉一项时必须失败，避免路线图只剩宣传性描述。"""
+def test_check_docs_requires_china_localization_areas(repo_copy: Path) -> None:
+    """core/optional scope 表被删掉一项时必须失败，避免路线图只剩宣传性描述。"""
     localization = repo_copy / "docs" / "china-localization.md"
     mutate(localization, "| 检索 |", "| 查询 |")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "缺少「检索」行" in result.stdout
+
+
+def test_check_docs_requires_project_scope_sections(repo_copy: Path) -> None:
+    """canonical scope 必须显式区分 core、optional 和 non-goals。"""
+    scope = repo_copy / "docs" / "project-scope.md"
+    mutate(scope, "## Optional support", "## Other")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "Optional support" in result.stdout
+
+
+def test_check_docs_rejects_deprecated_scope_phrases(repo_copy: Path) -> None:
+    """已废弃的泛化定位不能重新写回 README。"""
+    readme = repo_copy / "README.md"
+    mutate(readme, "## 快速开始", "本地化不止于翻译：六个层面。\n\n## 快速开始")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "已废弃的范围表述" in result.stdout
 
 
 def test_check_docs_requires_china_timezone(repo_copy: Path) -> None:
