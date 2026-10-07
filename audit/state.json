@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 249,
-  "consecutive_clean": 0,
+  "round": 251,
+  "consecutive_clean": 1,
   "totals": {
-    "findings": 177,
-    "clean_rounds": 70,
+    "findings": 178,
+    "clean_rounds": 71,
     "p0": 0,
     "p1": 28,
-    "p2": 111,
+    "p2": 112,
     "p3": 41
   },
   "status": "active",
@@ -2537,6 +2537,26 @@
       "severity": "P2",
       "evidence": "独立取证：用同 Release 的 checksums 校验 dataset 与 manifest（均 OK）；实测结构=places/place_names 各 1,318,848、admin_areas 131,609、countries 252、sources 12、dataset_meta 8，localized_places 视图存在且文档里的查询逐字成功；places 含坐标/人口/source/in_default 的 CHECK，越界坐标 0 条；sources 12 条无空值。跨制品算术全部一致：outputPlaces=perCountry 求和=places 行数=1,318,848；perCountry.CN=956,792=数据集 CN 行数；sourcePlaces 235,649=cities500 计数；in_default=1 的 256,644=默认 geodata 变体行数；CN in_default=1 的 34,897=文档数值。确认问题：规范数据集 admin_areas 与适配器 admin1CodesASCII.txt 在 level-1 上有 26 处未记录差异（HK 18 + MO 8，如 HK.NYL 数据集=香港/适配器=香港特别行政区；level-2 33,661 条可比记录 0 差异）。差异本身是 pipeline 里 SPECIAL_ADMIN_TOP_LEVEL 的刻意覆盖，但文档没写、也没有任何跨制品检查，任一侧被改动（含静默失去覆盖）都不会被发现。修复：check_artifacts 新增 check_admin_area_consistency（仅允许 HK/MO level-1 覆盖，覆盖丢失也失败，两侧无数据也失败，常量复用 localization.SPECIAL_ADMIN_TOP_LEVEL）；docs/data-format.md 记录已知差异与实测数字；5 个用例（含覆盖丢失与未记录漂移负向控制），最小 dist 夹具补成自洽。真实发布制品与 smoke dist 上均 PASS。make check 416 tests 全绿；PR #193 合并 main b89f916，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/193"
+    },
+    {
+      "round": 250,
+      "timestamp": "2026-10-08T03:35:00+07:00",
+      "focus": "required check 能否拒绝「错误镜像名」PR（GHCR 包名契约）",
+      "method": "M1 变异探针（临时副本写入错误包名）+ M4 契约快照（canonical 包名）",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "在临时副本把 `_build-data.yml` 里 18 处 `ghcr.io/${GITHUB_REPOSITORY}` 改成 `...-typo`（含 `-server` → `-typo-server`）：`check_workflows` 仍 exit 0，`actionlint` 与 `Docker 冒烟构建` 也拦不住——冒烟用的是本地镜像名，永远不会碰 GHCR。也就是说 objective 第「反假通过」7 条点名的「错误镜像名 PR」当时无法被任何门禁拒绝，错误包名只能等真实发布才暴露，或静默发布到另一个包。修复：`check_workflows` 新增 `check_ghcr_package_names`，自有引用（`${GITHUB_REPOSITORY}` 与 `${{ github.repository }}` 两种写法）只允许后缀 `''`/`-server`，写死的引用只允许 `webees/immich-cn` 与 `webees/immich-cn-server`（同时拦 owner 与包名拼错）；补 2 个负向用例。验证：未改动仓库 exit 0；同一变异副本 exit 1 并逐条报出 `-typo` 与 `-typo-server`。make check 418 tests 全绿；PR #194 合并 main 600f0d4，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/194"
+    },
+    {
+      "round": 251,
+      "timestamp": "2026-10-08T04:05:00+07:00",
+      "focus": "「错误镜像名」在真实 PR 路径上的拒绝验证",
+      "method": "M3 负向实验（真实 PR #195）+ M4 控制面对拍",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "在 main（600f0d4）之上建一次性分支，把 `_build-data.yml` 的 server 包名改成 `-server-typo` 并开 PR #195：三项 Python required check 全部 conclusion=failure，日志含 `[!!] .github/workflows/_build-data.yml 使用了非规范的自有 GHCR 包名后缀 '-server-typo'` 与 `工作流契约检查失败：1 项`；`Docker 冒烟构建` 仍 success（与 round 250 的判断一致：它只用本地镜像名，本来抓不到这类错误）；GitHub API 返回 mergeable_state=blocked。随后关闭 PR（merged=false）并删除分支，main 未被触碰、工作区干净。本轮未发现新缺陷，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -2642,7 +2662,11 @@
     "第 249 轮的跨制品比对只覆盖 admin1/admin2 名称；place 名称、pattern 组合、countries 名称等其它字段没有做 dataset↔adapter 交叉比对",
     "dataset↔adapter 的 admin 比对依赖 dist 里同时存在 dataset 与至少一个 *-default geodata 包；若未来 dist 只产出其中一种，检查会静默 return（缺件由别的检查负责），需要时再收紧",
     "admin_areas 里缺失的 75 个 adapter level-1 代码被视为正常（它按「可从地点记录推导」定义）；若上游一次性丢掉大量 level-1 记录，只有降到 0 才会被空清单护栏拦住，数量骤降不会被发现",
-    "已发布产物的取证针对 data-2026-10-06；下一次发布后需要重新跑一遍 dataset/manifest/checksum 与跨制品比对（check_artifacts 已在 CI 覆盖新构建，但历史 Release 不会自动重验）"
+    "已发布产物的取证针对 data-2026-10-06；下一次发布后需要重新跑一遍 dataset/manifest/checksum 与跨制品比对（check_artifacts 已在 CI 覆盖新构建，但历史 Release 不会自动重验）",
+    "GHCR 包名护栏按 workflow 原始文本匹配：注释里写过时的包名同样会失败（对文档型注释略显严格），而由环境变量或 ${{ vars.* }} 动态拼出的包名不在覆盖范围内",
+    "护栏对 `${GITHUB_REPOSITORY}` 形式只能校验后缀；owner 写错这类问题只对写死的 `ghcr.io/<owner>/immich-cn*` 生效（当前 workflows 里没有写死的自有引用）",
+    "objective 点名的 required-check 负向控制还剩「空数据」「陈旧缓存」「过期 token」三类没有构造真实 PR；「测试失败」与「错误镜像名」已分别在第 246/251 轮用真实 PR 验证并关闭",
+    "负向控制 PR 每次会真实消耗 4 个 CI job（含 Docker 构建）；它们按设计关闭且不合并，但会在 PR 历史里留下记录"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
