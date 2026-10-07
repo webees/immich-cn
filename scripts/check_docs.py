@@ -678,6 +678,19 @@ def check_immich_compose_contract(errors: list[str]) -> None:
             errors.append(f"{path} 未使用 Immich v3.3 compose 对齐的 Valkey 9 digest")
 
 
+def check_timezone_api_contract(errors: list[str]) -> None:
+    """timezone 工具的文档必须描述 PATCH 优先、PUT fallback 的实际实现。"""
+    timezone_doc = Path("docs/timezone.md")
+    text = timezone_doc.read_text(encoding="utf-8")
+    if "PATCH /api/assets" not in text:
+        errors.append(f"{timezone_doc} 未说明 timezone 工具优先使用 PATCH /api/assets")
+    if "并通过 `PUT /api/assets` 批量更新" in text:
+        errors.append(f"{timezone_doc} 仍把 PUT 写成无条件批量更新方法，遗漏 404/405 fallback 边界")
+    integration = UPSTREAM_INTEGRATION_DOC.read_text(encoding="utf-8")
+    if "PATCH /api/assets" not in integration or "PUT" not in integration:
+        errors.append(f"{UPSTREAM_INTEGRATION_DOC} 未完整记录 timezone API 的 PATCH/fallback 契约")
+
+
 def check_absolute_claims(paths: list[Path], errors: list[str]) -> None:
     """拒绝没有范围、条件与例外的绝对化承诺。"""
     for path in paths:
@@ -1153,6 +1166,7 @@ def main(argv: list[str] | None = None) -> int:
     check_immich_ui_locale_contract(errors)
     check_nginx_upstream_contract(errors)
     check_immich_compose_contract(errors)
+    check_timezone_api_contract(errors)
     check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
     check_process_or_legal_claims([*doc_files, Path("CITATION.cff")], errors)
     check_independence_guidance(errors)

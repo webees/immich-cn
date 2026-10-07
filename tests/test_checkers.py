@@ -455,6 +455,19 @@ def test_check_docs_requires_machine_learning_in_full_compose(repo_copy: Path) -
     assert "immich-machine-learning" in result.stdout
 
 
+def test_check_docs_rejects_stale_timezone_api_description(repo_copy: Path) -> None:
+    """timezone 文档不能把 PUT 写成无条件批量更新方法。"""
+    timezone = repo_copy / "docs" / "timezone.md"
+    mutate(
+        timezone,
+        "并优先通过 `PATCH /api/assets` 批量更新；仅当旧版返回 `404`/`405` 时才回退到 `PUT /api/assets`",
+        "并通过 `PUT /api/assets` 批量更新",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "PUT" in result.stdout
+
+
 def test_check_docs_detects_license_field_drift(repo_copy: Path) -> None:
     """pyproject 的 license 与 LICENSE/CITATION 不一致时必须报错。"""
     pyproject = repo_copy / "pyproject.toml"
