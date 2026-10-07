@@ -2,11 +2,11 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 225,
-  "consecutive_clean": 0,
+  "round": 226,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 168,
-    "clean_rounds": 70,
+    "clean_rounds": 71,
     "p0": 0,
     "p1": 33,
     "p2": 102,
@@ -2291,6 +2291,16 @@
       "severity": "P2",
       "evidence": "`CONTRIBUTING.md` 仍把 `make check` 描述为 lint + mypy + pytest，`docs/development.md` 也漏掉 workflows/shellcheck；Makefile 实际执行 lint、typecheck、test、docs、workflows、shellcheck。修复：两处文档统一为完整门禁列表，新增 `check_make_check_description` 护栏与负向测试。make check 352 tests、docs、workflow、shell 全绿；PR #171 合并 main 2e385d4，四项 required checks 全绿。clean_streak 因本轮 findings 重置为 0。",
       "pr": "https://github.com/webees/immich-cn/pull/171"
+    },
+    {
+      "round": 226,
+      "timestamp": "2026-10-07T15:25:00+07:00",
+      "focus": "最新 main 的控制面复验：门禁、Ruleset、required checks 与工作区",
+      "method": "M4 外部控制面对拍 + 完整本地门禁",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "main 2e385d4 工作区干净；`make check` 352 passed，docs/workflow/shell 全绿。GitHub API 复核 Ruleset 24545711：active、bypass_actors=0，包含 deletion、non_fast_forward、pull_request、required_linear_history、required_status_checks；该 SHA 上四项 required check runs 均存在。无已确认缺陷，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
