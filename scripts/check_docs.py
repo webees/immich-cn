@@ -371,6 +371,19 @@ def check_langs_mounts(paths: list[Path], errors: list[str]) -> None:
             if ">= 1.136" in annotation and legacy in line and modern not in line:
                 errors.append(f"{path}:{index + 1} 标注为 >= 1.136.0 却使用了 {legacy} 路径")
 
+    # 数据镜像落地的 README 是用户唯一能看到的挂载说明：必须同时给出两个版本区间，
+    # 只写 < 1.136 会让 1.136.0 ~ 3.2.x 的用户把覆盖包放错位置。
+    install = Path("docker/install.sh")
+    if install.exists():
+        text = install.read_text(encoding="utf-8")
+        if "node_modules/i18n-iso-countries" in text:
+            for required, reason in (
+                ("/usr/src/app/node_modules", "Immich < 1.136.0"),
+                ("/usr/src/app/server/node_modules", "Immich 1.136.0 ~ 3.2.x"),
+            ):
+                if required not in text:
+                    errors.append(f"{install} 生成的 README 未给出 {reason} 的 i18n 挂载路径（{required}）")
+
 
 def check_discoverable(errors: list[str]) -> None:
     """关键文件必须至少被 README 或某个 docs 文档引用一次。"""
