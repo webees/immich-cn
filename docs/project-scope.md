@@ -26,6 +26,8 @@
 - CDN/cache 策略、Nginx origin 示例与 jsDelivr endpoint 配置；
 - 国内部署、registry mirror、时区与故障排查说明。
 
+上游 Immich 的固定契约、配置项与不可修改边界见 [Immich integration contract](immich-integration.md)。
+
 可选能力可以独立升级、替换或禁用，不应改变 core geodata output contract，也不应被描述成 Immich 的完整本地化 fork。
 
 ## Non-goals
