@@ -67,6 +67,7 @@
 
 ### 修复
 
+- `docs/packages.md` 明确镜像 tag 不带 `v` 前缀（Git Release 是 `vX.Y.Z`，镜像 tag 是 `X.Y.Z`，2026-10-07 实测带前缀返回 `not found`），补上可直接复制的拉取示例，并解释 Packages 页面上 `sha256-<digest>` 是 Cosign/attestation 的 OCI referrer tag 而非发布镜像；新增 `check_image_tag_examples` 护栏拒绝不符合发布契约的 tag 示例；
 - 缓存键引用了已重命名的模块（`config.py`），导致哈希维度静默为空；现改为 `settings.py` 并由护栏拦截同类死路径；
 - 所有 `actions/checkout` 显式关闭凭据持久化（`persist-credentials: false`）；
 - 校验和只登记本次构建的制品：不再把 `dist/` 里的历史残留（旧名 `SHA256SUMS`、`geodata_*.zip` 等）写进 `immich-cn-checksums-sha256-v1.txt` 并随之发布，`check_artifacts` 也会拒绝未登记文件；

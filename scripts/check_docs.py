@@ -190,6 +190,13 @@ MD_BLOCK_START = re.compile(r"^(#{1,6}\s|[-*+]\s|\d+[.)]\s|>|\||```|~~~|<|-{3,}$
 #: 中文标点后紧跟空格：YAML 折叠标量把中文描述折行时会产生这种痕迹。
 CJK_PUNCT_SPACE = re.compile(r"[、，。；：！？]\s")
 ASSET_TOKEN = re.compile(r"\bimmich-cn-[A-Za-z0-9._<>-]+")
+#: 文档里写死的镜像引用；只匹配具体 tag，占位符（如 `${VAR}`）不在此列。
+IMAGE_REFERENCE = re.compile(r"ghcr\.io/webees/immich-cn(?:-server)?:([A-Za-z0-9._-]+)")
+#: release.yml / _build-data.yml 真实推送的 tag 形态；语义版本不带 v 前缀。
+IMAGE_TAG_PATTERN = re.compile(
+    r"^(?:latest|release|release-\d{4}-\d{2}-\d{2}|\d{4}-\d{2}-\d{2}"
+    r"|\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?|sha-[0-9a-f]{7,40})$"
+)
 CANONICAL_GEODATA = re.compile(r"^immich-cn-geodata-[a-z0-9-]+-(default|full)-v[0-9]+\.zip$")
 INTERNAL_FILES = {"immich-cn-patterns-v1.tsv"}
 LEGACY_ASSET_PREFIXES = ("geodata_admin_", "geodata_full", "geodata.zip")
@@ -617,6 +624,30 @@ def check_registry_mirror_contract(errors: list[str]) -> None:
             errors.append(f"{path} 未默认使用中国 GHCR mirror：{GHCR_MIRROR_DEFAULT}")
         if GHCR_MIRROR_ENV not in text:
             errors.append(f"{path} 未提供 GHCR mirror 覆盖入口：{GHCR_MIRROR_ENV}")
+
+
+def check_image_tag_examples(doc_files: list[Path], errors: list[str]) -> None:
+    """文档里写死的 GHCR tag 必须符合真实发布形态。
+
+    2026-10-07 实测：镜像 tag 是 `1.0.4`（没有 `v` 前缀），Git Release tag 才是
+    `v1.0.4`。文档若把两者混写，用户复制命令会直接 `not found`，而这类错误没有
+    任何机械护栏能发现。
+    """
+    checked = 0
+    for path in doc_files:
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            for tag in IMAGE_REFERENCE.findall(line):
+                checked += 1
+                if not IMAGE_TAG_PATTERN.match(tag):
+                    errors.append(
+                        f"{path}:{number} 的镜像 tag {tag!r} 不符合发布契约"
+                        "（语义版本不带 v 前缀，可用形态见 docs/packages.md）"
+                    )
+    if checked == 0:
+        errors.append("文档中没有任何具体的 GHCR 镜像 tag 示例，镜像 tag 护栏可能已失效")
+    packages = Path("docs/packages.md")
+    if packages.exists() and "OCI referrer" not in packages.read_text(encoding="utf-8"):
+        errors.append(f"{packages} 未说明 Packages 页面上的 sha256-<digest> referrer tag 不是发布镜像")
 
 
 def check_immich_integration_contract(errors: list[str]) -> None:
@@ -1231,6 +1262,7 @@ def main(argv: list[str] | None = None) -> int:
     check_language_priority_doc(errors)
     check_hk_districts(errors)
     check_asset_names(render_files, errors)
+    check_image_tag_examples(doc_files, errors)
 
     for error in errors:
         print(f"[!!] {error}")

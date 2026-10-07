@@ -1347,6 +1347,42 @@ def test_check_workflows_requires_nginx_config_validation(repo_copy: Path) -> No
     assert "nginx -t" in result.stdout
 
 
+def test_check_docs_rejects_v_prefixed_image_tag(repo_copy: Path) -> None:
+    """镜像 tag 不带 v 前缀；写成 v1.0.4 会让用户 pull 直接 not found。"""
+    packages = repo_copy / "docs" / "packages.md"
+    mutate(packages, "ghcr.io/webees/immich-cn:1.0.4", "ghcr.io/webees/immich-cn:v1.0.4")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "不符合发布契约" in result.stdout
+
+
+def test_check_docs_requires_concrete_image_tag_example(repo_copy: Path) -> None:
+    """没有任何具体 tag 示例时护栏会失效，必须显式报错而不是静默通过。"""
+    changed = 0
+    for path in [repo_copy / "README.md", *(repo_copy / "docs").glob("*.md")]:
+        text = path.read_text(encoding="utf-8")
+        replaced = text.replace("ghcr.io/webees/immich-cn:", "ghcr.io/webees/immich-cn@").replace(
+            "ghcr.io/webees/immich-cn-server:", "ghcr.io/webees/immich-cn-server@"
+        )
+        if replaced != text:
+            path.write_text(replaced, encoding="utf-8")
+            changed += 1
+    assert changed > 0, "测试前提：至少有一个文档包含具体镜像 tag 示例"
+
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "护栏可能已失效" in result.stdout
+
+
+def test_check_docs_requires_referrer_tag_explanation(repo_copy: Path) -> None:
+    """Packages 页面上的 sha256-<digest> referrer tag 必须被解释，否则读者会当成镜像。"""
+    packages = repo_copy / "docs" / "packages.md"
+    mutate(packages, "OCI referrer", "容器镜像")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "referrer" in result.stdout
+
+
 def test_check_workflows_requires_update_monitor(repo_copy: Path) -> None:
     """缺少更新监控时，定时任务停摆将无人发现，必须直接失败。"""
     (repo_copy / ".github" / "workflows" / "monitor-update.yml").unlink()
