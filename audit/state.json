@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 230,
+  "round": 231,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 170,
+    "findings": 171,
     "clean_rounds": 71,
     "p0": 0,
     "p1": 33,
-    "p2": 104,
+    "p2": 105,
     "p3": 42
   },
   "status": "active",
@@ -2341,6 +2341,16 @@
       "severity": "P2",
       "evidence": "change detection 只比较 fingerprint、base digest 与 data image，不检查 `auto-release` asset 是否与 dist 一致；资产缺失、上传失败或多出 legacy 名时会错误进入 no-change 并关闭告警，当前 legacy assets 也属于该不一致状态。修复：新增 remote asset 与本地 dist 排序对拍，集合不一致时强制进入 release，由既有 reconciliation 删除 legacy/多余资产并补齐缺失资产；增加 workflow 静态护栏、负向测试与架构说明。make check 354 tests、docs、workflow、shell 全绿；PR #173 合并 main 82bf0cc，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/173"
+    },
+    {
+      "round": 231,
+      "timestamp": "2026-10-07T17:25:00+07:00",
+      "focus": "语义化 Release 与 image version tag 的一致性",
+      "method": "M6 发布配置审计 + M3 workflow 负向输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`release.yml` 原先允许 `push-images=false` 后仍创建语义化 GitHub Release，但不会产生 `immich-cn` / `immich-cn-server` 的 semantic version tag，违反 Packages 文档承诺并留下无对应镜像的版本。修复：validate 阶段强制 `push-images=true`，拒绝创建没有 image version tag 的 Release；增加 workflow 护栏、负向测试和文档说明。make check 355 tests、docs、workflow、shell 全绿；PR #174 合并 main d0d1f60，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/174"
     }
   ],
   "residual_risks": [
