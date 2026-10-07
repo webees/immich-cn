@@ -157,6 +157,19 @@ def test_check_docs_detects_makefile_download_size_drift(repo_copy: Path) -> Non
     assert "首次下载体积" in result.stdout or "压缩下载约 260 MiB" in result.stdout
 
 
+def test_check_docs_requires_complete_make_check_description(repo_copy: Path) -> None:
+    """make check 的说明不能漏掉 docs/workflows/shellcheck 门禁。"""
+    contributing = repo_copy / "CONTRIBUTING.md"
+    mutate(
+        contributing,
+        "make check       # lint + typecheck + test + docs + workflows + shellcheck",
+        "make check       # lint + mypy + pytest",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "实际门禁" in result.stdout
+
+
 def test_check_docs_detects_wrong_image_dataset_claim(repo_copy: Path) -> None:
     faq = repo_copy / "docs" / "faq.md"
     mutate(

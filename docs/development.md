@@ -20,7 +20,7 @@ make lint        # ruff check + ruff format --check
 make format      # ruff format + ruff check --fix
 make typecheck   # mypy
 make test        # pytest + 覆盖率
-make check       # lint + typecheck + test + docs
+make check       # lint + typecheck + test + docs + workflows + shellcheck
 make smoke       # 用合成数据跑完整流水线（不访问外网）
 make artifacts   # 校验 dist/ 制品（zip / manifest / immich-cn-checksums-sha256-v1.txt）
 make entrypoint  # 校验容器入口脚本对 IMMICH_CN_PATTERN 的处理

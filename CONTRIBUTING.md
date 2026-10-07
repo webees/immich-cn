@@ -6,7 +6,7 @@
 
 ```bash
 make install     # 创建 .venv 并安装依赖
-make check       # lint + mypy + pytest
+make check       # lint + typecheck + test + docs + workflows + shellcheck
 make smoke       # 合成数据端到端冒烟
 ```
 
