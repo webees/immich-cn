@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 221,
-  "consecutive_clean": 1,
+  "round": 222,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 165,
+    "findings": 166,
     "clean_rounds": 69,
     "p0": 0,
     "p1": 33,
-    "p2": 99,
+    "p2": 100,
     "p3": 42
   },
   "status": "active",
@@ -2251,6 +2251,16 @@
       "severity": null,
       "evidence": "触发 GitHub Actions `cleanup.yml` workflow_dispatch（apply=false）于 main 6df3f6e。运行成功：GITHUB_TOKEN 具备 Actions/Contents/Packages write；计划删除 Release 0、Actions 运行 0、GHCR `immich-cn` 0、`immich-cn-server` 0。该结果确认当前真实仓库没有超出保留策略的对象，且工作流内 token 能访问用户级 Packages API；本地 `gh` token 缺少 read:packages 不影响 Actions 路径。没有发现缺陷，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 222,
+      "timestamp": "2026-10-07T14:05:00+07:00",
+      "focus": "Immich UI locale 的当前 release 版本边界",
+      "method": "M4 上游 tag 源码对拍 + M3 负向文档输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "项目默认 Immich `release` 当前为 v3.2.4，且 v3.2.4 已内置 `i18n/zh_Hans.json`、`zh_Hant.json` 与同一组 locale alias；原文档只写 v3.3.0 内置，会让默认 release 用户误以为必须升级。修复：文档改为 v3.2.4 与 v3.3.0 均已内置，并新增版本边界负向测试。make check 350 tests、docs、workflow、shell 全绿；PR #169 合并 main 3354096，四项 required checks 全绿。clean_streak 因本轮 findings 重置为 0。",
+      "pr": "https://github.com/webees/immich-cn/pull/169"
     }
   ],
   "residual_risks": [
