@@ -84,7 +84,8 @@ jobs:
             'DB_USERNAME=immich' \
             'DB_DATABASE_NAME=immich' \
             'DB_DATA_LOCATION=/tmp/db' > "$workdir/.env"
-          for file in compose.*.yml; do
+          for path in "$workdir"/compose.*.yml; do
+            file="${path##*/}"
             (cd "$workdir" && docker compose -f "$file" config >/dev/null)
             echo "ok: $file"
           done
