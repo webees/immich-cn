@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 303,
+  "round": 304,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 200,
+    "findings": 201,
     "clean_rounds": 93,
     "p0": 0,
     "p1": 31,
-    "p2": 124,
+    "p2": 125,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M7 死代码与引用计数",
+  "last_method": "M9 文档-实现逐条核对",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3077,6 +3077,16 @@
       "severity": "P2",
       "evidence": "AST 引用计数确认 `AdminEntry.code`、`AdminUnit.level`、`AdminUnit.code` 只写不读：分别只在构造点赋值，生产与测试没有任何属性读取。删除三个字段、构造参数与测试初始化；`pytest tests/test_hierarchy.py tests/test_pipeline.py` 31 passed，`check_dead_symbols` 通过，`make check` 452 passed；PR #226 合并 main 10f8424，四项 required checks 全绿；clean_streak 归零。",
       "pr": "https://github.com/webees/immich-cn/pull/226"
+    },
+    {
+      "round": 304,
+      "timestamp": "2026-10-09T02:00:00+08:00",
+      "focus": "文档与实现一致性：容器包元数据链接",
+      "method": "M9 文档-实现逐条核对",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`pyproject.toml` 的 Container Image 指向 `/pkgs/container/immich-cn%2Fgeodata`，实测 HTTP 404；正确页面 `/pkgs/container/immich-cn` 返回 200。已修正 URL，并新增护栏与负向测试，要求该元数据始终等于 canonical 仓库包链接。`make check` 453 passed；PR #227 合并 main 177e138，四项 required checks 全绿；clean_streak 仍为 0。",
+      "pr": "https://github.com/webees/immich-cn/pull/227"
     }
   ],
   "residual_risks": [
@@ -3235,7 +3245,8 @@
     "第 300 轮 cProfile 数据来自最小合成数据集，导入开销占比高，不能外推到真实 131 万级地点构建；真实构建的性能结论仍以 docs/development.md 的实测为准",
     "第 301 轮只验证了制品命名正则的锚点与控制字符类；其他生产正则与分支没有在本轮逐一做等价性判定",
     "第 302 轮只反演了 admin2 可解析率阈值；其他覆盖率阈值由既有边界测试覆盖，但本轮没有逐一反演",
-    "第 303 轮的 AST 检查是临时脚本，尚未固化成 `make` 目标；数据类字段只写不读的问题仍可能在其他类中再次出现"
+    "第 303 轮的 AST 检查是临时脚本，尚未固化成 `make` 目标；数据类字段只写不读的问题仍可能在其他类中再次出现",
+    "第 304 轮只对 pyproject 的 Container Image URL 做了静态契约校验；其他项目 URL、外部文档链接与页面可达性仍未纳入自动联网检查"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
