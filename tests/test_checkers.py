@@ -403,6 +403,32 @@ def test_check_docs_rejects_ui_translation_as_upstream_requirement(repo_copy: Pa
     assert "UI translation" in result.stdout
 
 
+def test_check_docs_requires_nginx_upload_buffering_contract(repo_copy: Path) -> None:
+    """Nginx 示例漏掉上传旁路缓冲时，Immich 大文件会先被代理层落盘。"""
+    nginx = repo_copy / "examples" / "nginx" / "immich-cn.conf"
+    mutate(
+        nginx,
+        "    proxy_request_buffering off;\n",
+        "",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "proxy_request_buffering off" in result.stdout
+
+
+def test_check_docs_rejects_long_cache_on_nginx_errors(repo_copy: Path) -> None:
+    """Cache-Control always 会把 404/500 也标成一年公共缓存。"""
+    nginx = repo_copy / "examples" / "nginx" / "immich-cn.conf"
+    mutate(
+        nginx,
+        'add_header Cache-Control "public, max-age=31536000, immutable";',
+        'add_header Cache-Control "public, max-age=31536000, immutable" always;',
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "错误响应" in result.stdout
+
+
 def test_check_docs_detects_license_field_drift(repo_copy: Path) -> None:
     """pyproject 的 license 与 LICENSE/CITATION 不一致时必须报错。"""
     pyproject = repo_copy / "pyproject.toml"

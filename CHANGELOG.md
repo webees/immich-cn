@@ -33,6 +33,7 @@
 - 统一 Immich TSV 字段说明为明确的 0-based column 口径，修正 `admin1CodesASCII.txt` / `admin2Codes.txt` 的 key/name 位置描述，并增加文档护栏；
 - `set_asset_timezone.py` 改用 Immich v3.3.0 推荐的 `PATCH /api/assets`，仅在 `404`/`405` 时回退旧版 `PUT`，避免继续依赖已标记 deprecated 的 bulk update 方法；
 - 校正 UI locale 契约：Immich v3.3.0 已内置 `zh_Hans` / `zh_Hant`，用户可在 User Settings 选择；项目不再把 UI translation 写成需要上游修改，并记录浏览器 locale 别名映射；
+- Nginx 加速示例补齐 Immich reverse proxy 契约：上传旁路缓冲、50 GB body 上限、600 秒 WebSocket/传输超时；静态资源的 `Cache-Control` 不再用 `always` 污染 404/500 响应；
 - 部署示例默认设置 `TZ: Asia/Shanghai`，并补充国内镜像获取、digest 验证、WGS-84/GCJ-02 偏移与故障排查说明；
 - 规范 SQLite 数据集 `immich-cn-dataset-sqlite-v1.zip` 作为一等制品，Immich 文本格式改由适配器导出，详见 `docs/data-format.md` 与 ADR 0001；
 - `immich-cn artifact resolve` CLI：按 canonical ID、profile+scope 或历史别名解析制品；

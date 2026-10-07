@@ -130,6 +130,16 @@ CHINA_ACCELERATION_TOKENS = (
     "/_app/immutable/",
     "/api/",
 )
+NGINX_EXAMPLE = Path("examples/nginx/immich-cn.conf")
+NGINX_UPSTREAM_TOKENS = (
+    "proxy_request_buffering off;",
+    "client_body_buffer_size 1024k;",
+    "client_max_body_size 50000M;",
+    "proxy_read_timeout 600s;",
+    "proxy_send_timeout 600s;",
+    "send_timeout 600s;",
+    "proxy_redirect off;",
+)
 GHCR_MIRROR_DEFAULT = "ghcr.nju.edu.cn"
 GHCR_MIRROR_ENV = "IMMICH_CN_GHCR_MIRROR"
 TERMINOLOGY_DOC = Path("docs/terminology.md")
@@ -615,6 +625,19 @@ def check_immich_ui_locale_contract(errors: list[str]) -> None:
         errors.append(f"{CHINA_LOCALIZATION_DOC} 未记录 Immich 内置的中文 UI locale")
 
 
+def check_nginx_upstream_contract(errors: list[str]) -> None:
+    """Nginx 示例必须覆盖 Immich 上传、WebSocket 和静态错误响应边界。"""
+    if not NGINX_EXAMPLE.exists():
+        errors.append(f"缺失 Nginx 示例：{NGINX_EXAMPLE}")
+        return
+    text = NGINX_EXAMPLE.read_text(encoding="utf-8")
+    missing = [token for token in NGINX_UPSTREAM_TOKENS if token not in text]
+    if missing:
+        errors.append(f"{NGINX_EXAMPLE} 缺少 Immich reverse proxy 配置：{'、'.join(missing)}")
+    if re.search(r"add_header\s+Cache-Control[^\n;]*\balways\b", text):
+        errors.append(f"{NGINX_EXAMPLE} 的 Cache-Control 使用 always，会把 404/500 等错误响应也标成长期缓存")
+
+
 def check_absolute_claims(paths: list[Path], errors: list[str]) -> None:
     """拒绝没有范围、条件与例外的绝对化承诺。"""
     for path in paths:
@@ -1088,6 +1111,7 @@ def main(argv: list[str] | None = None) -> int:
     check_immich_integration_contract(errors)
     check_immich_column_contract(errors)
     check_immich_ui_locale_contract(errors)
+    check_nginx_upstream_contract(errors)
     check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
     check_process_or_legal_claims([*doc_files, Path("CITATION.cff")], errors)
     check_independence_guidance(errors)
