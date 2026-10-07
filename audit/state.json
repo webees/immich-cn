@@ -2,15 +2,15 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 262,
+  "round": 263,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 185,
+    "findings": 186,
     "clean_rounds": 75,
     "p0": 0,
     "p1": 28,
     "p2": 114,
-    "p3": 46
+    "p3": 47
   },
   "status": "active",
   "last_method": "M9",
@@ -2667,9 +2667,21 @@
       "severity": "P3",
       "evidence": "对 src/**/*.py + scripts/*.py 的模块级 def/async def/class/大写常量逐个在「源码 + 测试 + 工作流 + Makefile + 文档 + CHANGELOG」里搜名字：501 个定义里唯一零引用项是 `scripts/check_shell.py:18 SHELL_SUFFIXES`。核实它全仓只出现一次（定义处）、无 __all__ 导出、无测试/文档提及，而 check_shell 的文件发现用的是 `Path(\"docker\").glob(\"*.sh\") + Path(\"scripts\").glob(\"*.sh\")`——是第 63/73/83 轮连续记录却一直没删的历史遗留（第 245 轮收紧口径后那三轮已被改判 findings，等于长期拖累 clean streak）。修复：删除该常量（check_shell 仍通过：4 个脚本、6 个工作流）；新增 `scripts/check_dead_symbols.py` 与 `make audit-dead-symbols` 固化口径（__dunder__ 忽略、外部入口写 ALLOWED 并注明原因、退出码 0/1/2）；补 5 个用例（命中未引用常量、文档/工作流引用算引用、ALLOWED 放行、__dunder__ 忽略、CLI 失败与缺目录）；docs/maintenance.md 与 CHANGELOG 记录。元负向控制：在临时合成仓库放一个未引用常量 → 精确报 `src/pkg/mod.py:1 UNUSED_CONSTANT` 并 exit 1，同仓库被 caller 引用的函数不报。删除后复查：模块级定义 500 个、零外部引用 0 个。make check 438 tests 全绿；PR #201 合并 main 98b3399，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/201"
+    },
+    {
+      "round": 263,
+      "timestamp": "2026-10-08T11:30:00+07:00",
+      "focus": "已发布数据镜像的内容、入口与落地说明是否与文档一致",
+      "method": "M5 真实数据抽样（按 digest pull 并解包运行）+ M9 文档-实现核对",
+      "verdict": "findings",
+      "severity": "P3",
+      "evidence": "按 digest pull `ghcr.io/webees/immich-cn@sha256:fa8b3db5…`：Entrypoint/Cmd = [/usr/local/bin/immich-cn-install] / [--target /out]（与文档一致）；镜像内 /opt/immich-cn/geodata 60 MB（cities500.txt 46,986,540 B、geojson 13.3 MB、geodata-date.txt、NOTICE.txt）、i18n-iso-countries/langs 676 KB、patterns gz 6.3 MB；实际执行 `immich-cn-install --target /tmp/out` exit 0 并写出 geodata/ + i18n-iso-countries/ + README.md。体积数字复算：docker image ls=111MB（文档「本地显示约 111 MB」），amd64 manifest 压缩层 28.2 MiB=29.6 MB（文档「约 29.6 MB」）。确认问题（P3）：镜像里落地的 README 只写「i18n-iso-countries/ 放到 Immich < 1.136 的 node_modules/i18n-iso-countries」，而 docs/immich-integration.md 与仓库自己的 docker/entrypoint.sh 都表明 1.136.0 ~ 3.2.x 同样需要该覆盖包、路径是 /usr/src/app/server/node_modules/i18n-iso-countries——按镜像 README 操作会放错位置；这段文本由 docker/install.sh 生成且当时无任何护栏。修复：install.sh 的 README 同时列出 <1.136.0 / 1.136.0~3.2.x / 3.3.0+ 三个区间与对应路径；check_docs.check_langs_mounts 增加规则要求 install.sh 同时出现两个真实挂载路径；补负向用例。验证：未改动仓库 exit 0，删掉现代路径那行 exit 1 并报精确原因；make check 439 tests、make entrypoint 5 项全绿；PR #202 合并 main 1125207，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/202"
     }
   ],
   "residual_risks": [
+    "round 263 解包的是 arm64 变体（本机 arm64，按 index digest pull 时 Docker 自动选平台）：文件布局与 README 文本与平台无关，但「111MB」来自该 arm64 镜像的本地虚拟大小，而「28.2 MiB = 29.6 MB」是 amd64 manifest 的压缩层和，两个数字分属不同平台，引用时不要混用",
+    "数据镜像 README 的修复只影响后续构建：已发布的 immich-cn 镜像（digest fa8b3db5…）仍带旧的 `< 1.136` 说明与整套 73 个语言文件，要等下一次成功发布才会更新（与 i18n 裁剪同一个前置条件）",
     "死代码扫描是名字级文本启发式：通过 getattr / 字符串入口 / 插件注册表调用的定义会漏判（假阴），而注释或 CHANGELOG 里的纯文字提及会被算作引用（假阳）；ALLOWED 只用来登记确认为外部入口的例外，不能用来放宽规则",
     "make audit-dead-symbols 不在 make check 链路里（它是审计工具），新增的零引用定义只有显式运行才会被发现",
     "仓库 secret scanning 的 `non-provider patterns` 与 `validity checks` 仍是 disabled：round 261 用 PATCH /repos/.../security_and_analysis 尝试开启，HTTP 200 但值不变（token scopes 为 delete_repo/gist/read:org/repo/workflow，缺 security_events），需要在 Settings → Code security 里由 owner 手动开启",
