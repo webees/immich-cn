@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 294,
-  "consecutive_clean": 1,
+  "round": 295,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 197,
+    "findings": 198,
     "clean_rounds": 88,
     "p0": 0,
     "p1": 31,
-    "p2": 121,
+    "p2": 122,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M4 契约快照",
+  "last_method": "M10 shell/容器安全审查",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -2987,6 +2987,16 @@
       "severity": null,
       "evidence": "`check_docs`、`check_workflows`、`check_shell` 全部通过；`data-2026-10-08` 的 19 个 Release 资产全部匹配当前 canonical 命名正则，`auto-release` 与不可变快照资产数一致；`ghcr.io/webees/immich-cn:latest` digest 为 `sha256:0a886347…`，`immich-cn-server:latest` 与 `:release` 均为 `sha256:28ad2c61…`，与 docs/packages.md 的双镜像契约一致。本轮未发现 P0-P2 问题，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 295,
+      "timestamp": "2026-10-08T22:05:00+08:00",
+      "focus": "工作流失败路径：always() 依赖覆盖",
+      "method": "M10 shell/容器安全审查",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "把 `update-data.yml` 的 `resolve-previous-failure.if` 注入为 `always()`，`check_workflows.py` 仍通过，目标测试也存活；原因是护栏把 `always()` 当作安全聚合函数，导致发布失败时关闭告警的回归无人拦截。修复为只豁免 `failure()`/`success()`，要求 `always()`/`!cancelled()` 继续逐个判断 needs，并新增负向测试；`make check` 451 passed；PR #223 合并 main 256beab，四项 required checks 全绿；clean_streak 归零。",
+      "pr": "https://github.com/webees/immich-cn/pull/223"
     }
   ],
   "residual_risks": [
@@ -3136,7 +3146,8 @@
     "第 291 轮只变异了展示粒度的 admin_N 必需条件；占位符未知、重复去重、空值回退与 CJK 空格折叠分支没有逐一重复变异",
     "第 292 轮只反演了 countryInfo 的 100% 阈值；admin 总体/分地区、CN CJK、HK CJK、admin2 代码率与可解析率由既有边界测试覆盖，但本轮没有逐一反演其比较运算符",
     "第 293 轮的 M7 只检查了 PackageResult 字段引用，没有把「数据类字段只写不读」固化成自动护栏；`checksums` 目前仅由测试读取，若未来测试移除，需要重新评估其是否保留",
-    "第 294 轮资产与 digest 是 2026-10-08 的时点快照；滚动 `auto-release`、`latest` 与 `release` 标签可继续变化，文档护栏只校验命名与标签规则，不固定未来 digest"
+    "第 294 轮资产与 digest 是 2026-10-08 的时点快照；滚动 `auto-release`、`latest` 与 `release` 标签可继续变化，文档护栏只校验命名与标签规则，不固定未来 digest",
+    "第 295 轮的依赖覆盖护栏只检查 job 级 `if`；step 级 `always()` 与 `!cancelled()` 不在覆盖范围，若未来把关键收敛逻辑拆到 step 条件中需要另加检查"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
