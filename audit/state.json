@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 219,
+  "round": 220,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 164,
+    "findings": 165,
     "clean_rounds": 68,
     "p0": 0,
     "p1": 33,
-    "p2": 98,
+    "p2": 99,
     "p3": 42
   },
   "status": "active",
@@ -2231,6 +2231,16 @@
       "severity": "P2",
       "evidence": "第 215 轮已把 `set_asset_timezone.py` 改为 PATCH 优先、404/405 回退 PUT，但 `docs/timezone.md` 仍把 PUT 写成无条件批量更新方法。修复：改为明确 PATCH 优先和 fallback 边界，新增 timezone API 文档契约护栏与负向测试。make check 348 tests、docs、workflow、shell 全绿；PR #167 合并 main 3429798，四项 required checks 全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/167"
+    },
+    {
+      "round": 220,
+      "timestamp": "2026-10-07T13:25:00+07:00",
+      "focus": "滚动 Release 资产 prune 的单项失败韧性",
+      "method": "M6 失败路径审计 + M3 负向客户端实验",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`_prune_release_assets --apply` 遇到单个 Release 资产删除失败会立即中断，后续旧资产不会继续清理；这与 `apply_plan` 的“单项失败不阻断其他项”原则不一致。修复：逐项捕获 CleanupError，继续处理后续资产，结束后统一汇总失败并返回非零；新增负向测试验证失败项不阻断 later.zip。make check 349 tests、docs、workflow、shell 全绿；PR #168 合并 main 6df3f6e，四项 required checks 全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/168"
     }
   ],
   "residual_risks": [
