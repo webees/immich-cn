@@ -156,7 +156,7 @@ docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 - 长期固定到 `@sha256:<digest>`，不要只写 `latest`；
 - 从 Release 下载数据时使用 `immich-cn-checksums-sha256-v1.txt` 验证内容。
 
-国内网络环境下，地图底图与坐标偏移是另一个问题：本项目输出的坐标来自 GeoNames（WGS-84）。若底图使用 GCJ-02，请阅读 [中国本地化方向](china-localization.md) 的坐标说明，或改用 WGS-84 底图。
+国内网络环境下，地图底图与坐标偏移是另一个问题：本项目输出的坐标来自 GeoNames（WGS-84）。若底图使用 GCJ-02，请阅读 [中国本地化与加速](china.md) 的坐标说明，或改用 WGS-84 底图。
 
 ## CDN 与静态资源加速
 
@@ -165,7 +165,7 @@ docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 - [examples/compose.acceleration.yml](../examples/compose.acceleration.yml)：在 Immich 前增加 Nginx 源站；
 - [examples/nginx/immich-cn.conf](../examples/nginx/immich-cn.conf)：只缓存 `/_app/immutable/*`，其余请求默认旁路。
 
-本项目只提供源站策略，不运营公共 CDN。HTML、API、Cookie、认证头、原始照片和视频不得进入公共共享缓存；地图瓦片只能缓存自有或明确授权的内容。完整缓存矩阵、地图同源代理、CSP 和验证命令见 [中国网络与加速](china-acceleration.md)。
+本项目只提供源站策略，不运营公共 CDN。HTML、API、Cookie、认证头、原始照片和视频不得进入公共共享缓存；地图瓦片只能缓存自有或明确授权的内容。完整缓存矩阵、地图同源代理、CSP 和验证命令见 [中国本地化与加速](china.md)。
 
 ## 更新数据
 

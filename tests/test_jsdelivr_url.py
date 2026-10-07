@@ -13,9 +13,9 @@ def test_build_url_uses_china_mirror_by_default() -> None:
 
 
 def test_main_allows_user_configured_base(capsys) -> None:
-    assert main(["--base", "https://jsd.onmicrosoft.cn/", "--path", "docs/terminology.md"]) == 0
+    assert main(["--base", "https://jsd.onmicrosoft.cn/", "--path", "docs/conventions.md"]) == 0
     assert capsys.readouterr().out.strip() == (
-        "https://jsd.onmicrosoft.cn/gh/webees/immich-cn@main/docs/terminology.md"
+        "https://jsd.onmicrosoft.cn/gh/webees/immich-cn@main/docs/conventions.md"
     )
 
 

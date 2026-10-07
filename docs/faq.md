@@ -44,7 +44,7 @@ Immich 使用"最近的点"做反向地理编码，边界处的误差是原理�
 
 ## 地图上点位和底图有偏移怎么办？
 
-项目使用的 GeoNames 坐标是 WGS-84。OpenStreetMap 及其衍生底图通常也使用 WGS-84，不会产生系统性偏移；高德、腾讯等 GCJ-02 底图会有约数百米的偏移。Immich 不负责坐标转换，本项目也不在地名数据中混入 GCJ-02 坐标。请优先选择 WGS-84 底图，或在瓦片、代理或独立转换层处理坐标。细节见 [中国本地化方向](china-localization.md)。
+项目使用的 GeoNames 坐标是 WGS-84。OpenStreetMap 及其衍生底图通常也使用 WGS-84，不会产生系统性偏移；高德、腾讯等 GCJ-02 底图会有约数百米的偏移。Immich 不负责坐标转换，本项目也不在地名数据中混入 GCJ-02 坐标。请优先选择 WGS-84 底图，或在瓦片、代理或独立转换层处理坐标。细节见 [中国本地化与加速](china.md)。
 
 ## 国内拉取 GHCR 镜像不稳定怎么办？
 
@@ -59,7 +59,7 @@ docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 
 ## 可以把 Immich 放在国内 CDN 后面吗？
 
-可以，但必须严格区分内容：`/_app/immutable/*` 可以长缓存，HTML、`/api/*`、原始照片、缩略图和视频流默认不能进入公共 CDN。项目提供 [examples/compose.acceleration.yml](../examples/compose.acceleration.yml) 和 [examples/nginx/immich-cn.conf](../examples/nginx/immich-cn.conf)，完整边界见 [中国网络与加速](china-acceleration.md)。
+可以，但必须严格区分内容：`/_app/immutable/*` 可以长缓存，HTML、`/api/*`、原始照片、缩略图和视频流默认不能进入公共 CDN。项目提供 [examples/compose.acceleration.yml](../examples/compose.acceleration.yml) 和 [examples/nginx/immich-cn.conf](../examples/nginx/immich-cn.conf)，完整边界见 [中国本地化与加速](china.md)。
 
 ## 静态资源加速会不会拖慢或不安全？
 
@@ -67,7 +67,7 @@ docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 
 ## 地图瓦片也能加速吗？
 
-可以在自有或明确授权的瓦片服务前增加 CDN 和 Nginx 缓存，并把地图入口代理到同源路径，例如 `/maps/`。不要直接缓存并公开再分发商业瓦片；Immich 的 CSP 也可能限制外部地图域名，需要按上游配置方式显式调整。细节见 [中国网络与加速](china-acceleration.md)。
+可以在自有或明确授权的瓦片服务前增加 CDN 和 Nginx 缓存，并把地图入口代理到同源路径，例如 `/maps/`。不要直接缓存并公开再分发商业瓦片；Immich 的 CSP 也可能限制外部地图域名，需要按上游配置方式显式调整。细节见 [中国本地化与加速](china.md)。
 
 ## 项目只适合中国大陆数据吗？
 

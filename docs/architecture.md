@@ -172,10 +172,10 @@
 
 | 文件 | 用途 |
 |:--|:--|
-| `cities500.txt` | 反向地理编码点位，0-based column 1 是展示名 |
-| `admin1CodesASCII.txt` | 一级行政区名称；0-based column 0 是 key，0-based column 1 是名称 |
-| `admin2Codes.txt` | 二级行政区名称；0-based column 0 是 key，0-based column 1 是名称 |
-| `countryInfo.txt` | 国家名称；0-based column 4 是名称（Immich **3.3.0** 起使用） |
+| `cities500.txt` | 反向地理编码点位，第 1 列（0 基）是展示名 |
+| `admin1CodesASCII.txt` | 一级行政区名称；第 0 列（0 基）是键，第 1 列（0 基）是名称 |
+| `admin2Codes.txt` | 二级行政区名称；第 0 列（0 基）是键，第 1 列（0 基）是名称 |
+| `countryInfo.txt` | 国家名称；第 4 列（0 基）是名称（Immich **3.3.0** 起使用） |
 | `geodata-date.txt` | 数据版本，Immich 用它决定是否重新导入 |
 | `ne_10m_admin_0_countries.geojson` | 无城市点时的国家回退 |
 
@@ -188,4 +188,4 @@
 - **数据层**：GeoNames、行政区划、中文别名、SQLite 规范数据集和 Immich geodata 适配器；
 - **接入层**：Nginx、CDN、TLS、Brotli/HTTP2/3、静态资源缓存、地图同源代理和回源保护。
 
-接入层只缓存 `/_app/immutable/*` 这类带构建摘要的公开资源。HTML、`/api/*`、原始照片、缩略图和视频流默认旁路；地图瓦片必须来自自有或明确授权的服务。可执行示例和完整缓存矩阵见 [中国网络与加速](china-acceleration.md)。
+接入层只缓存 `/_app/immutable/*` 这类带构建摘要的公开资源。HTML、`/api/*`、原始照片、缩略图和视频流默认旁路；地图瓦片必须来自自有或明确授权的服务。可执行示例和完整缓存矩阵见 [中国本地化与加速](china.md)。

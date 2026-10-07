@@ -6,6 +6,8 @@
 
 ### 变更（含破坏性）
 
+- 文档改为**中文为主**：只有产品名、协议缩写与标识符保留英文，其余技术概念统一使用中文写法（发布、制品、清单、校验和、覆盖率、快照、缓存、指纹、镜像、摘要、标签、展示粒度等），并把术语表从「技术概念用英文」改成「英文 ↔ 中文对照」；
+- 合并重叠文档：`project-scope.md` + `china-localization.md` + `china-acceleration.md` → `docs/china.md`；`terminology.md` + `naming-conventions.md` + `documentation-policy.md` → `docs/conventions.md`。文档数从 21 篇降到 16 篇，护栏锚点同步更新；
 - **制品命名升到 v4**：发布资产改为 canonical-only，不再生成历史别名。`immich-cn-geodata-<profile>-<scope>-v1.zip` 取代 `geodata_admin_2.zip`、`geodata_admin_2_full.zip` 等旧名，也取代过渡期的 `immich-cn-geodata-immich-*`；其他资产统一为 `immich-cn-dataset-sqlite-v1.zip`、`immich-cn-patterns-tsv-v1.gz`、`immich-cn-i18n-json-v1.zip`、`immich-cn-manifest-json-v1.json`、`immich-cn-checksums-sha256-v1.txt`。manifest 的 `artifactSpecVersion` 为 `4`，固定引用旧文件名的使用者需要迁移；
 - 内部模块按职责重命名（`config.py` → `settings.py`、`build.py` → `pipeline.py`、`verify.py` → `validation.py` 等），命名规范见 `docs/naming-conventions.md`；
 - manifest 的 `stats` 明确为规范层 full 口径，并新增 `droppedCities` / `droppedExtra` 分段记录丢弃原因；`docs/artifact-spec.md` 说明该口径与变体行数的差异；
