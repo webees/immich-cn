@@ -500,6 +500,28 @@ def test_cities500_cjk_ratio_threshold_boundary(tmp_path: Path) -> None:
     assert check(8).passed is False, check(8).detail
 
 
+def test_cities500_cjk_strict_requires_zero_missing(tmp_path: Path) -> None:
+    """阈值检查允许少量缺失，严格检查必须零容忍（与打包期护栏一致）。"""
+
+    def check(chinese: int) -> dict[str, bool]:
+        path = tmp_path / f"cities-strict-{chinese}.txt"
+        write_lines(path, _cities(10, chinese, 10))
+        results = _check_cities500(
+            path,
+            min_cn_cjk_ratio=0.9,
+            min_cn_admin2_code_ratio=0.9,
+            admin2_codes={f"CN.04.A{i:03d}" for i in range(10)},
+        )
+        return {result.name: result.passed for result in results}
+
+    partial = check(9)
+    assert partial["cities500-cn-cjk"] is True  # 9/10 达到 90% 阈值
+    assert partial["cities500-cn-cjk-strict"] is False  # 但严格检查必须失败
+
+    full = check(10)
+    assert full["cities500-cn-cjk-strict"] is True
+
+
 def test_cities500_admin2_code_ratio_threshold_boundary(tmp_path: Path) -> None:
     def check(with_admin2: int):
         path = tmp_path / f"cities-a2-{with_admin2}.txt"
