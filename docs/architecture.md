@@ -7,7 +7,8 @@
 1. 从公开数据源生成可查询、可版本化的规范数据集；
 2. 把地名汉化到「国家 → 一级行政区 → 二级行政区 → 三级行政区 → 四级行政区」；
 3. 通过适配器导出 Immich 文本包，并以 Release 与容器镜像发布；
-4. 让整条链路可以在没有人工干预的情况下周期运行。
+4. 让整条链路可以在没有人工干预的情况下周期运行；
+5. 为中国部署场景提供地图、CDN、静态资源和源站缓存的接入边界，但不把私有照片或未授权瓦片纳入公共缓存。
 
 ## 流水线分层
 
@@ -178,3 +179,12 @@
 | `ne_10m_admin_0_countries.geojson` | 无城市点时的国家回退 |
 
 分界点经上游源码核对：Immich **3.2.4 及以下**（含 3.0.0 ~ 3.2.4）在 `server/src/repositories/map.repository.ts` 里 `import { getName } from 'i18n-iso-countries'`，需要 `i18n-iso-countries/langs/en.json` 覆盖；**3.3.0 起**该 import 被移除，改为读取 `countryInfo.txt`（`resourcePaths.geodata.countryInfo`）。镜像中同时提供两种覆盖文件，切版本时按上表挂载即可。
+
+## 中国本地化接入层
+
+数据构建与网络加速是两层不同职责：
+
+- **数据层**：GeoNames、行政区划、中文别名、SQLite 规范数据集和 Immich geodata 适配器；
+- **接入层**：Nginx、CDN、TLS、Brotli/HTTP2/3、静态资源缓存、地图同源代理和回源保护。
+
+接入层只缓存 `/_app/immutable/*` 这类带构建摘要的公开资源。HTML、`/api/*`、原始照片、缩略图和视频流默认旁路；地图瓦片必须来自自有或明确授权的服务。可执行示例和完整缓存矩阵见 [中国网络与加速](china-acceleration.md)。

@@ -50,6 +50,18 @@ Immich 使用"最近的点"做反向地理编码，边界处的误差是原理�
 
 可以配置你信任的 registry mirror，但必须验证它同步的是同一 digest；不要把任意镜像站当作官方来源。长期部署请固定到 `@sha256:<digest>`。数据 Release 下载后应使用 `immich-cn-checksums-sha256-v1.txt` 复核，具体命令见 [部署指南](deployment.md)。
 
+## 可以把 Immich 放在国内 CDN 后面吗？
+
+可以，但必须严格区分内容：`/_app/immutable/*` 可以长缓存，HTML、`/api/*`、原始照片、缩略图和视频流默认不能进入公共 CDN。项目提供 [examples/compose.acceleration.yml](../examples/compose.acceleration.yml) 和 [examples/nginx/immich-cn.conf](../examples/nginx/immich-cn.conf)，完整边界见 [中国网络与加速](china-acceleration.md)。
+
+## 静态资源加速会不会拖慢或不安全？
+
+`/_app/immutable/*` 的文件名带构建摘要，适合一年 immutable 缓存；HTML 和 API 不缓存，避免版本错配和登录态泄漏。命中率提升不能以缓存私有照片为代价。项目不提供公共 CDN 节点，CDN 供应商的备案、合规、节点质量和计费需自行确认。
+
+## 地图瓦片也能加速吗？
+
+可以在自有或明确授权的瓦片服务前增加 CDN 和 Nginx 缓存，并把地图入口代理到同源路径，例如 `/maps/`。不要直接缓存并公开再分发商业瓦片；Immich 的 CSP 也可能限制外部地图域名，需要按上游配置方式显式调整。细节见 [中国网络与加速](china-acceleration.md)。
+
 ## 项目只适合中国大陆数据吗？
 
 不是。默认构建仍处理全球 `cities500`，但优先级和验证标准面向中国用户：CN/HK/TW/MO 有严格中文零缺失检查，中国大陆的区县、乡镇覆盖率被单独量化。海外地名能否显示中文，取决于 GeoNames 中文别名覆盖率与可选 provider；这不会阻止中国地区的名字正常显示。

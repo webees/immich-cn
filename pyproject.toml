@@ -5,14 +5,27 @@ build-backend = "hatchling.build"
 [project]
 name = "immich-cn"
 version = "1.0.4"
-description = "面向中国用户的 Immich 本地化数据、检索与自动化构建流水线"
+description = "面向中国用户的 Immich 本地化增强套件：中文数据、地图体验、CDN 加速与自动化发布"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "webees" }]
 maintainers = [{ name = "webees" }]
-keywords = ["immich", "china", "localization", "geodata", "geocoding", "geonames", "chinese", "i18n"]
+keywords = [
+  "immich",
+  "china",
+  "localization",
+  "geodata",
+  "geocoding",
+  "geonames",
+  "chinese",
+  "i18n",
+  "cdn",
+  "jsdelivr",
+  "static-assets",
+  "maps",
+]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: End Users/Desktop",

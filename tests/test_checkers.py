@@ -310,7 +310,7 @@ def test_check_docs_detects_quote_soft_break(repo_copy: Path) -> None:
 def test_check_docs_detects_citation_punct_space(repo_copy: Path) -> None:
     """CITATION.cff 折叠标量会在中文标点后留下空格，必须被拦下。"""
     citation = repo_copy / "CITATION.cff"
-    mutate(citation, "面向中国用户的 Immich 本地化项目，提供", "面向中国用户的 Immich 本地化项目， 提供")
+    mutate(citation, "面向中国用户的 Immich 本地化增强套件，提供", "面向中国用户的 Immich 本地化增强套件， 提供")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "中文标点后出现空格" in result.stdout
@@ -504,14 +504,14 @@ def test_check_docs_rejects_rewrite_positioning(repo_copy: Path) -> None:
 def test_check_docs_requires_china_localization_anchor(repo_copy: Path) -> None:
     """README 丢掉中国本地化定位时必须失败，避免方向再次退化成单纯数据包。"""
     readme = repo_copy / "README.md"
-    mutate(readme, "面向中国用户的 Immich 本地化项目", "Immich 数据工具")
+    mutate(readme, "面向中国用户的 Immich 本地化增强套件", "Immich 数据工具")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "中国本地化定位锚点" in result.stdout
 
 
 def test_check_docs_requires_china_localization_pillars(repo_copy: Path) -> None:
-    """四支柱被删掉一项时必须失败，避免路线图只剩宣传性描述。"""
+    """六支柱被删掉一项时必须失败，避免路线图只剩宣传性描述。"""
     localization = repo_copy / "docs" / "china-localization.md"
     mutate(localization, "| 检索 |", "| 查询 |")
     result = run_checker(repo_copy, "check_docs.py")
@@ -526,6 +526,46 @@ def test_check_docs_requires_china_timezone(repo_copy: Path) -> None:
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "中国本地化默认时区" in result.stdout
+
+
+def test_check_docs_requires_china_acceleration_entrypoint(repo_copy: Path) -> None:
+    """README 必须把 CDN 与静态资源加速列为中国本地化的一等能力。"""
+    readme = repo_copy / "README.md"
+    text = readme.read_text(encoding="utf-8")
+    assert "docs/china-acceleration.md" in text
+    readme.write_text(text.replace("docs/china-acceleration.md", "docs/china-localization.md"), encoding="utf-8")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "docs/china-acceleration.md" in result.stdout
+
+
+def test_check_docs_requires_acceleration_cache_boundary(repo_copy: Path) -> None:
+    """加速文档必须明确不可变静态资源与 API 的缓存边界。"""
+    acceleration = repo_copy / "docs" / "china-acceleration.md"
+    text = acceleration.read_text(encoding="utf-8")
+    assert "/_app/immutable/" in text
+    acceleration.write_text(text.replace("/_app/immutable/", "/assets/"), encoding="utf-8")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "/_app/immutable/" in result.stdout
+
+
+def test_check_docs_requires_acceleration_examples(repo_copy: Path) -> None:
+    """加速文档必须引用可直接部署的 compose 与 Nginx 示例。"""
+    acceleration = repo_copy / "docs" / "china-acceleration.md"
+    mutate(acceleration, "../examples/compose.acceleration.yml", "../examples/compose.server.yml")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "../examples/compose.acceleration.yml" in result.stdout
+
+
+def test_check_docs_requires_jsdelivr_release_limit(repo_copy: Path) -> None:
+    """免费 CDN 说明必须保留 Release 附件不能被 jsDelivr 直接代理的边界。"""
+    acceleration = repo_copy / "docs" / "china-acceleration.md"
+    mutate(acceleration, "Release 资产", "Release 文件")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "Release 资产" in result.stdout
 
 
 def test_check_docs_rejects_process_claims(repo_copy: Path) -> None:
@@ -827,6 +867,28 @@ def test_check_workflows_requires_compose_example_validation(repo_copy: Path) ->
     result = run_checker(repo_copy, "check_workflows.py")
     assert result.returncode == 1
     assert "docker compose config" in result.stdout
+
+
+def test_check_workflows_requires_all_compose_examples(repo_copy: Path) -> None:
+    """新增 compose 示例后，CI 不能只校验旧的固定文件列表。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    mutate(
+        workflow,
+        'cp examples/compose.*.yml "$workdir/"',
+        'cp examples/compose.server.yml examples/compose.volume.yml "$workdir/"',
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "通配符覆盖全部 compose 示例" in result.stdout
+
+
+def test_check_workflows_requires_nginx_config_validation(repo_copy: Path) -> None:
+    """Nginx 加速配置必须经过真实语法检查，不能只检查 YAML 挂载路径。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    mutate(workflow, "nginx -t", "nginx -T")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "nginx -t" in result.stdout
 
 
 def test_check_workflows_detects_illegal_key_on_reusable_job(repo_copy: Path) -> None:

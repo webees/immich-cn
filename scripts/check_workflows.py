@@ -221,7 +221,7 @@ def check_version_release(path: Path, workflow: dict[str, Any], errors: list[str
     """版本化 Release 必须把同一版本传递给两个镜像，并在构建前检查占用。"""
     if path.name != "release.yml":
         return
-    text = yaml.safe_dump(workflow, allow_unicode=True)
+    text = path.read_text(encoding="utf-8")
     if "needs: validate" not in text or "docker manifest inspect" not in text:
         errors.append(f"{path} 缺少版本 Release 的预检查；重复版本可能在构建后失败并覆盖镜像标签")
     if "image-version: ${{ inputs.version }}" not in text:
@@ -479,13 +479,24 @@ def check_examples_compose_validation(path: Path, workflow: dict[str, Any], erro
     """
     if path.name != "ci.yml":
         return
-    text = yaml.safe_dump(workflow, allow_unicode=True)
+    # PyYAML 会把长 run 字符串折行，直接检查原始文本才能匹配准确的 shell 片段。
+    del workflow
+    text = path.read_text(encoding="utf-8")
     if "docker compose -f" not in text:
         errors.append(f"{path} 未用 docker compose config 校验 examples/，文档示例可能悄悄失效")
         return
-    for name in ("compose.server.yml", "compose.volume.yml"):
-        if name not in text:
-            errors.append(f"{path} 的 compose 校验没有覆盖 {name}")
+    examples = path.parents[2] / "examples"
+    compose_files = sorted(examples.glob("compose.*.yml"))
+    if not compose_files:
+        errors.append(f"{path} 的 CI 未发现任何 examples/compose.*.yml，compose 校验可能已失效")
+    if "examples/compose.*.yml" not in text or 'for path in "$workdir"/compose.*.yml' not in text:
+        errors.append(
+            f"{path} 未用 examples/compose.*.yml 通配符覆盖全部 compose 示例，"
+            "新增示例可能不会被 docker compose config 校验"
+        )
+    nginx_config = examples / "nginx" / "immich-cn.conf"
+    if nginx_config.exists() and ("nginx -t" not in text or nginx_config.name not in text):
+        errors.append(f"{path} 未用 nginx -t 校验 {nginx_config.relative_to(examples.parent)}")
 
 
 def check_checkout_credentials(path: Path, workflow: dict[str, Any], errors: list[str]) -> int:

@@ -13,7 +13,9 @@
 
 ### 新增
 
-- 项目定位升级为面向中国用户的 Immich 本地化项目，新增 `docs/china-localization.md` 说明显示、检索、部署、数据四个支柱、实测缺口与分阶段验收标准；
+- 项目定位升级为面向中国用户的 Immich 本地化增强套件，新增 `docs/china-localization.md` 说明显示、检索、地图、体验、加速、数据六个支柱、实测缺口与分阶段验收标准；
+- 新增 `docs/china-acceleration.md`、`examples/compose.acceleration.yml` 与 `examples/nginx/immich-cn.conf`：明确 CDN、HTML/API/照片/视频缓存边界，并提供可校验的 Nginx 静态资源缓存源站；
+- 增加 jsDelivr 免费 CDN 可选说明：仅服务 GitHub 分支、tag 或提交中的静态文件，实测不能代理 GitHub Release 附件；中国线路质量需按地区、运营商和时段自行验证；
 - 部署示例默认设置 `TZ: Asia/Shanghai`，并补充国内镜像获取、digest 验证、WGS-84/GCJ-02 偏移与故障排查说明；
 - 规范 SQLite 数据集 `immich-cn-dataset-sqlite-v1.zip` 作为一等制品，Immich 文本格式改由适配器导出，详见 `docs/data-format.md` 与 ADR 0001；
 - `immich-cn artifact resolve` CLI：按 canonical ID、profile+scope 或历史别名解析制品；

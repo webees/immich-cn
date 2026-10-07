@@ -15,19 +15,34 @@ import re
 import sys
 from pathlib import Path
 
-#: 仅作为构建参数或外部镜像契约，不需要在本项目运行时文档中出现的变量。
+#: 仅作为构建参数、上游 Immich 契约或外部镜像契约，不需要在本项目运行时代码中出现的变量。
 BUILD_ONLY = {
     "IMMICH_BASE",
+    "IMMICH_HELMET_FILE",
     "IMMICH_VERSION",
     "IMMICH_CN_DATA_DATE",
+    "IMMICH_CN_HTTP_PORT",
     "IMMICH_MACHINE_LEARNING_ENABLED",
 }
 
 #: 参与契约检查的文档（含贡献指南与安全策略，它们同样会引用路径与命令）
 DOC_GLOBS = ("README.md", "docs/*.md", "CONTRIBUTING.md", "SECURITY.md")
 #: 同样会被渲染成 Markdown 的附加文件：Release 说明、Issue 模板、示例注释。
-RENDER_EXTRA_GLOBS = (".github/*.md", ".github/ISSUE_TEMPLATE/*.yml", "examples/*.yml")
-CODE_GLOBS = ("src/**/*.py", "docker/*", "scripts/*", ".github/workflows/*.yml", ".github/*.md", "examples/*.yml")
+RENDER_EXTRA_GLOBS = (
+    ".github/*.md",
+    ".github/ISSUE_TEMPLATE/*.yml",
+    "examples/*.yml",
+    "examples/nginx/*.conf",
+)
+CODE_GLOBS = (
+    "src/**/*.py",
+    "docker/*",
+    "scripts/*",
+    ".github/workflows/*.yml",
+    ".github/*.md",
+    "examples/*.yml",
+    "examples/nginx/*.conf",
+)
 
 ENV_PATTERN = re.compile(r"\b(IMMICH_[A-Z0-9_]+)\b")
 # 只允许行内空白，避免把「上一行以 immich-cn 结尾、下一行以别的单词开头」误判成子命令
@@ -67,11 +82,13 @@ INDEPENDENCE_SECTION_END = "## 数据模型与使用方式"
 
 #: 中国本地化是项目的主方向，README、专题文档、部署示例和时区默认值必须一致。
 CHINA_LOCALIZATION_DOC = Path("docs/china-localization.md")
-CHINA_LOCALIZATION_ANCHOR = "面向中国用户的 Immich 本地化项目"
-CHINA_LOCALIZATION_PILLARS = ("显示", "检索", "部署", "数据")
+CHINA_LOCALIZATION_ANCHOR = "面向中国用户的 Immich 本地化增强套件"
+CHINA_LOCALIZATION_PILLARS = ("显示", "检索", "地图", "体验", "加速", "数据")
 CHINA_LOCALIZATION_PHASES = ("阶段 1", "阶段 2", "阶段 3", "阶段 4")
 CHINA_TIMEZONE = "TZ: Asia/Shanghai"
 CHINA_LOCALIZATION_OVERCLAIM = "完整行政区层级"
+CHINA_ACCELERATION_DOC = Path("docs/china-acceleration.md")
+CHINA_ACCELERATION_TOKENS = ("CDN", "jsDelivr", "Release 资产", "Cache-Control", "/_app/immutable/", "/api/")
 
 #: 时间承诺（“会在 N 天内回复”）无法保证，必须改为“通常”并注明不是承诺。
 #: 已经带“通常”的句式视为合规，不再重复报警（否则护栏会自相矛盾）。
@@ -92,7 +109,7 @@ INTERNAL_FILES = {"immich-cn-patterns-v1.tsv"}
 LEGACY_ASSET_PREFIXES = ("geodata_admin_", "geodata_full", "geodata.zip")
 
 #: 价值完全依赖"能被找到"的文件：必须在 README 或 docs 中被引用，否则等于隐藏文件。
-DISCOVERABLE_GLOBS = ("NOTICE", "examples/*.yml", "docs/*.md")
+DISCOVERABLE_GLOBS = ("NOTICE", "examples/*.yml", "examples/nginx/*.conf", "docs/*.md")
 
 #: 文档里以这些后缀出现的反引号路径必须是仓库中真实存在的文件
 FILE_SUFFIXES = (".py", ".sh", ".toml", ".json", ".yml", ".yaml", ".md", ".cff", ".cfg", ".txt")
@@ -408,12 +425,14 @@ def check_project_positioning(errors: list[str]) -> None:
 
 
 def check_china_localization_contract(errors: list[str]) -> None:
-    """中国本地化定位必须可发现、覆盖四个支柱，并给出中国时区默认值。"""
+    """中国本地化定位必须可发现、覆盖六个支柱，并给出中国时区默认值。"""
     readme = Path("README.md").read_text(encoding="utf-8")
     if CHINA_LOCALIZATION_ANCHOR not in readme:
         errors.append(f"README 缺少中国本地化定位锚点：{CHINA_LOCALIZATION_ANCHOR}")
     if "docs/china-localization.md" not in readme:
         errors.append("README 必须链接 docs/china-localization.md，说明本地化边界与路线图")
+    if "docs/china-acceleration.md" not in readme:
+        errors.append("README 必须链接 docs/china-acceleration.md，说明 CDN 与静态资源加速边界")
     if CHINA_LOCALIZATION_OVERCLAIM in readme:
         errors.append(f"README 不应把当前未完成的目标写成既成事实：{CHINA_LOCALIZATION_OVERCLAIM}")
 
@@ -423,10 +442,21 @@ def check_china_localization_contract(errors: list[str]) -> None:
     doc = CHINA_LOCALIZATION_DOC.read_text(encoding="utf-8")
     for pillar in CHINA_LOCALIZATION_PILLARS:
         if f"| {pillar} |" not in doc:
-            errors.append(f"{CHINA_LOCALIZATION_DOC} 的四支柱表缺少「{pillar}」行")
+            errors.append(f"{CHINA_LOCALIZATION_DOC} 的六支柱表缺少「{pillar}」行")
     for phase in CHINA_LOCALIZATION_PHASES:
         if phase not in doc:
             errors.append(f"{CHINA_LOCALIZATION_DOC} 缺少路线图阶段：{phase}")
+
+    if not CHINA_ACCELERATION_DOC.exists():
+        errors.append(f"缺失中国加速专题文档：{CHINA_ACCELERATION_DOC}")
+    else:
+        acceleration = CHINA_ACCELERATION_DOC.read_text(encoding="utf-8")
+        missing = [token for token in CHINA_ACCELERATION_TOKENS if token not in acceleration]
+        if missing:
+            errors.append(f"{CHINA_ACCELERATION_DOC} 缺少加速边界：{'、'.join(missing)}")
+        for example in ("../examples/compose.acceleration.yml", "../examples/nginx/immich-cn.conf"):
+            if example not in acceleration:
+                errors.append(f"{CHINA_ACCELERATION_DOC} 未引用可执行示例：{example}")
 
     for path in (Path("docs/deployment.md"), *sorted(Path("examples").glob("*.yml"))):
         if CHINA_TIMEZONE not in path.read_text(encoding="utf-8"):
