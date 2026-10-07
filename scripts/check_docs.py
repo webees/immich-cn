@@ -82,12 +82,16 @@ INDEPENDENCE_SECTION_END = "## Data model and usage"
 
 #: 中国本地化是项目的主方向，README、专题文档、部署示例和时区默认值必须一致。
 CHINA_LOCALIZATION_DOC = Path("docs/china-localization.md")
-CHINA_LOCALIZATION_ANCHOR = "面向中国用户的 Immich 本地化增强套件"
-CHINA_LOCALIZATION_PILLARS = ("显示", "检索", "地图", "体验", "加速", "数据")
+CHINA_LOCALIZATION_ANCHOR = "immich-cn 为 Immich 提供中国本地化的 reverse geocoding geodata"
+CHINA_LOCALIZATION_AREAS = ("显示", "检索", "地图", "体验", "加速", "数据")
 CHINA_LOCALIZATION_PHASES = ("阶段 1", "阶段 2", "阶段 3", "阶段 4")
 CHINA_TIMEZONE = "TZ: Asia/Shanghai"
 CHINA_LOCALIZATION_OVERCLAIM = "完整行政区层级"
 CHINA_ACCELERATION_DOC = Path("docs/china-acceleration.md")
+PROJECT_SCOPE_DOC = Path("docs/project-scope.md")
+PROJECT_SCOPE_ANCHOR = "Canonical positioning"
+PROJECT_SCOPE_SECTIONS = ("Core scope", "Optional support", "Non-goals")
+FORBIDDEN_SCOPE_PHRASES = ("本地化增强套件", "本地化不止于翻译", "六个层面", "六个支柱")
 CHINA_ACCELERATION_TOKENS = (
     "CDN",
     "jsDelivr",
@@ -452,27 +456,45 @@ def check_project_positioning(errors: list[str]) -> None:
 
 
 def check_china_localization_contract(errors: list[str]) -> None:
-    """中国本地化定位必须可发现、覆盖六个支柱，并给出中国时区默认值。"""
+    """项目定位必须引用唯一 scope 文档，并区分 core 与 optional support。"""
     readme = Path("README.md").read_text(encoding="utf-8")
     if CHINA_LOCALIZATION_ANCHOR not in readme:
         errors.append(f"README 缺少中国本地化定位锚点：{CHINA_LOCALIZATION_ANCHOR}")
+    if "docs/project-scope.md" not in readme:
+        errors.append("README 必须链接 docs/project-scope.md，统一 core/optional scope 与 non-goals")
     if "docs/china-localization.md" not in readme:
         errors.append("README 必须链接 docs/china-localization.md，说明本地化边界与路线图")
     if "docs/china-acceleration.md" not in readme:
         errors.append("README 必须链接 docs/china-acceleration.md，说明 CDN 与静态资源加速边界")
     if CHINA_LOCALIZATION_OVERCLAIM in readme:
         errors.append(f"README 不应把当前未完成的目标写成既成事实：{CHINA_LOCALIZATION_OVERCLAIM}")
+    for phrase in FORBIDDEN_SCOPE_PHRASES:
+        if phrase in readme:
+            errors.append(f"README 使用了已废弃的范围表述：{phrase}")
 
     if not CHINA_LOCALIZATION_DOC.exists():
         errors.append(f"缺失中国本地化专题文档：{CHINA_LOCALIZATION_DOC}")
         return
     doc = CHINA_LOCALIZATION_DOC.read_text(encoding="utf-8")
-    for pillar in CHINA_LOCALIZATION_PILLARS:
-        if f"| {pillar} |" not in doc:
-            errors.append(f"{CHINA_LOCALIZATION_DOC} 的六支柱表缺少「{pillar}」行")
+    for area in CHINA_LOCALIZATION_AREAS:
+        if f"| {area} |" not in doc:
+            errors.append(f"{CHINA_LOCALIZATION_DOC} 的 core/optional scope 表缺少「{area}」行")
     for phase in CHINA_LOCALIZATION_PHASES:
         if phase not in doc:
             errors.append(f"{CHINA_LOCALIZATION_DOC} 缺少路线图阶段：{phase}")
+
+    if not PROJECT_SCOPE_DOC.exists():
+        errors.append(f"缺失项目 scope 文档：{PROJECT_SCOPE_DOC}")
+    else:
+        scope = PROJECT_SCOPE_DOC.read_text(encoding="utf-8")
+        if PROJECT_SCOPE_ANCHOR not in scope:
+            errors.append(f"{PROJECT_SCOPE_DOC} 缺少 canonical positioning：{PROJECT_SCOPE_ANCHOR}")
+        for section in PROJECT_SCOPE_SECTIONS:
+            if section not in scope:
+                errors.append(f"{PROJECT_SCOPE_DOC} 缺少 scope section：{section}")
+        for phrase in FORBIDDEN_SCOPE_PHRASES:
+            if phrase in scope:
+                errors.append(f"{PROJECT_SCOPE_DOC} 使用了已废弃的范围表述：{phrase}")
 
     if not CHINA_ACCELERATION_DOC.exists():
         errors.append(f"缺失中国加速专题文档：{CHINA_ACCELERATION_DOC}")

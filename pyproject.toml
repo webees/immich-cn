@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "immich-cn"
 version = "1.0.4"
-description = "面向中国用户的 Immich 本地化增强套件：中文数据、地图体验、CDN 加速与自动化发布"
+description = "为 Immich 提供中国本地化的 reverse geocoding geodata、自动 Release 与可选地图/CDN 辅助"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"

@@ -1,12 +1,10 @@
 # immich-cn
 
-> **面向中国用户的 Immich 本地化增强套件**：提供中文地名与检索、地图与坐标说明、时区体验、CDN 与静态资源加速、国内部署排障，以及全自动数据更新和 image 发布。Auto Data Update workflow 按设计每天检查并更新（运行前提见后文）。
+> **immich-cn 为 Immich 提供中国本地化的 reverse geocoding geodata**：核心是中文地名、中文/拼音检索、行政层级和自动 Release/image；地图、EXIF timezone、CDN/cache 与 Nginx 示例是可选辅助能力，不构成 Immich UI fork。
 
 [![CI](https://github.com/webees/immich-cn/actions/workflows/ci.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/ci.yml) [![Data Update](https://github.com/webees/immich-cn/actions/workflows/update-data.yml/badge.svg)](https://github.com/webees/immich-cn/actions/workflows/update-data.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Container](https://img.shields.io/badge/ghcr.io-immich--cn-blue)](https://github.com/webees/immich-cn/pkgs/container/immich-cn)
 
-Immich 的反向地理编码默认输出英文地名，本项目的目标是让照片地图显示**熟悉的中文地名**，并且可以直接用中文搜索地点。
-
-本地化不止于翻译：项目按「显示、检索、地图、体验、加速、数据」六个层面推进，当前进展与短板都写在 [中国本地化方向](docs/china-localization.md) 里；CDN、cache 边界和 Nginx origin 示例见 [中国网络与加速](docs/china-acceleration.md)。技术术语统一遵循 [术语规范](docs/terminology.md)。
+Immich 的反向地理编码默认输出英文地名。本项目的 core scope 是让照片地图显示中文地名，并支持中文、拼音、英文和繁体检索。地图、EXIF timezone、CDN/cache 和 Nginx origin 属于 optional support，不是对 Immich 的完整本地化 fork。完整范围和 non-goals 见 [Project scope](docs/project-scope.md)，当前数据缺口见 [中国本地化范围](docs/china-localization.md)。技术术语统一遵循 [术语规范](docs/terminology.md)。
 
 本项目按独立实现组织：本仓库当前树中的代码、配置、CI workflow 与数据构建脚本由本项目维护，没有引用或打包同类项目的代码文件与人工整理数据文件；核查范围、关键词与边界见 [docs/documentation-policy.md](docs/documentation-policy.md)。文末「致谢」记录了与本项目相关的上游思路来源。Immich 文本格式兼容属于消费者接口适配，不定义本项目的内部数据模型。以上描述的是当前仓库状态与项目声明，不是对历史过程或法律状态的结论。本仓库的源代码、配置、CI workflow 和文档采用 **MIT** 许可；生成的 database 与 geodata artifact 不属于 MIT，data source、署名和再分发要求见 [docs/licensing.md](docs/licensing.md)。
 
@@ -203,6 +201,7 @@ release.yml ──► 手动创建语义化版本 Release
 - [架构设计](docs/architecture.md)
 - [中国本地化方向](docs/china-localization.md)
 - [中国网络与加速](docs/china-acceleration.md)
+- [Project scope](docs/project-scope.md)
 - [术语规范](docs/terminology.md)
 - [Artifact naming spec v4](docs/artifact-spec.md)
 - [项目命名规范](docs/naming-conventions.md)

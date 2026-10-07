@@ -13,7 +13,7 @@
 
 ### 新增
 
-- 项目定位升级为面向中国用户的 Immich 本地化增强套件，新增 `docs/china-localization.md` 说明显示、检索、地图、体验、加速、数据六个支柱、实测缺口与分阶段验收标准；
+- 项目定位收敛为“为 Immich 提供中国本地化的 reverse geocoding geodata”；新增 `docs/project-scope.md` 统一 core scope、optional support 与 non-goals，`docs/china-localization.md` 只记录实际证据、缺口和 roadmap；
 - 新增 `docs/china-acceleration.md`、`examples/compose.acceleration.yml` 与 `examples/nginx/immich-cn.conf`：明确 CDN、HTML/API/照片/视频缓存边界，并提供可校验的 Nginx 静态资源缓存源站；
 - 增加 jsDelivr 免费 CDN 可选说明：仅服务 GitHub 分支、tag 或提交中的静态文件，实测不能代理 GitHub Release 附件；中国线路质量需按地区、运营商和时段自行验证；
 - 缩小 Docker 镜像与语言包：数据镜像移除不必要的 `gzip` 包和多条 `RUN` 层，`immich-cn-i18n-json-v1.zip` 只发布旧版 Immich 实际读取的 `en.json` 与上游 `LICENSE`，不再复制整个 i18n 语言包；

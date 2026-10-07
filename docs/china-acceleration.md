@@ -1,6 +1,6 @@
 # 中国网络与加速
 
-本项目的加速范围是**自托管 Immich 的接入层和静态资源分发**，不运营公共 CDN，也不承诺跨运营商、跨地区的固定延迟。目标是在可验证的缓存边界内，降低静态前端、地图资源和数据制品的重复传输。
+本文件说明 **optional support**：自托管 Immich 的接入层、静态资源分发和 cache 边界。项目不运营公共 CDN，也不承诺跨运营商、跨地区的固定延迟；这些说明不改变 [Project scope](project-scope.md) 中 reverse geocoding geodata 的 core scope。
 
 ## 推荐链路
 
