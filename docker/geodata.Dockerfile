@@ -15,11 +15,8 @@ ARG PATTERNS_TABLE=dist/immich-cn-patterns-tsv-v1.gz
 COPY ${GEODATA_DIR} /opt/immich-cn/geodata
 COPY ${LANGS_DIR} /opt/immich-cn/i18n-iso-countries/langs
 COPY ${PATTERNS_TABLE} /opt/immich-cn/immich-cn-patterns-tsv-v1.gz
-COPY docker/install.sh /usr/local/bin/immich-cn-install
-COPY docker/apply-pattern.sh /usr/local/bin/immich-cn-apply-pattern
-
-RUN chmod 0755 /usr/local/bin/immich-cn-install /usr/local/bin/immich-cn-apply-pattern \
- && apk add --no-cache gzip
+COPY --chmod=0755 docker/install.sh /usr/local/bin/immich-cn-install
+COPY --chmod=0755 docker/apply-pattern.sh /usr/local/bin/immich-cn-apply-pattern
 
 ENV IMMICH_CN_GEODATA_DIR=/opt/immich-cn/geodata \
     IMMICH_CN_LANGS_DIR=/opt/immich-cn/i18n-iso-countries \

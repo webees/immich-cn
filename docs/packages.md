@@ -15,6 +15,25 @@ GHCR 中有两个容器包，它们不是重复镜像，也不是可互换别名
 
 许可证也不同：`immich-cn` 的数据处理层按 MIT 发布；`immich-cn-server` 包含上游 Immich server 代码，按当前组合方式声明为 `AGPL-3.0-only AND MIT`。具体再分发义务应结合镜像内实际文件确认。
 
+## 镜像大小与取舍
+
+镜像大小要区分两个数字：
+
+- `docker image ls` 显示的是本地解压后的近似大小；
+- registry 实际传输的是压缩层，`docker buildx imagetools inspect` 或 registry manifest 才能看到拉取体积。
+
+以 2026-10-07 的发布为例，数据镜像 `immich-cn` 本地显示约 111 MB，但其 amd64 压缩层合计约 29.6 MB；最大固定成本是 geodata 和运行时粒度表，不是入口脚本或基础系统。`immich-cn-server` 本地约 1.63 GB，主要来自上游 Immich server 基础镜像；本项目新增的数据层只占其中很小一部分。
+
+当前针对尺寸的约束：
+
+- 数据镜像使用 Alpine 自带工具，不额外安装 `gzip` 包；
+- Dockerfile 用 `COPY --chmod` 设置脚本权限，避免额外的 `RUN chmod` 层；
+- `build/langs`、Release 的 i18n 包和 Docker 镜像只保留旧版 Immich 实际读取的 `en.json` 与上游 `LICENSE`，不再复制整套语言包；
+- `.dockerignore` 只放行 `build/geodata`、`build/langs` 和运行时粒度表，源码、缓存、测试和构建中间文件不会进入上下文；
+- CI 对合成构建的两个镜像设置 10 MiB 尺寸预算，并检查镜像内不存在冗余 `zh.json`。
+
+不采用“先把数据打成 tar.gz 再放入镜像”的方案：OCI 层本身已经压缩，重复压缩对拉取体积收益有限，却增加启动解压时间和临时磁盘占用。需要更小体积时，优先使用纯数据镜像或 `--geodata-only`，而不是删除运行时需要的 geodata、粒度表或许可证。
+
 ## 标签
 
 | Package | 标签 | 用途 |

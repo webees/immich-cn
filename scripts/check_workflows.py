@@ -499,6 +499,24 @@ def check_examples_compose_validation(path: Path, workflow: dict[str, Any], erro
         errors.append(f"{path} 未用 nginx -t 校验 {nginx_config.relative_to(examples.parent)}")
 
 
+def check_image_size_budget(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """CI 必须给出镜像尺寸预算，并阻止冗余语言包重新进入镜像。"""
+    if path.name != "ci.yml":
+        return
+    del workflow
+    text = path.read_text(encoding="utf-8")
+    required = (
+        "镜像尺寸预算",
+        "IMAGE_SIZE_BUDGET_BYTES",
+        "docker image inspect immich-cn-geodata:ci",
+        "docker image inspect immich-cn-server:ci",
+        "/opt/immich-cn/i18n-iso-countries/langs/zh.json",
+    )
+    missing = [token for token in required if token not in text]
+    if missing:
+        errors.append(f"{path} 缺少镜像尺寸或语言包最小化护栏：{'、'.join(missing)}")
+
+
 def check_checkout_credentials(path: Path, workflow: dict[str, Any], errors: list[str]) -> int:
     """每个 actions/checkout 都必须关闭凭据持久化，返回发现的 checkout 数量。
 
@@ -588,6 +606,7 @@ def main() -> int:
         check_hash_files_paths(path, workflow, errors)
         checkout_total += check_checkout_credentials(path, workflow, errors)
         check_examples_compose_validation(path, workflow, errors)
+        check_image_size_budget(path, workflow, errors)
         check_published_url_verification(path, workflow, errors)
 
     if checkout_total == 0:

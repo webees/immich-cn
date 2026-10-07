@@ -21,11 +21,10 @@ USER root
 COPY ${GEODATA_DIR} /opt/immich-cn/geodata
 COPY ${LANGS_DIR} /opt/immich-cn/i18n-iso-countries/langs
 COPY ${PATTERNS_TABLE} /opt/immich-cn/immich-cn-patterns-tsv-v1.gz
-COPY docker/entrypoint.sh /usr/local/bin/immich-cn-entrypoint
-COPY docker/apply-pattern.sh /usr/local/bin/immich-cn-apply-pattern
+COPY --chmod=0755 docker/entrypoint.sh /usr/local/bin/immich-cn-entrypoint
+COPY --chmod=0755 docker/apply-pattern.sh /usr/local/bin/immich-cn-apply-pattern
 
-RUN chmod 0755 /usr/local/bin/immich-cn-entrypoint /usr/local/bin/immich-cn-apply-pattern \
- && mkdir -p /build/geodata
+RUN mkdir -p /build/geodata
 
 ENV IMMICH_CN_GEODATA_DIR=/opt/immich-cn/geodata \
     IMMICH_CN_LANGS_DIR=/opt/immich-cn/i18n-iso-countries/langs \

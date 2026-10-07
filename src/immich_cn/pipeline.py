@@ -608,8 +608,10 @@ def _write_levels(
 
 
 def _write_langs(source_dir: Path, options: BuildOptions) -> Path:
-    """把 zh 语言文件写成 ``en.json``，兼容只读取 en 的旧版 Immich。"""
+    """只写出旧版 Immich 实际读取的 ``en.json``，避免把整个语言包放进制品。"""
     destination = options.work_dir / "langs"
+    if destination.exists():
+        shutil.rmtree(destination)
     destination.mkdir(parents=True, exist_ok=True)
     zh_path = source_dir / "zh.json"
     if not zh_path.exists():
@@ -620,12 +622,10 @@ def _write_langs(source_dir: Path, options: BuildOptions) -> Path:
         if isinstance(raw_countries, dict)
         else {}
     )
-    for json_file in sorted(source_dir.glob("*.json")):
-        target = destination / json_file.name
-        payload = json.loads(json_file.read_text(encoding="utf-8"))
-        if json_file.name == "en.json":
-            payload = {"locale": "en", "countries": countries}
-        target.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (destination / "en.json").write_text(
+        json.dumps({"locale": "en", "countries": countries}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     license_source = source_dir.parent / "LICENSE"
     if not license_source.exists():
         raise ParseError(f"缺少 {license_source}，无法发布上游版权声明")
