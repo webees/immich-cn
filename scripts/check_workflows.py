@@ -46,6 +46,15 @@ GLOB_CHARS = "*?[]"
 #: CONTRIBUTING.md 中列出 required check 的引导语与 job 名里的 matrix 占位符。
 REQUIRED_CHECK_HEADER = "必须通过以下状态检查"
 NAME_MATRIX_EXPR = re.compile(r"\$\{\{\s*matrix\.([A-Za-z0-9_-]+)\s*\}\}")
+#: 发布路径里自有的 GHCR 引用（`${GITHUB_REPOSITORY}` 与 `${{ github.repository }}` 两种写法）。
+OWN_GHCR_REFERENCE = re.compile(
+    r"ghcr\.io/(?:\$\{GITHUB_REPOSITORY\}|\$\{\{\s*github\.repository\s*\}\})([A-Za-z0-9._-]*)"
+)
+#: 自有包只允许 canonical 数据镜像与其 server 覆盖镜像这两种名字。
+CANONICAL_OWN_SUFFIXES = ("", "-server")
+#: 写死 owner/name 的自有引用（含拼错的 owner 或包名）。
+HARDCODED_OWN_REFERENCE = re.compile(r"ghcr\.io/([A-Za-z0-9._-]+)/(immich-cn[A-Za-z0-9._-]*)")
+CANONICAL_OWN_REPOSITORIES = {("webees", "immich-cn"), ("webees", "immich-cn-server")}
 
 
 def load(path: Path) -> dict[str, Any] | None:
@@ -203,6 +212,30 @@ def check_snapshot_immutability(path: Path, workflow: dict[str, Any], errors: li
                 errors.append(
                     f"{path}:{job_name}/step#{index} 使用 --clobber 覆盖 data-${{DATE}}；不可变日期快照不能被改写"
                 )
+
+
+def check_ghcr_package_names(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """发布路径只能使用两个 canonical GHCR 包名。
+
+    2026-10-07 实测：把 `_build-data.yml` 里 18 处 `ghcr.io/${GITHUB_REPOSITORY}`
+    改成 `...-typo` 之后，`check_workflows`、`actionlint` 与冒烟构建全部通过——因为
+    冒烟用本地镜像名，永远不会碰 GHCR。错误包名只会在真实发布时才暴露，或者更糟：
+    静默发布到另一个包。
+    """
+    del workflow
+    text = path.read_text(encoding="utf-8")
+    for suffix in sorted({match.group(1) for match in OWN_GHCR_REFERENCE.finditer(text)}):
+        if suffix not in CANONICAL_OWN_SUFFIXES:
+            errors.append(
+                f"{path} 使用了非规范的自有 GHCR 包名后缀 {suffix!r}：只允许 "
+                "ghcr.io/${GITHUB_REPOSITORY} 与 ghcr.io/${GITHUB_REPOSITORY}-server"
+            )
+    for owner, name in sorted({match.groups() for match in HARDCODED_OWN_REFERENCE.finditer(text)}):
+        if (owner, name) not in CANONICAL_OWN_REPOSITORIES:
+            errors.append(
+                f"{path} 引用了非规范 GHCR 包 ghcr.io/{owner}/{name}："
+                "自有包只能是 webees/immich-cn 与 webees/immich-cn-server"
+            )
 
 
 def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
@@ -750,6 +783,7 @@ def main() -> int:
         check_release_asset_reconciliation(path, workflow, errors)
         check_snapshot_immutability(path, workflow, errors)
         check_image_supply_chain(path, workflow, errors)
+        check_ghcr_package_names(path, workflow, errors)
         check_version_release(path, workflow, errors)
         check_cleanup_workflow(path, workflow, errors)
         check_concurrency(path, workflow, errors)
