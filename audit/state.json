@@ -2,15 +2,15 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 264,
-  "consecutive_clean": 1,
+  "round": 265,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 186,
+    "findings": 187,
     "clean_rounds": 76,
     "p0": 0,
     "p1": 28,
     "p2": 114,
-    "p3": 47
+    "p3": 48
   },
   "status": "active",
   "last_method": "M9",
@@ -2687,6 +2687,16 @@
       "severity": null,
       "evidence": "四项扫描全部干净：① 全仓（py/sh/yml/md，排除 .git/.venv/work/build*/dist*）**0 个 TODO/FIXME/XXX/HACK**；② 旧模块名（config.py/build.py/verify.py/models.py/package.py/patterns.py/chinese.py/canonical.py/http.py/ratelimit.py/logging_setup.py）在源码与文档中零命中，唯一命中是 tests/test_checkers.py:1574 里故意把 settings.py 改回 config.py 的负向控制变异；③ legacy 资产名（geodata_admin_2.zip、dataset.sqlite.zip、SHA256SUMS、patterns.tsv.gz、i18n-iso-countries.zip）只出现在 CHANGELOG（历史记录）与 tests（负向控制），活代码不再依赖前缀白名单——cleanup 现在的口径是「不在本次 dist 清单里就删」（round 257 已对真实 Release 验证）；④ 旧项目名 immich-geodata-cn 只出现在 CITATION.cff 的 references（带 notes 说明）、README 底部致谢、check_docs 的期望上游 URL 与测试夹具——都是刻意署名位置，CITATION 顶层 title/repository-code 仍指向本项目。另确认 __pycache__/.mypy_cache 未被 git 跟踪（git ls-files 计数 0）。未发现缺陷，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 265,
+      "timestamp": "2026-10-08T13:00:00+07:00",
+      "focus": "文档描述、标题字数与表格排版是否统一",
+      "method": "M9 文档-实现逐条核对 + M1 变异探针（新增排版护栏）",
+      "verdict": "findings",
+      "severity": "P3",
+      "evidence": "确认三处文档缺陷：① README 维度表已膨胀到 9 行，偏离用户指定的五个核心维度；② docs/development.md 的 CLI 参数表被 `--provider auto` 段落从中间打断，后续 6 行失去表头；③ 多篇文档仍有 Pipeline layers、Local development、Rollback、Provider environment variables 等纯英文二级标题，且 README 文档索引重复列出 conventions/data-format，并出现 Data sources and processing 英文标签。修复：README 只保留代码许可、构建入口、外部依赖、行政区粒度、发布方式五个维度，方式一至方式五统一为 8 字；全部二级以下纯英文标题改为中文短标题；文档索引去重并覆盖全部 docs/*.md；CLI 表格恢复连续；CITATION.cff 与 pyproject.toml 描述改为中文。新增 check_readme_dimensions、check_readme_doc_index、check_markdown_layout，并补 4 个负向用例：增加维度行、英文标题、重复索引、正文打断表格均能精确失败。验证：make check 443 passed，文档契约检查通过 15 个文档、56 个实现文件，工作流与 Shell 契约全绿；PR #207 合并 main 281e43e，四项 required checks 全绿；clean_streak 归零。",
+      "pr": "https://github.com/webees/immich-cn/pull/207"
     }
   ],
   "residual_risks": [
