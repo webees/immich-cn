@@ -233,6 +233,8 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
         errors.append(f"{path} change detection 未把 Immich base digest 纳入重建判断")
     if "previous_data_digest" not in text or '[ -n "$previous_data_digest" ]' not in raw_text:
         errors.append(f"{path} change detection 未把 data image 存在性纳入重建判断")
+    if "release_assets_ok" not in text or '[ "$release_assets_ok" = true ]' not in raw_text:
+        errors.append(f"{path} change detection 未把 Release asset 集合纳入重建判断")
     if text.count("imagetools create") < 1 or text.count("${IMAGE_VERSION}") < 2:
         errors.append(f"{path} 缺少数据与 server 镜像的语义化版本标签")
     if (

@@ -1018,6 +1018,17 @@ def test_check_workflows_requires_data_image_in_change_detection(repo_copy: Path
     assert "data image 存在性" in result.stdout
 
 
+def test_check_workflows_requires_release_assets_in_change_detection(repo_copy: Path) -> None:
+    """Release 资产缺失或多出时不能因 fingerprint 未变而跳过发布。"""
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    text = workflow.read_text(encoding="utf-8")
+    assert "release_assets_ok" in text
+    workflow.write_text(text.replace("release_assets_ok", "release_assets"), encoding="utf-8")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "Release asset 集合" in result.stdout
+
+
 def test_check_workflows_requires_full_stack_smoke(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
     mutate(
