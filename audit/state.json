@@ -2,7 +2,7 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 270,
+  "round": 271,
   "consecutive_clean": 0,
   "totals": {
     "findings": 189,
@@ -2747,6 +2747,16 @@
       "severity": null,
       "evidence": "确认 check_dead_symbols 是离线检查但原先只通过 make audit-dead-symbols 人工执行；已在 ci.yml 的 Python 作业中加入同一脚本。本地 make audit-dead-symbols 通过（零引用定义 0），make check 447 passed；PR #211 四项 required checks 全绿并合并 main 50ea416。该轮是覆盖加固，不产生新的 clean 结论。",
       "pr": "https://github.com/webees/immich-cn/pull/211"
+    },
+    {
+      "round": 271,
+      "timestamp": "2026-10-08T17:20:00+07:00",
+      "focus": "过期/无效 GitHub 令牌的负向控制",
+      "method": "M1 变异探针（401 鉴权失败）",
+      "verdict": "wait",
+      "severity": null,
+      "evidence": "新增 test_github_client_rejects_expired_token_without_retry：模拟 GitHub 返回 401 Bad credentials，断言 CleanupError 立即抛出且只请求一次，避免重试掩盖鉴权失败。make check 448 passed；PR #212 四项 required checks 全绿并合并 main 41d2a9f。该轮补齐 objective 的过期 token 负向控制，不产生新的 clean 结论。",
+      "pr": "https://github.com/webees/immich-cn/pull/212"
     }
   ],
   "residual_risks": [
