@@ -55,6 +55,21 @@
 
 `validation.py` 对以上四项做构建期校验：`cities500-immich-columns` 检查长度上限与两字符 `countryCode`，`cities500-modification-date` 检查 `YYYY-MM-DD` 可解析性。这两项在 2026-10-07 的真实制品上均为 0 违规。
 
+### Place search
+
+上游 `server/src/repositories/search.repository.ts:searchPlaces` 用 strict word similarity 匹配四个字段，而不是 `LIKE`：
+
+```sql
+f_unaccent(name) %>> f_unaccent($1)
+OR f_unaccent("admin2Name") %>> f_unaccent($1)
+OR f_unaccent("admin1Name") %>> f_unaccent($1)
+OR f_unaccent("alternateNames") %>> f_unaccent($1)
+```
+
+这四个字段分别来自 `cities500.txt` column 1、`admin2Codes.txt`、`admin1CodesASCII.txt` 与 `cities500.txt` column 3。因此中文检索同时依赖展示名、行政层级中文名与别名列，三者任一缺失都会让对应查询无结果。
+
+`%>>` 与 `LIKE` 的召回并不等价：以 2026-10-07 的制品实测，`name = '苏州市'` 时 `name LIKE '苏州市%'` 为真，但 `name %>> '苏州'` 为假（strict word similarity 0.4 < 默认阈值 0.5），此时查询能命中只是因为别名列里存在独立的 `苏州` token。full-stack smoke 因此直接执行上面的谓词并断言 `苏州市`、`苏州`、`Suzhou`、`蘇州`、`昆山` 都至少有 1 条命中，而不是用 `LIKE` 代替。
+
 ## Config and environment
 
 以下变量属于 Immich upstream contract，可用于部署层调整：

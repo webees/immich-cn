@@ -115,6 +115,8 @@ UPSTREAM_INTEGRATION_TOKENS = (
     "reverseGeocodeMaxDistance",
     "Column limits",
     "cities500-immich-columns",
+    "Place search",
+    "searchPlaces",
     "zh_Hans",
     "zh_Hant",
     "User Settings",
