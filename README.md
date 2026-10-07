@@ -204,6 +204,7 @@ release.yml ──► 手动创建语义化版本 Release
 - [中国本地化方向](docs/china-localization.md)
 - [中国网络与加速](docs/china-acceleration.md)
 - [Project scope](docs/project-scope.md)
+- [Immich integration contract](docs/immich-integration.md)
 - [术语规范](docs/terminology.md)
 - [Artifact naming spec v4](docs/artifact-spec.md)
 - [项目命名规范](docs/naming-conventions.md)

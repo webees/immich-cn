@@ -18,11 +18,18 @@ from pathlib import Path
 #: 仅作为构建参数、上游 Immich 契约或外部镜像契约，不需要在本项目运行时代码中出现的变量。
 BUILD_ONLY = {
     "IMMICH_BASE",
+    "IMMICH_ALLOW_EXTERNAL_PLUGINS",
+    "IMMICH_ALLOW_SETUP",
+    "IMMICH_CONFIG_FILE",
     "IMMICH_HELMET_FILE",
+    "IMMICH_IGNORE_MOUNT_CHECK_ERRORS",
+    "IMMICH_TRUSTED_PROXIES",
     "IMMICH_VERSION",
     "IMMICH_CN_DATA_DATE",
     "IMMICH_CN_HTTP_PORT",
     "IMMICH_MACHINE_LEARNING_ENABLED",
+    "IMMICH_WORKERS_EXCLUDE",
+    "IMMICH_WORKERS_INCLUDE",
 }
 
 #: 参与契约检查的文档（含贡献指南与安全策略，它们同样会引用路径与命令）
@@ -92,6 +99,19 @@ PROJECT_SCOPE_DOC = Path("docs/project-scope.md")
 PROJECT_SCOPE_ANCHOR = "Canonical positioning"
 PROJECT_SCOPE_SECTIONS = ("Core scope", "Optional support", "Non-goals")
 FORBIDDEN_SCOPE_PHRASES = ("本地化增强套件", "本地化不止于翻译", "六个层面", "六个支柱")
+UPSTREAM_INTEGRATION_DOC = Path("docs/immich-integration.md")
+UPSTREAM_INTEGRATION_TOKENS = (
+    "Integration classes",
+    "map.repository.ts",
+    "countryInfo.txt",
+    "geodata-date.txt",
+    "/_app/immutable",
+    "exifInfo.timeZone",
+    "IMMICH_CONFIG_FILE",
+    "IMMICH_HELMET_FILE",
+    "IMMICH_TRUSTED_PROXIES",
+    "Upstream change required",
+)
 CHINA_ACCELERATION_TOKENS = (
     "CDN",
     "jsDelivr",
@@ -544,6 +564,20 @@ def check_registry_mirror_contract(errors: list[str]) -> None:
             errors.append(f"{path} 未默认使用中国 GHCR mirror：{GHCR_MIRROR_DEFAULT}")
         if GHCR_MIRROR_ENV not in text:
             errors.append(f"{path} 未提供 GHCR mirror 覆盖入口：{GHCR_MIRROR_ENV}")
+
+
+def check_immich_integration_contract(errors: list[str]) -> None:
+    """Immich 上游依赖、配置边界与不可修改项必须有唯一契约文档。"""
+    readme = Path("README.md").read_text(encoding="utf-8")
+    if "docs/immich-integration.md" not in readme:
+        errors.append("README 必须链接 docs/immich-integration.md")
+    if not UPSTREAM_INTEGRATION_DOC.exists():
+        errors.append(f"缺失 Immich integration contract：{UPSTREAM_INTEGRATION_DOC}")
+        return
+    text = UPSTREAM_INTEGRATION_DOC.read_text(encoding="utf-8")
+    missing = [token for token in UPSTREAM_INTEGRATION_TOKENS if token not in text]
+    if missing:
+        errors.append(f"{UPSTREAM_INTEGRATION_DOC} 缺少上游 integration 契约：{'、'.join(missing)}")
 
 
 def check_absolute_claims(paths: list[Path], errors: list[str]) -> None:
@@ -1016,6 +1050,7 @@ def main(argv: list[str] | None = None) -> int:
     check_china_localization_contract(errors)
     check_documentation_language(errors)
     check_registry_mirror_contract(errors)
+    check_immich_integration_contract(errors)
     check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
     check_process_or_legal_claims([*doc_files, Path("CITATION.cff")], errors)
     check_independence_guidance(errors)

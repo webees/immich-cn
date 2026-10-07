@@ -632,6 +632,15 @@ def test_check_docs_requires_ghcr_mirror_override(repo_copy: Path) -> None:
     assert "IMMICH_CN_GHCR_MIRROR" in result.stdout
 
 
+def test_check_docs_requires_immich_integration_contract(repo_copy: Path) -> None:
+    """Immich 上游依赖和不可修改边界必须有契约文档。"""
+    doc = repo_copy / "docs" / "immich-integration.md"
+    mutate(doc, "Upstream change required", "Other change")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "Upstream change required" in result.stdout
+
+
 def test_check_docs_requires_technical_terminology(repo_copy: Path) -> None:
     """术语规范必须保留英文核心技术术语，防止文档重新退化为一味中文化。"""
     terminology = repo_copy / "docs" / "terminology.md"
