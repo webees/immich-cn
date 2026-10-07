@@ -1312,6 +1312,19 @@ def test_check_workflows_requires_nginx_config_validation(repo_copy: Path) -> No
     assert "nginx -t" in result.stdout
 
 
+def test_check_workflows_requires_actionlint_ci_step(repo_copy: Path) -> None:
+    """CI 缺少 actionlint 时 workflow 语法与 shell 问题可能无人拦截。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    mutate(
+        workflow,
+        "      - name: 校验 GitHub Actions 工作流\n",
+        "      - name: disabled actionlint\n",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "actionlint" in result.stdout
+
+
 def test_check_workflows_requires_image_size_budget(repo_copy: Path) -> None:
     """CI 必须保留镜像尺寸预算，避免重新引入整包语言文件或额外包层。"""
     workflow = repo_copy / ".github" / "workflows" / "ci.yml"

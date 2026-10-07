@@ -237,9 +237,11 @@ jobs:
         run: |
           date="$(date +%Y-%m-%d)"
           short_sha="${GITHUB_SHA::7}"
-          echo "date=${date}" >> "$GITHUB_OUTPUT"
-          echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
-          echo "artifact=immich-cn-dist" >> "$GITHUB_OUTPUT"
+          {
+            echo "date=${date}"
+            echo "short_sha=${short_sha}"
+            echo "artifact=immich-cn-dist"
+          } >> "$GITHUB_OUTPUT"
           {
             echo "## immich-cn 数据构建"
             echo ""
@@ -250,7 +252,7 @@ jobs:
             echo ""
             echo "### 产物"
             echo '```'
-            ls -lh dist | tail -n +2
+            find dist -maxdepth 1 -type f -printf '%f  %s bytes\n' | sort
             echo '```'
             echo ""
             echo "### 构建统计"

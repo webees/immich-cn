@@ -227,8 +227,8 @@ jobs:
             --color B60205 --description "自动化流水线通知" --force >/dev/null 2>&1 || true
 
           title="自动更新数据失败（$(date +%F)）"
-          body="$(printf '全自动更新数据流程执行失败。\n\n- 运行记录：%s\n- 触发方式：%s\n- 提交：`%s`\n\n修复后可通过 workflow_dispatch 重新执行。\n' \
-            "$RUN_URL" "$EVENT_NAME" "$COMMIT_SHA")"
+          body="$(printf '全自动更新数据流程执行失败。\n\n- 运行记录：%s\n- 触发方式：%s\n- 提交：%s\n\n修复后可通过 workflow_dispatch 重新执行。\n' \
+            "$RUN_URL" "$EVENT_NAME" "\`$COMMIT_SHA\`")"
 
           number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
             --label automation --search '自动更新数据失败 in:title' \
