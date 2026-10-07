@@ -35,7 +35,6 @@ REPO_SUBSET = (
     "Makefile",
     "pyproject.toml",
     "README.md",
-    "CHANGELOG.md",
     "CITATION.cff",
     "LICENSE",
     "NOTICE",
@@ -161,13 +160,13 @@ def test_check_docs_rejects_english_prose(repo_copy: Path) -> None:
     assert "散文使用了应中文化的英文词" in result.stdout
 
 
-def test_check_docs_rejects_empty_changelog_section(repo_copy: Path) -> None:
-    """CHANGELOG 的未发布小节不能只有标题而没有条目。"""
-    changelog = repo_copy / "CHANGELOG.md"
-    mutate(changelog, "### 修复\n\n-", "### 修复\n\n### 空小节\n\n-")
+def test_check_docs_rejects_non_current_state(repo_copy: Path) -> None:
+    """文档出现版本沿革或非现行名称时必须被报出。"""
+    readme = repo_copy / "README.md"
+    mutate(readme, "当前", "旧")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
-    assert "只有标题没有条目" in result.stdout
+    assert "非当前状态" in result.stdout
 
 
 def test_check_docs_detects_undocumented_env_var(repo_copy: Path) -> None:
@@ -313,25 +312,16 @@ def test_check_docs_detects_undocumented_source(repo_copy: Path) -> None:
 
 
 def test_check_docs_detects_stale_module_name(repo_copy: Path) -> None:
-    """命名规范表里的现行模块名在源码中不存在时必须被报出。"""
+    """命名规范表里的模块名在源码中不存在时必须被报出。"""
     naming = repo_copy / "docs" / "conventions.md"
     mutate(
         naming,
-        "| `artifacts.py` | `artifact_spec.py` |",
-        "| `artifacts.py` | `artifact_spec_v2.py` |",
+        "| `artifact_spec.py` | 制品命名规范与解析 |",
+        "| `artifact_spec_v2.py` | 制品命名规范与解析 |",
     )
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
-    assert "现行模块名" in result.stdout
-
-
-def test_check_docs_detects_legacy_module_resurrection(repo_copy: Path) -> None:
-    """命名规范表标记为旧名的模块重新出现时必须被报出。"""
-    naming = repo_copy / "docs" / "conventions.md"
-    mutate(naming, "| `models.py` | `domain.py` |", "| `domain.py` | `domain.py` |")
-    result = run_checker(repo_copy, "check_docs.py")
-    assert result.returncode == 1
-    assert "旧模块名" in result.stdout
+    assert "模块名" in result.stdout
 
 
 def test_check_docs_detects_broken_markdown_link(repo_copy: Path) -> None:
@@ -585,7 +575,7 @@ def test_check_docs_rejects_stale_timezone_api_description(repo_copy: Path) -> N
     timezone = repo_copy / "docs" / "timezone.md"
     mutate(
         timezone,
-        "并优先通过 `PATCH /api/assets` 批量更新；仅当旧版返回 `404`/`405` 时才回退到 `PUT /api/assets`",
+        "并优先通过 `PATCH /api/assets` 批量更新；仅在返回 `404`/`405` 时才回退到 `PUT /api/assets`",
         "并通过 `PUT /api/assets` 批量更新",
     )
     result = run_checker(repo_copy, "check_docs.py")
@@ -898,28 +888,6 @@ def test_check_docs_requires_immich_import_filter(repo_copy: Path) -> None:
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "PPLX" in result.stdout
-
-
-def test_check_docs_detects_duplicate_changelog_bullet(repo_copy: Path) -> None:
-    """合并分支时被重复保留的同一条变更说明必须被拦下。"""
-    changelog = repo_copy / "CHANGELOG.md"
-    lines = changelog.read_text(encoding="utf-8").splitlines()
-    bullet = next(line for line in lines if line.startswith("- "))
-    changelog.write_text("\n".join([*lines, "", bullet]) + "\n", encoding="utf-8")
-
-    result = run_checker(repo_copy, "check_docs.py")
-    assert result.returncode == 1
-    assert "bullet 完全相同" in result.stdout
-
-
-def test_check_docs_detects_changelog_soft_break(repo_copy: Path) -> None:
-    """CHANGELOG 同样会被渲染成 Markdown，中文软换行必须一并拦下。"""
-    changelog = repo_copy / "CHANGELOG.md"
-    mutate(changelog, "并补充国内镜像获取", "并补充国内镜像获\n取")
-
-    result = run_checker(repo_copy, "check_docs.py")
-    assert result.returncode == 1
-    assert "中文软换行" in result.stdout
 
 
 def test_check_docs_requires_technical_terminology(repo_copy: Path) -> None:

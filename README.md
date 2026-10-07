@@ -6,7 +6,7 @@
 
 完整范围、本地化现状与加速边界见 [中国本地化与加速](docs/china.md)；术语、命名与文档写法遵循 [规范与约定](docs/conventions.md)。
 
-本项目按独立实现组织：本仓库当前树中的代码、配置、持续集成工作流与数据构建脚本由本项目维护，没有引用或打包同类项目的代码文件与人工整理数据文件；核查范围、关键词与边界见 [规范与约定](docs/conventions.md)。文末「致谢」记录了与本项目相关的上游思路来源。对 Immich 文本格式的兼容属于消费端适配，不定义本项目的内部数据模型。以上描述的是当前仓库状态与项目声明，不是对历史过程或法律状态的结论。本仓库的源代码、配置、工作流与文档采用 **MIT** 许可；生成的数据库与地理数据制品不属于 MIT，数据来源、署名与再分发要求见 [许可与署名](docs/licensing.md)。
+本项目按独立实现组织：本仓库当前树中的代码、配置、持续集成工作流与数据构建脚本由本项目维护，没有引用或打包同类项目的代码文件与人工整理数据文件；核查范围、关键词与边界见 [规范与约定](docs/conventions.md)。文末「致谢」记录了与本项目相关的上游思路来源。对 Immich 文本格式的兼容属于消费端适配，不定义本项目的内部数据模型。以上均为当前仓库状态与项目声明。本仓库的源代码、配置、工作流与文档采用 **MIT** 许可；生成的数据库与地理数据制品不属于 MIT，数据来源、署名与再分发要求见 [许可与署名](docs/licensing.md)。
 
 设计重点不是复制某个数据格式或使用方式，而是建立自己的规范模型后再适配消费者：
 
@@ -41,7 +41,7 @@
 | 触发 | `每天北京时间 13:23`（UTC 05:23）定时执行，也支持手动 `workflow_dispatch` |
 | 存活性 | GitHub 的 `schedule` 可能延迟甚至整轮跳过（2026-10-06/07 实测只有一次 `schedule` 运行）；`monitor-update.yml` 每 6 小时检查 `Auto Data Update` 的新鲜度，超过 30 小时没有触发、运行停住、最近一次失败或长期没有成功时创建带 `automation` 标签的议题，恢复后自动评论并关闭 |
 | 上游校验 | 用 `ETag` / `Last-Modified` 条件请求校验 GeoNames、Natural Earth、i18n-iso-countries；未变化时返回 **304，不传输正文** |
-| 变更检测 | 用「来源文件 SHA256 + 构建配置 + 发布器修订」计算发布指纹，与上一次发布对比；无变化则跳过发布，避免无意义的版本与重复导入 |
+| 更新检测 | 用「来源文件 SHA256 + 构建配置 + 发布器修订」计算发布指纹，与上一次发布对比；无变化则跳过发布，避免无意义的版本与重复导入 |
 | 构建 | 重新生成四级行政层级、汉化 `cities500`、导出 7 种展示粒度 × 完整/默认共 14 个地理数据变体与规范数据集 |
 | 校验 | 文件完整性、GeoNames ID 去重、CN/HK/TW/MO 展示名零缺失、国家名称覆盖率全部通过才允许发布 |
 | 发布 | 更新滚动发布 `auto-release`、创建当日至多一个不可变快照 `data-YYYY-MM-DD`（同日后续修订用 `data-YYYY-MM-DD-sha-<短 SHA>`）、推送两个多架构镜像 |
@@ -103,10 +103,7 @@ mkdir -p i18n-iso-countries
 unzip -o immich-cn-i18n-json-v1.zip -d i18n-iso-countries
 ```
 
-`immich-cn-geodata-*.zip` 里只有 `geodata/`；国家名称覆盖单独发布为 `immich-cn-i18n-json-v1.zip`，其成员是旧版 Immich 实际读取的 `langs/` 目录下 `en.json` 与上游 `LICENSE`，所以要解压到 `i18n-iso-countries/` 下才对得上后面的挂载路径。Immich 3.3.0 起改读 `countryInfo.txt`，不再需要这个覆盖包。
-
-> [!NOTE]
-> 语言包裁剪自**下一次数据发布**起生效。已发布的 `data-2026-10-06` 快照与滚动 `auto-release` 里，`immich-cn-i18n-json-v1.zip` 仍是整套 `langs/*.json`（2026-10-07 实测 74 个成员、191,847 字节，sha256 与清单记录一致）；多出的语言文件不影响挂载，只是体积更大。判据与后续收窄说明见 [镜像发布](docs/packages.md)。
+`immich-cn-geodata-*.zip` 里只有 `geodata/`；国家名称覆盖单独发布为 `immich-cn-i18n-json-v1.zip`，其成员是 Immich 1.136.0 ~ 3.2.x 读取的 `langs/` 目录下 `en.json` 与上游 `LICENSE`，所以要解压到 `i18n-iso-countries/` 下才对得上后面的挂载路径。Immich 3.3.0 起改读 `countryInfo.txt`，不需要这个覆盖包。
 
 ```yaml
 volumes:
@@ -152,7 +149,7 @@ jsDelivr 等免费 CDN 只作为 GitHub 分支、标签或提交中静态文件�
 | `IMMICH_CN_PATTERN` | `{admin_2}` | 否 | 控制中文地名展示粒度，例如 `{admin_2} {admin_3}`；取值见「展示粒度」 |
 | `IMMICH_CN_FORCE_RELOAD` | `0` | 否 | 设为 `1` 时把 `geodata-date.txt` 更新为当前北京时间，强制 Immich 重新导入 |
 | `IMMICH_CN_GEODATA_DIR` | `/opt/immich-cn/geodata` | 否 | 服务端镜像内的地理数据源目录，一般无需修改 |
-| `IMMICH_CN_LANGS_DIR` | `/opt/immich-cn/i18n-iso-countries/langs` | 否 | 服务端镜像内的国家名称覆盖目录，仅旧版 Immich 需要 |
+| `IMMICH_CN_LANGS_DIR` | `/opt/immich-cn/i18n-iso-countries/langs` | 否 | 服务端镜像内的国家名称覆盖目录，适用于 Immich 1.136.0 ~ 3.2.x |
 | `IMMICH_CN_PATTERNS_TABLE` | `/opt/immich-cn/immich-cn-patterns-tsv-v1.gz` | 否 | 运行时切换展示粒度所用的变体表，一般无需修改 |
 | `IMMICH_BUILD_DATA` | `/build` | 否 | Immich 的构建数据根目录；包装层把数据写入 `$IMMICH_BUILD_DATA/geodata` |
 | `IMMICH_CN_DATA_DATE` | 构建时写入 | 否 | 只读元信息，用于识别镜像内数据批次；运行时不读取 |
@@ -166,7 +163,7 @@ jsDelivr 等免费 CDN 只作为 GitHub 分支、标签或提交中静态文件�
 | `IMMICH_CN_TARGET` | `/out` | 否 | 指定释放目录，等价于 `--target` |
 | `IMMICH_CN_PATTERN` | `{admin_2}` | 否 | 释放时写入指定展示粒度，等价于 `--pattern` |
 | `IMMICH_CN_GEODATA_DIR` | `/opt/immich-cn/geodata` | 否 | 数据镜像内的地理数据源目录，一般无需修改 |
-| `IMMICH_CN_LANGS_DIR` | `/opt/immich-cn/i18n-iso-countries` | 否 | 数据镜像内的国家名称覆盖目录，仅旧版 Immich 需要 |
+| `IMMICH_CN_LANGS_DIR` | `/opt/immich-cn/i18n-iso-countries` | 否 | 数据镜像内的国家名称覆盖目录，适用于 Immich 1.136.0 ~ 3.2.x |
 | `IMMICH_CN_PATTERNS_TABLE` | `/opt/immich-cn/immich-cn-patterns-tsv-v1.gz` | 否 | 释放时切换展示粒度所用的变体表 |
 | `--target <目录>` | `/out` | 否 | 指定释放目录，优先级高于 `IMMICH_CN_TARGET` |
 | `--pattern '<pattern>'` | `{admin_2}` | 否 | 指定展示粒度，优先级高于 `IMMICH_CN_PATTERN` |
@@ -300,7 +297,7 @@ release.yml ──► 手动创建语义化版本发布
 - `update-data.yml`：**自动数据更新**，包含增量校验、指纹比对、发布、快照清理与失败通知。
 - `ci.yml`：每次提交执行静态检查、单元测试与镜像冒烟构建。
 - `release.yml`：手动创建语义化版本发布（总是强制重新构建与推送）。
-- `cleanup.yml`：每周清理旧 `data-*` 快照、Actions 运行历史与 GHCR 版本；稳定前可启用 `prune-all`。
+- `cleanup.yml`：每周清理超出保留策略的 `data-*` 快照、Actions 运行记录与 GHCR 版本；稳定前可启用 `prune-all`。
 - `monitor-update.yml`：每 6 小时检查自动数据更新的新鲜度；定时任务未触发、运行卡住、最近一次失败或长期没有成功时创建 `automation` 告警议题，恢复后自动关闭。
 
 ## 文档索引

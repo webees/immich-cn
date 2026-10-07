@@ -11,7 +11,7 @@
 | `alternateNamesV2.zip` | GeoNames | CC BY 4.0 | 中文别名来源 |
 | `{CC}.zip`（CN/HK/TW/MO/JP） | GeoNames | CC BY 4.0 | 国家数据转储，用于补充点位与 `ADM3`/`ADM4` |
 | `ne_10m_admin_0_countries.geojson` | Natural Earth v5.1.2 | 公有领域 | 国家边界回退 |
-| `i18n-iso-countries@7.0.0` | npm | MIT | 国家名称中文覆盖（旧版 Immich） |
+| `i18n-iso-countries@7.0.0` | npm | MIT | 国家名称中文覆盖（Immich 1.136.0 ~ 3.2.x） |
 
 不可变依赖在 `src/immich_cn/settings.py` 中固定版本；Natural Earth 与 i18n-iso-countries 使用不可变标签/版本号。GeoNames 为滚动数据，其每次构建的指纹会记录在清单中。
 
@@ -29,7 +29,7 @@
 
 CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每日构建通常只需传输真正发生变化的少数文件。缓存键由 `runner.os`、工具版本与 `src/immich_cn/settings.py` 的摘要组成，上游源定义或版本固定发生变化时会切换到新键； `check_workflows.py` 会拒绝指向不存在文件的 `hashFiles` 路径，避免缓存键的某个维度静默变成空字符串。
 
-`restore-keys` 里保留了一条很宽的兜底（`immich-cn-sources-<os>-`），因此工具版本升级后仍可能还原到旧缓存。这是安全的：命中缓存时会把文件摘要同时与缓存元数据和 `spec.expected_sha256` 比对，只要固定摘要变了就删除旧文件重新下载（`tests/test_fetching.py::test_fetcher_ignores_cache_when_pinned_digest_changed` 是这条路径的负向控制——把该比对去掉后该测试会失败）。换句话说，还原旧缓存最多省一次传输，不会让构建拿着旧内容成功。
+`restore-keys` 里保留了一条很宽的兜底（`immich-cn-sources-<os>-`），因此工具版本升级后仍可能还原到缓存中的其他版本。这是安全的：命中缓存时会把文件摘要同时与缓存元数据和 `spec.expected_sha256` 比对，只要固定摘要变了就删除不匹配文件并重新下载（`tests/test_fetching.py::test_fetcher_ignores_cache_when_pinned_digest_changed` 是这条路径的负向控制——把该比对去掉后该测试会失败）。还原缓存最多省一次传输，不会让构建使用不匹配内容成功。
 
 ### 2. 地点集合
 
@@ -99,4 +99,4 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 
 最后生成 `immich-cn-manifest-json-v1.json`、`immich-cn-checksums-sha256-v1.txt`、`immich-cn-patterns-tsv-v1.gz` 与 `immich-cn-i18n-json-v1.zip`。 130 MiB 级的明文 `immich-cn-patterns-v1.tsv` 默认不会生成；需要排查时可用 `--keep-raw` 同时保留明文表，镜像构建使用直接流式生成的压缩表 `immich-cn-patterns-tsv-v1.gz`。
 
-`immich-cn-dataset-sqlite-v1.zip` 自带 `NOTICE.txt`；`immich-cn-i18n-json-v1.zip` 与 `build/langs/` 只保留旧版 Immich 实际读取的 `en.json` 和上游 `LICENSE`（自下一次数据发布起生效，已发布快照仍是整套语言包，见 [镜像发布](packages.md)），避免把整个语言包塞进制品，同时不丢失 MIT 版权声明；每个地理数据压缩包和镜像数据目录同时包含 `NOTICE.txt`，保留 GeoNames 等数据源署名。
+`immich-cn-dataset-sqlite-v1.zip` 自带 `NOTICE.txt`；`immich-cn-i18n-json-v1.zip` 与 `build/langs/` 只保留 Immich 1.136.0 ~ 3.2.x 实际读取的 `en.json` 和上游 `LICENSE`，避免把整个语言包塞进制品，同时不丢失 MIT 版权声明；每个地理数据压缩包和镜像数据目录同时包含 `NOTICE.txt`，保留 GeoNames 等数据源署名。

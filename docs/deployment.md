@@ -37,7 +37,7 @@ services:
     restart: always
 ```
 
-Immich v3.2.4 与 v3.3.0 官方 compose 均已将媒体目录挂载到 `/data`；不要把新部署继续写成旧路径 `/usr/src/app/upload`。machine-learning 服务需要持久化 `model-cache`，否则模型会在容器重建后重新下载。
+Immich 官方 compose 当前将媒体目录挂载到 `/data`。machine-learning 服务需要持久化 `model-cache`，否则模型会在容器重建后重新下载。
 
 镜像标签：
 
@@ -55,7 +55,7 @@ Immich v3.2.4 与 v3.3.0 官方 compose 均已将媒体目录挂载到 `/data`�
 | `IMMICH_CN_PATTERN` | `{admin_2}` | 展示粒度，取值见 README |
 | `IMMICH_CN_FORCE_RELOAD` | `0` | 设为 `1` 时把 `geodata-date.txt` 更新为当前时间，强制 Immich 重新导入 |
 | `IMMICH_CN_GEODATA_DIR` | `/opt/immich-cn/geodata` | 镜像内数据源目录，一般无需修改 |
-| `IMMICH_CN_LANGS_DIR` | `/opt/immich-cn/i18n-iso-countries/langs` | 镜像内国家名称目录（旧版 Immich 用） |
+| `IMMICH_CN_LANGS_DIR` | `/opt/immich-cn/i18n-iso-countries/langs` | 镜像内国家名称目录（Immich 1.136.0 ~ 3.2.x） |
 | `IMMICH_CN_PATTERNS_TABLE` | `/opt/immich-cn/immich-cn-patterns-tsv-v1.gz` | 运行时粒度切换用的变体表，一般无需修改 |
 | `IMMICH_BUILD_DATA` | `/build` | Immich 自身的构建数据目录，跟随官方镜像即可 |
 
@@ -120,10 +120,10 @@ unzip -o immich-cn-i18n-json-v1.zip -d i18n-iso-countries
 ## 刷新生效
 
 1. 重启 Immich，确认日志出现 `geodata records imported`；
-2. 进入「系统管理 → 任务」，执行一次「提取元数据 → 全部」刷新历史照片；
+2. 进入「系统管理 → 任务」，执行一次「提取元数据 → 全部」刷新已有照片；
 3. 之后新增照片会自动使用新的地名，无需再次刷新。
 
-如果替换数据后 Immich 没有重新导入，说明 `geodata-date.txt` 与上次记录的值**完全相同**（判断条件是「相等就跳过」，不是「比它旧才跳过」）：
+如果替换数据后 Immich 没有重新导入，说明 `geodata-date.txt` 与上次记录的值**完全相同**。判断条件只比较相等，不比较先后：
 
 ```bash
 # 官方镜像 + 挂载方案

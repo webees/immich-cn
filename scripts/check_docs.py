@@ -88,6 +88,9 @@ PROCESS_OR_LEGAL_CLAIMS: dict[str, str] = {
     "不构成继承": "法律结论；改为描述消费者接口适配事实",
 }
 
+#: 文档只描述当前状态，不承载版本沿革、迁移过程或非现行名称。
+CURRENT_STATE_FORBIDDEN = ("旧", "历史", "此前", "曾经")
+
 #: README 独立性段落的锚点；正文改写时需同步更新本契约。
 INDEPENDENCE_ANCHOR = "本项目按独立实现组织"
 INDEPENDENCE_SECTION_END = "## 数据模型"
@@ -557,26 +560,24 @@ def check_source_contracts(errors: list[str]) -> None:
             errors.append(f"上游数据源 {source.name} 未在 docs/data-sources.md 记录（期望出现 {marker!r}）")
 
 
-#: docs/conventions.md 的模块映射表行：| `old.py` | `current.py` | 职责 |
+#: docs/conventions.md 的模块表行：| `module.py` | 职责 |
 MODULE_TABLE_ROW = re.compile(
-    r"^\|\s*`([a-z_][a-z0-9_]*\.py)`\s*\|\s*`([a-z_][a-z0-9_]*\.py)`\s*\|",
+    r"^\|\s*`([a-z_][a-z0-9_]*\.py)`\s*\|\s*([^|]+?)\s*\|",
     re.MULTILINE,
 )
 
 
 def check_module_name_table(errors: list[str]) -> None:
-    """命名规范表里的现行模块名必须存在，旧模块名必须已经消失。"""
+    """命名规范表里的模块名必须存在。"""
     path = Path("docs/conventions.md")
     rows = MODULE_TABLE_ROW.findall(path.read_text(encoding="utf-8"))
     if not rows:
-        errors.append(f"{path} 的模块命名表未解析到任何映射，护栏可能已失效")
+        errors.append(f"{path} 的模块表未解析到任何模块，护栏可能已失效")
         return
     existing = {module.name for module in Path("src/immich_cn").rglob("*.py")}
-    for legacy, current in rows:
-        if current not in existing:
-            errors.append(f"{path} 标记为现行模块名的 {current} 在 src/immich_cn 中不存在")
-        if legacy in existing:
-            errors.append(f"{path} 标记为旧模块名的 {legacy} 仍存在于 src/immich_cn 中")
+    for module, _ in rows:
+        if module not in existing:
+            errors.append(f"{path} 标记的模块名 {module} 在 src/immich_cn 中不存在")
 
 
 def check_referenced_paths(doc_files: list[Path], errors: list[str]) -> None:
@@ -853,6 +854,15 @@ def check_process_or_legal_claims(paths: list[Path], errors: list[str]) -> None:
         for phrase, replacement in PROCESS_OR_LEGAL_CLAIMS.items():
             if phrase in text:
                 errors.append(f"{path} 出现不可验证或越界声明 {phrase!r}；{replacement}")
+
+
+def check_current_state_docs(paths: list[Path], errors: list[str]) -> None:
+    """文档不得记录非当前版本、非现行名称或版本沿革。"""
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        for phrase in CURRENT_STATE_FORBIDDEN:
+            if phrase in text:
+                errors.append(f"{path} 记录了非当前状态内容：{phrase!r}")
 
 
 def check_independence_guidance(errors: list[str]) -> None:
@@ -1321,45 +1331,6 @@ def check_license_consistency(errors: list[str]) -> None:
         errors.append("许可声明不一致：" + "；".join(problems))
 
 
-def check_changelog_bullets(errors: list[str]) -> None:
-    """CHANGELOG 不允许出现内容完全相同的 bullet。
-
-    合并多个分支时同一个条目很容易被重复保留：重复的变更说明会让读者以为发生了
-    两次改动，而逐行 diff 与覆盖率检查都发现不了。这里只比较 bullet（``- `` 开头），
-    因为 ``### 修复`` 这类小节标题在多个版本之间合法复用。
-    """
-    changelog = Path("CHANGELOG.md")
-    if not changelog.exists():
-        errors.append(f"缺失变更日志：{changelog}")
-        return
-    first_seen: dict[str, int] = {}
-    for number, line in enumerate(changelog.read_text(encoding="utf-8").splitlines(), start=1):
-        entry = line.strip()
-        if not entry.startswith("- "):
-            continue
-        previous = first_seen.get(entry)
-        if previous is not None:
-            errors.append(f"{changelog}:{number} 与第 {previous} 行的 bullet 完全相同：{entry}")
-            continue
-        first_seen[entry] = number
-
-
-def check_changelog_unreleased_sections(errors: list[str]) -> None:
-    """CHANGELOG 的未发布小节不能只有标题而没有条目。"""
-    changelog = Path("CHANGELOG.md")
-    text = changelog.read_text(encoding="utf-8")
-    match = re.search(r"^## \[Unreleased\]\s*$", text, re.MULTILINE)
-    if match is None:
-        errors.append(f"{changelog} 缺少 [Unreleased] 小节")
-        return
-    section = text[match.end() :].split("\n## ", 1)[0]
-    headings = re.findall(r"^### (.+)$", section, re.MULTILINE)
-    for heading in headings:
-        block = section.split(f"### {heading}", 1)[1].split("\n### ", 1)[0]
-        if not re.search(r"^- ", block, re.MULTILINE):
-            errors.append(f"{changelog} 的未发布小节「{heading}」只有标题没有条目")
-
-
 def check_version_consistency(errors: list[str]) -> None:
     """项目版本号必须在 pyproject / __init__ / CITATION 三处一致。
 
@@ -1443,7 +1414,7 @@ def main(argv: list[str] | None = None) -> int:
     check_project_positioning(errors)
     check_readme_dimensions(errors)
     check_readme_doc_index(errors)
-    check_markdown_layout([*doc_files, Path("CHANGELOG.md")], errors)
+    check_markdown_layout(doc_files, errors)
     check_prose_language(doc_files, errors)
     check_china_localization_contract(errors)
     check_documentation_language(errors)
@@ -1456,6 +1427,7 @@ def main(argv: list[str] | None = None) -> int:
     check_timezone_api_contract(errors)
     check_absolute_claims([*doc_files, Path("CITATION.cff")], errors)
     check_process_or_legal_claims([*doc_files, Path("CITATION.cff")], errors)
+    check_current_state_docs([*doc_files, *_expand(RENDER_EXTRA_GLOBS)], errors)
     check_independence_guidance(errors)
     check_sla_promises([*doc_files, Path("CITATION.cff")], errors)
     check_markdown_links(doc_files, errors)
@@ -1463,15 +1435,12 @@ def main(argv: list[str] | None = None) -> int:
     check_manifest_stats_scope(errors)
     render_files = [*doc_files, *_expand(RENDER_EXTRA_GLOBS)]
     contract_text_files = _expand(CONTRACT_TEXT_GLOBS)
-    # CHANGELOG 同样会被渲染成 Markdown，但不在 DOC_GLOBS 内，需显式加入软换行检查。
-    check_cjk_soft_breaks([*render_files, Path("CHANGELOG.md")], errors)
+    check_cjk_soft_breaks(render_files, errors)
     check_citation_spacing(errors)
     check_dataset_member_doc(errors)
     check_immich_countryinfo_boundary(render_files, errors)
     check_adm4_coverage_wording(render_files, errors)
     check_i18n_asset_documented(render_files, errors)
-    check_changelog_bullets(errors)
-    check_changelog_unreleased_sections(errors)
     check_version_consistency(errors)
     check_license_consistency(errors)
     check_geodata_import_wording([*render_files, *contract_text_files], errors)

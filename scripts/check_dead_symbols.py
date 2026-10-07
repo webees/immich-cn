@@ -1,11 +1,9 @@
 """扫描 ``src/`` 与 ``scripts/`` 里的零引用模块级定义。
 
-「死代码与未使用配置」是固定的审计焦点，但此前每轮都要手写一遍扫描脚本：第 63/73/83
-轮都命中同一个零引用常量 `SHELL_SUFFIXES`，直到第 262 轮才真正删除——因为没有可重复
-执行的资产，结论无法对拍。本脚本把判定口径固定下来。
+「死代码与未使用配置」是固定的审计焦点。本脚本把判定口径固定下来。
 
 口径：模块级 ``def`` / ``async def`` / ``class`` 与大写常量；在仓库文本范围内（源码、
-测试、工作流、Makefile、文档、CHANGELOG）搜索该名字，只有定义行出现即视为零引用。
+测试、工作流、Makefile、文档）搜索该名字，只有定义行出现即视为零引用。
 已知假阳性（Protocol 方法、``__all__`` 导出、被外部字符串调用的入口）放进 ``ALLOWED``。
 
 用法：
@@ -50,7 +48,6 @@ def _corpus_paths(repo: Path) -> list[Path]:
         "examples/**/*.yml",
         "Makefile",
         "README.md",
-        "CHANGELOG.md",
         "CONTRIBUTING.md",
         "SECURITY.md",
         "pyproject.toml",

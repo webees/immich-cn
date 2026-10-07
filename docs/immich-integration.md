@@ -10,7 +10,7 @@
 | 配置与环境变量 | 通过 Immich 官方环境变量或配置文件改变行为 | `TZ`、`IMMICH_CONFIG_FILE`、`IMMICH_HELMET_FILE`、`IMMICH_TRUSTED_PROXIES` |
 | 容器包装层 | 在启动前复制数据、设置粒度或生成时间戳 | `immich-cn-server`、`immich-cn-install` |
 | 分发层 | Nginx 与 CDN 只处理公开静态资源和网络可达性 | `/_app/immutable/*`、GHCR 镜像源 |
-| API 工具 | 通过 Immich 公开 API 对已有元数据做显式操作；v3.3.0 起优先 `PATCH /api/assets`，旧版仅在 404/405 时回退 `PUT` | `scripts/set_asset_timezone.py` |
+| API 工具 | 通过 Immich 公开 API 对已有元数据做显式操作；v3.3.0 起优先 `PATCH /api/assets`，其他版本仅在 404/405 时回退 `PUT` | `scripts/set_asset_timezone.py` |
 | 上游内置语言 | 使用 Immich 已提供的界面语言，不复刻界面 | `zh_Hans`、`zh_Hant` |
 | 必须由上游修改 | 不在本项目做不安全补丁或界面复刻 | 全局界面时区、任意地图瓦片 |
 
@@ -118,7 +118,7 @@ Immich 支持通过地图设置配置浅色与深色地图样式。默认瓦片�
 
 - `< 1.136.0`：语言覆盖路径为 `/usr/src/app/node_modules/...`；
 - `1.136.0 ~ 3.2.x`：语言覆盖路径为 `/usr/src/app/server/node_modules/...`，国家名仍由 `i18n-iso-countries` 参与；
-- `3.3.0+`：国家名读取 `countryInfo.txt`，不再需要旧语言覆盖文件。
+- `3.3.0+`：国家名读取 `countryInfo.txt`。
 
 这些边界来自上游源码核对，不替代真实镜像冒烟测试。发布流程中的完整服务栈冒烟会验证 PostgreSQL `geodata_places`、苏州样本和 `/api/server/config`，作为最终运行级验证层。
 
