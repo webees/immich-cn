@@ -1382,6 +1382,20 @@ def test_check_workflows_detects_incomplete_failure_notifier(repo_copy: Path) ->
     assert "notify-failure 的 needs 未覆盖" in result.stdout
 
 
+def test_check_workflows_rejects_always_for_dependency_guard(repo_copy: Path) -> None:
+    """always() 会绕过依赖失败，必须继续逐个判断 needs。"""
+    workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
+    mutate(
+        workflow,
+        "    if: ${{ !cancelled() && needs.build.result == 'success' && "
+        "(needs.release.result == 'success' || needs.release.result == 'skipped') }}",
+        "    if: ${{ always() }}",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "只判断了部分依赖" in result.stdout
+
+
 def test_check_workflows_requires_published_url_verification(repo_copy: Path) -> None:
     """发布流程必须自检文档承诺的固定下载地址。"""
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
