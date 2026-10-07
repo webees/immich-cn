@@ -18,6 +18,7 @@ from pathlib import Path
 #: 仅作为构建参数、上游 Immich 契约或外部镜像契约，不需要在本项目运行时代码中出现的变量。
 BUILD_ONLY = {
     "IMMICH_BASE",
+    "IMMICH_BASE_DIGEST",
     "IMMICH_ALLOW_EXTERNAL_PLUGINS",
     "IMMICH_ALLOW_SETUP",
     "IMMICH_CONFIG_FILE",

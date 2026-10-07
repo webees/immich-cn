@@ -245,6 +245,16 @@ jobs:
           set -euo pipefail
           image="ghcr.io/${GITHUB_REPOSITORY}-server"
           metadata="$(mktemp)"
+          base_image="ghcr.io/immich-app/immich-server:${IMMICH_VERSION}"
+          base_digest="$(
+            docker buildx imagetools inspect "$base_image" --format '{{json .Manifest}}' \
+              | jq -r '.digest'
+          )"
+          if [ -z "$base_digest" ] || [ "$base_digest" = "null" ]; then
+            echo "::error::无法解析 Immich base image digest"
+            exit 1
+          fi
+          echo "base_digest=${base_digest}" >> "$GITHUB_OUTPUT"
           for attempt in 1 2 3; do
             if docker buildx build \
               --file docker/immich.Dockerfile \
@@ -253,7 +263,10 @@ jobs:
               --sbom=true \
               --metadata-file "$metadata" \
               --build-arg "IMMICH_VERSION=${IMMICH_VERSION}" \
+              --build-arg "IMMICH_BASE_DIGEST=@${base_digest}" \
               --build-arg "IMMICH_CN_DATA_DATE=${DATA_DATE}" \
+              --label "org.opencontainers.image.base.name=ghcr.io/immich-app/immich-server" \
+              --label "org.opencontainers.image.base.digest=${base_digest}" \
               --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
               --label "org.opencontainers.image.version=${TOOL_VERSION}" \
               --label "org.opencontainers.image.licenses=AGPL-3.0-only AND MIT" \
@@ -430,6 +443,7 @@ jobs:
         env:
           DATA_DIGEST: ${{ steps.data-image.outputs.digest }}
           SERVER_DIGEST: ${{ steps.server-image.outputs.digest }}
+          BASE_DIGEST: ${{ steps.server-image.outputs.base_digest }}
           IMMICH_VERSION: ${{ inputs.immich-version }}
         run: |
           set -uo pipefail
@@ -437,12 +451,8 @@ jobs:
           data_image="ghcr.io/${GITHUB_REPOSITORY}@${DATA_DIGEST}"
           server_image="ghcr.io/${GITHUB_REPOSITORY}-server@${SERVER_DIGEST}"
           base_image="ghcr.io/immich-app/immich-server:${IMMICH_VERSION}"
-          base_digest="$(
-            docker buildx imagetools inspect "$base_image" --format '{{json .Manifest}}' \
-              | jq -r '.digest'
-          )"
-          test -n "$base_digest"
-          echo "$base_digest" > trivy-server-base-digest.txt
+          test -n "$BASE_DIGEST"
+          echo "$BASE_DIGEST" > trivy-server-base-digest.txt
 
           # 数据镜像由本项目构建，任何 HIGH/CRITICAL 都阻断。
           if ! trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
@@ -458,7 +468,7 @@ jobs:
           # server 覆盖镜像继承官方 Immich 基础镜像的漏洞。只有“新增”的 HIGH/CRITICAL 才阻断；
           # 继承项保留为显式例外报告，避免上游未修复时永久卡死全自动发布。
           if ! trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
-              --format json --output trivy-server-base-vuln.json "${base_image}@${base_digest}"; then
+              --format json --output trivy-server-base-vuln.json "${base_image}@${BASE_DIGEST}"; then
             status=1
           fi
           if ! trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
@@ -477,7 +487,7 @@ jobs:
           comm -12 trivy-server-base-vuln.tsv trivy-server-vuln.tsv > trivy-server-inherited-vuln.tsv
           test ! -s trivy-server-new-vuln.tsv || status=1
           {
-            echo "Immich 基础镜像：${base_image}@${base_digest}"
+            echo "Immich 基础镜像：${base_image}@${BASE_DIGEST}"
             echo "继承的 HIGH/CRITICAL 例外：$(wc -l < trivy-server-inherited-vuln.tsv)"
             echo ""
             cat trivy-server-inherited-vuln.tsv

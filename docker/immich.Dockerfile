@@ -3,8 +3,9 @@
 #         --build-arg IMMICH_VERSION=release -t ghcr.io/webees/immich-cn-server:local .
 ARG IMMICH_BASE=ghcr.io/immich-app/immich-server
 ARG IMMICH_VERSION=release
+ARG IMMICH_BASE_DIGEST=
 
-FROM ${IMMICH_BASE}:${IMMICH_VERSION}
+FROM ${IMMICH_BASE}:${IMMICH_VERSION}${IMMICH_BASE_DIGEST}
 
 LABEL org.opencontainers.image.title="immich-cn server" \
       org.opencontainers.image.description="Immich server with bundled Chinese reverse geocoding data" \
