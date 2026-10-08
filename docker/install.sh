@@ -32,6 +32,11 @@ if [ -z "$target" ]; then
   exit 2
 fi
 
+if [ -L "$target" ]; then
+  echo "错误：--target 不能是符号链接：$target" >&2
+  exit 2
+fi
+
 if ! mkdir -p "$target"; then
   echo "错误：无法创建目标目录 $target" >&2
   exit 1

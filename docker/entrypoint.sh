@@ -36,6 +36,11 @@ if [ -n "$missing_files" ]; then
   exit 1
 fi
 
+if [ -L "$target" ]; then
+  echo "immich-cn: 目标目录不能是符号链接：${target}" >&2
+  exit 1
+fi
+
 mkdir -p "$target"
 
 # 目标目录可能来自宿主机挂载；先移除同名符号链接，避免 cp 跟随链接写出目录。
