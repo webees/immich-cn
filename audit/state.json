@@ -12,7 +12,7 @@
     "p2": 149,
     "p3": 49
   },
-  "status": "active",
+  "status": "blocked",
   "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
@@ -3916,7 +3916,8 @@
     "第 360 轮的终止口径冲突未解决：objective 0.2 要求「总轮次上限 50」，自动化 immich-cn-50 要求「连续 50 轮 clean」；账本已 360 轮、streak=3。在用户裁决前，冷静口径是「循环应停」，但只要该 automation 仍 ACTIVE，每小时心跳都会再次启动一轮",
     "第 360 轮的交付级复验是时点快照（2026-10-08 14:45 +08:00）：ruleset、digest、Release 列表与工作流结论都会随后续发布变化，本次结论不能外推为长期状态",
     "第 361 轮的 P3：`finalize_place_names` 的 `names.admin_1 != top_level` 子句在当前 `strip_suffixes` 配置下恒真（等价变异），属防御性冗余；一旦港澳一级不再裁「特别行政区」它就会重新生效，因此本轮不删",
-    "第 361 轮只验证了这一处守卫的等价性；`finalize_place_names` 的其它分支（`district = names.admin_2 or names.admin_1` 的取空回退、HK 的 admin_3 区域前缀拼接、`strip_suffixes` 为空配置时的行为）没有在本轮逐一变异"
+    "第 361 轮只验证了这一处守卫的等价性；`finalize_place_names` 的其它分支（`district = names.admin_2 or names.admin_1` 的取空回退、HK 的 admin_3 区域前缀拼接、`strip_suffixes` 为空配置时的行为）没有在本轮逐一变异",
+    "第 362 轮（无新增审计轮次）把账本与 goal 都置为 blocked：objective 0.2/0.4/0.8 要求「总轮次上限 50、耗尽即交付 PARTIAL、禁止继续跑」，本账本已到 361 轮；automation immich-cn-50 却要求「连续 50 轮 clean」。裁决前冻结审计轮次，避免继续产出 objective 明令禁止的工作。恢复条件是用户选定终止口径（或明确覆盖 objective 的 50 轮上限）"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
@@ -3932,6 +3933,16 @@
   },
   "totalsBasis": "history",
   "ledgerNotes": [
+    {
+      "date": "2026-10-08",
+      "change": "status 置为 blocked：objective 第 0.2 条把审计硬预算定为「总轮次上限 50」，第 0.4/0.8 条要求在预算耗尽时输出 PARTIAL 并停止「继续跑」；本账本已到第 361 轮（超预算 311 轮），PARTIAL 交付报告已于 round 360 输出。自动化 immich-cn-50 的退出条件却是「连续 50 轮合格干净」（当前 streak=4），两者冲突且只能由用户裁决。在裁决前不再新增审计轮次。",
+      "needsUserAction": [
+        "选择终止口径：按 objective 的 50 轮总上限收尾（账本转终态并停止），或明确「连续 50 轮 clean」覆盖该上限并继续跑",
+        "确认是否运行 Release 工作流发布 v3.3.0.1（Git 侧最新版本标签仍是 v1.0.4，对外发布动作）",
+        "若要彻底停止循环，需要暂停或删除 immich-cn-50 这个 automation（它每小时仍会触发）"
+      ],
+      "atRound": 361
+    },
     {
       "date": "2026-10-07",
       "change": "统一账本口径：totals 由 history 复算；clean 判定按 objective 要求排除任何已确认 P0-P3",
