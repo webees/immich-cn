@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 339,
+  "round": 340,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 217,
+    "findings": 218,
     "clean_rounds": 111,
     "p0": 0,
     "p1": 33,
-    "p2": 139,
+    "p2": 140,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M3 负向制品实验",
+  "last_method": "M8 资源与性能剖析",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3437,6 +3437,16 @@
       "severity": "P2",
       "evidence": "先做供应链快照（`main=966d053`）：全部 6 个工作流 `continue-on-error` 出现 0 次；`|| true` 只出现在 fail-safe 位置——`gh label create`（幂等）、`docker image prune`/`docker rm`/`docker logs`（best-effort）、以及 `_build-data.yml:178/207` 的 fingerprint 调用（失败得到空串，而变更判定在 217-222 行要求 `[ -n \"$previous\" ]` 且 base digest / data image digest / Release 资产 / 快照四项全等，任一缺失都会退化为 `changed=true` 强制发布，不是静默跳过）。Trivy 用 `status=1` + `exit \"$status\"` 真正阻断；Cosign 签名与 `cosign verify` 都在 `set -euo pipefail` 下无 `|| true`；版本标签只在签名校验之后的步骤追加。随后做负向实验：把 `continue-on-error: true` 加到 `_build-data.yml` 的「安装 cosign」步骤（发布链路安全步骤）上，`check_workflows.py` **返回 0**，没有任何护栏能发现——这正是 objective 第 0.1 条禁止的「让 CI 变绿而不修问题」。修复：`check_workflows.py` 新增 `check_continue_on_error()`，检查每个 job 与每个 step，命中即报精确位置（如 `build/step#23`）并指向 `CONTINUE_ON_ERROR_ALLOWED`（当前为空，要求注明原因，与 `check_dead_symbols.ALLOWED` 同构）；docstring 护栏清单补第 8 条；`tests/test_checkers.py` 新增 `test_check_workflows_detects_continue_on_error`。验证：注入后新护栏报「使用 continue-on-error=True，会让失败的门禁显示为绿色」并 exit 1；注释掉 `check_continue_on_error` 调用后新用例立即 AssertionError；当前树 6 个工作流全部通过。`make check` 463 passed（+1），`ruff`/`mypy` 通过。PR #244 四项必需检查全绿后 squash 合并，main=c24a552。",
       "pr": "https://github.com/webees/immich-cn/pull/244"
+    },
+    {
+      "round": 340,
+      "timestamp": "2026-10-08T10:48:13+08:00",
+      "focus": "性能与资源（构建路径重复读取）",
+      "method": "M8 资源与性能剖析",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对 `main=c24a552` 的构建路径插桩：`src/immich_cn/fetching.py` 的 `sha256_file` 被 `packaging.py` 复用，而同一制品在一次构建里被哈希三次——`package_all` 记变体 sha256（packaging.py:99）、`_write_manifest` 再算（:264/:275）、`_write_checksums` 第三遍（:297）。合成数据实测：14 个地理数据变体与数据集各 3 次、i18n 与变体表各 2 次，`sha256_file` 调用 50 次 / 唯一制品 18 个。用真实 `auto-release` manifest 的 sizeBytes 换算：17 个制品共 615,536,981 字节，当前读取 1,840,332,586 字节（≈2.99 倍），冗余 67%（约 1.22 GB）。这与第 330 轮在发布门禁里修掉的是同一类问题，只是发生在构建侧。修复：`fetching.sha256_file` 增加按「路径 + mtime_ns + size」索引的 `_DIGEST_CACHE`，命中即复用；缓存只减少字节读取，不改变任何比较结果。修复后同一构建实测：调用仍 50 次但**实际计算 18 次**（命中 32 次）= 唯一制品数。负向控制：把缓存键改成 `(path, 0, 0)` 后新用例 `test_sha256_file_cache_invalidates_on_change` 立即 AssertionError，恢复后通过；该用例覆盖「长度变化」与「同长度改内容 + 显式 utime」两条失效路径。`make check` 464 passed（+1），`ruff`/`mypy` 通过。PR #245 四项必需检查全绿后 squash 合并，main=131d830。",
+      "pr": "https://github.com/webees/immich-cn/pull/245"
     }
   ],
   "residual_risks": [
@@ -3645,7 +3655,10 @@
     "第 338 轮的跨制品重算只覆盖 `{admin_2} {admin_3} {admin_4}` 一种 pattern 与 default 规模；其余 6 种 pattern、full 规模变体、以及 `admin1CodesASCII.txt`/`admin2Codes.txt`/`countryInfo.txt` 三个附件没有做同样的逐行重算",
     "第 338 轮的探针脚本是一次性的、未固化为 make 目标，也没有进入 CI；跨制品重算目前仍靠人工在审计轮次里重跑，制品增长后不会自动复验",
     "第 339 轮新增的 continue-on-error 护栏只检查显式字段值；`if: always()` 配合把失败写进日志而不 exit 的写法、`set +e`、以及把命令包进 `bash -c '... || true'` 仍能绕过该规则，需要按同类假通过模式在后续轮次评估",
-    "第 339 轮仍未把 release.yml 的 `secrets: inherit`（zizmor 旧提示）收窄为显式 `secrets:` 列表；当前 release.yml 只由 workflow_dispatch 触发、_build-data.yml 只由 workflow_call 触发，外部 PR 无法触达，因此本轮按残余项记录而非缺陷"
+    "第 339 轮仍未把 release.yml 的 `secrets: inherit`（zizmor 旧提示）收窄为显式 `secrets:` 列表；当前 release.yml 只由 workflow_dispatch 触发、_build-data.yml 只由 workflow_call 触发，外部 PR 无法触达，因此本轮按残余项记录而非缺陷",
+    "第 340 轮的 67% 冗余比例由真实 manifest 的 sizeBytes 换算，不是对 615 MB 制品实测挂钟时间；摘要缓存是进程内缓存，长驻进程会持续增长，当前用法是短生命周期 CLI",
+    "第 340 轮把缓存加在 `fetching.sha256_file` 上，`scripts/check_artifacts.py` 仍保留第 330 轮那份独立实现（避免给发布门禁脚本引入 HTTP 依赖），两处逻辑现在靠注释而不是代码共享来保持一致，后续改动需要同步",
+    "第 340 轮只测了合成数据下的调用次数；真实 131 万级构建里 `levels` 字典与 alternate-names 索引的内存占用、以及 14 个变体各自重读 cities500/extra_all 的 I/O 成本没有在本轮测量（本轮测的打包耗时为 0.13s，来自 10 行合成数据，不可外推）"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
