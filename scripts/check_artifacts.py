@@ -31,9 +31,10 @@ MAX_ENTRY_UNCOMPRESSED_BYTES = 1024**3
 MAX_COMPRESSION_RATIO = 200
 
 #: 同一次校验里，每个制品会被 manifest.artifacts、manifest.assets 与 checksums 各引用一次。
-#: 真实 dist（615 MB）因此被重复读取约 2.9 遍（合计 1.77 GB）。按「路径 + mtime + 大小」缓存摘要，
-#: 文件在校验期间被改动时缓存自动失效，任何比较结果都不受影响。
-_DIGEST_CACHE: dict[tuple[Path, int, int], str] = {}
+#: 真实 dist（615 MB）因此被重复读取约 2.9 遍（合计 1.77 GB）。按
+#: 「路径 + mtime + ctime + 大小」缓存摘要，文件在校验期间被改动时缓存自动失效，
+#: 即使调用方把 mtime 恢复成原值也不能复用旧摘要。
+_DIGEST_CACHE: dict[tuple[Path, int, int, int], str] = {}
 
 
 def _is_sha256(value: object) -> bool:
@@ -42,7 +43,7 @@ def _is_sha256(value: object) -> bool:
 
 def sha256_file(path: Path) -> str:
     stat_result = path.stat()
-    key = (path, stat_result.st_mtime_ns, stat_result.st_size)
+    key = (path, stat_result.st_mtime_ns, stat_result.st_ctime_ns, stat_result.st_size)
     cached = _DIGEST_CACHE.get(key)
     if cached is not None:
         return cached
