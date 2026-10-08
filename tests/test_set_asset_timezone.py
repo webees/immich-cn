@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 import httpx
-from scripts.set_asset_timezone import apply_timezone, iter_assets, select_asset_ids
+from scripts.set_asset_timezone import SEARCH_PAGE_SIZE, apply_timezone, iter_assets, select_asset_ids
 
 
 def test_select_asset_ids_skips_missing_and_matching_timezone() -> None:
@@ -28,6 +28,28 @@ def test_iter_assets_reads_search_pages() -> None:
 
     with httpx.Client(base_url="http://immich", transport=httpx.MockTransport(handler)) as client:
         assert [asset["id"] for asset in iter_assets(client)] == ["a", "b"]
+
+
+def test_iter_assets_pages_when_total_missing() -> None:
+    """响应不带 total 时必须按「页面是否满」继续翻页，否则会静默丢掉第一页之后的 asset。"""
+    pages: list[int] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        page = json.loads(request.content)["page"]
+        pages.append(page)
+        if page == 1:
+            items = [{"id": f"a{index}"} for index in range(SEARCH_PAGE_SIZE)]
+            return httpx.Response(200, json={"assets": {"items": items}})
+        if page == 2:
+            return httpx.Response(200, json={"assets": {"items": [{"id": "b"}]}})
+        raise AssertionError("total 缺失时不应额外翻页")
+
+    with httpx.Client(base_url="http://immich", transport=httpx.MockTransport(handler)) as client:
+        assets = list(iter_assets(client))
+
+    assert pages == [1, 2]
+    assert len(assets) == SEARCH_PAGE_SIZE + 1
+    assert assets[-1]["id"] == "b"
 
 
 def test_apply_timezone_uses_bulk_update_api() -> None:
