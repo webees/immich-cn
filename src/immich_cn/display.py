@@ -62,6 +62,9 @@ def _validate_keys(pattern: str, keys: tuple[str, ...]) -> None:
     unknown = [key for key in keys if key not in ALLOWED_KEYS]
     if unknown:
         raise ConfigError(f"展示粒度 {pattern!r} 含未知占位符：{', '.join(unknown)}")
+    duplicates = [key for key in dict.fromkeys(keys) if keys.count(key) > 1]
+    if duplicates:
+        raise ConfigError(f"展示粒度 {pattern!r} 含重复占位符：{', '.join(duplicates)}")
     if "admin_2" not in keys and "admin_3" not in keys and "admin_4" not in keys:
         raise ConfigError(f"展示粒度 {pattern!r} 至少要包含一个 admin_N 占位符")
 
