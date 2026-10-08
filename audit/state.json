@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 347,
+  "round": 348,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 223,
+    "findings": 224,
     "clean_rounds": 113,
     "p0": 0,
     "p1": 33,
-    "p2": 145,
+    "p2": 146,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M5 真实数据抽样",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3517,6 +3517,16 @@
       "severity": "P2",
       "evidence": "对 `src/immich_cn/providers/amap.py:149` 做语义微改：成功判定从 `payload.get(\"status\") == \"1\"` 改成 `payload.get(\"status\") is not None`。隔离字节码缓存跑**完整**套件：469 passed，全绿——「HTTP 200 + status=1」这条成功语义没有被任何用例与「任何带 status 的响应」区分开。原因：`tests/test_providers.py` 只出现过 `\"status\": \"1\"` 与一次 403（HTTP 层错误，由 `raise_for_status` 拦住），没有 200 + `status: \"0\"` 的应用层错误。影响：高德的限流/配额错误（如 `DAILY_QUERY_OVER_LIMIT`）返回 200 + `status: \"0\"`，判断写坏后这类错误被当成成功，不会按 `retries` 退避，本批坐标白白失去重试机会。修复：实现本来就正确，补应用层错误用例——`test_amap_retries_application_level_error`（MockTransport 恒定返回 200 + status 0，断言请求恰好 3 次 = retries、日志含「高德返回异常状态」、缓存文件为空即瞬时故障不写负缓存；用例内 monkeypatch `time.sleep` 避免真实退避等待）。负向控制：改成 `is not None` 后新用例立即失败（日志显示只请求 1 次并走「返回数量与请求不一致」分支），恢复后通过。修复后 `make check` 470 passed（+1，覆盖率 88.24%），`ruff`/`mypy` 通过。PR #250 四项必需检查全绿后 squash 合并，main=6b40fc7。",
       "pr": "https://github.com/webees/immich-cn/pull/250"
+    },
+    {
+      "round": 348,
+      "timestamp": "2026-10-08T12:42:06+08:00",
+      "focus": "数据正确性（适配器 admin 代码可解析性）",
+      "method": "M5 真实数据抽样",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "下载真实 `auto-release` 的规范数据集与 `admin2-default` 适配器做跨制品核对，并对照上游 Immich v3.3.0 `server/src/repositories/map.repository.ts`（`admin1Name: admin1Map.get(`${lineSplit[8]}.${lineSplit[10]}`) ?? null`、`admin2Name: ... .${lineSplit[11]}`）确认查找键。发现：适配器的 adminN 表只写 GeoNames 发布的代码表（`_write_admin_file` 的 `raw`），不含地点行实际引用、但上游表没收录的代码。实测：`cities500.txt` 引用 3,796 个 admin1 代码与 33,749 个 admin2 代码，其中 **6 个 admin1（92 行）与 88 个 admin2（8,026 行）查不到名称**，Immich 会给这些行写 null；典型是德国州级市 `DE.03.00`（不来梅州）——GeoNames `admin2Codes.txt` 没有这条，但地点行用它。这 94 个代码**全部**能在规范数据集的 `admin_areas` 里查到名称（数据集知道、适配器没导出）。守卫缺口：`check_admin_area_consistency` 只做「适配器 → 数据集」方向，反向无护栏。修复：① `_emit_geodata` 先写 cities500 并按地点行收集 `(level, code) -> name`（与 `dataset._collect_admin_areas` 同口径），再写 admin 表；② `_write_admin_file` 新增 `extra` 参数，只补 `raw` 里没有的代码，已有条目与 HK/MO 覆盖逻辑不变；③ `check_artifacts` 新增 `check_admin_code_resolution()`（流式读取），要求每个被引用的非空代码都能解析；④ 两个新用例 + 把 `_make_dist` 的样例行改成与 admin 表一致的代码。验证：守卫在真实已发布制品上实测报 `94 个行政代码无法解析（admin1 92 行、admin2 8026 行）：SG.00、SG.01、SG.02、AL.43.13、AL.45.06、AL.46.18`；`make smoke`+`make artifacts` 通过；`make check` 472 passed（覆盖率 88.27%）。PR #251 四项必需检查全绿后 squash 合并，main=b44005e。未验证：没跑真实 260 MB 全量构建，因此「新构建后 0 未解析」是按同口径逻辑推断；下次 update-data 发布后可用新守卫直接复核。",
+      "pr": "https://github.com/webees/immich-cn/pull/251"
     }
   ],
   "residual_risks": [
@@ -3742,7 +3752,10 @@
     "第 346 轮只覆盖了 `apply-pattern.sh` 的未知粒度分支；同一脚本的其它异常输入（变体表首列重复 ID、cities500 含 CRLF、名称列内含制表符、超长行）仍没有专项用例，本轮未逐一构造",
     "第 346 轮的用例只断言「启动失败 + 提示含关键字」，不断言退出码具体值（实现是 2）；若将来改成 1 仍会通过，属于刻意的宽松断言",
     "第 347 轮只覆盖了 amap 的应用层错误重试；`providers/nominatim.py` 的对应分支（HTTP 层以外的错误语义、User-Agent 与 1 QPS 约束下的失败行为）没有做同样强度的探针，`providers/cache.py` 的并发/损坏分支也只由既有用例覆盖",
-    "第 347 轮的用例 monkeypatch 了全局 `time.sleep`，因此它不验证真实退避时长；退避计算本身由 `retry_delay` 的独立用例覆盖，但两者拼接后的时长只有这一条路径被间接走过"
+    "第 347 轮的用例 monkeypatch 了全局 `time.sleep`，因此它不验证真实退避时长；退避计算本身由 `retry_delay` 的独立用例覆盖，但两者拼接后的时长只有这一条路径被间接走过",
+    "第 348 轮的修复使适配器 adminN 表成为「上游代码表 ∪ 地点行引用代码」的超集，因此 data-format.md 里「二级有 33,661 条可比记录」这类时点数字会随下一次发布变化；文档里的数字没有护栏，需要发布后重测",
+    "第 348 轮没有跑真实全量构建验证「新构建后 0 个未解析代码」；守卫已就位，但只有下一次 update-data 发布后才能在真实制品上确认，在此之前该结论属于推断",
+    "第 348 轮只处理 admin1/admin2 两张被 Immich 查找的表；`countryInfo.txt` 与 `ne_10m_admin_0_countries.geojson` 的引用完整性（例如地点国家码是否都在 countryInfo 里）本轮顺带核对为 0 差异，但没有固化成护栏"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
