@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 343,
-  "consecutive_clean": 1,
+  "round": 344,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 220,
+    "findings": 221,
     "clean_rounds": 112,
     "p0": 0,
     "p1": 33,
-    "p2": 142,
+    "p2": 143,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M7 死代码与引用计数",
+  "last_method": "M4 契约快照",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3477,6 +3477,16 @@
       "severity": null,
       "evidence": "补上第 333 轮点名的「未使用配置」剩余形态。Makefile：变量只有 PYTHON / VENV / BIN（外加内置 MAKEFILE_LIST），逐个在目标体里搜引用，全部被使用，没有只定义不引用的变量。工作流 env：自写探针逐层收集 workflow / job / step 级 env 共 90 个条目，按 `$NAME`、`${NAME...}`、`${{ env.NAME }}` 三种形态在同一作用域内搜引用，首轮报 32 个；逐条复核后全部是「隐式消费」——`TZ` 供 shell/Python 读取、`GH_TOKEN`/`GITHUB_TOKEN`/`GITHUB_REPOSITORY` 由 `gh` CLI 隐式读取、`GITHUB_RUN_ID`/`PACKAGE_ADMIN_TOKEN`/`AMAP_API_KEY` 由 Python 脚本经 os.environ 读取。探针第一版漏掉 `${NAME:-默认值}` 形态（把 `${SNAPSHOT_RETENTION:-14}`、`${STATE:-unknown}`、`${DIGEST:-未推送}` 判成未引用），修正后这 4 条自动消失——这一步本身证明「不改宽正则就会得到假拒绝」。负向控制：向 `ci.yml` 顶层 env 注入 `ROUND343_UNUSED_PROBE`，探针立即报 `ci.yml:env.ROUND343_UNUSED_PROBE`（29 个），证明该探针不是恒真；同一注入 `check_workflows.py` 不报警（当前没有这条护栏）。恢复后 `git status` 干净、`git diff` 为空、`check_workflows` 通过。结论：真实「只声明不引用」的配置为 0。本轮未发现 P0-P2 问题，clean_streak=1。注：本轮刻意不把该探针固化成护栏——它需要一张 28 条的「隐式消费白名单」，比它要防的问题更容易产生假拒绝。",
       "pr": null
+    },
+    {
+      "round": 344,
+      "timestamp": "2026-10-08T11:34:15+08:00",
+      "focus": "文档与实现一致性（本地门禁 vs CI 门禁）",
+      "method": "M4 契约快照",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对 `main=ad53690` 做「本地门禁 vs 必需检查」契约快照：CI 的 pytest 步骤是 `pytest --cov=immich_cn --cov-report=term-missing --cov-fail-under=70`（ci.yml:60），而 `make test`（`make check` 的一环）是 `pytest --cov=immich_cn --cov-report=term-missing`（Makefile:29），**没有** `--cov-fail-under`。`CONTRIBUTING.md` 把 `make check` 当作提交前门禁，因此「本地全绿」被当成「CI 会绿」；覆盖率跌破 70% 时本地完全无感，只有 CI 会红——本地门禁的假通过。当前覆盖率 87.92%，问题尚未暴露；`check_docs.py` 的数值契约只覆盖下载体积/变体数/定时/快照保留，没有覆盖覆盖率阈值。修复：① `Makefile` 的 `test` 目标补 `--cov-fail-under=70`；② `check_docs.py` 新增 `check_coverage_gate()`，从 ci.yml 与 Makefile 各取一个 `--cov-fail-under=N` 比对，CI 缺失/本地缺失/数值不一致三种情况都报错；③ `tests/test_checkers.py` 新增 `test_check_docs_requires_matching_coverage_gate`。验证：负向控制一——去掉 Makefile 下限后 checker 报「Makefile 的 test 目标缺少 --cov-fail-under，make check 会弱于 CI」并 exit 1；负向控制二——注释掉 `check_coverage_gate` 调用后新用例立即 AssertionError。`make check` 469 passed，输出 `Required test coverage of 70% reached. Total coverage: 87.92%`，证明本地门禁已生效。PR #248 四项必需检查全绿后 squash 合并，main=ab8fab7。",
+      "pr": "https://github.com/webees/immich-cn/pull/248"
     }
   ],
   "residual_risks": [
@@ -3694,7 +3704,9 @@
     "第 342 轮只反演了 cities500 的三处列宽上限；同一函数里 `len(fields[8]) != 2` 的 countryCode 等号边界（已由既有用例覆盖 1/3 字符）与坐标范围 `-90/90`、`-180/180` 的接受侧边界没有在本轮逐一反演",
     "第 342 轮的接受侧用例只断言 `cities500-immich-columns` 不在失败集合里，没有断言其它检查项也不受影响（把 admin1Code 改成 20 个 x 会改变层级解析）；这是刻意的窄断言，但也意味着该用例不能替代整体构建校验",
     "第 343 轮的 env 探针是文本级：它会漏掉「用间接方式取值」的引用（例如 `eval`、把变量名存进另一个变量、或 shell 数组拼接），也会把「在注释里提到变量名」当成已引用；结论「0 个未使用」只在当前这 6 个工作流与现有写法下成立",
-    "第 343 轮没有检查 `pyproject.toml` 的未使用键（ruff/mypy/pytest/coverage 等配置项是否仍被工具读取），也没有检查 `vars.*` 仓库变量是否都已创建；这两类需要外部工具或仓库 API，留待后续轮次"
+    "第 343 轮没有检查 `pyproject.toml` 的未使用键（ruff/mypy/pytest/coverage 等配置项是否仍被工具读取），也没有检查 `vars.*` 仓库变量是否都已创建；这两类需要外部工具或仓库 API，留待后续轮次",
+    "第 344 轮只对齐了覆盖率这一个阈值；CI 与 Makefile 还各自维护 ruff/mypy/pytest 的命令行（例如 CI 分步执行、Makefile 用 make 目标串起来），其它参数（如 `--cov-report` 形式、pytest 选择器）仍可能漂移，没有统一为「CI 调用 make 目标」",
+    "第 344 轮把下限同步成 70% 后，本地与 CI 的**统计口径**仍可能有差异（本地跑全部 tests/，CI 在 checkout 后同样跑全部），本轮只比对阈值数字，没有比对覆盖率的分母集合"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
