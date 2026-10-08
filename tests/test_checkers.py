@@ -1966,6 +1966,9 @@ def _make_dist(root: Path) -> Path:
             INSERT INTO dataset_meta(key, value) VALUES
                 ('format', 'immich-cn.dataset/1'),
                 ('schemaVersion', '1');
+            INSERT INTO sources(name, url, sha256, size_bytes) VALUES
+                ('cities500', 'https://example.com/cities500.zip', 'abc', 1);
+            INSERT INTO countries(code, name) VALUES ('CN', '中国');
             INSERT INTO places(geoname_id) VALUES (1);
             INSERT INTO place_names(geoname_id) VALUES (1);
             INSERT INTO admin_areas(level, code, name) VALUES
@@ -2157,6 +2160,35 @@ def test_check_artifacts_requires_admin_codes_to_resolve(tmp_path: Path) -> None
     errors = []
     check_artifacts.check_admin_code_resolution(dist, errors)
     assert any("无法解析" in error for error in errors), errors
+
+
+@pytest.mark.parametrize("table", ["countries", "admin_areas"])
+def test_check_artifacts_rejects_empty_dataset_table(tmp_path: Path, table: str) -> None:
+    """规范数据集的核心表为空时必须失败：countries 空会让国家名全为 NULL。"""
+    dist = _make_dist(tmp_path)
+    dataset = dist / "immich-cn-dataset-sqlite-v1.zip"
+    database = tmp_path / "patched.sqlite"
+    with zipfile.ZipFile(dataset) as archive:
+        database.write_bytes(archive.read("immich-cn-dataset-v1.sqlite"))
+    statements = {
+        "countries": "DELETE FROM countries",
+        "admin_areas": "DELETE FROM admin_areas",
+    }
+    connection = sqlite3.connect(database)
+    try:
+        connection.execute(statements[table])
+        connection.commit()
+    finally:
+        connection.close()
+    with zipfile.ZipFile(dataset, "w") as archive:
+        archive.write(database, "immich-cn-dataset-v1.sqlite")
+        archive.writestr("schema.json", json.dumps({"format": "immich-cn.dataset/1", "schemaVersion": 1}))
+        archive.writestr("NOTICE.txt", "GeoNames CC BY 4.0\n")
+        archive.writestr("README.txt", "canonical dataset\n")
+
+    errors: list[str] = []
+    check_artifacts.check_dataset(dist, errors)
+    assert any(f"{table} 表为空" in error for error in errors), errors
 
 
 def test_check_artifacts_rejects_zip_path_traversal(tmp_path: Path) -> None:
