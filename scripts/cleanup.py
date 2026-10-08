@@ -23,6 +23,10 @@ from typing import Any
 
 #: 稳定版本标签：兼容历史三段式与当前四段式 Immich 对齐版本。
 STABLE_VERSION = re.compile(r"^v?\d+\.\d+\.\d+(?:\.\d+)?(?:[-+][0-9A-Za-z.-]+)?$")
+#: 三段式旧版本线（v1.0.4 / 1.0.4）：被四段式 Immich 对齐版本取代后才可以回收。
+LEGACY_VERSION = re.compile(r"^v?\d+\.\d+\.\d+$")
+#: 四段式 Immich 对齐版本（3.3.0.1）：它的存在是回收旧版本线的前提。
+ALIGNED_VERSION = re.compile(r"^\d+\.\d+\.\d+\.\d+$")
 PACKAGE_TAGS = {"latest", "release"}
 PACKAGE_NAMES = ("immich-cn", "immich-cn-server")
 RETRY_STATUS = {408, 425, 429, 500, 502, 503, 504}
@@ -279,6 +283,26 @@ def select_package_versions(
     keep.update(version.id for version in ordered[:keep_count])
     # untagged 版本通常是多架构索引的子 manifest 或 attestation；直接删除会破坏父索引。
     return tuple(version for version in versions if version.id not in keep and version.tags)
+
+
+def select_superseded_versions(
+    versions: list[PackageVersionRecord],
+    *,
+    aligned_available: bool = False,
+) -> tuple[list[PackageVersionRecord], list[PackageVersionRecord]]:
+    """返回 ``(可安全删除的三段式旧版本, 缺少四段式替代品而保留的旧版本)``。
+
+    四段式 Immich 对齐版本出现之后，三段式旧版本线（`1.0.x`）才允许回收；
+    否则保留并在输出里标记待人工确认，避免把唯一的分发入口清空。与 `select_legacy_assets` 同构。
+    只处理「标签全部是三段式」的版本：带 `latest`/`release`/日期/SHA/`sha256-*` 或多标签的版本
+    一律不动。
+    """
+    legacy = [version for version in versions if version.tags and all(LEGACY_VERSION.match(t) for t in version.tags)]
+    if not legacy:
+        return [], []
+    has_aligned = aligned_available or any(ALIGNED_VERSION.match(t) for version in versions for t in version.tags)
+    ordered = sorted(legacy, key=lambda version: version.created_at)
+    return (ordered, []) if has_aligned else ([], ordered)
 
 
 class GitHubClient:
@@ -557,6 +581,11 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="仓库中已有规范 v4 替代品时删除旧命名发布资产（缺省 dry-run）",
     )
+    parser.add_argument(
+        "--prune-superseded-versions",
+        action="store_true",
+        help="同一个 GHCR 包已有四段式 Immich 对齐版本时删除三段式旧版本（缺省 dry-run）",
+    )
     parser.add_argument("--dist-dir", type=Path, default=Path("dist"), help="--prune-release-assets 使用的本地清单目录")
     return parser
 
@@ -661,15 +690,56 @@ def _prune_legacy_assets(client: GitHubClient, args: argparse.Namespace) -> int:
     return 0
 
 
+def _prune_superseded_versions(client: GitHubClient, args: argparse.Namespace) -> int:
+    """删除已被四段式 Immich 对齐版本取代的三段式旧镜像版本。
+
+    与 `--prune-legacy-assets` 同构：默认只试运行，且只有同一个包里已经存在四段式版本时才删除；
+    没有四段式替代品时只报告、不删除。
+    """
+    mode = "APPLY" if args.apply else "DRY-RUN"
+    deletable_total = 0
+    manual_total = 0
+    failures: list[str] = []
+    for package in PACKAGE_NAMES:
+        versions = client.list_package_versions(package)
+        deletable, manual = select_superseded_versions(versions)
+        if not deletable and not manual:
+            print(f"[{mode}] GHCR 包 {package}：没有三段式旧版本")
+            continue
+        if deletable:
+            print(f"[{mode}] GHCR 包 {package}：待删除三段式旧版本 {len(deletable)} 个")
+        if manual:
+            manual_total += len(manual)
+            print(f"[{mode}] GHCR 包 {package}：缺少四段式替代品，保留旧版本 {len(manual)} 个")
+        for version in deletable:
+            print(f"  - {', '.join(version.tags)}")
+            if args.apply:
+                try:
+                    client.delete_package_version(package, version)
+                except CleanupError as error:
+                    failures.append(f"{package}/{version.id}: {error}")
+        for version in manual:
+            print(f"  ! {', '.join(version.tags)}（无四段式替代品，跳过）")
+        deletable_total += len(deletable)
+    print(f"[{mode}] 三段式旧版本：可删除 {deletable_total} 个，需人工确认 {manual_total} 个")
+    if failures:
+        detail = "；".join(failures[:5])
+        if len(failures) > 5:
+            detail += f"；另有 {len(failures) - 5} 项"
+        raise CleanupError(f"三段式旧版本清理部分失败：{len(failures)} 项：{detail}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     modes = (
         bool(args.prune_release_assets),
         bool(args.verify_release_assets),
         args.prune_legacy_assets,
+        args.prune_superseded_versions,
     )
     if sum(modes) > 1:
-        print("::error::Release 资产清理模式不能同时使用", file=sys.stderr)
+        print("::error::清理模式不能同时使用：Release 资产与三段式旧版本各自单独运行", file=sys.stderr)
         return 2
     settings = CleanupSettings(
         release_retention=args.release_retention,
@@ -689,6 +759,8 @@ def main(argv: list[str] | None = None) -> int:
             return _verify_release_assets(client, args)
         if args.prune_legacy_assets:
             return _prune_legacy_assets(client, args)
+        if args.prune_superseded_versions:
+            return _prune_superseded_versions(client, args)
         plan = build_plan(client, settings, allow_empty_packages=args.allow_empty_packages)
         print_plan(plan, apply=args.apply)
         if args.apply:

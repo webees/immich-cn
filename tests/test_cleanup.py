@@ -21,6 +21,7 @@ from scripts.cleanup import (
     _github_token,
     _prune_legacy_assets,
     _prune_release_assets,
+    _prune_superseded_versions,
     _verify_release_assets,
     apply_plan,
     build_plan,
@@ -30,6 +31,7 @@ from scripts.cleanup import (
     select_releases,
     select_runs,
     select_stale_assets,
+    select_superseded_versions,
 )
 
 #: v4 迁移前发布、因而残留在 auto-release 上的旧资产名（2026-10-07 实测 21 个）。
@@ -141,6 +143,49 @@ def test_prune_legacy_assets_apply_deletes_only_safe_assets() -> None:
     args = SimpleNamespace(apply=True)
     assert _prune_legacy_assets(_Client(), args) == 0
     assert deleted == [10, 20]
+
+
+def test_select_superseded_versions_requires_aligned_replacement() -> None:
+    """三段式旧版本只有在同一个包里已有四段式 Immich 对齐版本时才可回收。"""
+    legacy = [PackageVersionRecord(1, at(1), ("1.0.4",)), PackageVersionRecord(2, at(2), ("1.0.3",))]
+    aligned = PackageVersionRecord(3, at(0), ("3.3.0.1",))
+
+    deletable, manual = select_superseded_versions([*legacy, aligned])
+    assert [version.id for version in deletable] == [2, 1]  # 按创建时间升序
+    assert manual == []
+
+    deletable, manual = select_superseded_versions(legacy)
+    assert deletable == []
+    assert [version.id for version in manual] == [2, 1]
+
+    # 带 latest / release / 日期 / sha / sha256-* 或多标签的版本一律不动
+    others = [
+        PackageVersionRecord(4, at(0), ("latest",)),
+        PackageVersionRecord(5, at(0), ("2026-10-08",)),
+        PackageVersionRecord(6, at(0), ("sha-abc1234",)),
+        PackageVersionRecord(7, at(0), ("sha256-abc",)),
+        PackageVersionRecord(8, at(0), ("1.0.4", "3.3.0.1")),
+        PackageVersionRecord(9, at(0), ()),
+    ]
+    assert select_superseded_versions(others) == ([], [])
+
+
+def test_prune_superseded_versions_apply_deletes_only_when_aligned_exists() -> None:
+    """执行模式只在已有四段式替代品的包里删除三段式版本，缺替代品的包只报告。"""
+    deleted: list[tuple[str, int]] = []
+
+    class _Client:
+        def list_package_versions(self, package: str) -> list[PackageVersionRecord]:
+            if package == "immich-cn":
+                return [PackageVersionRecord(1, at(1), ("1.0.4",)), PackageVersionRecord(2, at(0), ("3.3.0.1",))]
+            return [PackageVersionRecord(3, at(1), ("1.0.4",))]
+
+        def delete_package_version(self, package: str, version: PackageVersionRecord) -> None:
+            deleted.append((package, version.id))
+
+    args = SimpleNamespace(apply=True)
+    assert _prune_superseded_versions(_Client(), args) == 0
+    assert deleted == [("immich-cn", 1)]
 
 
 def test_run_cleanup_preserves_cutoff_latest_per_workflow_protected_and_current() -> None:
