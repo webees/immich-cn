@@ -10,7 +10,7 @@ import pytest
 
 from immich_cn.domain import SourceRecord
 from immich_cn.errors import SourceError
-from immich_cn.fetching import Fetcher, retry_delay, sha256_bytes
+from immich_cn.fetching import Fetcher, retry_delay, sha256_bytes, sha256_file
 from immich_cn.pipeline import _materialize
 from immich_cn.settings import BuildOptions, SourceSpec
 
@@ -315,6 +315,29 @@ def test_fetcher_revalidate_keeps_cache_on_unsolicited_206(tmp_path: Path) -> No
 
     assert result.record.sha256 == cached.record.sha256
     assert result.path.read_bytes() == b"A" * 20
+
+
+def test_sha256_file_cache_invalidates_on_change(tmp_path: Path) -> None:
+    """摘要缓存必须随文件变化失效，否则改掉制品后仍会拿到旧摘要。
+
+    构建路径会在 package_all、manifest 与 checksums 里对同一制品各哈希一次；
+    缓存去掉重复读取，但不能把「文件已改」也一起缓存掉。
+    """
+    target = tmp_path / "a.bin"
+    target.write_bytes(b"aaaa")
+    first = sha256_file(target)
+    assert sha256_file(target) == first  # 第二次命中缓存
+
+    target.write_bytes(b"bbbbbb")  # 长度变化 -> 缓存键失效
+    assert sha256_file(target) != first
+
+    same_size = tmp_path / "b.bin"
+    same_size.write_bytes(b"aaaa")
+    before = sha256_file(same_size)
+    same_size.write_bytes(b"bbbb")  # 同长度，只改内容
+    stat_result = same_size.stat()
+    os.utime(same_size, ns=(stat_result.st_atime_ns, stat_result.st_mtime_ns + 1_000_000_000))
+    assert sha256_file(same_size) != before
 
 
 def test_fetcher_retries_rate_limited_download(tmp_path: Path) -> None:
