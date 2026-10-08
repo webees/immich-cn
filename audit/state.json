@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 356,
+  "round": 357,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 226,
+    "findings": 227,
     "clean_rounds": 119,
     "p0": 0,
     "p1": 33,
-    "p2": 148,
+    "p2": 149,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M3 负向制品实验",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3607,6 +3607,16 @@
       "severity": "P2",
       "evidence": "`scripts/cleanup.py::GitHubClient._list` 是 `list_releases` / `list_runs` / `list_package_versions` / `release_assets` 共用的列表读取实现，终止条件是 `if len(current) < 100: break`。`rg '_list|per_page|page=|分页' tests/` 命中 0 条——该函数在测试里从未被提及。变异探针：把终止条件改成 `if True: break`（只看第一页），隔离字节码缓存跑**完整**套件：473 passed，全绿。影响：`_list` 是所有破坏性决策的输入源；截断到 100 条后 `select_releases`/`select_package_versions`/`select_stale_assets` 只看到第一页，保留策略在对象数超过 100 时静默失效（方向是少删，但「按策略回收」的承诺不再成立），且无测试与日志提示。修复：实现本来就正确，补用例——`test_github_client_list_paginates_until_short_page`（假 `urlopen` 第一页 100 条、第二页 2 条，断言 `_list` 返回 102 条且按序请求 page=1/page=2）。负向控制：改成 `if True: break` 后新用例立即 AssertionError（`Right contains 2 more items, first extra item: 100`），恢复后通过。修复后 `make check` 474 passed（+1，覆盖率 88.27%），`ruff`/`mypy` 通过。PR #253 四项必需检查全绿后 squash 合并，main=0033ec0。",
       "pr": "https://github.com/webees/immich-cn/pull/253"
+    },
+    {
+      "round": 357,
+      "timestamp": "2026-10-08T14:28:33+08:00",
+      "focus": "负向制品实验（规范数据集内部表被清空）",
+      "method": "M3 负向制品实验",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "直接对 `scripts/check_artifacts.check_dataset` 做负向实验（绕过文件级校验和，模拟「自洽但结构错误」的制品）：构造内部自洽的规范数据集 zip，分别清空 `countries`、`sources`、`admin_areas`。基线（不篡改）返回 0 错误，说明检查器不是无差别拒绝；清空 `countries` 返回 0 错误、清空 `admin_areas` 返回 0 错误、清空 `sources` 返回 0 错误——三张表都没有非空约束。影响：`localized_places` 视图依赖 `countries`，表为空时每个地点的 `country_name` 变成 NULL，规范数据集这个「第一等产物」对消费者直接失效，而构建侧回归（例如 join 写坏）不会被发布门禁发现。修复：`check_dataset` 增加 `countries` 与 `admin_areas` 的非空校验（显式 SQL，不拼表名）；新增参数化用例 `test_check_artifacts_rejects_empty_dataset_table`；并给 `_make_dist` 夹具补上 `countries`/`sources` 行使夹具满足新约束。负向控制：去掉新增校验后两个参数化用例全部 FAILED，恢复后通过。修复过程中新检查立刻在合成冒烟制品上报出 `sources 表为空`——查证为 `run_build` 在 `--skip-fetch` 路径下 `records = []` 的设计结果，因此**不**把 `sources` 纳入硬校验，改为记入残余风险。`make smoke`+`make artifacts` 通过；`make check` 476 passed（+2），`ruff`/`mypy` 通过。PR #254 四项必需检查全绿后 squash 合并，main=fec9741。",
+      "pr": "https://github.com/webees/immich-cn/pull/254"
     }
   ],
   "residual_risks": [
@@ -3854,7 +3864,10 @@
     "第 355 轮确认数据镜像以 uid 0 运行（`USER` 未设置，Alpine 默认）；它只写挂载目录，且服务端镜像与上游 Immich 同为 root，因此本轮不作为缺陷，但「以非 root 运行容器」仍是后续可收紧项",
     "第 355 轮没有验证 `immich-cn-server` 覆盖镜像（构建需拉取 1.6 GB 上游镜像）；该镜像的端到端验证仍只在发布流水线与 CI 的 Docker 冒烟作业里执行",
     "第 356 轮只覆盖了 `_list` 的翻页终止条件；`_list` 的 100 页硬上限（最多 10,000 条）仍是静默截断——超出后不报错也不告警，只是少看到对象。当前仓库对象数远低于该上限，需要时再加「达到上限即报错」的护栏",
-    "第 356 轮没有对 `_request` 的 429/5xx 重试与 `allow_not_found` 组合做新实验（既有用例覆盖 5xx 重试、401 不重试、404 幂等删除三条路径），其余状态码组合仍属未覆盖"
+    "第 356 轮没有对 `_request` 的 429/5xx 重试与 `allow_not_found` 组合做新实验（既有用例覆盖 5xx 重试、401 不重试、404 幂等删除三条路径），其余状态码组合仍属未覆盖",
+    "第 357 轮发现 `--skip-fetch` 路径下 `run_build` 的 `records = []`，产出的规范数据集 `sources` 表为空，来源与哈希信息丢失；本轮按「合成冒烟构建依赖该路径」不引入硬校验，只在 `check_dataset` 注释里说明。真实发布路径始终走 fetch，故不影响已发布制品",
+    "第 357 轮只对规范数据集做了表清空实验；`place_names`/`admin_areas` 的列语义（例如 admin3 是否可能整列为空）、`sources` 的 url/sha256 是否与 manifest 一致没有在本轮验证；后者还缺少 dataset↔manifest 的跨制品比对",
+    "第 357 轮新增的两张表非空校验是「至少一行」级别，不校验数量级；若构建只写入极少量记录（例如 countries 只剩 1 个国家），只要 `places` 非空就仍会通过"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
