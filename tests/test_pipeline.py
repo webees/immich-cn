@@ -6,11 +6,13 @@ import json
 import sqlite3
 import tarfile
 import zipfile
+from collections import Counter
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
+import immich_cn.packaging as packaging
 from immich_cn import __version__
 from immich_cn.domain import AdminEntry
 from immich_cn.errors import ParseError
@@ -251,6 +253,23 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
     checksums = (dist / "immich-cn-checksums-sha256-v1.txt").read_text(encoding="utf-8")
     assert "immich-cn-geodata-admin2-default-v1.zip" in checksums
     assert "immich-cn-dataset-sqlite-v1.zip" in checksums
+
+
+def test_package_hashes_each_artifact_once(build_options: BuildOptions, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[Path] = []
+    original = packaging.sha256_file
+
+    def counting_sha256(path: Path) -> str:
+        calls.append(path)
+        return original(path)
+
+    monkeypatch.setattr(packaging, "sha256_file", counting_sha256)
+    result = run_build(build_options)
+    package_all(build_options, result)
+
+    counts = Counter(calls)
+    assert counts
+    assert max(counts.values()) == 1
 
 
 def test_language_bundle_removes_stale_files(build_options: BuildOptions) -> None:

@@ -51,6 +51,7 @@ class PackageResult:
     variants: list[dict[str, object]] = field(default_factory=list)
     dataset: Path | None = None
     checksums: Path | None = None
+    hashes: dict[Path, str] = field(default_factory=dict)
 
 
 def build_variants(patterns: tuple[str, ...]) -> list[Variant]:
@@ -96,7 +97,6 @@ def package_all(options: BuildOptions, result: BuildResult) -> PackageResult:
                     "schemaVersion": 1,
                     "canonicalFile": canonical_filename(variant.pattern, variant.full),
                     "sizeBytes": path.stat().st_size,
-                    "sha256": sha256_file(path),
                 }
             )
 
@@ -123,8 +123,16 @@ def package_all(options: BuildOptions, result: BuildResult) -> PackageResult:
     )
     package_result.artifacts.append(package_result.dataset)
 
+    package_result.hashes.update({path: sha256_file(path) for path in package_result.artifacts})
+    for entry in package_result.variants:
+        entry["sha256"] = package_result.hashes[options.dist_dir / str(entry["file"])]
+
     manifest = _write_manifest(options, result, package_result)
-    checksums = _write_checksums(options.dist_dir, [*package_result.artifacts, manifest])
+    checksums = _write_checksums(
+        options.dist_dir,
+        [*package_result.artifacts, manifest],
+        hashes=package_result.hashes,
+    )
     package_result.checksums = checksums
     if not options.keep_raw:
         cleanup_removable(result, work_dir=options.work_dir)
@@ -261,7 +269,7 @@ def _write_manifest(options: BuildOptions, result: BuildResult, package_result: 
             "file": path.name,
             "kind": _asset_kind(path.name),
             "sizeBytes": path.stat().st_size,
-            "sha256": sha256_file(path),
+            "sha256": package_result.hashes[path],
         }
         for path in sorted(package_result.artifacts, key=lambda item: item.name)
     ]
@@ -272,7 +280,7 @@ def _write_manifest(options: BuildOptions, result: BuildResult, package_result: 
             "format": DATASET_FORMAT,
             "schemaVersion": DATASET_SCHEMA_VERSION,
             "sizeBytes": package_result.dataset.stat().st_size,
-            "sha256": sha256_file(package_result.dataset),
+            "sha256": package_result.hashes[package_result.dataset],
         }
     manifest["license"] = {
         "code": "MIT",
@@ -283,7 +291,12 @@ def _write_manifest(options: BuildOptions, result: BuildResult, package_result: 
     return path
 
 
-def _write_checksums(dist_dir: Path, files: list[Path]) -> Path:
+def _write_checksums(
+    dist_dir: Path,
+    files: list[Path],
+    *,
+    hashes: dict[Path, str] | None = None,
+) -> Path:
     """只登记本次构建产出的文件。
 
     不能扫描 `dist_dir`：历史残留（旧命名、临时文件）会被一起写进校验和，
@@ -294,7 +307,10 @@ def _write_checksums(dist_dir: Path, files: list[Path]) -> Path:
     for item in sorted({item for item in files if item.name != CHECKSUMS_FILE}, key=lambda item: item.name):
         if not item.is_file():
             raise FileNotFoundError(f"待登记制品不存在：{item}")
-        entries.append((sha256_file(item), item.name))
+        digest = (hashes or {}).get(item) or sha256_file(item)
+        if hashes is not None:
+            hashes[item] = digest
+        entries.append((digest, item.name))
     path.write_text("".join(f"{digest}  {name}\n" for digest, name in entries), encoding="utf-8")
     return path
 
