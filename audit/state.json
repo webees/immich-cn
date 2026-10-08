@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 323,
-  "consecutive_clean": 1,
+  "round": 324,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 206,
+    "findings": 207,
     "clean_rounds": 106,
     "p0": 0,
     "p1": 32,
-    "p2": 129,
+    "p2": 130,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M7 死代码与引用计数",
+  "last_method": "M4 契约快照",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3277,6 +3277,16 @@
       "severity": null,
       "evidence": "在 `main=52a98cb` 上执行 `python -m scripts.check_dead_symbols`：0 项零引用定义。负向控制：向 `src/immich_cn/rate_limit.py` 注入一个零引用的模块级 `def round323_probe_unused_helper`，扫描器立即报 `src/immich_cn/rate_limit.py:52 round323_probe_unused_helper` 并 exit 1，证明该扫描不是恒真；恢复后 `git diff` 为空。补一层 scanner 覆盖不到的口径（数据类字段只写不读）：自写 AST 探针按「类内 self.<field> 读取」与「任意 .<field> 属性读取」分类，扫描 118 个 dataclass 字段，完全零读取 0 个；唯一在 `src/` 内无读取的 `PackageResult.checksums`（packaging.py:53 声明、packaging.py:128 赋值）由 `tests/test_pipeline.py:307` 读取，不构成死字段。「未使用配置」另核：`src/` 中全部 `os.environ` 读取（LOG_LEVEL / AMAP_API_KEY / AMAP_QPS / AMAP_BATCH_SIZE / AMAP_COUNTRIES / NOMINATIM_QPS / NOMINATIM_COUNTRIES / GITHUB_SHA）都被消费，`config/overrides.toml` 的 places/admins/countries/rules 四段都被 `NameOverrides.load` 读取，Makefile 目标全部被引用或是 `make check` 的阶段名（docs/workflows/shellcheck/venv 只在 check 描述里出现）。本轮未发现 P0-P2 问题，clean_streak=1。残余：探针是名字级文本匹配，跨类同名属性（如 name/language）会被计为已读，属假阴性方向。",
       "pr": null
+    },
+    {
+      "round": 324,
+      "timestamp": "2026-10-08T08:13:55+08:00",
+      "focus": "文档与实现一致性（镜像标签存在性）",
+      "method": "M4 契约快照",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对 `main=52a98cb` 做远端契约快照：CLI 六个子命令（fetch/build/all/verify/fingerprint/artifact）与文档一致；`auto-release` 的 19 个资产与下载下来的 manifest 逐项一致（17 个 `assets` + manifest + checksums，`artifactSpecVersion=4`、`artifacts=14`），`immich-cn artifact resolve` 对 admin2.default / admin2-admin3-admin4.full / admin3-admin4.default 三个 ID 解析出的文件名与实发资产相符。但 `docs/packages.md:52` 与 `:72` 把尚未发布的四段式版本写成既成事实：`docker buildx imagetools inspect ghcr.io/webees/immich-cn:3.3.0.1` 与 `...-server:3.3.0.1` 均返回 `not found`（同一命令对 `latest`、`1.0.4`、`2026-10-08`、`immich-cn-server:release`、`sha-cdc0ba3` 正常解析），`gh release list` / `gh api repos/webees/immich-cn/tags` 只有 `v1.0.0`~`v1.0.4`、`data-*`、`auto-release`，没有 `v3.3.0.1`，即四段式版本从未发布。`check_image_tag_examples` 只校验标签形态、不校验存在性，因此这是恒绿护栏下的真实漂移。修复：`docs/packages.md` 改为陈述标签形态与「四段式标签只在 `Release` 成功后存在」，实测句改用可复核的 `1.0.4`，代码块注释标注生成前提。PR #234 四项必需检查全绿后 squash 合并，main=37849d7。",
+      "pr": "https://github.com/webees/immich-cn/pull/234"
     }
   ],
   "residual_risks": [
@@ -3454,7 +3464,9 @@
     "第 319 轮的 zip 符号链接检测依赖 external_attr 是否保留 POSIX 模式；未保留模式的归档仍由路径越界、压缩比和内容校验覆盖，但没有通用的“符号链接语义”检测",
     "第 320 轮只核对数据镜像的压缩层体积；服务端镜像、arm64 变体和本地解压后体积没有在本轮重新测量，docs/packages.md 的 2026-10-07 示例值仍是时点数据",
     "第 322 轮的文档精简是人工判断「哪些段落语义重复」，没有自动指标；护栏只能拦住路径/命令/标签/固定数字漂移，无法发现「措辞不同但语义重复」的新增段落，后续文档增长时仍可能重新堆积重复说明",
-    "第 323 轮的只写不读探针是名字级文本匹配：跨类同名属性（name、language、countries 等）会被算作已读，所以它能证伪「完全零读取」的字段，但证明不了「某字段只被无关同名属性访问」；该探针是临时脚本、未固化为 make 目标，未来新增数据类字段时仍需重扫"
+    "第 323 轮的只写不读探针是名字级文本匹配：跨类同名属性（name、language、countries 等）会被算作已读，所以它能证伪「完全零读取」的字段，但证明不了「某字段只被无关同名属性访问」；该探针是临时脚本、未固化为 make 目标，未来新增数据类字段时仍需重扫",
+    "第 324 轮发现 `check_image_tag_examples` 只校验 GHCR 标签的形态与「必须出现当前项目版本示例」，不校验标签是否真实存在；因此「文档承诺一个从未发布的版本标签」这类漂移会恒绿。修复方式是文档改为陈述生成前提，但护栏本身仍未联网核对标签存在性，后续若再次出现同类漂移仍需人工或新的存在性检查",
+    "第 324 轮确认四段式版本 `3.3.0.1` 从未发布：Git 侧最新版本标签是 `v1.0.4`（三段式），GHCR 侧对应 `1.0.4`。要让文档示例可直接拉取，需要运行 `Release` 工作流推送 `v3.3.0.1` 与两个镜像版本标签；这是对外发布动作，按边界需用户确认后才能执行"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
