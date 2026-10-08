@@ -201,6 +201,36 @@ def test_amap_enricher_prefetch_and_enrich(tmp_path: Path) -> None:
     assert str(client.base_url) == str(httpx.URL(""))
 
 
+def test_amap_retries_application_level_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """HTTP 200 但 `status != "1"` 是高德应用层错误：必须按重试次数退避，不能当成成功。
+
+    只测 `status == "1"` 区分不了「成功」与「任何带 status 的响应」；一旦这个判断写错，
+    限流/配额类错误会被当成成功，本批坐标直接跳过重试机会。
+    """
+    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+    attempts = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(200, json={"status": "0", "info": "DAILY_QUERY_OVER_LIMIT"})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    options = AmapOptions(api_key="test", qps=1000, batch_size=1, retries=3)
+    enricher = AmapEnricher(options, tmp_path / "amap.jsonl", client=client)
+    with caplog.at_level(logging.WARNING):
+        enricher.prefetch([make_place()])
+    enricher.close()
+
+    assert attempts == 3
+    assert "高德返回异常状态" in caplog.text
+    # 瞬时故障不写负缓存：服务恢复后这些坐标仍要重试
+    cache_path = tmp_path / "amap.jsonl"
+    assert not cache_path.exists() or not cache_path.read_text(encoding="utf-8").strip()
+
+
 def test_amap_qps_zero_is_rejected_and_one_is_accepted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AMAP_API_KEY", "test-key")
     options = BuildOptions(
