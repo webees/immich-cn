@@ -696,8 +696,8 @@ def test_check_docs_rejects_misleading_adm4_wording(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     mutate(
         readme,
-        "拼不出第四级层级。",
-        "拼不出第四级层级。因为 GeoNames 几乎没有乡镇级 `ADM4` 记录。",
+        "ADM4` 记录及其 `admin4` 代码；",
+        "ADM4` 记录及其 `admin4` 代码；因为 GeoNames 几乎没有乡镇级 `ADM4` 记录；",
     )
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
@@ -705,12 +705,16 @@ def test_check_docs_rejects_misleading_adm4_wording(repo_copy: Path) -> None:
 
 
 def test_check_docs_requires_adm4_code_explanation(repo_copy: Path) -> None:
-    """提到 73 条时必须说明那是「带 admin4 代码的数量」。"""
+    """四级回退必须说明取决于 admin3/admin4 代码，而不是写死计数。"""
     readme = repo_copy / "README.md"
-    mutate(readme, "带 `admin4` 代码的只有 73 条", "只有 73 条")
+    data_sources = repo_copy / "docs" / "data-sources.md"
+    china = repo_copy / "docs" / "china.md"
+    mutate(readme, "`ADM4` 记录及其 `admin4` 代码", "`ADM4` 记录")
+    mutate(data_sources, "`admin3`/`admin4` 代码与匹配策略", "代码与匹配策略")
+    mutate(china, "`admin3`/`admin4` 代码与匹配策略", "代码与匹配策略")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
-    assert "未说明这是「带 admin4 代码的数量」" in result.stdout
+    assert "没有文档说明 ADM4 的代码覆盖与回退边界" in result.stdout
 
 
 def test_check_docs_rejects_stale_immich_countryinfo_boundary(repo_copy: Path) -> None:
