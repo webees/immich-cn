@@ -704,7 +704,18 @@ def _prune_superseded_versions(client: GitHubClient, args: argparse.Namespace) -
         versions = client.list_package_versions(package)
         deletable, manual = select_superseded_versions(versions)
         if not deletable and not manual:
-            print(f"[{mode}] GHCR 包 {package}：没有三段式旧版本")
+            # 带三段式标签、但因为同时还带其它标签而被保留的版本要显式说明，
+            # 否则「0 个」既可能表示没有旧版本，也可能表示保守规则生效，二者不可区分。
+            legacy_tagged = [version for version in versions if any(LEGACY_VERSION.match(tag) for tag in version.tags)]
+            if legacy_tagged:
+                print(
+                    f"[{mode}] GHCR 包 {package}：{len(legacy_tagged)} 个版本带三段式标签，"
+                    "但它们同时带其它标签，按保守规则保留"
+                )
+                for version in legacy_tagged[:5]:
+                    print(f"  ~ {', '.join(version.tags)}")
+            else:
+                print(f"[{mode}] GHCR 包 {package}：没有带三段式标签的版本")
             continue
         if deletable:
             print(f"[{mode}] GHCR 包 {package}：待删除三段式旧版本 {len(deletable)} 个")
