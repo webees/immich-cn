@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 424,
-  "consecutive_clean": 3,
+  "round": 425,
+  "consecutive_clean": 4,
   "totals": {
     "findings": 254,
-    "clean_rounds": 159,
+    "clean_rounds": 160,
     "p0": 0,
     "p1": 34,
     "p2": 175,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M4 契约快照",
+  "last_method": "M10 shell/容器安全审查（工作流失败路径）",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4299,9 +4299,21 @@
       "severity": null,
       "evidence": "对 `main=4502727` 做文档契约快照：`check_docs.py` 通过（15 个文档、56 个实现文件），`check_workflows.py` 通过（6 个工作流）。对抗控制：在临时副本把 `docs/packages.md` 的镜像 tag 从 `3.3.0.1` 改成 `v3.3.0.1`，`check_docs.py` 立即以退出码 1 报“镜像 tag 不符合发布契约”并指出缺少当前版本示例，证明 GHCR tag 契约不是恒真。检查清单：已核对文档、工作流与当前镜像 tag 契约；未逐条重放所有路径与数字。本轮未发现 P0-P2 问题，clean_streak=3。",
       "pr": null
+    },
+    {
+      "round": 425,
+      "timestamp": "2026-10-09T20:45:00+08:00",
+      "focus": "工作流逻辑（条件、输出、权限、失败路径）",
+      "method": "M10 shell/容器安全审查（工作流失败路径）",
+      "method_note": "轮换位次为 M5；本轮按 focus 审查 workflow failure path。",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "运行 `check_workflows.py` 与 `check_shell.py` 均通过。对抗控制：在临时副本删除 `update-data.yml:resolve-previous-failure` 对 `needs.release` 的判断，检查器立即以退出码 1 报“只判断了部分依赖，遗漏 release”，证明依赖失败路径契约不是恒真。检查清单：已覆盖工作流 needs 条件、失败通知依赖、Shell 契约；未触发真实失败运行。本轮未发现 P0-P2 问题，clean_streak=4。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 425 轮只通过工作流静态契约和临时变异验证失败路径，没有触发真实 GitHub 失败运行来观察 issue 创建/关闭与权限行为",
     "第 424 轮只验证了镜像 tag 的 `v` 前缀契约；文档中的路径、命令、数字与示例仍未逐条重放",
     "第 423 轮的字段探针只统计静态属性读取，无法证明 `getattr`、dataclass 序列化或外部消费者未读取字段；`PackageResult.checksums` 因而保留",
     "第 422 轮只反演了 SHA256 字符串的长度与字符集；checksums 条目格式、重复项和 manifest 字段组合仍由其它定向测试覆盖，未在本轮全部重放",
