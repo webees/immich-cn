@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 372,
-  "consecutive_clean": 0,
+  "round": 373,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 233,
-    "clean_rounds": 128,
+    "clean_rounds": 129,
     "p0": 0,
     "p1": 33,
     "p2": 155,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M2 阈值反演",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3767,6 +3767,16 @@
       "severity": "P2",
       "evidence": "`check_artifacts.check_zip_budget` 的三个安全阈值原先只有远超阈值的测试，没有锁定边界语义。变异探针把单成员 `if info.file_size > MAX_ENTRY_UNCOMPRESSED_BYTES` 改为 `>=`，完整测试仍为 485 passed，说明阈值本身恰好命中时行为无测试。修复：新增 `test_check_artifacts_zip_budget_boundaries_are_exclusive`，用假归档精确覆盖——单成员等于上限通过、超过 1 字节失败；压缩比等于上限通过、超过失败；整包总量等于上限通过、超过 1 字节失败。负向控制：再次注入 `>=` 后新用例立即失败（精确上限被误报），恢复后 `make check` 全绿（486 passed、覆盖率 88.44%、ruff/mypy/docs/workflows/shell 通过）。PR #264 四项必需检查全绿后 squash 合并，main=201cb74。",
       "pr": "https://github.com/webees/immich-cn/pull/264"
+    },
+    {
+      "round": 373,
+      "timestamp": "2026-10-08T23:55:00+08:00",
+      "focus": "死代码与未使用配置（含只写不读的变量）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "`python -m scripts.check_dead_symbols` 在 `main=201cb74` 上通过，0 个零引用模块级定义；对全部 `os.environ` 读取点做人工引用核对，现有配置项都被生产路径消费。对抗控制：向 `src/immich_cn/rate_limit.py` 注入未使用的 `round373_unused_probe`，扫描器立即报出 `src/immich_cn/rate_limit.py:10 round373_unused_probe` 并 exit 1；移除探针后重新扫描通过。`make check` 全绿：486 passed、覆盖率 88.44%、ruff/mypy/docs/workflows/shell 通过，`git status` 与 `git diff` 为空。检查清单：已做零引用定义扫描、环境变量读取点人工核对与未使用函数注入控制；未复核所有 dataclass 字段的写读关系（本轮方法为模块级引用计数）。本轮未发现 P0-P2 问题，clean_streak=1。残余风险：扫描器是名字级文本匹配，跨模块同名符号与仅由外部入口消费的字段可能出现假阴性。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -4043,6 +4053,7 @@
     "第 370 轮的性能数字来自合成数据集；真实 131 万级地点构建的峰值内存、SQLite VACUUM 与 14 变体压缩耗时仍需在真实数据批次上测量",
     "第 371 轮只锁定了 BuildOptions 的三条非法配置断言；其他配置/解析路径（例如 `--patterns` 中单个占位符是否合法、provider 字符串组合、负数作业数）没有在本轮做同等变异",
     "第 372 轮只锁定了 zip 预算的三个上限边界；其他数值阈值（HTTP 重试次数、数据覆盖率下限、人口阈值、保留策略计数）没有在本轮重新做同等边界反演",
+    "第 373 轮的死代码扫描是名字级文本匹配，不能证明所有只写不读字段、外部字符串入口或同名符号都无问题；这些仍需 AST/运行级探针覆盖",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
