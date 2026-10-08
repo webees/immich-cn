@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 380,
-  "consecutive_clean": 2,
+  "round": 381,
+  "consecutive_clean": 3,
   "totals": {
     "findings": 237,
-    "clean_rounds": 132,
+    "clean_rounds": 133,
     "p0": 0,
     "p1": 33,
     "p2": 159,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M8 资源与性能剖析",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3847,6 +3847,16 @@
       "severity": null,
       "evidence": "下载当前 `auto-release` 的真实 `immich-cn-geodata-admin2-default-v1.zip`（20,203,341 字节），直接调用 `check_artifacts.check_zips` 做资源剖析：检查 1 个压缩包、0 错误，耗时 0.071 s，进程最大 RSS 44,236,800 字节（约 42.2 MiB）。对抗控制：同尺寸篡改 zip 中间字节后，`archive.testzip()` 立即报出 `geodata/cities500.txt 校验失败`，证明完整性检查不是恒真。检查清单：已完成真实制品 zip 完整性与资源测量；未下载全部 19 个发布资产做整批耗时测量，也未在真实 131 万级构建上复测内存。本轮未发现 P0-P2 问题，clean_streak=2。残余风险：单资产测量不能代表完整发布校验的总耗时或峰值 RSS。",
       "pr": null
+    },
+    {
+      "round": 381,
+      "timestamp": "2026-10-09T02:35:00+08:00",
+      "focus": "测试有效性（断言能否失败、覆盖是否真实）",
+      "method": "M1 变异探针",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对 `src/immich_cn/display.py::normalize_level` 做语义变异：把 `value.replace(...).split()` 改成 `.split(\" \")`，完整测试立即失败于 `test_normalize_level_removes_cjk_inner_spaces`（`New   York` 未折叠为 `New York`）。恢复后 `make check` 全绿：489 passed、覆盖率 88.44%、ruff/mypy/docs/workflows/shell 通过，`git status` 与 `git diff` 为空。检查清单：已验证 CJK 内空格折叠与普通空白折叠的负向控制；未对 `slugify`/`profile_id` 的空占位符分支做变异。本轮未发现 P0-P2 问题，clean_streak=3。残余风险：单次变异只证明该折叠路径有覆盖，不代表 display 模块其他未覆盖分支都有同等保护。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -4131,6 +4141,7 @@
     "第 378 轮移除了 ADM4 的旧计数并更新了护栏，但其他文档仍可能保留滚动数据的时点数字；`check_docs.py` 只能覆盖已编码的契约，不能自动发现所有数据批次漂移",
     "第 379 轮的秘密扫描是已知前缀/私钥标记与 Secrets 用法的启发式检查；高熵自定义凭据、历史对象与 GitHub non-provider scanning 仍不在本轮覆盖范围内",
     "第 380 轮只测量了单个真实地理数据资产的 zip 完整性检查；19 个资产的整批校验、规范数据集 SQLite 校验和真实全量构建的内存峰值仍未在同一轮测量",
+    "第 381 轮只变异了 `normalize_level` 的空白折叠；`slugify`/`profile_id` 的空 keys 分支、`compose` 的异常渲染分支与 display 模块的其他边界仍未在本轮逐一验证",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
