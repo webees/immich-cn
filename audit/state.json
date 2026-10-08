@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 346,
+  "round": 347,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 222,
+    "findings": 223,
     "clean_rounds": 113,
     "p0": 0,
     "p1": 33,
-    "p2": 144,
+    "p2": 145,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3507,6 +3507,16 @@
       "severity": "P2",
       "evidence": "对 `docker/apply-pattern.sh` 的异常输入做检查：`grep -rn 未知展示粒度 tests scripts docker` 只命中实现本身——第 69-73 行的「未知展示粒度」分支（打印 `未知展示粒度：<pattern>` + `可用粒度：<表头>` 后 `exit 2`）在 tests/ 与 scripts/check-entrypoint.sh 中没有任何用例。实测行为正确：`IMMICH_CN_PATTERN='{admin_5}'` → exit 2 并给出提示与可选值；`'{admin_2'`（少右花括号）同样被拦；合法 pattern → exit 0。对抗性实验证明这条分支不是可有可无：把它换成 `column=1` 兜底后，`make entrypoint` 立即报 `失败：非法展示粒度不应启动成功`——即没有该分支时，非法 pattern 会静默落到第 1 列（geoname_id），把 GeoNames 数字 ID 写进展示名，容器照常启动但数据全错。修复：实现本来就正确，补回归用例——`scripts/check-entrypoint.sh` 新增 `invalid_pattern_case`，用 `{admin_5}` 启动入口脚本并断言退出非 0、输出含「未知展示粒度」与「可用粒度」。负向控制：把分支改成 `column=1` 兜底后新用例立即失败，恢复后通过。`make entrypoint` 19 项全过、`make check` 469 passed（覆盖率 87.92%）、`check_shell.py` 通过。PR #249 四项必需检查全绿后 squash 合并，main=5b51703。",
       "pr": "https://github.com/webees/immich-cn/pull/249"
+    },
+    {
+      "round": 347,
+      "timestamp": "2026-10-08T12:07:19+08:00",
+      "focus": "错误处理与网络健壮性（amap 应用层错误）",
+      "method": "M1 变异探针",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对 `src/immich_cn/providers/amap.py:149` 做语义微改：成功判定从 `payload.get(\"status\") == \"1\"` 改成 `payload.get(\"status\") is not None`。隔离字节码缓存跑**完整**套件：469 passed，全绿——「HTTP 200 + status=1」这条成功语义没有被任何用例与「任何带 status 的响应」区分开。原因：`tests/test_providers.py` 只出现过 `\"status\": \"1\"` 与一次 403（HTTP 层错误，由 `raise_for_status` 拦住），没有 200 + `status: \"0\"` 的应用层错误。影响：高德的限流/配额错误（如 `DAILY_QUERY_OVER_LIMIT`）返回 200 + `status: \"0\"`，判断写坏后这类错误被当成成功，不会按 `retries` 退避，本批坐标白白失去重试机会。修复：实现本来就正确，补应用层错误用例——`test_amap_retries_application_level_error`（MockTransport 恒定返回 200 + status 0，断言请求恰好 3 次 = retries、日志含「高德返回异常状态」、缓存文件为空即瞬时故障不写负缓存；用例内 monkeypatch `time.sleep` 避免真实退避等待）。负向控制：改成 `is not None` 后新用例立即失败（日志显示只请求 1 次并走「返回数量与请求不一致」分支），恢复后通过。修复后 `make check` 470 passed（+1，覆盖率 88.24%），`ruff`/`mypy` 通过。PR #250 四项必需检查全绿后 squash 合并，main=6b40fc7。",
+      "pr": "https://github.com/webees/immich-cn/pull/250"
     }
   ],
   "residual_risks": [
@@ -3730,7 +3740,9 @@
     "第 345 轮只验证了 cleanup 的两条闸门「会被变异杀死」；两条闸门都建立在「本次 dist 清单可信」之上——如果构建因 bug 少产出若干变体但仍有交集，旧资产会在同一次运行里被删掉（既有 residual 已记录，本轮未新增防护）",
     "第 345 轮的变异探针在本地跑，没有走真实 GitHub API 的删除路径；`--apply` 的真实删除自第 274 轮之后未再执行过，权限与 API 语义变化仍需在下次真实清理时复核",
     "第 346 轮只覆盖了 `apply-pattern.sh` 的未知粒度分支；同一脚本的其它异常输入（变体表首列重复 ID、cities500 含 CRLF、名称列内含制表符、超长行）仍没有专项用例，本轮未逐一构造",
-    "第 346 轮的用例只断言「启动失败 + 提示含关键字」，不断言退出码具体值（实现是 2）；若将来改成 1 仍会通过，属于刻意的宽松断言"
+    "第 346 轮的用例只断言「启动失败 + 提示含关键字」，不断言退出码具体值（实现是 2）；若将来改成 1 仍会通过，属于刻意的宽松断言",
+    "第 347 轮只覆盖了 amap 的应用层错误重试；`providers/nominatim.py` 的对应分支（HTTP 层以外的错误语义、User-Agent 与 1 QPS 约束下的失败行为）没有做同样强度的探针，`providers/cache.py` 的并发/损坏分支也只由既有用例覆盖",
+    "第 347 轮的用例 monkeypatch 了全局 `time.sleep`，因此它不验证真实退避时长；退避计算本身由 `retry_delay` 的独立用例覆盖，但两者拼接后的时长只有这一条路径被间接走过"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
