@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 405,
+  "round": 406,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 247,
+    "findings": 248,
     "clean_rounds": 147,
     "p0": 0,
     "p1": 33,
-    "p2": 169,
+    "p2": 170,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查（工作流失败路径）",
+  "last_method": "M6 边界与异常输入",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4100,9 +4100,21 @@
       "severity": "P2",
       "evidence": "`release.yml` 原先没有 `notify-failure` / `resolve-failure`：版本化发布在 validate、build 或 publish 失败时不会创建 `automation` 告警，成功时也没有收敛入口。修复：新增两个最小 job，失败时创建或更新“版本化发布失败” issue，成功时评论并关闭；`check_workflows.py` 增加契约护栏，`docs/operations.md` 同步告警范围。负向证据：旧树加新检查器运行 `check_workflows.py` 报“缺少版本化发布失败告警 job / 告警收敛 job”；修复后 `make check` 497 passed、覆盖率 88.81%，`actionlint` 与工作流契约检查通过。PR #278 四项必需检查全绿后 squash 合并，main=df10640。",
       "pr": "https://github.com/webees/immich-cn/pull/278"
+    },
+    {
+      "round": 406,
+      "timestamp": "2026-10-09T08:05:00+08:00",
+      "focus": "容器与 shell 脚本（引用、权限、只读挂载、路径差异）",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`docker/entrypoint.sh` 与 `docker/install.sh` 只检查了目标目录内的文件符号链接，没有检查目标目录本身。实测把 `target/geodata` 设为指向外部目录的符号链接后，`entrypoint.sh` 返回 0，并跟随链接把 `cities500.txt` 等 8 个文件写到目标目录之外。修复：两个脚本在创建/解析目标目录前拒绝符号链接目标；`scripts/check-entrypoint.sh` 新增两条负向回归。修复前旧树加新校验在“入口脚本拒绝符号链接目标目录”处失败；修复后 `bash scripts/check-entrypoint.sh` 通过，`make check` 497 passed、覆盖率 88.81%。PR #279 四项必需检查全绿后 squash 合并，main=b27be8f。",
+      "pr": "https://github.com/webees/immich-cn/pull/279"
     }
   ],
   "residual_risks": [
+    "第 406 轮只拒绝目标路径本身是符号链接；若目标的父目录中存在符号链接，脚本仍会按操作系统解析后的路径写入，当前没有对整条路径逐级拒绝",
+    "第 406 轮的目标目录符号链接实验在 macOS/POSIX 上执行，未在 Alpine BusyBox、容器 overlayfs 或只读挂载的真实运行时逐项重放",
     "第 405 轮没有触发一次真实失败的 Release 运行来观察 issue 创建与关闭，只通过工作流契约、actionlint 和本地检查验证；GitHub 权限或 API 故障仍可能使通知步骤失败",
     "第 405 轮新增的成功收敛 job 会按标题搜索并关闭“版本化发布失败”告警；若用户手工修改该标题或标签，自动收敛不会命中",
     "第 404 轮的 Release 资产快照是时点状态；`auto-release`、`data-*` 与每日镜像标签会随后续更新变化，不能把 19 个资产数量当作永久常量",
