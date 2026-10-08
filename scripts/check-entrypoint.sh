@@ -288,6 +288,31 @@ partial_match_case() {
 
 partial_match_case
 
+# 空 cities500.txt 会让"完整匹配"判断恒真（matched==total==0），脚本会"成功"
+# 地把空文件写回去。空输入必须显式失败。
+empty_source_case() {
+  local data="$work/empty/geodata"
+  mkdir -p "$data"
+  : > "$data/cities500.txt"
+
+  local output
+  if output="$(PATH="$work/bin:$PATH" \
+      immich-cn-apply-pattern \
+      --source "$data" \
+      --table "$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
+      --pattern '{admin_2}' 2>&1)"; then
+    echo "失败：cities500.txt 为空时不应成功" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "没有任何记录"; then
+    echo "失败：空数据时未给出明确提示：${output}" >&2
+    exit 1
+  fi
+  echo "通过：cities500.txt 为空时明确失败"
+}
+
+empty_source_case
+
 # 源数据不完整时必须立刻失败，而不是把残缺数据复制进去让 Immich 报错。
 incomplete_source_case() {
   local partial="$work/incomplete"
