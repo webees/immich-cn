@@ -7,6 +7,7 @@ import pytest
 from scripts.set_asset_timezone import (
     SEARCH_PAGE_SIZE,
     _request,
+    _request_json,
     apply_timezone,
     iter_assets,
     select_asset_ids,
@@ -122,3 +123,14 @@ def test_request_wraps_persistent_transport_errors(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr("scripts.set_asset_timezone.time.sleep", lambda _seconds: None)
     with pytest.raises(RuntimeError, match="Immich API request failed after 3 attempts"):
         _request(_Client(), "GET", "/api/search/metadata")  # type: ignore[arg-type]
+
+
+def test_request_json_wraps_invalid_json() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"not-json")
+
+    with (
+        httpx.Client(base_url="http://immich", transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(RuntimeError, match="invalid JSON"),
+    ):
+        _request_json(client, "GET", "/api/search/metadata")

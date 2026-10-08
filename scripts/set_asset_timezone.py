@@ -49,7 +49,10 @@ def _request(client: httpx.Client, method: str, url: str, **kwargs: Any) -> http
 def _request_json(client: httpx.Client, method: str, url: str, **kwargs: Any) -> dict[str, Any]:
     response = _request(client, method, url, **kwargs)
     response.raise_for_status()
-    payload = response.json()
+    try:
+        payload = response.json()
+    except ValueError as error:
+        raise RuntimeError(f"Immich API returned invalid JSON: {url}") from error
     if not isinstance(payload, dict):
         raise ValueError(f"Immich API returned non-object JSON: {url}")
     return payload
