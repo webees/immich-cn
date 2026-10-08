@@ -95,6 +95,12 @@ awk -F'\t' -v OFS='\t' -v column="$column" -v countfile="$work/matched" -v total
 
 matched="$(cat "$work/matched")"
 total="$(cat "$work/total")"
+if [ "$total" -eq 0 ]; then
+  # cities500.txt 为空时 matched 与 total 同时为 0，会让下面的"完整匹配"判断恒真，
+  # 脚本会"成功"地把空文件写回去。空输入必须显式失败。
+  echo "错误：${cities} 没有任何记录，无法应用展示粒度" >&2
+  exit 1
+fi
 if [ "$matched" -ne "$total" ]; then
   # 部分匹配同样是"假成功"：只改少数行会让绝大多数地点保留错误粒度。
   echo "错误：变体表仅匹配 ${matched}/${total} 条，展示粒度未完整生效" >&2
