@@ -60,6 +60,24 @@ def test_iter_assets_pages_when_total_missing() -> None:
     assert assets[-1]["id"] == "b"
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"assets": []},
+        {"assets": {"items": "bad"}},
+    ],
+)
+def test_iter_assets_wraps_malformed_search_payload(payload: object) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=payload)
+
+    with (
+        httpx.Client(base_url="http://immich", transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(RuntimeError, match="search response"),
+    ):
+        list(iter_assets(client))
+
+
 def test_apply_timezone_uses_bulk_update_api() -> None:
     requests: list[dict[str, object]] = []
 
