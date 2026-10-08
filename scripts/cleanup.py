@@ -27,6 +27,8 @@ STABLE_VERSION = re.compile(r"^v?\d+\.\d+\.\d+(?:\.\d+)?(?:[-+][0-9A-Za-z.-]+)?$
 LEGACY_VERSION = re.compile(r"^v?\d+\.\d+\.\d+$")
 #: 四段式 Immich 对齐版本（3.3.0.1）：它的存在是回收旧版本线的前提。
 ALIGNED_VERSION = re.compile(r"^\d+\.\d+\.\d+\.\d+$")
+#: 控制面提交标签（sha-<短提交>）：三段式版本通常与它同挂在一个版本上。
+CONTROL_TAG = re.compile(r"^sha-[0-9a-f]{7,40}$")
 PACKAGE_TAGS = {"latest", "release"}
 PACKAGE_NAMES = ("immich-cn", "immich-cn-server")
 RETRY_STATUS = {408, 425, 429, 500, 502, 503, 504}
@@ -292,12 +294,19 @@ def select_superseded_versions(
 ) -> tuple[list[PackageVersionRecord], list[PackageVersionRecord]]:
     """返回 ``(可安全删除的三段式旧版本, 缺少四段式替代品而保留的旧版本)``。
 
-    四段式 Immich 对齐版本出现之后，三段式旧版本线（`1.0.x`）才允许回收；
+    四段式 Immich 对齐版本出现之后，三段式版本线（`1.0.x`）才允许回收；
     否则保留并在输出里标记待人工确认，避免把唯一的分发入口清空。与 `select_legacy_assets` 同构。
-    只处理「标签全部是三段式」的版本：带 `latest`/`release`/日期/SHA/`sha256-*` 或多标签的版本
-    一律不动。
+    只处理「至少带一个三段式版本标签、且其余标签都是控制面提交标签 `sha-<短提交>`」的版本：
+    释放出来的标签是旧版本线自身与它对应的提交 pin。带 `latest`/`release`/日期/`sha256-*`
+    或第二个版本号标签的版本一律不动。
     """
-    legacy = [version for version in versions if version.tags and all(LEGACY_VERSION.match(t) for t in version.tags)]
+
+    def reclaimable(version: PackageVersionRecord) -> bool:
+        if not version.tags or not any(LEGACY_VERSION.match(tag) for tag in version.tags):
+            return False
+        return all(LEGACY_VERSION.match(tag) or CONTROL_TAG.match(tag) for tag in version.tags)
+
+    legacy = [version for version in versions if reclaimable(version)]
     if not legacy:
         return [], []
     has_aligned = aligned_available or any(ALIGNED_VERSION.match(t) for version in versions for t in version.tags)
