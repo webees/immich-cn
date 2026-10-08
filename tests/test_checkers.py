@@ -1068,6 +1068,19 @@ def test_check_workflows_detects_top_level_write_permissions(repo_copy: Path) ->
     assert "顶层 permissions 含 write" in result.stdout
 
 
+def test_check_workflows_detects_continue_on_error(repo_copy: Path) -> None:
+    """continue-on-error 会把失败的门禁变成绿色，属于最典型的假通过。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    mutate(
+        workflow,
+        "      - name: pytest\n",
+        "      - name: pytest\n        continue-on-error: true\n",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "continue-on-error" in result.stdout
+
+
 def test_check_workflows_detects_delete_then_recreate_release(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
     mutate(
