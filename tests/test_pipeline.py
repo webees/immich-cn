@@ -27,7 +27,7 @@ from immich_cn.pipeline import (
 )
 from immich_cn.settings import BuildOptions
 from immich_cn.validation import assert_valid, verify_geodata
-from tests.synthetic import create_synthetic_sources, geo_row, write_lines
+from tests.synthetic import alternate_row, create_synthetic_sources, geo_row, write_lines
 
 
 def test_write_admin_file_includes_place_referenced_codes(tmp_path: Path) -> None:
@@ -100,6 +100,34 @@ def test_end_to_end_build(build_options: BuildOptions) -> None:
 
     results = verify_geodata(geodata)
     assert_valid(results)
+
+
+def test_missing_admin2_uses_place_name(build_options: BuildOptions) -> None:
+    """没有 admin2 的城市不能把 admin1 省名当成城市名。"""
+    cities_path = build_options.work_dir / "sources" / "cities500.txt"
+    cities = cities_path.read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(cities):
+        fields = line.split("\t")
+        if fields[0] == "5128581":
+            fields[11] = ""
+            cities[index] = "\t".join(fields)
+            break
+    else:
+        raise AssertionError("测试前提：样例数据应包含纽约市")
+    write_lines(cities_path, cities)
+
+    alternate_path = build_options.work_dir / "sources" / "alternateNamesV2.txt"
+    alternate_path.write_text(
+        alternate_path.read_text(encoding="utf-8") + alternate_row(23, 5128581, "zh", "纽约", preferred=True) + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_build(build_options)
+    rows = {
+        line.split("\t")[0]: line.split("\t")
+        for line in (result.geodata_dir / "cities500.txt").read_text(encoding="utf-8").splitlines()
+    }
+    assert rows["5128581"][1] == "纽约"
 
 
 def test_country_dump_validation_rejects_binary_and_missing(tmp_path: Path) -> None:
