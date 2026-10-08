@@ -710,8 +710,8 @@ def test_check_docs_requires_adm4_code_explanation(repo_copy: Path) -> None:
     data_sources = repo_copy / "docs" / "data-sources.md"
     china = repo_copy / "docs" / "china.md"
     mutate(readme, "`ADM4` 记录及其 `admin4` 代码", "`ADM4` 记录")
-    mutate(data_sources, "`admin3`/`admin4` 代码与匹配策略", "代码与匹配策略")
-    mutate(china, "`admin3`/`admin4` 代码与匹配策略", "代码与匹配策略")
+    mutate(data_sources, "当前记录中的行政代码与匹配策略", "匹配策略")
+    mutate(china, "当前记录中的行政代码与匹配策略", "匹配策略")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "没有文档说明 ADM4 的代码覆盖与回退边界" in result.stdout

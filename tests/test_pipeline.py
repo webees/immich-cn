@@ -132,6 +132,31 @@ def test_missing_admin2_uses_place_name(build_options: BuildOptions) -> None:
     assert rows["5128581"][1] == "纽约"
 
 
+def test_missing_admin2_uses_embedded_alternate_name(build_options: BuildOptions) -> None:
+    """alternateNamesV2 缺失时，行内 alternatenames 的中文名仍应作为回退值。"""
+    cities_path = build_options.work_dir / "sources" / "cities500.txt"
+    cities = cities_path.read_text(encoding="utf-8").splitlines()
+    cities.append(
+        geo_row(
+            7000001,
+            "Gaogongdao",
+            alternates="Gaogongdao,高公岛,Gaogongdao Xiang",
+            latitude="34.69583",
+            longitude="119.475",
+            admin1="04",
+            population=1000,
+        )
+    )
+    write_lines(cities_path, cities)
+
+    result = run_build(build_options)
+    rows = {
+        line.split("\t")[0]: line.split("\t")
+        for line in (result.geodata_dir / "cities500.txt").read_text(encoding="utf-8").splitlines()
+    }
+    assert rows["7000001"][1] == "高公岛"
+
+
 def test_country_dump_validation_rejects_binary_and_missing(tmp_path: Path) -> None:
     """--skip-fetch 下坏的国家 dump 必须报错，而不是静默产出空 admin3/admin4。"""
     from immich_cn.pipeline import _validate_country_dumps
@@ -361,6 +386,29 @@ def test_package_rejects_untranslated_chinese_names(
         package_all(build_options, result)
 
 
+def test_full_scope_allows_untranslated_zero_population_feature(build_options: BuildOptions) -> None:
+    """full 变体不能因无中文别名的零人口自然要素产生假拒绝。"""
+    cities_path = build_options.work_dir / "sources" / "cities500.txt"
+    cities = cities_path.read_text(encoding="utf-8").splitlines()
+    cities.append(
+        geo_row(
+            7000002,
+            "Sokh-bulak",
+            latitude="35",
+            longitude="80",
+            feature_class="T",
+            feature_code="PK",
+            admin1="14",
+            population=0,
+        )
+    )
+    write_lines(cities_path, cities)
+    build_options.patterns = ("{admin_2}",)
+
+    result = run_build(build_options)
+    package_all(build_options, result)
+
+
 def test_checksums_ignore_unregistered_leftovers(build_options: BuildOptions) -> None:
     """dist 里的历史残留不能被写进校验和。
 
@@ -497,6 +545,11 @@ def test_extract_i18n_accepts_normal_tarball(tmp_path: Path) -> None:
         },
     )
     options = BuildOptions(work_dir=tmp_path / "build", dist_dir=tmp_path / "dist")
+    stale = tmp_path / "build" / "i18n-iso-countries"
+    stale.mkdir(parents=True)
+    (stale / "langs").mkdir()
+    (stale / "langs" / "zh.json").write_text("stale", encoding="utf-8")
+    (stale / "LICENSE").write_text("stale", encoding="utf-8")
 
     _extract_i18n(good, options)
     extracted = tmp_path / "build" / "i18n-iso-countries" / "langs" / "zh.json"

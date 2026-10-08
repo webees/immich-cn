@@ -44,7 +44,7 @@
 
 本项目的默认设计目标是无需付费密钥即可生成国内数据，因此把提供方拆成可选层：
 
-- `offline`（默认）：只依赖 GeoNames，通过 `admin1CodesASCII.txt`、`admin2Codes.txt` 以及各国家数据转储中的 `ADM3`/`ADM4` 要素自建四级行政层级表。
+- `offline`（默认）：只依赖 GeoNames，通过 `admin1CodesASCII.txt`、`admin2Codes.txt` 以及各国家数据转储中的 `ADM2`/`ADM2H`/`ADM3`/`ADM4` 要素自建四级行政层级表。
 - `amap`：配置 `AMAP_API_KEY` 后启用，用高德补充区县/乡镇，结果按坐标缓存到磁盘。
 - `nominatim`：配置后启用，用 OSM 补充海外数据，严格遵守 1 QPS 与真实 User-Agent 的使用条款。
 - `auto`：有 `AMAP_API_KEY` 时等价于 `amap`，否则等价于 `offline`。
@@ -61,7 +61,7 @@
 ### 3. 完整默认分层
 
 - 非完整（默认，`immich-cn-geodata-admin2-default-v1.zip`）：`cities500.txt` + 国家数据转储中人口 ≥ 100 的记录 + 四个直辖市下辖全部记录。
-- 完整（`immich-cn-geodata-admin2-full-v1.zip`）：额外包含人口为 0 的行政要素，边界识别更准、导入更慢。
+- 完整（`immich-cn-geodata-admin2-full-v1.zip`）：额外包含人口为 0 的行政与自然要素，边界识别更准、导入更慢；其中没有中文别名的边境山峰、冰川等自然要素保留 GeoNames 原名。
 
 两者共用同一份 `levels.tsv`，打包时按人口阈值过滤，避免重复解析国家数据转储。
 
@@ -85,7 +85,7 @@
 - `geodata-date.txt` 是否为合法 ISO 时间；
 - `cities500.txt` 列数、GeoNames ID 唯一性；
 - 中国与香港记录的中文名称覆盖率是否达到阈值；
-- 中文地区（CN/HK/TW/MO）记录的中文名称是否**零缺失**（`chinese-regions-cjk-strict`，与打包阶段的同名判断一致；阈值检查允许少量缺失，严格检查不允许）；
+- 默认变体中的中文地区（CN/HK/TW/MO）记录的中文名称是否**零缺失**（`chinese-regions-cjk-strict`，与打包阶段对默认范围及人口达标记录的判断一致；阈值检查允许少量缺失，严格检查不允许）；
 - `countryInfo.txt` 中文覆盖率；
 - `ne_10m_admin_0_countries.geojson` 是否为合法 FeatureCollection。
 

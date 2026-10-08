@@ -46,6 +46,30 @@ def test_build_admin_units_extracts_adm3_and_adm4(synthetic_sources: Path) -> No
     assert ADMIN_FEATURE_LEVELS["ADM3"] == 3
 
 
+def test_build_admin_units_extracts_adm2(tmp_path: Path) -> None:
+    """admin2Codes.txt 缺条目时，国家 dump 中的 ADM2H 记录应能补齐。"""
+    path = tmp_path / "JP.txt"
+    write_lines(
+        path,
+        [
+            geo_row(
+                1864574,
+                "Chikushi-gun",
+                alternates="Chikushi-gun,筑紫郡",
+                feature_class="A",
+                feature_code="ADM2H",
+                country="JP",
+                admin1="07",
+                admin2="1864574",
+            )
+        ],
+    )
+
+    tables = build_admin_units([path])
+    assert tables[2]["JP.07.1864574"].name == "Chikushi-gun"
+    assert ADMIN_FEATURE_LEVELS["ADM2H"] == 2
+
+
 def test_place_code_requires_full_chain(tmp_path: Path) -> None:
     path = tmp_path / "places.txt"
     write_lines(

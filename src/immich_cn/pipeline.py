@@ -51,8 +51,10 @@ from immich_cn.localization import (
     ChineseNameIndex,
     NameOverrides,
     build_name_index,
+    has_cjk,
     is_japanese_language,
     language_rank,
+    pick_from_alternates,
     to_variant,
 )
 from immich_cn.logging_config import get_logger
@@ -363,8 +365,6 @@ def _is_current(
 def _extract_i18n(archive: Path, options: BuildOptions) -> None:
     destination = options.work_dir / "i18n-iso-countries"
     license_target = destination / "LICENSE"
-    if (destination / "langs" / "zh.json").exists() and license_target.exists():
-        return
     destination.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive, "r:gz") as tar:
         files = [
@@ -516,7 +516,7 @@ def _wanted_geoname_ids(
     wanted.update(extra_ids)
     for entries in (admin1_raw, admin2_raw):
         wanted.update(entry.geoname_id for entry in entries.values() if entry.geoname_id)
-    for level in (3, 4):
+    for level in (2, 3, 4):
         wanted.update(unit.geoname_id for unit in admin_units[level].values())
     return wanted
 
@@ -548,9 +548,14 @@ def _build_hierarchy(
     def unit_ids(level: int) -> dict[str, int]:
         return {code: unit.geoname_id for code, unit in admin_units[level].items()}
 
+    translated_admin2 = translate_admin_codes(admin2_raw, index)
+    for code, name in translate_admin_units(unit_ids(2), unit_view(2), index).items():
+        if code not in translated_admin2 or not has_cjk(translated_admin2[code]):
+            translated_admin2[code] = name
+
     return Hierarchy(
         admin1=translate_admin_codes(admin1_raw, index),
-        admin2=translate_admin_codes(admin2_raw, index),
+        admin2=translated_admin2,
         admin3=translate_admin_units(unit_ids(3), unit_view(3), index),
         admin4=translate_admin_units(unit_ids(4), unit_view(4), index),
     )
@@ -589,7 +594,11 @@ def _write_levels(
                 place.country_code,
                 overrides,
                 index.variant,
-                fallback_name=(index.get(place.geoname_id) or place.name) if place.admin1_code else "",
+                fallback_name=(
+                    index.get(place.geoname_id) or pick_from_alternates(place.alternate_names, index.variant) or place.name
+                )
+                if place.admin1_code
+                else "",
             )
             if not names.admin_2:
                 fallback += 1
