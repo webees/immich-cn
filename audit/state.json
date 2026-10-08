@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 374,
+  "round": 375,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 234,
+    "findings": 235,
     "clean_rounds": 129,
     "p0": 0,
     "p1": 33,
-    "p2": 156,
+    "p2": 157,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M4 契约快照",
+  "last_method": "M10 shell/容器安全审查",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3787,6 +3787,16 @@
       "severity": "P2",
       "evidence": "`docs/china.md` 的现状表写死了易漂移数字：文档称 `{admin_3}` 只改变 613 条、`{admin_4}` 只改变 10 条，且称 CN 数据转储里带 `admin3`/`admin4` 代码的只有 1,647/73 条。对当前 `auto-release` 三个默认变体逐 ID 复算：`admin2-default` 256,669 行，`admin3-default` 与 `admin2-default` 有 3,236 行展示名不同，`admin4-default` 同样 3,236 行不同；当前 CN 数据转储 `ADM3` 2,938 条、`ADM4` 11,878 条，ADM3/ADM4 带对应代码分别为 2,938/11,878。修复：删除日期特定数字，改为「差异以对应变体为准」「四级回退取决于当前记录代码与匹配策略」「结论以当前清单和校验为准」。`make check` 全绿：486 passed、覆盖率 88.44%、ruff/mypy/docs/workflows/shell 全过。PR #265 四项必需检查全绿后 squash 合并，main=b9e184e。",
       "pr": "https://github.com/webees/immich-cn/pull/265"
+    },
+    {
+      "round": 375,
+      "timestamp": "2026-10-09T00:35:00+08:00",
+      "focus": "工作流逻辑（条件、输出、权限、失败路径）",
+      "method": "M10 shell/容器安全审查（工作流失败路径）",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`update-data.yml` 的 `resolve-previous-failure` 原先只依赖 `build` 与 `release`，条件也只检查这两者。失败路径真值表出现缺口：`build` 成功、`release` 跳过（无变化）、`no-change` 摘要失败时，收敛任务仍会关闭告警，且可能与 `notify-failure` 竞争，把刚创建的告警关掉。修复：`resolve-previous-failure` 增加 `no-change` 依赖；关闭条件要求 `no-change.result` 为 `success` 或 `skipped`；同步更新 `docs/architecture.md`。新增 `test_check_workflows_rejects_incomplete_no_change_resolution_guard`，在删除 `no-change` 条件时 `check_workflows.py` 立即报「只判断了部分依赖」。`make check` 全绿：487 passed、覆盖率 88.44%、ruff/mypy/docs/workflows/shell 通过。PR #266 四项必需检查全绿后 squash 合并，main=bd44570。",
+      "pr": "https://github.com/webees/immich-cn/pull/266"
     }
   ],
   "residual_risks": [
@@ -4065,6 +4075,7 @@
     "第 372 轮只锁定了 zip 预算的三个上限边界；其他数值阈值（HTTP 重试次数、数据覆盖率下限、人口阈值、保留策略计数）没有在本轮重新做同等边界反演",
     "第 373 轮的死代码扫描是名字级文本匹配，不能证明所有只写不读字段、外部字符串入口或同名符号都无问题；这些仍需 AST/运行级探针覆盖",
     "第 374 轮移除了 `docs/china.md` 的日期特定数字，但其他文档仍可能保留时点体积、来源统计或示例数字；`check_docs` 只能校验部分数字契约，不能自动发现所有滚动数据导致的漂移",
+    "第 375 轮只修复了 `update-data.yml` 的告警收敛依赖；`release.yml` 的 `publish` 失败没有同构的失败告警任务，其他工作流的失败路径也需要后续逐格复核",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
