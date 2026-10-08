@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 359,
-  "consecutive_clean": 2,
+  "round": 360,
+  "consecutive_clean": 3,
   "totals": {
     "findings": 227,
-    "clean_rounds": 121,
+    "clean_rounds": 122,
     "p0": 0,
     "p1": 33,
     "p2": 149,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M9 文档-实现逐条核对",
+  "last_method": "M4 契约快照",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3637,6 +3637,16 @@
       "severity": null,
       "evidence": "补上第 279 轮留下的「秘密扫描只是启发式」缺口，做三组核对。① 当前树：`rg` 扫已知令牌前缀（`ghp_` / `github_pat_` / `gho_` / `sk-` / `AKIA…` / `-----BEGIN … PRIVATE KEY-----`）——0 命中；扫 `(api_key|token|secret|password)=<16+ 字符>` 形式——只命中 `tests/test_providers.py:398` 的 `secret = \"super-secret-amap-key-1234567890\"`，该值是 `test_amap_does_not_log_api_key_on_failure` 的**故意夹具**（用来断言 403 异常里的完整 URL 被脱敏），不是真实凭据。② 全历史：对 `git log --all` 的每个 commit 跑 `git grep` 扫同一组前缀——0 命中。③ 结构性检查：`git ls-files` 中没有 `.env` / `.envrc` / `id_rsa` / `.netrc` / `credentials` / `secrets.*` 之类的凭据文件；`.git/config` 不含 token 或 `@github` 内嵌凭据；README/docs/.github 中除 `<token>` 占位符外没有令牌形态字符串。`git status` 干净、`git diff` 为空。本轮未发现 P0-P2 问题，clean_streak=2。残余：仓库的 GitHub secret scanning `non-provider patterns` 与 `validity checks` 仍为 disabled（需 owner 在 Settings → Code security 手动开启），本轮的扫描是模式启发式，不能替代 provider 侧验证。",
       "pr": null
+    },
+    {
+      "round": 360,
+      "timestamp": "2026-10-08T14:45:49+08:00",
+      "focus": "交付级复验（objective 0.8：预算耗尽即交付）",
+      "method": "M4 契约快照",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "按 objective 第 0.2/0.8 条，本轮改为交付级复验而不是继续找新问题。实时核对：`main=fec9741` 且工作区干净；ruleset `24545711` 为 active、`bypass_actors` 为空、四项必需检查与 CI 作业名逐字一致（Docker 冒烟构建 / 静态检查与单元测试 Python 3.11 / 3.12 / 3.13）；`ghcr.io/webees/immich-cn:latest` 可解析（digest `sha256:0a886347…`）；Release 列表为 `data-2026-10-08`（Latest）、`data-2026-10-06`、`v1.0.0`~`v1.0.4`、`auto-release`（19 个规范资产）；最近 5 次工作流运行全部 success（含 update monitor）；开放 PR 0。审计账本自洽（validator exit 0）。本轮未发现 P0-P2 问题，clean_streak=3。**重要记账**：objective 第 0.2 条把审计硬预算定为「总轮次上限 50」，而本账本已到第 360 轮（超预算 310 轮）；自动化 `immich-cn-50` 的退出条件却是「连续 50 轮 clean」。两者冲突且需用户裁决，本轮起按 objective 0.8 条输出 PARTIAL 交付报告。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3892,7 +3902,9 @@
     "第 358 轮发现 `dataset_meta.provider`（选定的 provider 模式，如 `offline`）与 `manifest.providers`（实际启用的增强器，离线为 `[]`）语义不同但文档都写作「提供方」，容易让消费者以为两者应当相等；本轮未改文档",
     "第 358 轮的跨制品比对只覆盖 `sources` 与三条构建元信息；`place_names`/`admin_areas` 的逐行内容与 manifest 统计（`stats` 的各级记录数）仍未做 dataset↔manifest 的交叉复算",
     "第 359 轮的密钥扫描是模式启发式（已知前缀 + 赋值形态 + 凭据文件名 + `.git/config`），高熵但无固定前缀的自定义凭据、以及写在 issue/PR 正文或 Actions secret 里的凭据不在覆盖范围内；仓库的 GitHub secret scanning non-provider patterns 与 validity checks 仍为 disabled，需 owner 手动开启",
-    "第 359 轮只扫了当前分支可达的全部 commit（`git log --all`），没有扫描已删除分支、reflog、stash 或 GitHub 侧 fork 中的对象；这些位置若曾出现凭据不在本轮结论范围内"
+    "第 359 轮只扫了当前分支可达的全部 commit（`git log --all`），没有扫描已删除分支、reflog、stash 或 GitHub 侧 fork 中的对象；这些位置若曾出现凭据不在本轮结论范围内",
+    "第 360 轮的终止口径冲突未解决：objective 0.2 要求「总轮次上限 50」，自动化 immich-cn-50 要求「连续 50 轮 clean」；账本已 360 轮、streak=3。在用户裁决前，冷静口径是「循环应停」，但只要该 automation 仍 ACTIVE，每小时心跳都会再次启动一轮",
+    "第 360 轮的交付级复验是时点快照（2026-10-08 14:45 +08:00）：ruleset、digest、Release 列表与工作流结论都会随后续发布变化，本次结论不能外推为长期状态"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
