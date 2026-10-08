@@ -36,6 +36,10 @@ MAX_COMPRESSION_RATIO = 200
 _DIGEST_CACHE: dict[tuple[Path, int, int], str] = {}
 
 
+def _is_sha256(value: object) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(character in "0123456789abcdef" for character in value)
+
+
 def sha256_file(path: Path) -> str:
     stat_result = path.stat()
     key = (path, stat_result.st_mtime_ns, stat_result.st_size)
@@ -122,12 +126,18 @@ def check_manifest(dist: Path, errors: list[str]) -> None:
 def _check_file_entry(dist: Path, entry: dict[str, object], errors: list[str]) -> None:
     name = str(entry.get("file", ""))
     path = dist / name
-    if not path.exists():
-        errors.append(f"manifest 列出但文件不存在：{name}")
+    if not path.is_file():
+        errors.append(f"manifest 列出但文件不存在或不是普通文件：{name}")
         return
-    if path.stat().st_size != int(entry.get("sizeBytes", -1)):
+    size_bytes = entry.get("sizeBytes")
+    if not isinstance(size_bytes, int) or isinstance(size_bytes, bool):
+        errors.append(f"{name} 的 sizeBytes 不是整数")
+    elif path.stat().st_size != size_bytes:
         errors.append(f"{name} 大小与 manifest 不一致")
-    if sha256_file(path) != entry.get("sha256"):
+    digest = entry.get("sha256")
+    if not _is_sha256(digest):
+        errors.append(f"{name} 的 sha256 不是 64 位十六进制摘要")
+    elif sha256_file(path) != digest:
         errors.append(f"{name} SHA256 与 manifest 不一致")
 
 
@@ -434,10 +444,13 @@ def check_checksums(dist: Path, errors: list[str]) -> int:
     verified = 0
     names: list[str] = []
     for line in lines:
-        digest, _, name = line.partition("  ")
+        digest, separator, name = line.partition("  ")
+        if not separator or not name or not _is_sha256(digest) or "/" in name or "\\" in name or name in {".", ".."}:
+            errors.append(f"{CHECKSUMS_FILE} 含格式错误的条目：{line!r}")
+            continue
         names.append(name)
         target = dist / name
-        if not target.exists():
+        if not target.is_file():
             errors.append(f"{CHECKSUMS_FILE} 列出的文件不存在：{name}")
             continue
         if sha256_file(target) != digest:

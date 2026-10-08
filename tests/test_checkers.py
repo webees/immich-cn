@@ -2089,6 +2089,19 @@ def test_check_artifacts_manifest_hash_layer(tmp_path: Path) -> None:
     assert any("immich-cn-patterns-tsv-v1.gz" in error for error in errors), errors
 
 
+def test_check_artifacts_reports_malformed_manifest_size(tmp_path: Path) -> None:
+    """manifest 字段类型错误应形成校验错误，而不是让脚本抛栈。"""
+    dist = _make_dist(tmp_path)
+    manifest_path = dist / "immich-cn-manifest-json-v1.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["artifacts"][0]["sizeBytes"] = "not-an-integer"
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+
+    errors: list[str] = []
+    check_artifacts.check_manifest(dist, errors)
+    assert any("sizeBytes 不是整数" in error for error in errors), errors
+
+
 def test_check_artifacts_manifest_assets_cover_artifacts(tmp_path: Path) -> None:
     """artifacts 中登记的变体必须同时出现在 assets 清单中。"""
     dist = _make_dist(tmp_path)
@@ -2114,6 +2127,16 @@ def test_check_artifacts_checksums_layer(tmp_path: Path) -> None:
     errors: list[str] = []
     check_artifacts.check_checksums(dist, errors)
     assert any("immich-cn-patterns-tsv-v1.gz" in error for error in errors), errors
+
+
+def test_check_artifacts_reports_malformed_checksum_line(tmp_path: Path) -> None:
+    """校验和行的格式错误应被明确报告，不能尝试读取目录或抛栈。"""
+    dist = _make_dist(tmp_path)
+    (dist / check_artifacts.CHECKSUMS_FILE).write_text("deadbeef\n", encoding="utf-8")
+
+    errors: list[str] = []
+    check_artifacts.check_checksums(dist, errors)
+    assert any("格式错误的条目" in error for error in errors), errors
 
 
 def test_check_artifacts_checksums_require_manifest_coverage(tmp_path: Path) -> None:
