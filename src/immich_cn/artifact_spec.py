@@ -8,8 +8,10 @@ from typing import Any
 from immich_cn.display import pattern_keys
 from immich_cn.errors import ConfigError
 
-ARTIFACT_ID_PATTERN = re.compile(r"^immich-cn\.geodata\.[a-z0-9-]+\.(default|full)\.v[0-9]+$")
-CANONICAL_FILE_PATTERN = re.compile(r"^immich-cn-geodata-[a-z0-9-]+-(default|full)-v[0-9]+\.zip$")
+ARTIFACT_ID_PATTERN = re.compile(r"^immich-cn\.geodata\.([a-z0-9-]+)\.(default|full)\.v[0-9]+$")
+CANONICAL_FILE_PATTERN = re.compile(r"^immich-cn-geodata-([a-z0-9-]+)-(default|full)-v[0-9]+\.zip$")
+#: v4 命名规范只允许项目命名空间出现一次；profile 由占位符推导，正常取值只有 country 与 adminN。
+_REPEATED_NAMESPACE = "immich"
 MANIFEST_FILE = "immich-cn-manifest-json-v1.json"
 CHECKSUMS_FILE = "immich-cn-checksums-sha256-v1.txt"
 PATTERNS_FILE = "immich-cn-patterns-tsv-v1.gz"
@@ -39,11 +41,13 @@ def canonical_filename(pattern: str, full: bool, *, schema_version: int = 1) -> 
 
 
 def validate_artifact_id(value: str) -> bool:
-    return bool(ARTIFACT_ID_PATTERN.fullmatch(value))
+    match = ARTIFACT_ID_PATTERN.fullmatch(value)
+    return match is not None and _REPEATED_NAMESPACE not in match.group(1)
 
 
 def validate_canonical_filename(value: str) -> bool:
-    return bool(CANONICAL_FILE_PATTERN.fullmatch(value))
+    match = CANONICAL_FILE_PATTERN.fullmatch(value)
+    return match is not None and _REPEATED_NAMESPACE not in match.group(1)
 
 
 def resolve_artifact(

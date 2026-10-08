@@ -50,6 +50,10 @@ def test_artifact_ids_are_stable_and_profile_safe() -> None:
     assert not validate_artifact_id("immich-cn.geodata.admin_2.default.v1")
     assert validate_canonical_filename("immich-cn-geodata-admin2-default-v1.zip")
     assert not validate_canonical_filename("immich-cn-geodata-admin2-default-v1.zip".replace("default", "bad"))
+    # v4 规范要求项目命名空间只出现一次：profile 段再出现 immich 必须被拒绝，
+    # 否则资产名会退回 `immich-cn-geodata-immich-admin2-default-v1.zip` 这类冗余命名。
+    assert not validate_artifact_id("immich-cn.geodata.immich-admin2.default.v1")
+    assert not validate_canonical_filename("immich-cn-geodata-immich-admin2-default-v1.zip")
 
 
 def test_resolve_artifact_by_id_and_profile() -> None:
