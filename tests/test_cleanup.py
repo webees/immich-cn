@@ -188,6 +188,22 @@ def test_prune_superseded_versions_apply_deletes_only_when_aligned_exists() -> N
     assert deleted == [("immich-cn", 1)]
 
 
+def test_prune_superseded_versions_reports_shielded_legacy_tags(capsys: pytest.CaptureFixture[str]) -> None:
+    """带三段式标签但同时带其它标签的版本要显式说明被保留，否则「0 个」不可解释。"""
+
+    class _Client:
+        def list_package_versions(self, package: str) -> list[PackageVersionRecord]:
+            if package == "immich-cn":
+                return [PackageVersionRecord(1, at(1), ("1.0.4", "sha-abc1234"))]
+            return []
+
+    args = SimpleNamespace(apply=False)
+    assert _prune_superseded_versions(_Client(), args) == 0
+    out = capsys.readouterr().out
+    assert "同时带其它标签，按保守规则保留" in out
+    assert "1.0.4, sha-abc1234" in out
+
+
 def test_run_cleanup_preserves_cutoff_latest_per_workflow_protected_and_current() -> None:
     runs = [
         RunRecord(1, "CI", "completed", at(0), "sha-current"),
