@@ -135,3 +135,66 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --title "代码版本 $tag" \
             --generate-notes
+
+  resolve-failure:
+    name: Resolve Previous Failure
+    needs: [validate, build, publish]
+    if: success()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: 关闭 automation issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --label automation \
+            --search '版本化发布失败 in:title' \
+            --json number --jq '.[0].number // empty')"
+          if [ -z "$number" ]; then
+            echo "没有未关闭的版本化发布告警"
+            exit 0
+          fi
+          gh issue comment "$number" --repo "$GITHUB_REPOSITORY" \
+            --body "本次版本化发布已成功：${RUN_URL}，自动关闭该告警。"
+          gh issue close "$number" --repo "$GITHUB_REPOSITORY"
+
+  notify-failure:
+    name: Notify Failure
+    needs: [validate, build, publish, resolve-failure]
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: 创建或更新版本化发布异常 issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          VERSION: ${{ inputs.version }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          gh label create automation --repo "$GITHUB_REPOSITORY" \
+            --color B60205 --description "自动化流水线通知" --force >/dev/null 2>&1 || true
+
+          title="版本化发布失败（${VERSION}）"
+          body="$(printf '版本化发布流程执行失败。\n\n- 版本：%s\n- 运行记录：%s\n- 提交：%s\n\n修复后可通过 workflow_dispatch 重新执行。\n' \
+            "$VERSION" "$RUN_URL" "\`$COMMIT_SHA\`")"
+
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --label automation --search '版本化发布失败 in:title' \
+            --json number --jq '.[0].number // empty')"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "$title" --label automation --body "$body"
+          fi

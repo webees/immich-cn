@@ -1364,6 +1364,14 @@ def test_check_workflows_requires_release_preflight_checkout(repo_copy: Path) ->
     assert "validate 缺少 checkout" in result.stdout
 
 
+def test_check_workflows_requires_release_failure_notifier(repo_copy: Path) -> None:
+    workflow = repo_copy / ".github" / "workflows" / "release.yml"
+    mutate(workflow, "    if: failure()\n", "    if: false()\n")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "版本化发布失败告警" in result.stdout
+
+
 def test_check_workflows_requires_cleanup_apply_policy(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "cleanup.yml"
     mutate(

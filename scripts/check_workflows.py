@@ -350,6 +350,13 @@ def check_version_release(path: Path, workflow: dict[str, Any], errors: list[str
         isinstance(step, dict) and str(step.get("uses", "")).startswith("actions/checkout@") for step in steps
     ):
         errors.append(f"{path}:validate 缺少 checkout，无法读取 pyproject.toml 校验版本")
+    jobs = workflow.get("jobs") or {}
+    notifier = jobs.get("notify-failure") if isinstance(jobs, dict) else None
+    if not isinstance(notifier, dict) or "failure()" not in str(notifier.get("if", "")):
+        errors.append(f"{path} 缺少版本化发布失败告警 job")
+    resolver = jobs.get("resolve-failure") if isinstance(jobs, dict) else None
+    if not isinstance(resolver, dict) or "success()" not in str(resolver.get("if", "")):
+        errors.append(f"{path} 缺少版本化发布成功后的告警收敛 job")
 
 
 def check_cleanup_workflow(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
