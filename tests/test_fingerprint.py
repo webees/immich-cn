@@ -44,6 +44,17 @@ def test_fingerprint_ignores_source_order() -> None:
     assert data_fingerprint(make_manifest()) == data_fingerprint(reordered)
 
 
+def test_fingerprint_ignores_key_order() -> None:
+    """同一份配置换个键序不应改变指纹，否则会被误判为「有变化」而重复发布。"""
+    reordered = make_manifest()
+    config = reordered["config"]
+    tool = reordered["tool"]
+    assert isinstance(config, dict) and isinstance(tool, dict)
+    reordered["config"] = {key: config[key] for key in reversed(list(config))}
+    reordered["tool"] = {key: tool[key] for key in reversed(list(tool))}
+    assert data_fingerprint(make_manifest()) == data_fingerprint(reordered)
+
+
 def test_fingerprint_changes_with_source_content() -> None:
     changed = make_manifest()
     changed["sources"] = [{"name": "cities500", "sha256": "changed"}]
