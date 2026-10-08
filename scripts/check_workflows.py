@@ -12,6 +12,7 @@
    被后续步骤读取；
 7. CONTRIBUTING.md 声明的 required check 必须是某个 pull_request 工作流真实产生的 job 名，
    且不能由多个工作流同名产生。
+8. 禁止 job/step 级 `continue-on-error`：它会让失败的门禁显示为绿色。
 """
 
 from __future__ import annotations
@@ -35,6 +36,8 @@ RELEASE_CREATE = re.compile(r"\bgh release create\s+([A-Za-z0-9._-]+)")
 RELEASE_EDIT = re.compile(r"\bgh release edit\s+([A-Za-z0-9._-]+)")
 RELEASE_UPLOAD = re.compile(r"\bgh release upload\s+([A-Za-z0-9._-]+)")
 SCHEDULED = {"schedule"}
+#: 允许 continue-on-error 的例外：``<workflow>:<位置>`` -> 原因。当前为空，命中即视为需要处理。
+CONTINUE_ON_ERROR_ALLOWED: dict[str, str] = {}
 #: 这些函数是运行级聚合判断，已经涵盖全部依赖的结果，因此不受“依赖覆盖”规则约束。
 #: `always()` 与 `!cancelled()` 只表示“是否被取消”，并不反映依赖是否失败；
 #: 它们必须再逐个判断 needs，否则依赖失败时仍会运行。
@@ -115,6 +118,31 @@ def check_permissions(path: Path, workflow: dict[str, Any], errors: list[str]) -
         broad = sorted(scope for scope, value in permissions.items() if value == "write")
         if broad:
             errors.append(f"{path} 顶层 permissions 含 write：{broad}；应下沉到具体 job")
+
+
+def check_continue_on_error(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """拒绝 ``continue-on-error``：它把失败的门禁显示成绿色，是最典型的假通过。
+
+    仓库当前 0 处使用；best-effort 清理应写成 ``cmd || true``（只影响那一条命令），
+    而不是让整个步骤或作业在失败时仍报成功。
+    """
+
+    def flag(value: object, location: str) -> None:
+        if value in (None, False, "false"):
+            return
+        if f"{path.name}:{location}" not in CONTINUE_ON_ERROR_ALLOWED:
+            errors.append(
+                f"{path}:{location} 使用 continue-on-error={value!r}，会让失败的门禁显示为绿色；"
+                "确需例外时写入 check_workflows.CONTINUE_ON_ERROR_ALLOWED 并注明原因"
+            )
+
+    for job_name, job in (workflow.get("jobs") or {}).items():
+        if not isinstance(job, dict):
+            continue
+        flag(job.get("continue-on-error"), job_name)
+        for index, step in enumerate(job.get("steps") or [], start=1):
+            if isinstance(step, dict):
+                flag(step.get("continue-on-error"), f"{job_name}/step#{index}")
 
 
 def check_action_pins(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
@@ -785,6 +813,7 @@ def main() -> int:
         check_run_blocks(path, workflow, errors)
         check_jobs(path, workflow, errors)
         check_permissions(path, workflow, errors)
+        check_continue_on_error(path, workflow, errors)
         check_action_pins(path, workflow, errors)
         check_release_replacements(path, workflow, errors)
         check_release_update_order(path, workflow, errors)
