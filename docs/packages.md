@@ -49,7 +49,7 @@ Compose 示例通过 `IMMICH_CN_GHCR_MIRROR` 选择前缀。2026-10-07 对两个
 
 ## 版本规范
 
-项目版本采用四段式 `<Immich 版本>.<项目修订>`，前三段与 Immich 上游版本对齐，第四段只表示本项目在同一条 Immich 版本线上的修订号。例如上游 Immich `3.3.0` 对应本项目 `3.3.0.1`；上游升级到 `3.3.1` 后，本项目从 `3.3.1.1` 重新计数。Git 发布标签为 `v3.3.0.1`，GHCR 镜像标签为 `3.3.0.1`。
+项目版本采用四段式 `<Immich 版本>.<项目修订>`，前三段与 Immich 上游版本对齐，第四段只表示本项目在同一条 Immich 版本线上的修订号。例如上游 Immich `3.3.0` 对应本项目 `3.3.0.1`；上游升级到 `3.3.1` 后，本项目从 `3.3.1.1` 重新计数。版本标签的形态是 Git 侧 `vX.Y.Z.N`、GHCR 侧 `X.Y.Z.N`（不带 `v`），由 `Release` 工作流推送。
 
 ## 标签规范
 
@@ -65,10 +65,10 @@ Compose 示例通过 `IMMICH_CN_GHCR_MIRROR` 选择前缀。2026-10-07 对两个
 | `immich-cn-server` | `sha-<短提交>` | 对应控制面代码提交 |
 | `immich-cn-server` | `<X.Y.Z.N>` | 发布工作流创建的 Immich 对齐版本标签 |
 
-镜像的版本标签**不带 `v` 前缀**：Git 侧的发布标签是 `vX.Y.Z.N`，GHCR 上的镜像标签是 `X.Y.Z.N`。2026-10-08 实测：带 `v` 前缀的镜像标签返回 `not found`，不带前缀的同一个版本可以正常解析。生产环境应固定到 Git 提交 SHA 或完整摘要；日期标签只用于当日跟踪。
+镜像的版本标签**不带 `v` 前缀**。2026-10-08 实测：`ghcr.io/webees/immich-cn:1.0.4` 可解析，同名的带 `v` 前缀标签返回 `not found`。四段式版本标签只由 `Release` 工作流推送，工作流成功前该标签并不存在，拉取前先用 `docker buildx imagetools inspect` 确认；当前可拉取的是 `latest`、当日 `YYYY-MM-DD` 与 `sha-<短提交>`。生产环境应固定到 Git 提交 SHA 或完整摘要；日期标签只用于当日跟踪。
 
 ```bash
-# Immich 对齐版本（发布工作流推送）
+# 四段式版本标签：Release 工作流推送后才存在（本项目当前版本为 3.3.0.1）
 docker pull ghcr.io/webees/immich-cn:3.3.0.1
 # 某个控制面提交
 docker pull ghcr.io/webees/immich-cn-server:sha-cdc0ba3
