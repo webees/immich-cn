@@ -711,6 +711,12 @@ def _prune_superseded_versions(client: GitHubClient, args: argparse.Namespace) -
     failures: list[str] = []
     for package in PACKAGE_NAMES:
         versions = client.list_package_versions(package)
+        if not versions and not getattr(args, "allow_empty_packages", False):
+            raise CleanupError(
+                f"GHCR 包 {package} 返回 0 个版本：无法区分「确实没有版本」与「token 缺少 "
+                "read:packages / API 结构变化导致读到空列表」。拒绝在没有证据的情况下报告清理成功；"
+                "确认该包尚未创建时显式加 --allow-empty-packages"
+            )
         deletable, manual = select_superseded_versions(versions)
         if not deletable and not manual:
             # 带三段式标签、但因为同时还带其它标签而被保留的版本要显式说明，
