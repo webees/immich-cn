@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 330,
+  "round": 331,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 211,
+    "findings": 212,
     "clean_rounds": 108,
     "p0": 0,
     "p1": 32,
-    "p2": 134,
+    "p2": 135,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M8 资源与性能剖析",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3347,6 +3347,16 @@
       "severity": "P2",
       "evidence": "剖析发布门禁 `scripts/check_artifacts.py`：`sha256_file` 在一次运行里对同一文件重复计算——`manifest.artifacts` 调 `_check_file_entry` 一次、`manifest.assets` 再调一次、`check_checksums` 第三次。用 spy 计数本地 `dist/`：49 次调用 / 18 个唯一文件；用真实 `auto-release` manifest 的 `sizeBytes` 换算：17 个文件共 615,536,981 字节，当前读取 1,765,845,860 字节（≈2.87 倍），冗余 65%（约 1.15 GB）。修复：`sha256_file` 增加按「路径 + mtime_ns + size」索引的 `_DIGEST_CACHE`，命中即复用；缓存只减少字节读取，不改变任何比较结果（每项检查仍各自把自己的期望值与摘要比对）。修复后实际计算摘要 18 次（=唯一文件数），本地 dist 校验仍为 15 包 18 校验和通过。负向控制：把缓存键改成 `(path, 0, 0)`（只按路径缓存）后，新用例 `test_check_artifacts_sha256_cache_invalidates_on_change` 立即 AssertionError，证明该用例不是恒真；恢复后通过。该用例同时覆盖「长度变化」与「同长度改内容 + 显式 utime」两条失效路径。`make check` 458 passed（+1）、`make audit-dead-symbols` 通过。PR #238 四项必需检查全绿后 squash 合并，main=ea11ac0。",
       "pr": "https://github.com/webees/immich-cn/pull/238"
+    },
+    {
+      "round": 331,
+      "timestamp": "2026-10-08T09:12:28+08:00",
+      "focus": "测试有效性（断言能否失败、覆盖是否真实）",
+      "method": "M1 变异探针",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对 `src/immich_cn/fingerprint.py` 做一处语义微改：`json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(\",\", \":\"))` 的 `sort_keys=True` 改成 `False`。隔离字节码缓存后跑**完整**测试套件（`PYTHONPYCACHEPREFIX=$(mktemp -d) pytest -q -p no:cacheprovider`）：458 passed，全绿——即「指纹与字典键序无关」这条不变量没有任何用例覆盖。确认该变异不是等价变异：两份语义完全相同、只有 `config` 键序不同的 manifest 得到不同指纹（`bae7ba8c6c99` vs `96377816da30`）。影响：`update-data.yml` 的「无变化则跳过发布」依赖该指纹，若将来 `config` 构造顺序变化（等价配置）会让指纹假变化，触发无意义的重新构建与发布。修复：实现本来就正确，只需补回归用例——`tests/test_fingerprint.py` 新增 `test_fingerprint_ignores_key_order`（把 `config` 与 `tool` 的键序整体反转后断言指纹不变）。负向控制：把 `sort_keys` 改回 `False` 后该用例立即 AssertionError，恢复后通过。修复后 `make check` 459 passed（+1），`ruff` / `mypy` 通过。PR #239 四项必需检查全绿后 squash 合并，main=1832f80。",
+      "pr": "https://github.com/webees/immich-cn/pull/239"
     }
   ],
   "residual_risks": [
@@ -3537,7 +3547,9 @@
     "第 329 轮只把「同名重复成员」补进 `check_zip_members`；归档层的其它歧义仍未覆盖——大小写冲突名（`Cities500.txt` vs `cities500.txt`，Windows/macOS 解压会互相覆盖）、NFC/NFD 归一化冲突、以及成员名含控制字符的情况都没有用例，也未在真实制品上验证",
     "第 329 轮的负向实验是直接在 `check_zip_members`/`check_zip_budget` 上调用，没有构造完整 dist 走 `check_zips` 全链路（新测试用 `_make_dist` 补了这条，但探针脚本本身未走完整校验路径）",
     "第 330 轮的 65% 冗余比例由真实 `auto-release` manifest 的 `sizeBytes` 换算得出，不是对 615 MB 制品实测挂钟时间；`_DIGEST_CACHE` 是进程内缓存，长时间常驻进程（例如把它当库反复调用）会持续增长，当前用法是短生命周期脚本所以未加淘汰",
-    "第 330 轮只消除了 `check_artifacts` 内部的重复哈希；构建侧 `packaging.py` 与 `check_artifacts` 之间、以及 CI 里 `check_artifacts` 与 `cosign`/Trivy 之间是否对同一制品重复读取，本轮没有跨进程测量"
+    "第 330 轮只消除了 `check_artifacts` 内部的重复哈希；构建侧 `packaging.py` 与 `check_artifacts` 之间、以及 CI 里 `check_artifacts` 与 `cosign`/Trivy 之间是否对同一制品重复读取，本轮没有跨进程测量",
+    "第 331 轮只做了单点变异（fingerprint 的 sort_keys）；`data_fingerprint` 的其它不变量（`_sources` 对非 Mapping 条目的跳过、`_tool` 缺字段补空串、`_config` 非 Mapping 时回退空字典、`fingerprint_from_file` 对非 Mapping manifest 抛 ValueError）没有在本轮逐一变异验证",
+    "第 331 轮证明的是「缺一条键序用例」，不能外推为「指纹模块整体覆盖充分」；82% 的行覆盖率意味着仍有未执行分支，需要后续轮次继续用 M1 逐点探"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
