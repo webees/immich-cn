@@ -598,6 +598,26 @@ target_dir_symlink_case() {
   echo "通过：入口脚本拒绝符号链接目标目录"
 }
 
+target_parent_file_case() {
+  local root="$work/target-parent-file"
+  mkdir -p "$root"
+  printf 'not-a-directory\n' > "$root/build"
+  local output
+  if output="$(IMMICH_BUILD_DATA="$root/build" \
+      IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
+      IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
+      bash "$repo_root/docker/entrypoint.sh" true 2>&1)"; then
+    echo "失败：目标父路径是普通文件时不应成功" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "无法创建目标目录"; then
+    echo "失败：目标父路径是普通文件时未给出明确提示：${output}" >&2
+    exit 1
+  fi
+  echo "通过：目标父路径不是目录时给出明确错误"
+}
+
 source_symlink_force_reload_case() {
   local root="$work/source-symlink"
   mkdir -p "$root"
@@ -670,6 +690,7 @@ install_target_dir_symlink_case() {
 
 symlink_target_case
 target_dir_symlink_case
+target_parent_file_case
 source_symlink_force_reload_case
 install_readme_symlink_case
 install_target_dir_symlink_case
