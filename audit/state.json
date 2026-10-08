@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 366,
-  "consecutive_clean": 0,
+  "round": 367,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 231,
-    "clean_rounds": 124,
+    "clean_rounds": 125,
     "p0": 0,
     "p1": 33,
     "p2": 153,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3707,6 +3707,16 @@
       "severity": "P2",
       "evidence": "`docker/entrypoint.sh` 在 `cp -a` 失败后只检查目标目录里的必需文件名是否存在：如果目标可写但复制因同名目录冲突、磁盘或权限问题失败，而目标里碰巧已有完整旧数据，就会打印「不可写，沿用其中已有的 geodata」并返回 0。复现：在目标 `geodata/admin1CodesASCII.txt` 位置放一个目录，源数据完整，运行 entrypoint；修复前返回 0 且静默沿用旧数据。修复：先用 `mktemp` 对目标目录做真实写入探针；探针成功时复制失败必须输出「无法写入」并退出，只有探针失败（真实只读挂载）才允许沿用已有完整 geodata。新增 `writable_conflict_case` 入口回归；`make entrypoint` 全部通过（含只读完整沿用、只读不完整拒绝、符号链接、空输入等边界），`make check` 482 passed、覆盖率 88.27%、ruff/mypy/docs/workflows/shell 全绿。PR #262 四项必需检查全绿后 squash 合并，main=d21c5a6。",
       "pr": "https://github.com/webees/immich-cn/pull/262"
+    },
+    {
+      "round": 367,
+      "timestamp": "2026-10-08T21:55:00+08:00",
+      "focus": "错误处理与网络健壮性（超时、截断、空响应、重试）",
+      "method": "M1 变异探针",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对 `src/immich_cn/fetching.py` 的 `_MAX_RETRY_DELAY = 120.0` 做语义变异，改为 `60.0`，运行完整测试：`test_retry_delay_prefers_retry_after_header` 立即失败，实际 60.0、断言期望 120.0；恢复常量后 `make check` 全绿（482 passed、覆盖率 88.27%、ruff/mypy/docs/workflows/shell 全绿），`git status` 与 `git diff` 为空。检查清单：已覆盖 Retry-After 数值/HTTP-date/过去时间/指数退避、下载重试与断点续传关键测试路径；未做真实上游 429/500 网络实验（环境噪声，容易产生假拒绝），也未逐一变异其他错误分支。本轮未发现 P0-P2 问题，clean_streak=1。残余风险：变异只证明重试上限常量有测试覆盖，不证明 `_revalidate_cached` 的所有 I/O 与空正文分支都被同样锁住。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3977,6 +3987,7 @@
     "第 365 轮的空包保护是 API 调用层校验，不能替代 GitHub Packages 真实权限与可见性验证；本轮没有在真实仓库上触发 `--prune-superseded-versions`，仅用假客户端和完整单元测试验证错误路径",
     "第 366 轮的写入探针依赖容器内 `mktemp` 可用；当前数据镜像已依赖同一命令实现 `apply-pattern.sh` 的临时目录，但若未来替换为不含 `mktemp` 的最小基础镜像，需要同步提供等价探针",
     "第 366 轮没有做真实文件系统故障注入（磁盘满、NFS/overlay 局部 EIO）；复制失败的中间态是否可能留下已覆盖的部分文件仍需由容器级发布冒烟和运行环境监控覆盖",
+    "第 367 轮只对 `_MAX_RETRY_DELAY` 做了一个变异；`_revalidate_cached` 的 304/200/空正文/写失败回退、`_download` 的 OSError 包装与 Range 耗尽等分支没有在本轮逐一做变异探针",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
