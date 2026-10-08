@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 396,
-  "consecutive_clean": 1,
+  "round": 397,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 243,
+    "findings": 244,
     "clean_rounds": 142,
     "p0": 0,
     "p1": 33,
-    "p2": 165,
+    "p2": 166,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M1 变异探针（畸形响应）",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4007,9 +4007,21 @@
       "severity": null,
       "evidence": "对 `apply-pattern.sh` 做符号链接源目录边界实验：把源目录的符号链接传给 `--source`，脚本解析真实目录、完成整表粒度重写并返回 0；符号链接本身仍保留，真实 `cities500.txt` 正常更新，没有替换或追随符号链接写出。检查清单：已覆盖符号链接源目录、带空格路径（第 386 轮）、嵌套/只读目标、损坏 gzip、缺失参数与根目录拒绝；未在 Alpine BusyBox/overlayfs 中重放。当前 `main=b3d203b` 的 `make check` 493 passed 仍有效。本轮未发现 P0-P2 问题，clean_streak=1。残余风险：路径行为仍以 macOS/POSIX 实测为准，未覆盖容器目标文件系统的全部差异。",
       "pr": null
+    },
+    {
+      "round": 397,
+      "timestamp": "2026-10-09T08:15:00+08:00",
+      "focus": "错误处理与网络健壮性（超时、截断、空响应、重试）",
+      "method": "M1 变异探针（畸形响应）",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对 `scripts/set_asset_timezone.py::_request_json` 注入 HTTP 200 + `not-json` 响应，原先抛出裸 `JSONDecodeError`，用户看不到请求 URL 与上下文；修复后统一抛出 `RuntimeError(\"Immich API returned invalid JSON: ...\")`，新增负向测试覆盖该路径。验证：`make check` 全绿（494 passed、覆盖率 88.73%）；PR #275 四项必需检查全绿后 squash 合并，main=d8c5439。",
+      "pr": "https://github.com/webees/immich-cn/pull/275"
     }
   ],
   "residual_risks": [
+    "第 397 轮只验证了 HTTP 200 返回非 JSON 文本；`response.json()` 返回合法 JSON 但非对象时仍会进入后续裸 `ValueError`，本轮未覆盖",
+    "第 397 轮用 `httpx.MockTransport` 注入畸形响应，没有对真实 Immich 实例制造无效 JSON 响应",
     "round 280 的性能数字来自最小合成数据集，不能外推到真实 131 万级地点构建；真实下载、解压与打包耗时仍以 docs/development.md 的 2026-10 实测数据为准",
     "round 279 的秘密扫描是当前树与历史模式启发式，不能替代 GitHub secret scanning 的 provider 验证；仓库的 non-provider patterns 与 validity checks 仍为 disabled，需 owner 手动开启",
     "round 277 只对发布资产做了下载/哈希/归档校验，没有替代多平台真实 Immich 运行级验证；跨平台差异仍由发布流水线和后续审计覆盖",
