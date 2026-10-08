@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 391,
+  "round": 392,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 241,
+    "findings": 242,
     "clean_rounds": 139,
     "p0": 0,
     "p1": 33,
-    "p2": 163,
+    "p2": 164,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3957,6 +3957,16 @@
       "severity": "P2",
       "evidence": "变异 `src/immich_cn/providers/base.py::ProviderChain.enrich` 的 `names = enricher.enrich(place, names)` 为 `names = names`，完整测试仍为 491 passed，说明链式 provider 组合、预取转发与关闭生命周期没有直接覆盖；后续重构可以让 provider 增强静默失效。修复：新增 `test_provider_chain_composes_enrichers_and_lifecycle`，锁定两个 enricher 的顺序叠加、`prefetch` 转发、上下文退出关闭和空链布尔值。负向控制：再次注入 `names = names` 后新用例立即失败（admin_2 仍为空），恢复后 `make check` 全绿（492 passed、覆盖率 88.73%、ruff/mypy/docs/workflows/shell 通过）。PR #272 四项必需检查全绿后 squash 合并，main=9b1957b。",
       "pr": "https://github.com/webees/immich-cn/pull/272"
+    },
+    {
+      "round": 392,
+      "timestamp": "2026-10-09T06:15:00+08:00",
+      "focus": "校验与阈值（恒真检查、阈值误判、边界翻转）",
+      "method": "M2 阈值反演",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对 `RateLimiter._prune` 做窗口边界变异：把 `timestamps[0] <= horizon` 改为 `<`。原边界测试不会快速失败，而是在零等待循环中挂起直到 CI 超时，不能形成可诊断的红灯。修复：在 fake `monotonic` 中加入 100 次调用上限，超出即抛「RateLimiter 未在窗口边界释放槽位，测试拒绝无限循环」。负向控制：再次注入 `<` 后测试在 0.16 s 内失败，而不是挂起；恢复后 `tests/test_rate_limit.py` 与 `make check` 全绿（492 passed、覆盖率 88.73%、ruff/mypy/docs/workflows/shell 通过）。PR #273 四项必需检查全绿后 squash 合并，main=ae5aa1b。",
+      "pr": "https://github.com/webees/immich-cn/pull/273"
     }
   ],
   "residual_risks": [
@@ -4252,6 +4262,7 @@
     "第 389 轮的安全扫描仍是启发式：GitHub non-provider secret scanning、validity checks 与真实包权限操作没有在本轮验证",
     "第 390 轮的 0.19 s / 41.8 MiB 是合成流水线测量；真实 131 万级构建和 19 资产整批校验的峰值资源仍未覆盖",
     "第 391 轮只锁定了 ProviderChain 的顺序、预取与关闭生命周期；单个 provider 的异常隔离、空输入和重复关闭语义仍未在本轮做变异",
+    "第 392 轮只修复了 RateLimiter 边界测试的挂起诊断；真实线程竞争、系统时钟跳变和多线程并发边界仍未覆盖",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
