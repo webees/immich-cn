@@ -574,6 +574,30 @@ symlink_target_case() {
   echo "通过：入口脚本不会跟随目标目录中的符号链接"
 }
 
+target_dir_symlink_case() {
+  local root="$work/target-dir-symlink"
+  mkdir -p "$root/build" "$root/outside"
+  ln -s "$root/outside" "$root/build/geodata"
+  local output
+  if output="$(IMMICH_BUILD_DATA="$root/build" \
+      IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
+      IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
+      bash "$repo_root/docker/entrypoint.sh" true 2>&1)"; then
+    echo "失败：入口脚本不应接受符号链接目标目录" >&2
+    exit 1
+  fi
+  if [ -e "$root/outside/cities500.txt" ]; then
+    echo "失败：入口脚本跟随符号链接目标目录写出了目标目录之外" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "目标目录不能是符号链接"; then
+    echo "失败：入口脚本未给出目标目录符号链接提示：${output}" >&2
+    exit 1
+  fi
+  echo "通过：入口脚本拒绝符号链接目标目录"
+}
+
 source_symlink_force_reload_case() {
   local root="$work/source-symlink"
   mkdir -p "$root"
@@ -622,8 +646,32 @@ install_readme_symlink_case() {
   echo "通过：install.sh 不会跟随目标目录中的符号链接"
 }
 
+install_target_dir_symlink_case() {
+  local root="$work/install-target-dir-symlink"
+  mkdir -p "$root/outside"
+  ln -s "$root/outside" "$root/target"
+  local output
+  if output="$(IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
+      IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
+      sh "$repo_root/docker/install.sh" --target "$root/target" 2>&1)"; then
+    echo "失败：install.sh 不应接受符号链接目标目录" >&2
+    exit 1
+  fi
+  if [ -e "$root/outside/geodata/cities500.txt" ]; then
+    echo "失败：install.sh 跟随符号链接目标目录写出了目标目录之外" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "不能是符号链接"; then
+    echo "失败：install.sh 未给出目标目录符号链接提示：${output}" >&2
+    exit 1
+  fi
+  echo "通过：install.sh 拒绝符号链接目标目录"
+}
+
 symlink_target_case
+target_dir_symlink_case
 source_symlink_force_reload_case
 install_readme_symlink_case
+install_target_dir_symlink_case
 
 echo "入口脚本校验通过"
