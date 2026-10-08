@@ -41,7 +41,10 @@ if [ -L "$target" ]; then
   exit 1
 fi
 
-mkdir -p "$target"
+if ! mkdir_error="$(mkdir -p "$target" 2>&1)"; then
+  echo "immich-cn: 无法创建目标目录 ${target}：${mkdir_error}" >&2
+  exit 1
+fi
 
 # 目标目录可能来自宿主机挂载；先移除同名符号链接，避免 cp 跟随链接写出目录。
 for source_path in "$source_dir"/*; do
