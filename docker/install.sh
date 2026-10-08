@@ -58,6 +58,23 @@ if [ -n "$missing_files" ]; then
   exit 1
 fi
 
+geodata_root="$(cd "$geodata_root" && pwd -P)" || {
+  echo "错误：无法解析数据源目录 $geodata_root" >&2
+  exit 1
+}
+# 源与目标互相嵌套时，下面的 `rm -rf "$target/geodata"` 会先删掉源数据再 cp 失败，
+# 造成不可逆的数据丢失。必须在任何删除之前拒绝。
+case "$geodata_root/" in
+  "$target/"*)
+    echo "错误：数据源 $geodata_root 位于目标目录 $target 内，删除目标会先删掉源数据" >&2
+    exit 2 ;;
+esac
+case "$target/" in
+  "$geodata_root/"*)
+    echo "错误：目标目录 $target 位于数据源 $geodata_root 内，复制会递归写入自身" >&2
+    exit 2 ;;
+esac
+
 langs_missing=""
 if [ -n "$langs_root" ] && [ -d "$langs_root" ]; then
   for name in LICENSE en.json; do
