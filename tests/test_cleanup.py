@@ -169,6 +169,12 @@ def test_select_superseded_versions_requires_aligned_replacement() -> None:
     ]
     assert select_superseded_versions(others) == ([], [])
 
+    # 三段式版本与它对应的控制面提交标签同挂在一个版本上：这种组合可回收
+    with_control = [PackageVersionRecord(10, at(1), ("1.0.4", "sha-c7a758f")), aligned]
+    deletable, manual = select_superseded_versions(with_control)
+    assert [version.id for version in deletable] == [10]
+    assert manual == []
+
 
 def test_prune_superseded_versions_apply_deletes_only_when_aligned_exists() -> None:
     """执行模式只在已有四段式替代品的包里删除三段式版本，缺替代品的包只报告。"""
@@ -194,14 +200,14 @@ def test_prune_superseded_versions_reports_shielded_legacy_tags(capsys: pytest.C
     class _Client:
         def list_package_versions(self, package: str) -> list[PackageVersionRecord]:
             if package == "immich-cn":
-                return [PackageVersionRecord(1, at(1), ("1.0.4", "sha-abc1234"))]
+                return [PackageVersionRecord(1, at(1), ("1.0.4", "latest"))]
             return []
 
     args = SimpleNamespace(apply=False)
     assert _prune_superseded_versions(_Client(), args) == 0
     out = capsys.readouterr().out
     assert "同时带其它标签，按保守规则保留" in out
-    assert "1.0.4, sha-abc1234" in out
+    assert "1.0.4, latest" in out
 
 
 def test_run_cleanup_preserves_cutoff_latest_per_workflow_protected_and_current() -> None:
