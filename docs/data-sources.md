@@ -40,7 +40,7 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 
 > 第 4 步是本项目不依赖付费 API 也能给出区县、乡镇粒度的关键：GeoNames 只发布 admin1/admin2 的代码表，但各国全量数据中包含部分 `ADM3`/`ADM4` 记录与代码，覆盖程度因国家而异。
 
-实际覆盖情况（2026-10-07 实测 GeoNames `CN.zip`，`CN.txt` 的 sha256 为 `10b1e064ddce0f2fcc46f1e81faf941ed17d7eb438ac91f62b7259cc236111a6`）：中国大陆数据转储里有 **2,938 条 `ADM3` 要素**、**11,878 条 `ADM4` 要素**，但其中**带 `admin4` 代码的只有 73 条**（带 `admin3` 代码的 1,647 条）。本项目用 `CC.A1.A2[.A3[.A4]]` 代码定位层级，缺少 `admin4` 代码就无法拼出第四级，因此**默认的 `{admin_4}` 变体在中国大陆通常会回退到区县**——不是 GeoNames 没有乡镇要素，而是它们大多缺四级代码。如果必须精确到乡镇，请配置 `AMAP_API_KEY` 并使用 `--provider amap`；此时高德会补齐乡镇层级，其余国家与地区仍由 GeoNames 与 Nominatim 负责。
+实际覆盖情况随 GeoNames 滚动数据变化：国家数据转储包含 `ADM3`/`ADM4` 记录，但是否进入 `{admin_4}` 变体取决于当前记录中的 `admin3`/`admin4` 代码与匹配策略。默认 `{admin_4}` 变体可能回退到区县；如果必须精确到乡镇，请配置 `AMAP_API_KEY` 并使用 `--provider amap`；此时高德会补齐乡镇层级，其余国家与地区仍由 GeoNames 与 Nominatim 负责。
 
 ### 3. 中文索引
 
