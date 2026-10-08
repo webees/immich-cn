@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 331,
+  "round": 332,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 212,
+    "findings": 213,
     "clean_rounds": 108,
     "p0": 0,
     "p1": 32,
-    "p2": 135,
+    "p2": 136,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3357,6 +3357,16 @@
       "severity": "P2",
       "evidence": "对 `src/immich_cn/fingerprint.py` 做一处语义微改：`json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(\",\", \":\"))` 的 `sort_keys=True` 改成 `False`。隔离字节码缓存后跑**完整**测试套件（`PYTHONPYCACHEPREFIX=$(mktemp -d) pytest -q -p no:cacheprovider`）：458 passed，全绿——即「指纹与字典键序无关」这条不变量没有任何用例覆盖。确认该变异不是等价变异：两份语义完全相同、只有 `config` 键序不同的 manifest 得到不同指纹（`bae7ba8c6c99` vs `96377816da30`）。影响：`update-data.yml` 的「无变化则跳过发布」依赖该指纹，若将来 `config` 构造顺序变化（等价配置）会让指纹假变化，触发无意义的重新构建与发布。修复：实现本来就正确，只需补回归用例——`tests/test_fingerprint.py` 新增 `test_fingerprint_ignores_key_order`（把 `config` 与 `tool` 的键序整体反转后断言指纹不变）。负向控制：把 `sort_keys` 改回 `False` 后该用例立即 AssertionError，恢复后通过。修复后 `make check` 459 passed（+1），`ruff` / `mypy` 通过。PR #239 四项必需检查全绿后 squash 合并，main=1832f80。",
       "pr": "https://github.com/webees/immich-cn/pull/239"
+    },
+    {
+      "round": 332,
+      "timestamp": "2026-10-08T09:22:58+08:00",
+      "focus": "校验与阈值（恒真检查、阈值误判、边界翻转）",
+      "method": "M2 阈值反演",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对 `src/immich_cn/providers/geo.py` 的 `out_of_china` 做阈值反演：对四个国境阈值各取「正好在阈值上」与「越界 1e-4」两点，当前实现 11 项全部符合闭区间语义（lon 72.004/137.8347、lat 0.8293/55.8271 判为境内，越界一格判为境外）。但现有 `test_out_of_china` 只有境内一点（北京）与境外一点（纽约），区分不了 `<=` 与 `<`。变异探针确认：把两处 `<=` 改成 `<` 后 `tests/test_providers.py` 26 项全过、**完整套件 459 项也全过**，而边界探针立刻报 4 项不匹配——这条边界没有任何用例钉住。影响：GCJ-02 偏移只对境内坐标生效，边界语义若被改坏，落在阈值上的坐标会被当成境外而不偏移，高德调用与坐标系说明随之失真且无测试报警。修复：实现本来就正确，补回归用例——`tests/test_providers.py` 新增 `test_out_of_china_includes_boundary`（4 条阈值 × 边界上/越界 1e-4 两点），并从模块导入四个阈值常量避免重复抄数字。负向控制：把 `<=` 改回 `<` 后新用例立即 `AssertionError: assert not True`（`out_of_china(72.004, …)`），恢复后通过。修复后 `make check` 460 passed（+1），`ruff` / `mypy` 通过。PR #240 四项必需检查全绿后 squash 合并，main=2279756。",
+      "pr": "https://github.com/webees/immich-cn/pull/240"
     }
   ],
   "residual_risks": [
@@ -3549,7 +3559,9 @@
     "第 330 轮的 65% 冗余比例由真实 `auto-release` manifest 的 `sizeBytes` 换算得出，不是对 615 MB 制品实测挂钟时间；`_DIGEST_CACHE` 是进程内缓存，长时间常驻进程（例如把它当库反复调用）会持续增长，当前用法是短生命周期脚本所以未加淘汰",
     "第 330 轮只消除了 `check_artifacts` 内部的重复哈希；构建侧 `packaging.py` 与 `check_artifacts` 之间、以及 CI 里 `check_artifacts` 与 `cosign`/Trivy 之间是否对同一制品重复读取，本轮没有跨进程测量",
     "第 331 轮只做了单点变异（fingerprint 的 sort_keys）；`data_fingerprint` 的其它不变量（`_sources` 对非 Mapping 条目的跳过、`_tool` 缺字段补空串、`_config` 非 Mapping 时回退空字典、`fingerprint_from_file` 对非 Mapping manifest 抛 ValueError）没有在本轮逐一变异验证",
-    "第 331 轮证明的是「缺一条键序用例」，不能外推为「指纹模块整体覆盖充分」；82% 的行覆盖率意味着仍有未执行分支，需要后续轮次继续用 M1 逐点探"
+    "第 331 轮证明的是「缺一条键序用例」，不能外推为「指纹模块整体覆盖充分」；82% 的行覆盖率意味着仍有未执行分支，需要后续轮次继续用 M1 逐点探",
+    "第 332 轮只反演了 `out_of_china` 的四个国境阈值；同一模块 `wgs84_to_gcj02` 的转换公式常量（`_A`、`_EE`）与境内/境外分支没有做数值对拍，也没有与权威实现比对过输出精度",
+    "第 332 轮未反演的其它数值阈值：`validation.py` 的 `NAME_MAX_CHARS`/`ADMIN1_CODE_MAX_CHARS`/`ADMIN2_CODE_MAX_CHARS`（`>` 边界）、`check_artifacts` 的 `MAX_COMPRESSION_RATIO`/`MAX_ENTRY_UNCOMPRESSED_BYTES`/`MAX_ARCHIVE_UNCOMPRESSED_BYTES`、`_MAX_RETRY_DELAY` 上限与 `positive_int_env` 下限"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
