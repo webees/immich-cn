@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 397,
+  "round": 398,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 244,
+    "findings": 245,
     "clean_rounds": 142,
     "p0": 0,
     "p1": 33,
-    "p2": 166,
+    "p2": 167,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针（畸形响应）",
+  "last_method": "M8 资源与性能剖析",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4017,9 +4017,21 @@
       "severity": "P2",
       "evidence": "对 `scripts/set_asset_timezone.py::_request_json` 注入 HTTP 200 + `not-json` 响应，原先抛出裸 `JSONDecodeError`，用户看不到请求 URL 与上下文；修复后统一抛出 `RuntimeError(\"Immich API returned invalid JSON: ...\")`，新增负向测试覆盖该路径。验证：`make check` 全绿（494 passed、覆盖率 88.73%）；PR #275 四项必需检查全绿后 squash 合并，main=d8c5439。",
       "pr": "https://github.com/webees/immich-cn/pull/275"
+    },
+    {
+      "round": 398,
+      "timestamp": "2026-10-09T02:47:00+08:00",
+      "focus": "数据正确性（行政层级、繁简、去重、排序、抽样核对）",
+      "method": "M8 资源与性能剖析",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`src/immich_cn/dataset.py::_create_database` 原先用 `_load_places` 把 1,318,830 条地点全部载入列表并排序，再构造 places/place_names 两份插入列表；真实数据 `write_canonical_dataset` 峰值 RSS 2,224,324,608 字节、耗时 33.11s。改为 `_iter_places` 两遍流式读取：第一遍写 places 并收集 admin_areas，第二遍写 place_names；峰值 RSS 616,579,072 字节（下降 72.3%）、耗时 34.40s。修复前后按主键排序逐表哈希一致：places 1,318,830、place_names 1,318,830、admin_areas 131,602、countries 252；`make check` 494 passed、覆盖率 88.74%，`make smoke` 通过。PR #276 四项必需检查全绿后 squash 合并，main=f375410。",
+      "pr": "https://github.com/webees/immich-cn/pull/276"
     }
   ],
   "residual_risks": [
+    "第 398 轮的内存与耗时数字来自 macOS / Python 3.14 与已有 131 万条真实地点文件，未在 CI 的 Python 3.11-3.13 或 GitHub runner 上重复测量；实现路径相同，但平台内存统计不可直接横向比较",
+    "第 398 轮改为按 cities500、extra 的输入顺序流式写入，`places` 的默认物理行序不再按 geoname_id 排序；文档没有承诺默认查询顺序，但若外部消费者依赖未声明的 SELECT 顺序，需要显式 ORDER BY",
     "第 397 轮只验证了 HTTP 200 返回非 JSON 文本；`response.json()` 返回合法 JSON 但非对象时仍会进入后续裸 `ValueError`，本轮未覆盖",
     "第 397 轮用 `httpx.MockTransport` 注入畸形响应，没有对真实 Immich 实例制造无效 JSON 响应",
     "round 280 的性能数字来自最小合成数据集，不能外推到真实 131 万级地点构建；真实下载、解压与打包耗时仍以 docs/development.md 的 2026-10 实测数据为准",
