@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 327,
-  "consecutive_clean": 0,
+  "round": 328,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 209,
-    "clean_rounds": 107,
+    "clean_rounds": 108,
     "p0": 0,
     "p1": 32,
     "p2": 132,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M5 真实数据抽样",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3317,6 +3317,16 @@
       "severity": "P2",
       "evidence": "先做网络与解析边界电池：`_content_range` 对 `bytes */40`、`BYTES …`、`-39/40`、`10-/40`、`10-39/40/50`、`10-39`、超大数字等 17 个输入全部按预期（是尾部才返回元组，其余 None），`end < start` 由调用方拒绝；`retry_delay` 指数退避在 attempt≥5 稳定封顶 30s；`_retry_after_seconds` 对 `0` 返回 0.0，对 `-5`、`1e9`、`abc`、空串返回 None；`positive_int_env` 拒绝空串、0、负数、非整数，接受带空白的整数——均无新缺陷。转查制品命名契约时发现真实缺陷：`artifact_spec.py` 的 docstring 声明「项目命名空间只出现一次」，但 `validate_artifact_id` / `validate_canonical_filename` 用 `[a-z0-9-]+` 匹配 profile 段，`immich-cn.geodata.immich-admin2.default.v1` 与 `immich-cn-geodata-immich-admin2-default-v1.zip` 都返回 True。`check_docs.py` 有专门的 `immich-cn-geodata-immich-` 拒绝分支，而 `scripts/check_artifacts.py:70`（发布制品门禁）用的正是这两个弱校验器，即门禁弱于文档门禁，手工构造或回归产生的冗余命名清单可通过制品校验。修复：正则改为捕获 profile 段，匹配成功后额外拒绝 profile 含 `immich`；`tests/test_artifact_spec.py` 增加两条负向断言。负向控制：把两个 return 还原后该用例立即 `AssertionError: assert not True`，恢复后通过；合法值 `admin2`/`admin2-admin3`/`country-admin1` 仍为 True，`admin_2`/`bad`/缺 `-v1` 仍为 False；`make artifacts` 真实 dist 15 包 18 校验和通过；`make check` 456 passed。PR #236 四项必需检查全绿后 squash 合并，main=6f76d1b。",
       "pr": "https://github.com/webees/immich-cn/pull/236"
+    },
+    {
+      "round": 328,
+      "timestamp": "2026-10-08T08:39:52+08:00",
+      "focus": "数据正确性（行政层级、繁简、去重、抽样核对）",
+      "method": "M5 真实数据抽样",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "从滚动 `auto-release` 下载真实制品核对：`immich-cn-dataset-sqlite-v1.zip`（74 MB）与 `immich-cn-geodata-admin2-admin3-admin4-default-v1.zip`（20 MB）。规范数据集：`places` 1,318,862 条，重复 `geoname_id` 0，空 `country_name` 0；CN 956,792 / HK 1,953 / TW 45,041 / MO 19 / JP 98,045 / US 21,785 六组的空 `admin1_name` 与空 `geoname_name` 均为 0。抽样层级：北京 `北京市/北京市/北京市/北京市`、上海同构、昆山 `江苏省 苏州市 昆山市`、香港 `香港 / 中西区`、台湾 `云林县 斗六市`、澳门 `嘉模堂区`、名古屋 `爱知县 名古屋市`，均与文档描述的逐级回退与港澳台重排一致。适配器：HK/MO 的 admin1 为 `香港特别行政区`（与 data-format.md 记录的 SPECIAL_ADMIN_TOP_LEVEL 例外一致）；CN/HK/TW/MO 展示名繁体残留 0；256,658 行全部 19 列、空展示名 0；`geodata-date.txt` 为 `2026-10-08T02:39:27+08:00`（ISO +08:00）；`build-info.json` 的 pattern 与文件名一致。对抗性实验：先按「任意重复词」扫描得到 277 行，逐条复核确认全部是单个地名内部的合法重复词（如 `Departamento de Paso de los Libres`），属假阳性启发式；改为只查相邻层级重复后全量 256,658 行为 0，证明去重规则确实生效而不是靠断言恒真。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3501,7 +3511,9 @@
     "第 325 轮观测到 `monitor-update.yml` 的首个真实 `schedule` 成功运行，但此前 `update-data.yml` 的 schedule 仍只在 2026-10-06/07 出现过极少数触发；GitHub 定时调度是否稳定仍需持续观察，单次成功不足以作为长期可用性证据",
     "第 326 轮只补了 `apply-pattern.sh` 的「空输入」分支；同一脚本的其它边界（变体表首列重复 ID、cities500 含 CRLF、名称列含制表符、超长行）仍没有专项用例，`matched == total` 之外的「改错列」类假成功也仍靠人工判断",
     "第 326 轮的容器审查仍未在真实只读 bind mount 下执行 `entrypoint.sh`：只读分支是用 `chmod 0555` 模拟的，且以 root 运行时会整体跳过（CI 运行用户为非 root，但 root 场景未覆盖）",
-    "第 327 轮只收紧了「profile 段含 immich」这一条命名空间规则；`ARTIFACT_ID_PATTERN` / `CANONICAL_FILE_PATTERN` 仍允许其它形式的重名（例如 profile 为 `admin2-default` 时正则靠回溯仍可能解析出不同切分），且 `check_artifacts.py` 不会用 `canonical_filename(profile, scope)` 反推比对，只校验形态，因此「清单里的 profile 与文件名不一致」仍不会被机械发现"
+    "第 327 轮只收紧了「profile 段含 immich」这一条命名空间规则；`ARTIFACT_ID_PATTERN` / `CANONICAL_FILE_PATTERN` 仍允许其它形式的重名（例如 profile 为 `admin2-default` 时正则靠回溯仍可能解析出不同切分），且 `check_artifacts.py` 不会用 `canonical_filename(profile, scope)` 反推比对，只校验形态，因此「清单里的 profile 与文件名不一致」仍不会被机械发现",
+    "第 328 轮抽样来自滚动 `auto-release`（内容 2026-10-08 生成），不是不可变 `data-*` 快照；滚动发布后续会被新构建覆盖，样本不能当作长期黄金基准，需要固定基准时应改用 `data-*` 快照或把样本写进测试夹具",
+    "第 328 轮只核对了 CN/HK/TW/MO/JP/US 六个地区的空名与繁体残留，其余约 250 个国家的展示名仍没有抽样；「任意重复词」启发式被证伪为假阳性后，没有把「相邻层级去重」固化成 make 目标，后续仍靠人工判断"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
