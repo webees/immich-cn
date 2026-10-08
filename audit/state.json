@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 353,
-  "consecutive_clean": 3,
+  "round": 354,
+  "consecutive_clean": 4,
   "totals": {
     "findings": 225,
-    "clean_rounds": 117,
+    "clean_rounds": 118,
     "p0": 0,
     "p1": 33,
     "p2": 147,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M7 死代码与引用计数",
+  "last_method": "M4 契约快照",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3577,6 +3577,16 @@
       "severity": null,
       "evidence": "`config/overrides.toml` 是人工维护的纠错表，`localization.py:194` 的注释与 `tests/test_localization.py:21` 的用例都声称「键写错会变成永远匹配不到的死条目」，但现有校验只覆盖**格式**（`ADMIN_CODE_PATTERN`），不校验键是否真的命中数据。用真实制品做数据级核对：下载 `auto-release` 的 `immich-cn-dataset-sqlite-v1.zip`，把 131,609 条 `admin_areas`（level+code）与 252 个 `countries` 作为命中集合，逐条比对覆盖表的 125 个 `[admins]` 键与 2 个 `[countries]` 键——**未命中 0 个**（`[places]` 为空，无待查项）。负向控制：在内存里注入 `CN.99` 与 `MO.11875199` 两个假键后，同一核对立刻报出这 2 个未命中项，证明该核对不是恒真。临时目录已清理，`git status` 干净、`git diff` 为空。本轮未发现 P0-P2 问题，clean_streak=3。P3（仅记录，不改）：文档/注释声称的「死条目」只被格式校验覆盖，格式合法但数据里不存在的键仍会静默失效；补数据级硬校验有风险——上游若删掉某个代码会让无人值守的每日构建或发布门禁直接失败，因此本轮不引入硬失败，留作后续评估（警告式提示或无阻塞报告）。",
       "pr": null
+    },
+    {
+      "round": 354,
+      "timestamp": "2026-10-08T13:42:46+08:00",
+      "focus": "文档与实现一致性（外部链接可达性）",
+      "method": "M4 契约快照",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "`check_docs.check_markdown_links` 只校验仓库内相对链接，外部 URL 从来没有被核过。本轮提取 README/docs/NOTICE/CITATION 里的 URL（去重后 35 条）逐条 `curl -L`：所有真实链接返回 200（含 CI/Data Update 徽章、`pkgs/container/immich-cn`、GeoJSON/Natural Earth/i18n-iso-countries/CC BY/ODbL 等参考链接）。非 200 的只有三类且都可解释：`immich.example.com` 系列（文档里的占位域名，curl 报 000）、`https://token.actions.githubusercontent.com`（Cosign OIDC issuer，裸 GET 本就 404，不是网页）、以及 4 条是我自己正则提取时把中文标点并进 URL 造成的假 URL（`…immich-cn）完成。` 之类）。避免「200 即通过」的假通过：对文档承诺的两个固定下载地址单独验证内容——`releases/latest/download/immich-cn-geodata-admin2-default-v1.zip` 返回 `content-type: application/octet-stream`、`content-length: 20200417`，与 manifest 里同名资产的 `sizeBytes=20200417` 完全一致；`immich-cn-i18n-json-v1.zip` 返回 3485 字节的真实文件。`git status` 干净、`git diff` 为空。本轮未发现 P0-P2 问题，clean_streak=4。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3817,7 +3827,9 @@
     "第 352 轮的 P3：`check_action_pins.parse_pins` 的 `PIN` 正则只认两段式 `owner/repo@ref`，三段式 `owner/repo/path@ref`（GitHub 合法语法）会被判「无法解析 uses 行」而阻断 CI。方向是 fail-safe，但新增这类 Action 时需同步扩展正则；本轮按 P3 记录、不修改",
     "第 352 轮只验证了解析层（`parse_pins`）；「注释里的 tag 在上游是否存在、解析出的 commit 是否与 pin 一致」这两步依赖 GitHub API，本轮用 `make audit-pins` 的历史结果代替，没有重新联网对拍",
     "第 353 轮的 P3：`config/overrides.toml` 的「死条目」只被格式校验覆盖（`ADMIN_CODE_PATTERN`），格式合法但数据里不存在的键会静默失效；本轮实测 125 个 admin 键 + 2 个 country 键全部命中，但这是时点事实，上游删代码后仍会漂移。补硬校验会让无人值守流程在上游删码时直接失败，需先确定用警告还是硬失败",
-    "第 353 轮只核对了覆盖表键与规范数据集的命中关系，没有核对「覆盖值是否真的改变了最终输出」（例如某个 level-4 覆盖只有在 pattern 含 `{admin_4}` 时才影响展示名）；这类效果验证需要逐 pattern 比对产物"
+    "第 353 轮只核对了覆盖表键与规范数据集的命中关系，没有核对「覆盖值是否真的改变了最终输出」（例如某个 level-4 覆盖只有在 pattern 含 `{admin_4}` 时才影响展示名）；这类效果验证需要逐 pattern 比对产物",
+    "第 354 轮的外部链接核对是时点快照（2026-10-08），没有任何自动护栏；上游仓库改名、文档站点下线或 shields.io 策略变化都不会被 CI 发现，需要按需重跑",
+    "第 354 轮只检查了 URL 可达性与两个固定下载地址的内容长度，没有校验链接指向的*内容*是否仍然正确（例如 `immich-app/immich` 的 LICENSE 链接是否仍指向 AGPL 文本、`v3.3.0` 的 zh_Hans.json 是否仍是当时核对的那份）"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
