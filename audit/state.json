@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 426,
+  "round": 427,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 255,
+    "findings": 256,
     "clean_rounds": 160,
     "p0": 0,
     "p1": 34,
-    "p2": 176,
+    "p2": 177,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M1 变异探针（畸形搜索条目）",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4320,9 +4320,21 @@
       "severity": "P2",
       "evidence": "入口脚本在 `IMMICH_BUILD_DATA` 的父路径是普通文件时，原先只输出裸 `mkdir: ... Not a directory`，没有 immich-cn 上下文。修复为捕获 `mkdir` 错误并输出带目标路径的明确提示；`check-entrypoint.sh` 新增该边界回归。负向证据：旧树加新校验在“未给出明确提示”处失败；修复后入口校验全部通过。验证：`make check` 504 passed、覆盖率 88.83%；PR #286 四项必需检查全绿后 squash 合并，main=8f1f357。",
       "pr": "https://github.com/webees/immich-cn/pull/286"
+    },
+    {
+      "round": 427,
+      "timestamp": "2026-10-09T22:05:00+08:00",
+      "focus": "错误处理与网络健壮性（超时、截断、空响应、重试）",
+      "method": "M1 变异探针（畸形搜索条目）",
+      "method_note": "轮换位次为 M7；本轮按 focus 使用错误响应注入探针。",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`iter_assets` 原先静默跳过 `assets.items` 中的非对象条目。对抗实验：响应返回 `items=[\"bad\"], total=1` 时，旧实现持续分页并可能无限循环，同时把异常响应当成无资产。修复：非对象 item 立即抛 `RuntimeError`，新增回归测试并在第二页返回空列表避免挂起。验证：`make check` 505 passed、覆盖率 88.83%；PR #287 四项必需检查全绿后 squash 合并，main=87c84d6。",
+      "pr": "https://github.com/webees/immich-cn/pull/287"
     }
   ],
   "residual_risks": [
+    "第 427 轮使用 `httpx.MockTransport` 注入非对象 item，没有对真实 Immich 实例制造该响应；真实代理或版本差异仍由运行环境覆盖",
     "第 426 轮只修复了目标父路径是普通文件的提示；其它 `mkdir` 错误（权限、只读文件系统、路径过长）仍依赖系统错误文本，但会带 immich-cn 前缀",
     "第 425 轮只通过工作流静态契约和临时变异验证失败路径，没有触发真实 GitHub 失败运行来观察 issue 创建/关闭与权限行为",
     "第 424 轮只验证了镜像 tag 的 `v` 前缀契约；文档中的路径、命令、数字与示例仍未逐条重放",
