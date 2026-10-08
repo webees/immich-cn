@@ -11,7 +11,7 @@ import json
 import math
 import sqlite3
 import zipfile
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 
 from immich_cn.artifact_spec import DATASET_FILE, DATASET_MEMBER
@@ -78,9 +78,9 @@ def _create_database(
     levels: Mapping[int, tuple[str, str, str, str, str]],
     min_population: int,
 ) -> None:
-    places = _load_places(result)
     countries = _load_countries(result.geodata_dir / "countryInfo.txt")
-    admin_areas = _collect_admin_areas(places, levels)
+    admin_areas: dict[tuple[int, str], str] = {}
+    place_count = 0
 
     connection = sqlite3.connect(path)
     try:
@@ -89,7 +89,6 @@ def _create_database(
         connection.execute("PRAGMA synchronous = OFF")
         connection.execute("PRAGMA temp_store = MEMORY")
         _create_schema(connection)
-        _insert_metadata(connection, result=result, place_count=len(places))
         connection.executemany(
             "INSERT INTO sources(name, url, sha256, size_bytes, etag, last_modified) VALUES (?, ?, ?, ?, ?, ?)",
             [
@@ -111,20 +110,14 @@ def _create_database(
                 for code, row in sorted(countries.items())
             ],
         )
-        connection.executemany(
-            "INSERT INTO admin_areas(level, code, name) VALUES (?, ?, ?)",
-            [(level, code, name) for (level, code), name in sorted(admin_areas.items())],
-        )
-        connection.executemany(
-            """
-            INSERT INTO places(
-                geoname_id, name, ascii_name, country_code, latitude, longitude, population,
-                feature_class, feature_code, admin1_code, admin2_code, admin3_code, admin4_code,
-                source, in_default
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            [
-                (
+
+        def place_rows() -> Iterator[tuple[object, ...]]:
+            nonlocal place_count
+            for place, source_name in _iter_places(result):
+                names = levels.get(place.geoname_id)
+                _collect_admin_areas(place, names, admin_areas)
+                place_count += 1
+                yield (
                     place.geoname_id,
                     place.name,
                     place.ascii_name,
@@ -141,12 +134,28 @@ def _create_database(
                     source_name,
                     int(source_name == "cities500" or place.population >= min_population or is_fine_grained(place)),
                 )
-                for place, source_name in places
-            ],
+
+        connection.executemany(
+            """
+            INSERT INTO places(
+                geoname_id, name, ascii_name, country_code, latitude, longitude, population,
+                feature_class, feature_code, admin1_code, admin2_code, admin3_code, admin4_code,
+                source, in_default
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            place_rows(),
+        )
+        _insert_metadata(connection, result=result, place_count=place_count)
+        connection.executemany(
+            "INSERT INTO admin_areas(level, code, name) VALUES (?, ?, ?)",
+            [(level, code, name) for (level, code), name in sorted(admin_areas.items())],
         )
         connection.executemany(
             "INSERT INTO place_names(geoname_id, country, admin1, admin2, admin3, admin4) VALUES (?, ?, ?, ?, ?, ?)",
-            [(place.geoname_id, *levels.get(place.geoname_id, ("", "", "", "", ""))) for place, _ in places],
+            (
+                (place.geoname_id, *levels.get(place.geoname_id, ("", "", "", "", "")))
+                for place, _ in _iter_places(result)
+            ),
         )
         connection.commit()
         connection.execute("VACUUM")
@@ -258,11 +267,12 @@ def _insert_metadata(connection: sqlite3.Connection, *, result: BuildResult, pla
     )
 
 
-def _load_places(result: BuildResult) -> list[tuple[Place, str]]:
-    rows = [(place, "cities500") for place in iter_places(result.cities500)]
-    rows.extend((place, "extra") for place in iter_places(result.extra_file))
-    rows.sort(key=lambda item: item[0].geoname_id)
-    return rows
+def _iter_places(result: BuildResult) -> Iterator[tuple[Place, str]]:
+    """按 cities500、extra 的顺序流式产出地点，避免把百万行载入内存。"""
+    for place in iter_places(result.cities500):
+        yield place, "cities500"
+    for place in iter_places(result.extra_file):
+        yield place, "extra"
 
 
 def _load_countries(path: Path) -> dict[str, dict[str, object]]:
@@ -285,25 +295,20 @@ def _load_countries(path: Path) -> dict[str, dict[str, object]]:
 
 
 def _collect_admin_areas(
-    places: list[tuple[Place, str]],
-    levels: Mapping[int, tuple[str, str, str, str, str]],
-) -> dict[tuple[int, str], str]:
-    areas: dict[tuple[int, str], str] = {}
-    for place, _ in places:
-        names = levels.get(place.geoname_id)
-        if names is None:
-            continue
-        country = place.country_code
-        codes = (place.admin1_code, place.admin2_code, place.admin3_code, place.admin4_code)
-        name_values = names[1:]
-        code_parts: list[str] = [country]
-        for level, (code, name) in enumerate(zip(codes, name_values, strict=True), start=1):
-            if not code:
-                break
-            code_parts.append(code)
-            if name:
-                areas.setdefault((level, ".".join(code_parts)), name)
-    return areas
+    place: Place,
+    names: tuple[str, str, str, str, str] | None,
+    areas: dict[tuple[int, str], str],
+) -> None:
+    if names is None:
+        return
+    code_parts = [place.country_code]
+    codes = (place.admin1_code, place.admin2_code, place.admin3_code, place.admin4_code)
+    for level, (code, name) in enumerate(zip(codes, names[1:], strict=True), start=1):
+        if not code:
+            return
+        code_parts.append(code)
+        if name:
+            areas.setdefault((level, ".".join(code_parts)), name)
 
 
 def _coordinate(place: Place, index: int) -> float:
