@@ -685,6 +685,8 @@ def check_update_monitor(path: Path, workflow: dict[str, Any], errors: list[str]
         errors.append(f"{path} 未把新鲜度检查指向 update-data.yml（改名后监控会盯错工作流）")
     if "--label automation" not in text:
         errors.append(f"{path} 的告警 issue 未使用 automation 标签")
+    if "CHECK_EXIT_CODE" not in text or 'title="更新监控检查失败' not in text:
+        errors.append(f"{path} 未区分监控自身失败与更新停摆，API/令牌错误会误报为停摆")
     if "if: success()" not in text:
         errors.append(f"{path} 缺少恢复后关闭告警的步骤，告警会一直挂着")
 
