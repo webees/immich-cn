@@ -317,6 +317,33 @@ def test_fetcher_revalidate_keeps_cache_on_unsolicited_206(tmp_path: Path) -> No
     assert result.path.read_bytes() == b"A" * 20
 
 
+def test_fetcher_retries_rate_limited_download(tmp_path: Path) -> None:
+    """429 属于可重试状态：上游限流时应退避后重试，而不是立刻失败。
+
+    `_RETRY_STATUS` 此前没有任何用例真正驱动下载重试循环，把 429 从集合里删掉
+    整套测试仍然全绿——那样限流会直接让每日自动更新失败。
+    """
+    calls = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(429, headers={"retry-after": "0"})
+        return httpx.Response(200, content=b"ok", headers={"content-length": "2"})
+
+    spec = SourceSpec(name="demo", url="https://example.com/demo.txt", filename="demo.txt")
+    with Fetcher(
+        tmp_path / "cache",
+        retries=2,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    ) as fetcher:
+        result = fetcher.fetch(spec)
+
+    assert calls == 2
+    assert result.path.read_bytes() == b"ok"
+
+
 def test_fetcher_rejects_truncated_download(tmp_path: Path) -> None:
     """Content-Length 与实际字节不一致时必须失败，避免把截断内容当成成功。"""
 
