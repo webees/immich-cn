@@ -595,7 +595,9 @@ def _write_levels(
                 overrides,
                 index.variant,
                 fallback_name=(
-                    index.get(place.geoname_id) or pick_from_alternates(place.alternate_names, index.variant) or place.name
+                    index.get(place.geoname_id)
+                    or pick_from_alternates(place.alternate_names, index.variant)
+                    or place.name
                 )
                 if place.admin1_code
                 else "",
