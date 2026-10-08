@@ -18,8 +18,13 @@ def test_rate_limiter_rejects_invalid_configuration() -> None:
 
 def test_rate_limiter_releases_slot_at_window_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
     now = 0.0
+    calls = 0
 
     def monotonic() -> float:
+        nonlocal calls
+        calls += 1
+        if calls > 100:
+            raise AssertionError("RateLimiter 未在窗口边界释放槽位，测试拒绝无限循环")
         return now
 
     def sleep(seconds: float) -> None:
