@@ -3,7 +3,14 @@ from __future__ import annotations
 import json
 
 import httpx
-from scripts.set_asset_timezone import SEARCH_PAGE_SIZE, apply_timezone, iter_assets, select_asset_ids
+import pytest
+from scripts.set_asset_timezone import (
+    SEARCH_PAGE_SIZE,
+    _request,
+    apply_timezone,
+    iter_assets,
+    select_asset_ids,
+)
 
 
 def test_select_asset_ids_skips_missing_and_matching_timezone() -> None:
@@ -85,3 +92,33 @@ def test_apply_timezone_falls_back_to_put_for_old_immich() -> None:
 
     assert updated == 1
     assert methods == ["PATCH", "PUT"]
+
+
+def test_request_retries_transport_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    """连接超时和传输错误属于可重试故障，不能直接抛出 traceback。"""
+    calls = 0
+
+    class _Client:
+        def request(self, method: str, url: str, **kwargs: object) -> httpx.Response:
+            nonlocal calls
+            calls += 1
+            request = httpx.Request(method, url)
+            if calls < 3:
+                raise httpx.ConnectError("temporary", request=request)
+            return httpx.Response(200, request=request)
+
+    monkeypatch.setattr("scripts.set_asset_timezone.time.sleep", lambda _seconds: None)
+    response = _request(_Client(), "GET", "/api/search/metadata")  # type: ignore[arg-type]
+
+    assert response.status_code == 200
+    assert calls == 3
+
+
+def test_request_wraps_persistent_transport_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Client:
+        def request(self, method: str, url: str, **kwargs: object) -> httpx.Response:
+            raise httpx.ReadTimeout("slow", request=httpx.Request(method, url))
+
+    monkeypatch.setattr("scripts.set_asset_timezone.time.sleep", lambda _seconds: None)
+    with pytest.raises(RuntimeError, match="Immich API request failed after 3 attempts"):
+        _request(_Client(), "GET", "/api/search/metadata")  # type: ignore[arg-type]
