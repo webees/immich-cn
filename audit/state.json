@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 417,
-  "consecutive_clean": 0,
+  "round": 418,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 252,
-    "clean_rounds": 154,
+    "clean_rounds": 155,
     "p0": 0,
     "p1": 34,
     "p2": 173,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针（畸形搜索响应）",
+  "last_method": "M8 资源与性能剖析",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4226,9 +4226,21 @@
       "severity": "P2",
       "evidence": "`scripts/set_asset_timezone.py::iter_assets` 对 `assets` 或 `assets.items` 结构异常时抛裸 `ValueError`，`main` 不捕获后会留下 traceback。修复：两类结构异常统一抛 `RuntimeError`，新增参数化回归覆盖 `assets=[]` 与 `items=\"bad\"`。负向证据：修复前两个输入均抛 `ValueError`；修复后均抛带 “search response” 的 `RuntimeError`。验证：`make check` 503 passed、覆盖率 88.78%；PR #283 四项必需检查全绿后 squash 合并，main=e820abc。",
       "pr": "https://github.com/webees/immich-cn/pull/283"
+    },
+    {
+      "round": 418,
+      "timestamp": "2026-10-09T16:05:00+08:00",
+      "focus": "数据正确性（行政层级、繁简、去重、排序、抽样核对）",
+      "method": "M8 资源与性能剖析",
+      "method_note": "轮换位次为 M8；本轮按数据层资源剖面验证 131 万条层级表的字符串池优化仍然有效。",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对真实 `work/round28-real/levels.tsv`（1,318,830 条）做内存反演：当前 `load_levels` 峰值 RSS 296,091,648 字节、0.87s；临时副本移除字符串池后峰值 RSS 714,145,792 字节、0.90s，当前实现减少 418,054,144 字节（58.6%）。`pytest -q tests/test_pipeline.py` 25 passed。检查清单：已覆盖真实层级表峰值内存、字符串池移除对照和流水线测试；未在本轮重新跑完整 131 万地点构建。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 418 轮的内存反演只覆盖 `load_levels` 的字符串池，不覆盖打包、SQLite 写入和提供方增强的整链路峰值；完整构建仍需发布流水线或后续审计覆盖",
     "第 417 轮使用 `httpx.MockTransport` 注入畸形搜索响应，没有对真实 Immich 实例制造该响应；真实代理或版本差异仍由运行环境覆盖",
     "第 417 轮只覆盖 `assets` 非对象与 `items` 非数组；`items` 内混入非对象条目时仍会静默跳过，是否应失败取决于 Immich 搜索接口契约",
     "第 416 轮的 `--geodata-only` 边界实验确认既有 `i18n-iso-countries` 目录不会被删除；这是“不管理 langs”的语义，但用户若期望该参数顺带清理旧语言包，需要显式说明或手动删除",
