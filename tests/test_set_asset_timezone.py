@@ -78,6 +78,20 @@ def test_iter_assets_wraps_malformed_search_payload(payload: object) -> None:
         list(iter_assets(client))
 
 
+def test_iter_assets_rejects_non_object_items() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        page = json.loads(request.content)["page"]
+        if page == 1:
+            return httpx.Response(200, json={"assets": {"items": ["bad"], "total": 1}})
+        return httpx.Response(200, json={"assets": {"items": [], "total": 1}})
+
+    with (
+        httpx.Client(base_url="http://immich", transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(RuntimeError, match="非对象条目"),
+    ):
+        list(iter_assets(client))
+
+
 def test_apply_timezone_uses_bulk_update_api() -> None:
     requests: list[dict[str, object]] = []
 

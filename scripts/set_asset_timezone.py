@@ -76,9 +76,10 @@ def iter_assets(client: httpx.Client) -> Iterator[dict[str, Any]]:
         if not isinstance(items, list):
             raise RuntimeError("Immich search response 缺少 assets.items")
         for item in items:
-            if isinstance(item, dict):
-                seen += 1
-                yield item
+            if not isinstance(item, dict):
+                raise RuntimeError("Immich search response assets.items 含非对象条目")
+            seen += 1
+            yield item
         total = block.get("total")
         if not items:
             return
