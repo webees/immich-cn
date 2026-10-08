@@ -36,6 +36,10 @@ def test_compose_keeps_all_distinct_levels() -> None:
     assert compose("{admin_2} {admin_3} {admin_4}", levels) == "上海市 嘉定区 嘉定镇"
 
 
+def test_compose_deduplicates_adjacent_literal_tokens() -> None:
+    assert compose("{admin_2} 苏州 苏州", {"admin_2": "苏州市"}) == "苏州市 苏州"
+
+
 def test_normalize_level_removes_cjk_inner_spaces() -> None:
     assert normalize_level("株洲\u3000市") == "株洲市"
     assert normalize_level("New   York") == "New York"
@@ -73,6 +77,11 @@ def test_validate_pattern_error_message_is_actionable(pattern: str) -> None:
     with pytest.raises(ConfigError) as excinfo:
         validate_pattern(pattern)
     assert "admin_N" in str(excinfo.value)
+
+
+def test_validate_pattern_rejects_duplicate_placeholders() -> None:
+    with pytest.raises(ConfigError, match="重复占位符"):
+        validate_pattern("{admin_2} {admin_2}")
 
 
 def _reference_compose(pattern: str, levels: dict[str, str]) -> str:
