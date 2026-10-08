@@ -706,9 +706,7 @@ def _prune_superseded_versions(client: GitHubClient, args: argparse.Namespace) -
         if not deletable and not manual:
             # 带三段式标签、但因为同时还带其它标签而被保留的版本要显式说明，
             # 否则「0 个」既可能表示没有旧版本，也可能表示保守规则生效，二者不可区分。
-            legacy_tagged = [
-                version for version in versions if any(LEGACY_VERSION.match(tag) for tag in version.tags)
-            ]
+            legacy_tagged = [version for version in versions if any(LEGACY_VERSION.match(tag) for tag in version.tags)]
             if legacy_tagged:
                 print(
                     f"[{mode}] GHCR 包 {package}：{len(legacy_tagged)} 个版本带三段式标签，"
