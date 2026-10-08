@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 400,
-  "consecutive_clean": 2,
+  "round": 401,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 245,
+    "findings": 246,
     "clean_rounds": 144,
     "p0": 0,
     "p1": 33,
-    "p2": 167,
+    "p2": 168,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4048,9 +4048,21 @@
       "severity": null,
       "evidence": "对 `docker/install.sh`、`docker/apply-pattern.sh` 与 `docker/entrypoint.sh` 做资源与边界审查：`bash scripts/check-entrypoint.sh` 全部通过（含符号链接、嵌套目录、只读挂载、空文件和参数错误）；对抗控制一：把目标 `geodata` 设为指向外部目录的符号链接，`install.sh` 返回 0、外部哨兵文件仍存在、目标符号链接被替换为真实目录，未越界删除；对抗控制二：在独立 `TMPDIR` 下用未知展示粒度触发失败，`apply-pattern.sh` 返回 2 且临时目录剩余 0 项；真实 131 万地点变体应用返回 0，临时目录剩余 0 项，峰值 RSS 142,540,800 字节、耗时 4.84s。检查清单：已覆盖临时目录生命周期、符号链接边界、嵌套路径拒绝、真实数据资源峰值与入口契约；未在 Alpine BusyBox/容器 overlayfs 中重放。本轮未发现 P0-P2 问题，clean_streak=2。",
       "pr": null
+    },
+    {
+      "round": 401,
+      "timestamp": "2026-10-09T04:45:00+08:00",
+      "focus": "测试有效性（断言能否失败、覆盖是否真实）",
+      "method": "M1 变异探针",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对 `src/immich_cn/display.py::compose` 做变异：删除最终相邻 token 去重后，完整 `pytest` 仍 496 passed，说明该分支没有回归覆盖；进一步核对发现 `validate_pattern` 允许重复占位符，而 `compose(\"{admin_2} {admin_2}\", {\"admin_2\": \"苏州市\"})` 实测返回空字符串。修复：共享校验拒绝重复占位符；新增“相邻字面 token 去重”与“重复占位符拒绝”两个回归。负向证据：修复前空字符串；变异副本 `compose(\"{admin_2} 苏州 苏州\", ...)` 返回 `苏州市 苏州 苏州`，新回归可失败。验证：`make check` 全绿，496 passed，覆盖率 88.81%；PR #277 四项必需检查全绿后 squash 合并，main=c8cd78a。",
+      "pr": "https://github.com/webees/immich-cn/pull/277"
     }
   ],
   "residual_risks": [
+    "第 401 轮只对 `compose` 的一个相邻 token 分支做变异；`normalize_level`、`pattern_keys` 缓存和 `slugify` 的其他边界没有在本轮逐一变异",
+    "第 401 轮把重复占位符从“返回空字符串”改为显式 `ConfigError`；未发现现有文档或默认配置使用重复占位符，但外部自定义 pattern 若含重复占位符现在会直接失败",
     "第 400 轮的容器脚本边界实验在 macOS/POSIX 与本地 bash 上执行，未在 Alpine BusyBox、容器 overlayfs 或只读挂载的真实运行时逐项重放",
     "第 400 轮的真实变体应用实测峰值 RSS 142,540,800 字节；该实现会把变体表整体载入 awk 关联数组，数据量继续增长时需要重新评估内存上限",
     "第 399 轮的对抗控制只覆盖 `SECURITY.md` 的 GitHub API 传输说明；策略中“Trivy 阻断范围”“Cosign 签名”“checkout 不持久化凭据”等声明由工作流契约与真实发布链分别覆盖，本轮没有重新运行完整发布链",
