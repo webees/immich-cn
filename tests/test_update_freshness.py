@@ -107,6 +107,19 @@ def test_long_running_attempt_is_stalled() -> None:
     assert "in_progress" in report.detail
 
 
+def test_attempt_exactly_at_stall_grace_is_not_stalled() -> None:
+    """与 max-age 一样，stall-grace 恰好命中时允许继续，不把边界误判为停摆。"""
+    report = evaluate(
+        [
+            run_at(9, 3.0, status="in_progress", conclusion="", event="schedule"),
+            run_at(8, 20.0),
+        ]
+    )
+    assert report.state == "ok"
+    assert report.healthy is True
+    assert "in_progress" in report.detail
+
+
 def test_cancelled_run_without_recent_success_is_stale_success() -> None:
     """取消不直接判失败，但也不能掩盖「一直没有成功」的事实。"""
     report = evaluate([run_at(4, 1.0, conclusion="cancelled"), run_at(3, 90.0)])
