@@ -95,12 +95,25 @@ def _write_part_meta(part: Path, spec: SourceSpec, etag: str | None, last_modifi
     )
 
 
+#: 同一份制品在一次构建里会被 package_all、manifest 与 checksums 各哈希一次，
+#: 真实 dist（615 MB）因此被重复读取约 2.99 遍（合计 1.84 GB）。按「路径 + mtime + 大小」
+#: 缓存摘要；文件在运行期间被改动时缓存自动失效，任何比较结果都不受影响。
+_DIGEST_CACHE: dict[tuple[Path, int, int], str] = {}
+
+
 def sha256_file(path: Path) -> str:
+    stat_result = path.stat()
+    key = (path, stat_result.st_mtime_ns, stat_result.st_size)
+    cached = _DIGEST_CACHE.get(key)
+    if cached is not None:
+        return cached
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(_CHUNK), b""):
             digest.update(chunk)
-    return digest.hexdigest()
+    value = digest.hexdigest()
+    _DIGEST_CACHE[key] = value
+    return value
 
 
 def sha256_bytes(data: bytes) -> str:
