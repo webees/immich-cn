@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 340,
+  "round": 341,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 218,
+    "findings": 219,
     "clean_rounds": 111,
     "p0": 0,
     "p1": 33,
-    "p2": 140,
+    "p2": 141,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M8 资源与性能剖析",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3447,6 +3447,16 @@
       "severity": "P2",
       "evidence": "对 `main=c24a552` 的构建路径插桩：`src/immich_cn/fetching.py` 的 `sha256_file` 被 `packaging.py` 复用，而同一制品在一次构建里被哈希三次——`package_all` 记变体 sha256（packaging.py:99）、`_write_manifest` 再算（:264/:275）、`_write_checksums` 第三遍（:297）。合成数据实测：14 个地理数据变体与数据集各 3 次、i18n 与变体表各 2 次，`sha256_file` 调用 50 次 / 唯一制品 18 个。用真实 `auto-release` manifest 的 sizeBytes 换算：17 个制品共 615,536,981 字节，当前读取 1,840,332,586 字节（≈2.99 倍），冗余 67%（约 1.22 GB）。这与第 330 轮在发布门禁里修掉的是同一类问题，只是发生在构建侧。修复：`fetching.sha256_file` 增加按「路径 + mtime_ns + size」索引的 `_DIGEST_CACHE`，命中即复用；缓存只减少字节读取，不改变任何比较结果。修复后同一构建实测：调用仍 50 次但**实际计算 18 次**（命中 32 次）= 唯一制品数。负向控制：把缓存键改成 `(path, 0, 0)` 后新用例 `test_sha256_file_cache_invalidates_on_change` 立即 AssertionError，恢复后通过；该用例覆盖「长度变化」与「同长度改内容 + 显式 utime」两条失效路径。`make check` 464 passed（+1），`ruff`/`mypy` 通过。PR #245 四项必需检查全绿后 squash 合并，main=131d830。",
       "pr": "https://github.com/webees/immich-cn/pull/245"
+    },
+    {
+      "round": 341,
+      "timestamp": "2026-10-08T11:00:29+08:00",
+      "focus": "测试有效性（中英混排层级名）",
+      "method": "M1 变异探针",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对 `src/immich_cn/display.py` 的 `normalize_level` 做语义微改：删掉右侧判定 `and _is_cjk(collapsed[index + 1])`，只保留「左侧是 CJK」。隔离字节码缓存跑**完整**套件：464 passed，全绿——「左侧是 CJK」与「两侧都是 CJK」这两种语义没有被任何用例区分开。实测差异：`normalize_level('苏州市 A')` 由 `'苏州市 A'` 变成 `'苏州市A'`，`normalize_level('香港 Hong Kong')` 由 `'香港 Hong Kong'` 变成 `'香港Hong Kong'`。现有唯一相关用例是 `normalize_level('株洲\\u3000市')`（两侧都是 CJK），对该变异无感；`test_compose_matches_reference_implementation` 也拦不住，因为参考实现同样调用 `normalize_level`，两边一起变仍逐字节一致。影响：中英混排地名会被压成没有分隔的字符串并直接进入 geodata 展示名。修复：实现本来就正确，补边界用例——`tests/test_display.py` 新增 `test_normalize_level_keeps_space_next_to_non_cjk`，覆盖「CJK 空格 ASCII」「ASCII 空格 CJK」「CJK 空格 CJK」三种组合。负向控制：删掉右侧判定后新用例立即 `AssertionError: 苏州市A`，恢复后通过。修复后 `make check` 465 passed（+1），`ruff`/`mypy` 通过。PR #246 四项必需检查全绿后 squash 合并，main=7f32823。",
+      "pr": "https://github.com/webees/immich-cn/pull/246"
     }
   ],
   "residual_risks": [
@@ -3658,7 +3668,9 @@
     "第 339 轮仍未把 release.yml 的 `secrets: inherit`（zizmor 旧提示）收窄为显式 `secrets:` 列表；当前 release.yml 只由 workflow_dispatch 触发、_build-data.yml 只由 workflow_call 触发，外部 PR 无法触达，因此本轮按残余项记录而非缺陷",
     "第 340 轮的 67% 冗余比例由真实 manifest 的 sizeBytes 换算，不是对 615 MB 制品实测挂钟时间；摘要缓存是进程内缓存，长驻进程会持续增长，当前用法是短生命周期 CLI",
     "第 340 轮把缓存加在 `fetching.sha256_file` 上，`scripts/check_artifacts.py` 仍保留第 330 轮那份独立实现（避免给发布门禁脚本引入 HTTP 依赖），两处逻辑现在靠注释而不是代码共享来保持一致，后续改动需要同步",
-    "第 340 轮只测了合成数据下的调用次数；真实 131 万级构建里 `levels` 字典与 alternate-names 索引的内存占用、以及 14 个变体各自重读 cities500/extra_all 的 I/O 成本没有在本轮测量（本轮测的打包耗时为 0.13s，来自 10 行合成数据，不可外推）"
+    "第 340 轮只测了合成数据下的调用次数；真实 131 万级构建里 `levels` 字典与 alternate-names 索引的内存占用、以及 14 个变体各自重读 cities500/extra_all 的 I/O 成本没有在本轮测量（本轮测的打包耗时为 0.13s，来自 10 行合成数据，不可外推）",
+    "第 341 轮只钉住了 `normalize_level` 的「空格两侧都要 CJK」这一条；同一函数还有两处边界没被用例区分——`0 < index < len(collapsed) - 1` 的首尾保护（`split()` 后首尾不会是空格，目前等价）与 `_CJK_RANGES` 里扩展 A 区（3400–4dbf）是否被纳入判定",
+    "第 341 轮未在真实 geodata 上统计「中英混排层级名」的实际条数；如果这类名字根本不存在，则该分支只有防御价值，需要按真实数据量决定是否继续投入"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
