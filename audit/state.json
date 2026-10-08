@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 324,
-  "consecutive_clean": 0,
+  "round": 325,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 207,
-    "clean_rounds": 106,
+    "clean_rounds": 107,
     "p0": 0,
     "p1": 32,
     "p2": 130,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M4 契约快照",
+  "last_method": "M9 文档-实现逐条核对",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3287,6 +3287,16 @@
       "severity": "P2",
       "evidence": "对 `main=52a98cb` 做远端契约快照：CLI 六个子命令（fetch/build/all/verify/fingerprint/artifact）与文档一致；`auto-release` 的 19 个资产与下载下来的 manifest 逐项一致（17 个 `assets` + manifest + checksums，`artifactSpecVersion=4`、`artifacts=14`），`immich-cn artifact resolve` 对 admin2.default / admin2-admin3-admin4.full / admin3-admin4.default 三个 ID 解析出的文件名与实发资产相符。但 `docs/packages.md:52` 与 `:72` 把尚未发布的四段式版本写成既成事实：`docker buildx imagetools inspect ghcr.io/webees/immich-cn:3.3.0.1` 与 `...-server:3.3.0.1` 均返回 `not found`（同一命令对 `latest`、`1.0.4`、`2026-10-08`、`immich-cn-server:release`、`sha-cdc0ba3` 正常解析），`gh release list` / `gh api repos/webees/immich-cn/tags` 只有 `v1.0.0`~`v1.0.4`、`data-*`、`auto-release`，没有 `v3.3.0.1`，即四段式版本从未发布。`check_image_tag_examples` 只校验标签形态、不校验存在性，因此这是恒绿护栏下的真实漂移。修复：`docs/packages.md` 改为陈述标签形态与「四段式标签只在 `Release` 成功后存在」，实测句改用可复核的 `1.0.4`，代码块注释标注生成前提。PR #234 四项必需检查全绿后 squash 合并，main=37849d7。",
       "pr": "https://github.com/webees/immich-cn/pull/234"
+    },
+    {
+      "round": 325,
+      "timestamp": "2026-10-08T08:16:56+08:00",
+      "focus": "分支保护与工作流失败路径",
+      "method": "M9 文档-实现逐条核对",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "实时核对 `gh api repos/webees/immich-cn/rulesets/24545711`：enforcement=active、target=branch、bypass_actors=[]（空），规则含 deletion、non_fast_forward、pull_request（required_review_thread_resolution=true、dismiss_stale_reviews_on_push=true）、required_status_checks（strict=true，恰好 4 项）、required_linear_history；4 项 context 与 `CONTRIBUTING.md:30-33` 逐字一致，即「main 未受保护」问题已解决且仍在生效。负向控制：把 `update-data.yml` 的 `resolve-previous-failure.if` 从 `needs.build.result == 'success' && (needs.release.result == 'success' || needs.release.result == 'skipped')` 改成只判断 `needs.build.result == 'success'`，`scripts/check_workflows.py` 立即报 `resolve-previous-failure 的 if 只判断了部分依赖，遗漏 ['release']` 并 exit 1，证明该护栏不是恒真；恢复后 `git status` 干净、`check_workflows` 通过。工作流运行核对：`update-data.yml` 最近一次 2026-10-07T18:18Z workflow_dispatch 成功（此前两次 failure 已收敛）；`monitor-update.yml` 出现首个真实 `schedule` 成功运行（2026-10-07T19:04Z），此前「监控工作流从未真实定时触发」的残余风险已消除；`cleanup.yml`、`release.yml` 历史运行均成功。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3466,7 +3476,9 @@
     "第 322 轮的文档精简是人工判断「哪些段落语义重复」，没有自动指标；护栏只能拦住路径/命令/标签/固定数字漂移，无法发现「措辞不同但语义重复」的新增段落，后续文档增长时仍可能重新堆积重复说明",
     "第 323 轮的只写不读探针是名字级文本匹配：跨类同名属性（name、language、countries 等）会被算作已读，所以它能证伪「完全零读取」的字段，但证明不了「某字段只被无关同名属性访问」；该探针是临时脚本、未固化为 make 目标，未来新增数据类字段时仍需重扫",
     "第 324 轮发现 `check_image_tag_examples` 只校验 GHCR 标签的形态与「必须出现当前项目版本示例」，不校验标签是否真实存在；因此「文档承诺一个从未发布的版本标签」这类漂移会恒绿。修复方式是文档改为陈述生成前提，但护栏本身仍未联网核对标签存在性，后续若再次出现同类漂移仍需人工或新的存在性检查",
-    "第 324 轮确认四段式版本 `3.3.0.1` 从未发布：Git 侧最新版本标签是 `v1.0.4`（三段式），GHCR 侧对应 `1.0.4`。要让文档示例可直接拉取，需要运行 `Release` 工作流推送 `v3.3.0.1` 与两个镜像版本标签；这是对外发布动作，按边界需用户确认后才能执行"
+    "第 324 轮确认四段式版本 `3.3.0.1` 从未发布：Git 侧最新版本标签是 `v1.0.4`（三段式），GHCR 侧对应 `1.0.4`。要让文档示例可直接拉取，需要运行 `Release` 工作流推送 `v3.3.0.1` 与两个镜像版本标签；这是对外发布动作，按边界需用户确认后才能执行",
+    "第 325 轮确认 ruleset 24545711 当前无 bypass actor 且四项必需检查与 CONTRIBUTING.md 一致，但 ruleset 位于仓库外，CI 无法监控其后续变更；若有人在 GitHub 上直接改规则（删 required check、加 bypass actor、关闭 enforcement），仓库内护栏不会有任何提示，需要定期用 `gh api` 复核",
+    "第 325 轮观测到 `monitor-update.yml` 的首个真实 `schedule` 成功运行，但此前 `update-data.yml` 的 schedule 仍只在 2026-10-06/07 出现过极少数触发；GitHub 定时调度是否稳定仍需持续观察，单次成功不足以作为长期可用性证据"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
