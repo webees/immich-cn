@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 352,
-  "consecutive_clean": 2,
+  "round": 353,
+  "consecutive_clean": 3,
   "totals": {
     "findings": 225,
-    "clean_rounds": 116,
+    "clean_rounds": 117,
     "p0": 0,
     "p1": 33,
     "p2": 147,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3567,6 +3567,16 @@
       "severity": null,
       "evidence": "对抗性实验：构造 5 种 `uses:` 形态喂给 `scripts/check_action_pins.parse_pins`。① 「两段式但缺 `# <version>` 注释」→ 报「缺少 `# <version>` 注释，无法复核版本含义」（说明注释强制是有效的）；② 「两段式带注释」→ 正常解析为 1 个 pin、0 错误；③ 「三段式 `owner/repo/path@<sha>` 无注释」与 ④ 「三段式 `@v3` 未固定」→ 都报「无法解析 uses 行」而**不是静默跳过**；⑤ 只含本地 reusable（`./.github/workflows/...`）→ 报「没有解析到任何 Action pin，护栏可能已失效」。即：三段式不会被漏检，且脚本自带「一个 pin 都没解析到」的空转护栏。同时核对现有 11 个外部 pin 全部是两段式 `owner/repo@<40 位 SHA> # <tag>`，本轮无漂移。`git status` 干净、`git diff` 为空。本轮未发现 P0-P2 问题，clean_streak=2。P3（仅记录，不改）：三段式 `owner/repo/path@ref` 是 GitHub 合法语法（如 `github/codeql-action/upload-sarif@<sha>`），当前会被判为「无法解析」而阻断 CI —— 方向是 fail-safe（拒绝优于静默跳过），但维护者要新增这类 Action 时必须同步扩展 `PIN` 正则。",
       "pr": null
+    },
+    {
+      "round": 353,
+      "timestamp": "2026-10-08T13:37:39+08:00",
+      "focus": "死代码与未使用配置（人工覆盖表的死条目）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "`config/overrides.toml` 是人工维护的纠错表，`localization.py:194` 的注释与 `tests/test_localization.py:21` 的用例都声称「键写错会变成永远匹配不到的死条目」，但现有校验只覆盖**格式**（`ADMIN_CODE_PATTERN`），不校验键是否真的命中数据。用真实制品做数据级核对：下载 `auto-release` 的 `immich-cn-dataset-sqlite-v1.zip`，把 131,609 条 `admin_areas`（level+code）与 252 个 `countries` 作为命中集合，逐条比对覆盖表的 125 个 `[admins]` 键与 2 个 `[countries]` 键——**未命中 0 个**（`[places]` 为空，无待查项）。负向控制：在内存里注入 `CN.99` 与 `MO.11875199` 两个假键后，同一核对立刻报出这 2 个未命中项，证明该核对不是恒真。临时目录已清理，`git status` 干净、`git diff` 为空。本轮未发现 P0-P2 问题，clean_streak=3。P3（仅记录，不改）：文档/注释声称的「死条目」只被格式校验覆盖，格式合法但数据里不存在的键仍会静默失效；补数据级硬校验有风险——上游若删掉某个代码会让无人值守的每日构建或发布门禁直接失败，因此本轮不引入硬失败，留作后续评估（警告式提示或无阻塞报告）。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3805,7 +3815,9 @@
     "第 351 轮只反演了 `evaluate_freshness` 的三处阈值比较；`never_run`/`no_run`/`stalled`/`failed`/`cancelled` 五种状态的组合边界（例如「最新运行被取消且没有成功记录」与「最新运行在跑但超过 grace」同时成立时的优先级）没有逐一构造",
     "第 351 轮的真实调用只覆盖 `update-data.yml` 的健康路径（state=ok）；`never_run`/`stale_success`/`schedule_stalled` 等异常状态在真实 Actions 记录上没有触发过，无法排除线上才出现的形态",
     "第 352 轮的 P3：`check_action_pins.parse_pins` 的 `PIN` 正则只认两段式 `owner/repo@ref`，三段式 `owner/repo/path@ref`（GitHub 合法语法）会被判「无法解析 uses 行」而阻断 CI。方向是 fail-safe，但新增这类 Action 时需同步扩展正则；本轮按 P3 记录、不修改",
-    "第 352 轮只验证了解析层（`parse_pins`）；「注释里的 tag 在上游是否存在、解析出的 commit 是否与 pin 一致」这两步依赖 GitHub API，本轮用 `make audit-pins` 的历史结果代替，没有重新联网对拍"
+    "第 352 轮只验证了解析层（`parse_pins`）；「注释里的 tag 在上游是否存在、解析出的 commit 是否与 pin 一致」这两步依赖 GitHub API，本轮用 `make audit-pins` 的历史结果代替，没有重新联网对拍",
+    "第 353 轮的 P3：`config/overrides.toml` 的「死条目」只被格式校验覆盖（`ADMIN_CODE_PATTERN`），格式合法但数据里不存在的键会静默失效；本轮实测 125 个 admin 键 + 2 个 country 键全部命中，但这是时点事实，上游删代码后仍会漂移。补硬校验会让无人值守流程在上游删码时直接失败，需先确定用警告还是硬失败",
+    "第 353 轮只核对了覆盖表键与规范数据集的命中关系，没有核对「覆盖值是否真的改变了最终输出」（例如某个 level-4 覆盖只有在 pattern 含 `{admin_4}` 时才影响展示名）；这类效果验证需要逐 pattern 比对产物"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
