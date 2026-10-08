@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 416,
-  "consecutive_clean": 6,
+  "round": 417,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 251,
+    "findings": 252,
     "clean_rounds": 154,
     "p0": 0,
     "p1": 34,
-    "p2": 172,
+    "p2": 173,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M1 变异探针（畸形搜索响应）",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4215,9 +4215,22 @@
       "severity": null,
       "evidence": "运行 `bash scripts/check-entrypoint.sh` 全部通过，覆盖符号链接目标、只读目标、空文件、嵌套路径、缺失参数与根目录拒绝。额外边界实验：目标已有 `i18n-iso-countries/langs/zh.json` 时执行 `install.sh --geodata-only`，脚本返回 0、geodata 正常释放、既有语言目录保持不动，符合“不管理 langs”的语义。检查清单：已覆盖目标路径、只读挂载、符号链接和 `--geodata-only` 非托管边界；未在 Alpine BusyBox/overlayfs 中重放。本轮未发现 P0-P2 问题，clean_streak=6。",
       "pr": null
+    },
+    {
+      "round": 417,
+      "timestamp": "2026-10-09T15:25:00+08:00",
+      "focus": "错误处理与网络健壮性（超时、截断、空响应、重试）",
+      "method": "M1 变异探针（畸形搜索响应）",
+      "method_note": "轮换位次为 M7；本轮按 focus 使用错误响应注入探针。",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`scripts/set_asset_timezone.py::iter_assets` 对 `assets` 或 `assets.items` 结构异常时抛裸 `ValueError`，`main` 不捕获后会留下 traceback。修复：两类结构异常统一抛 `RuntimeError`，新增参数化回归覆盖 `assets=[]` 与 `items=\"bad\"`。负向证据：修复前两个输入均抛 `ValueError`；修复后均抛带 “search response” 的 `RuntimeError`。验证：`make check` 503 passed、覆盖率 88.78%；PR #283 四项必需检查全绿后 squash 合并，main=e820abc。",
+      "pr": "https://github.com/webees/immich-cn/pull/283"
     }
   ],
   "residual_risks": [
+    "第 417 轮使用 `httpx.MockTransport` 注入畸形搜索响应，没有对真实 Immich 实例制造该响应；真实代理或版本差异仍由运行环境覆盖",
+    "第 417 轮只覆盖 `assets` 非对象与 `items` 非数组；`items` 内混入非对象条目时仍会静默跳过，是否应失败取决于 Immich 搜索接口契约",
     "第 416 轮的 `--geodata-only` 边界实验确认既有 `i18n-iso-countries` 目录不会被删除；这是“不管理 langs”的语义，但用户若期望该参数顺带清理旧语言包，需要显式说明或手动删除",
     "第 415 轮只通过工作流静态契约和临时变异验证 failure path，没有触发真实 GitHub 失败运行来观察 issue 创建/关闭与权限行为",
     "第 414 轮的对抗控制只覆盖环境变量名契约；文档中的路径、命令、数字与流程仍依赖既有检查器，未在本轮逐条重放",
