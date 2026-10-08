@@ -12,7 +12,7 @@ from immich_cn.errors import ConfigError
 from immich_cn.logging_config import get_logger
 from immich_cn.providers import build_chain
 from immich_cn.providers.amap import AMAP_ENDPOINT, AmapEnricher, AmapOptions, _parse_regeocode
-from immich_cn.providers.geo import out_of_china, wgs84_to_gcj02
+from immich_cn.providers.geo import _LAT_MAX, _LAT_MIN, _LON_MAX, _LON_MIN, out_of_china, wgs84_to_gcj02
 from immich_cn.providers.nominatim import NOMINATIM_ENDPOINT, NominatimEnricher, NominatimOptions, _parse
 from immich_cn.settings import BuildOptions
 from tests.synthetic import geo_row
@@ -94,6 +94,32 @@ def test_build_chain_is_quiet_when_auto_has_key(
 def test_out_of_china() -> None:
     assert out_of_china(-74.00597, 40.71427)
     assert not out_of_china(116.39723, 39.9075)
+
+
+def test_out_of_china_includes_boundary() -> None:
+    """国境判定是闭区间：阈值上仍算境内，越过阈值一格才算境外。
+
+    只测「境内一点 / 境外一点」无法区分 `<=` 与 `<`，边界必须逐条钉住。
+    """
+    mid_lon = (_LON_MIN + _LON_MAX) / 2
+    mid_lat = (_LAT_MIN + _LAT_MAX) / 2
+    eps = 1e-4
+    on_boundary = [
+        (_LON_MIN, mid_lat),
+        (_LON_MAX, mid_lat),
+        (mid_lon, _LAT_MIN),
+        (mid_lon, _LAT_MAX),
+    ]
+    just_outside = [
+        (_LON_MIN - eps, mid_lat),
+        (_LON_MAX + eps, mid_lat),
+        (mid_lon, _LAT_MIN - eps),
+        (mid_lon, _LAT_MAX + eps),
+    ]
+    for longitude, latitude in on_boundary:
+        assert not out_of_china(longitude, latitude), (longitude, latitude)
+    for longitude, latitude in just_outside:
+        assert out_of_china(longitude, latitude), (longitude, latitude)
 
 
 def test_wgs84_to_gcj02_is_noop_outside_china() -> None:
