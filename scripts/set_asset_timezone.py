@@ -54,7 +54,7 @@ def _request_json(client: httpx.Client, method: str, url: str, **kwargs: Any) ->
     except ValueError as error:
         raise RuntimeError(f"Immich API returned invalid JSON: {url}") from error
     if not isinstance(payload, dict):
-        raise ValueError(f"Immich API returned non-object JSON: {url}")
+        raise RuntimeError(f"Immich API returned non-object JSON: {url}")
     return payload
 
 

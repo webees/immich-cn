@@ -134,3 +134,14 @@ def test_request_json_wraps_invalid_json() -> None:
         pytest.raises(RuntimeError, match="invalid JSON"),
     ):
         _request_json(client, "GET", "/api/search/metadata")
+
+
+def test_request_json_wraps_non_object_json() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=[])
+
+    with (
+        httpx.Client(base_url="http://immich", transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(RuntimeError, match="non-object JSON"),
+    ):
+        _request_json(client, "GET", "/api/search/metadata")
