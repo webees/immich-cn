@@ -30,13 +30,25 @@ MAX_ARCHIVE_UNCOMPRESSED_BYTES = 2 * 1024**3
 MAX_ENTRY_UNCOMPRESSED_BYTES = 1024**3
 MAX_COMPRESSION_RATIO = 200
 
+#: 同一次校验里，每个制品会被 manifest.artifacts、manifest.assets 与 checksums 各引用一次。
+#: 真实 dist（615 MB）因此被重复读取约 2.9 遍（合计 1.77 GB）。按「路径 + mtime + 大小」缓存摘要，
+#: 文件在校验期间被改动时缓存自动失效，任何比较结果都不受影响。
+_DIGEST_CACHE: dict[tuple[Path, int, int], str] = {}
+
 
 def sha256_file(path: Path) -> str:
+    stat_result = path.stat()
+    key = (path, stat_result.st_mtime_ns, stat_result.st_size)
+    cached = _DIGEST_CACHE.get(key)
+    if cached is not None:
+        return cached
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
-    return digest.hexdigest()
+    value = digest.hexdigest()
+    _DIGEST_CACHE[key] = value
+    return value
 
 
 def check_manifest(dist: Path, errors: list[str]) -> None:
