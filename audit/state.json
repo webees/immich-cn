@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 361,
-  "consecutive_clean": 4,
+  "round": 362,
+  "consecutive_clean": 5,
   "totals": {
     "findings": 227,
-    "clean_rounds": 123,
+    "clean_rounds": 124,
     "p0": 0,
     "p1": 33,
     "p2": 149,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3657,6 +3657,16 @@
       "severity": null,
       "evidence": "对 `hierarchy.finalize_place_names` 第 128 行的守卫做变异：`if top_level and names.admin_1 and names.admin_1 != top_level:` → `if top_level and names.admin_1:`（去掉「已经是全称就跳过」的判据）。隔离字节码缓存跑**完整**套件：476 passed，全绿。按 M1 纪律先判定是否等价变异，结论是**等价**：同一函数第 119-122 行先对四个层级跑 `strip_suffix`，而 `DEFAULT_STRIP_SUFFIXES` 为 HK/MO 都配了「特别行政区」，所以 `names.admin_1` 在到达第 128 行时已经把「香港特别行政区」裁成「香港」——`!= top_level` 对一切真实输入恒为真；即使构造出「香港特别行政区特别行政区」这种双后缀输入让判据为假，两个分支的最终结果也被第 139 行 `fill_gaps()` 抹平。因此本轮**不记为覆盖缺口**，也不新增用例（加了也只是钉住一条恒真判据）。恢复变异后 `git status` 干净、`git diff` 为空。本轮未发现 P0-P2 问题，clean_streak=4。P3（仅记录，不改）：该 `!= top_level` 子句在现实中恒真，属防御性冗余；若后续调整 `strip_suffixes` 让港澳一级不再裁「特别行政区」，这条判据会重新变得有意义，因此不建议现在删除。",
       "pr": null
+    },
+    {
+      "round": 362,
+      "timestamp": "2026-10-08T20:10:00+08:00",
+      "focus": "校验与阈值（版本/标签正则边界反演）",
+      "method": "M2 阈值反演",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对 `scripts/cleanup.py` 中决定删除范围的四个正则做边界反演，并用 `re.fullmatch` 与生产路径使用的 `re.match` 对照。`STABLE_VERSION`：`1.0.4`/`3.3.0.1`/`v3.3.0.1` 接受，`1.0`/`1.0.4.1.2` 拒绝；`LEGACY_VERSION`：三段式 `1.0.4` 与 `v1.0.4` 接受，`1.0`/`1.0.4.1`/`1.0.4-rc1` 拒绝；`ALIGNED_VERSION`：四段式 `3.3.0.1` 接受，`3.3.0`/`3.3.0.1.2`/`v3.3.0.1` 拒绝；`CONTROL_TAG`：恰好 7 位与 40 位小写十六进制接受，6 位、41 位、大小写混合和非法字符拒绝。每组边界两侧均有相反结果，未发现恒真、恒假或误删扩张。检查清单：已检查四个正则的接受/拒绝边界、`select_superseded_versions` 的 `match` 调用路径、完整测试与静态检查；未逐条重跑 GitHub Packages 生产删除（破坏性外部操作，已有 dry-run/保守条件保护）。`make check` 全绿：479 passed、覆盖率 88.27%、ruff/mypy/docs/workflows/shell 均通过；`git status` 与 `git diff` 为空。本轮未发现 P0-P2 问题，clean_streak=5。残余风险：Python 的 `$` 在 `re.match` 下允许尾随换行，但 Git ref 与 OCI tag 语法不允许换行，因此当前不可达；若未来复用这些正则解析任意文本，应改用 `fullmatch`。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3917,6 +3927,8 @@
     "第 360 轮的交付级复验是时点快照（2026-10-08 14:45 +08:00）：ruleset、digest、Release 列表与工作流结论都会随后续发布变化，本次结论不能外推为长期状态",
     "第 361 轮的 P3：`finalize_place_names` 的 `names.admin_1 != top_level` 子句在当前 `strip_suffixes` 配置下恒真（等价变异），属防御性冗余；一旦港澳一级不再裁「特别行政区」它就会重新生效，因此本轮不删",
     "第 361 轮只验证了这一处守卫的等价性；`finalize_place_names` 的其它分支（`district = names.admin_2 or names.admin_1` 的取空回退、HK 的 admin_3 区域前缀拼接、`strip_suffixes` 为空配置时的行为）没有在本轮逐一变异",
+    "第 362 轮的正则边界反演只覆盖当前清理脚本的四个正则；`STABLE_VERSION` 对预发布/构建元数据（例如 `1.0.4-rc1`、`1.0.4+meta`）的接受范围比四段式发布契约更宽，这是为保护既有稳定标签而保留的兼容行为，不表示这些形态可由当前发布工作流产生",
+    "第 362 轮使用 `re.match` 的四个正则因 `$` 语义会接受尾随换行；Git ref 与 OCI tag 均不允许换行，故当前不可达，但若这些正则被复用于任意文本解析，应改为 `fullmatch`",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
