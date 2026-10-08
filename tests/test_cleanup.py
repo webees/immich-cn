@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import urllib.error
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -414,6 +415,43 @@ def test_github_client_allows_not_found_for_idempotent_delete(monkeypatch: pytes
     monkeypatch.setattr("scripts.cleanup.urllib.request.urlopen", fake_urlopen)
     client = GitHubClient("webees/immich-cn", "token")
     assert client._request("DELETE", "/x", allow_not_found=True) is None
+
+
+def test_github_client_list_paginates_until_short_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`_list` 必须按「页面是否满 100 条」继续翻页；只看第一页会静默截断所有列表。
+
+    这个客户端支撑清理、更新监控与 pin 校验的全部列表读取，截断会让保留策略悄悄失效。
+    """
+
+    class BodyResponse:
+        def __init__(self, body: bytes) -> None:
+            self._body = body
+
+        def __enter__(self) -> BodyResponse:
+            return self
+
+        def __exit__(self, *_exc: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return self._body
+
+    requested: list[str] = []
+
+    def fake_urlopen(request: Any, timeout: float) -> BodyResponse:
+        requested.append(request.full_url)
+        ids = range(100, 102) if "page=2" in request.full_url else range(100)
+        return BodyResponse(json.dumps([{"id": index} for index in ids]).encode())
+
+    monkeypatch.setattr("scripts.cleanup.urllib.request.urlopen", fake_urlopen)
+    client = GitHubClient("webees/immich-cn", "token")
+
+    items = client._list("/repos/webees/immich-cn/releases")
+
+    assert [item["id"] for item in items] == list(range(102))
+    assert len(requested) == 2
+    assert "page=1" in requested[0]
+    assert "page=2" in requested[1]
 
 
 def test_select_stale_assets_keeps_current_dist_and_drops_pre_v4_names() -> None:
