@@ -31,7 +31,13 @@ def _client(base_url: str, api_key: str) -> httpx.Client:
 
 def _request(client: httpx.Client, method: str, url: str, **kwargs: Any) -> httpx.Response:
     for attempt in range(1, 4):
-        response = client.request(method, url, **kwargs)
+        try:
+            response = client.request(method, url, **kwargs)
+        except httpx.TransportError as error:
+            if attempt == 3:
+                raise RuntimeError(f"Immich API request failed after {attempt} attempts: {url}: {error}") from error
+            time.sleep(2**attempt)
+            continue
         if response.status_code not in RETRY_STATUS and response.status_code < 500:
             return response
         if attempt == 3:
