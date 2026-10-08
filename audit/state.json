@@ -12,7 +12,7 @@
     "p2": 149,
     "p3": 49
   },
-  "status": "blocked",
+  "status": "active",
   "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
@@ -3917,7 +3917,9 @@
     "第 360 轮的交付级复验是时点快照（2026-10-08 14:45 +08:00）：ruleset、digest、Release 列表与工作流结论都会随后续发布变化，本次结论不能外推为长期状态",
     "第 361 轮的 P3：`finalize_place_names` 的 `names.admin_1 != top_level` 子句在当前 `strip_suffixes` 配置下恒真（等价变异），属防御性冗余；一旦港澳一级不再裁「特别行政区」它就会重新生效，因此本轮不删",
     "第 361 轮只验证了这一处守卫的等价性；`finalize_place_names` 的其它分支（`district = names.admin_2 or names.admin_1` 的取空回退、HK 的 admin_3 区域前缀拼接、`strip_suffixes` 为空配置时的行为）没有在本轮逐一变异",
-    "第 362 轮（无新增审计轮次）把账本与 goal 都置为 blocked：objective 0.2/0.4/0.8 要求「总轮次上限 50、耗尽即交付 PARTIAL、禁止继续跑」，本账本已到 361 轮；automation immich-cn-50 却要求「连续 50 轮 clean」。裁决前冻结审计轮次，避免继续产出 objective 明令禁止的工作。恢复条件是用户选定终止口径（或明确覆盖 objective 的 50 轮上限）"
+    "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
+    "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
+    "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
@@ -3933,6 +3935,12 @@
   },
   "totalsBasis": "history",
   "ledgerNotes": [
+    {
+      "date": "2026-10-08",
+      "change": "用户裁决终止口径：按「连续 50 轮合格干净」继续（覆盖 objective 第 0.2 条的 50 轮总上限），账本 status 由 blocked 恢复为 active，round 361 / streak 4 续跑。同轮完成三项用户指定动作：① 发布 v3.3.0.1（Release 工作流 37764420148 全绿：validate/build/publish 成功，两个包的 3.3.0.1 标签与 Release 19 个规范资产均已核验）；② 清理旧版本（Git 侧删除 v1.0.0~v1.0.4 发布与标签；GHCR 侧经 PR #255/#256/#257 新增 --prune-superseded-versions 后，用 cleanup.yml 实删两个包各 5 个三段式版本，共 10 个，保留 3.3.0.1/latest 已核验）；③ 设仓库变量 PRUNE_SUPERSEDED_VERSIONS=true，让每周定时清理自动回收三段式版本线。",
+      "resumedBy": "用户 2026-10-08 明确回复「连续 50 轮 clean / 发布 v3.3.0.1，清理旧版本」",
+      "atRound": 361
+    },
     {
       "date": "2026-10-08",
       "change": "status 置为 blocked：objective 第 0.2 条把审计硬预算定为「总轮次上限 50」，第 0.4/0.8 条要求在预算耗尽时输出 PARTIAL 并停止「继续跑」；本账本已到第 361 轮（超预算 311 轮），PARTIAL 交付报告已于 round 360 输出。自动化 immich-cn-50 的退出条件却是「连续 50 轮合格干净」（当前 streak=4），两者冲突且只能由用户裁决。在裁决前不再新增审计轮次。",
