@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 394,
-  "consecutive_clean": 2,
+  "round": 395,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 242,
+    "findings": 243,
     "clean_rounds": 141,
     "p0": 0,
     "p1": 33,
-    "p2": 164,
+    "p2": 165,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M4 契约快照",
+  "last_method": "M10 shell/容器安全审查",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3987,6 +3987,16 @@
       "severity": null,
       "evidence": "对 `main=ae5aa1b` 做文档契约快照：`check_docs.py` 通过（15 个文档、56 个实现文件），`check_workflows.py` 通过（6 个工作流）；CLI `--help` 仍暴露 `fetch/build/all/verify/fingerprint/artifact` 六个子命令，与文档一致；`v3.3.0.1` Release 仍有 19 个规范资产。检查清单：已核对 CLI、文档契约、工作流契约与 Release 资产数量；未把 `docs/development.md` 等显式标注日期的性能实测视为契约漂移。本轮未发现 P0-P2 问题，clean_streak=2。残余风险：日期标注的性能、体积与 CDN 探测数字会随数据批次变化，当前没有网络型自动护栏。",
       "pr": null
+    },
+    {
+      "round": 395,
+      "timestamp": "2026-10-09T07:15:00+08:00",
+      "focus": "工作流逻辑（条件、输出、权限、失败路径）",
+      "method": "M10 shell/容器安全审查（工作流失败路径）",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`cleanup.yml` 原先把 `--prune-legacy-assets` / `--prune-superseded-versions` 追加到同一次 `cleanup.py` 调用；脚本把专项模式当互斥模式提前返回，因此 `PRUNE_SUPERSEDED_VERSIONS=true` 会让每周清理跳过 Release、Actions、GHCR 常规保留策略，两个专项变量同时开启还会直接失败。修复：先执行常规清理计划，再把两个专项模式作为独立调用执行；`check_workflows.py` 改为读工作流原文并增加护栏，文档同步说明专项清理是补充步骤，并新增负向测试。验证：定向测试通过；`make check` 全绿（493 passed、覆盖率 88.73%、ruff/mypy/docs/workflows/shell 通过）。PR #274 四项必需检查全绿后 squash 合并，main=b3d203b。",
+      "pr": "https://github.com/webees/immich-cn/pull/274"
     }
   ],
   "residual_risks": [
@@ -4285,6 +4295,7 @@
     "第 392 轮只修复了 RateLimiter 边界测试的挂起诊断；真实线程竞争、系统时钟跳变和多线程并发边界仍未覆盖",
     "第 393 轮发现 `PackageResult.checksums` 在仓库生产代码中只写不读，但它是返回 dataclass 的公开字段且被测试消费；本轮未删除，外部消费者是否读取无法由 AST 探针判断",
     "第 394 轮没有重新测量文档中所有显式日期的性能/体积/CDN 数字；这些属于时点测量，后续数据批次或镜像更新后需要人工复核",
+    "第 395 轮没有在真实 schedule 上同时开启两个专项变量来观察完整清理顺序；仅通过工作流原文、定向测试和本地脚本语义验证",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
