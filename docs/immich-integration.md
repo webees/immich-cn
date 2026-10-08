@@ -37,7 +37,7 @@
 - 要素代码为 `PPLH` 的记录在所有国家都被跳过；
 - 只有落在 `reverseGeocodeMaxDistance`（上游常量，25 km）内、且未被上述规则丢弃的城市点才参与反向地理编码；没有命中时回退到 `ne_10m_admin_0_countries.geojson`，此时 `state` 与 `city` 为 `null`。
 
-所以制品行数不等于 Immich 实际写入 `geodata_places` 的行数。2026-10-07 对当时全量制品实测：256,626 行中有 7,307 行会被跳过（7,278 行 `PPLX` 非 `AU`，29 行 `PPLH`），其中 `CN` 77 行。复算方式：解压任一地理数据制品，对 `geodata/cities500.txt` 按第 7、8 列（0 基）统计。
+所以制品行数不等于 Immich 实际写入 `geodata_places` 的行数；跳过数量会随上游滚动数据变化。复算方式：解压任一地理数据制品，对 `geodata/cities500.txt` 按第 7、8 列（0 基）统计。
 
 本项目不预先删除这些行。过滤规则是 Immich 的版本行为，制品仍需保持 GeoNames 语义完整；差异只在上文量化，不作为“全部记录都会出现在 Immich”的依据。
 
@@ -53,7 +53,7 @@
 | `cities500.txt` 第 11 列 | `admin2Code` | `varchar(80)` |
 | `cities500.txt` 第 18 列 | `modificationDate` | `date NOT NULL` |
 
-`validation.py` 对以上四项做构建期校验：`cities500-immich-columns` 检查长度上限与两字符 `countryCode`，`cities500-modification-date` 检查 `YYYY-MM-DD` 可解析性。这两项在 2026-10-07 的真实制品上均为 0 违规。
+`validation.py` 对以上四项做构建期校验：`cities500-immich-columns` 检查长度上限与两字符 `countryCode`，`cities500-modification-date` 检查 `YYYY-MM-DD` 可解析性；校验结果以当前构建批次为准。
 
 ### 地点检索
 
