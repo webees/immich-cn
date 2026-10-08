@@ -12,11 +12,13 @@ from types import SimpleNamespace
 import pytest
 
 from immich_cn import __version__
+from immich_cn.domain import AdminEntry
 from immich_cn.errors import ParseError
 from immich_cn.packaging import build_variants, package_all
 from immich_cn.pipeline import (
     _alternate_stream,
     _extract_i18n,
+    _write_admin_file,
     cleanup_removable,
     iter_output_places,
     load_levels,
@@ -26,6 +28,26 @@ from immich_cn.pipeline import (
 from immich_cn.settings import BuildOptions
 from immich_cn.validation import assert_valid, verify_geodata
 from tests.synthetic import create_synthetic_sources, geo_row, write_lines
+
+
+def test_write_admin_file_includes_place_referenced_codes(tmp_path: Path) -> None:
+    """GeoNames 代码表没有、但地点行引用的代码必须补进 adminN 表。
+
+    德国州级市（如 ``DE.03.00``）在上游 admin2Codes.txt 里没有条目，但地点行会引用它；
+    Immich 用 ``${country}.${admin1}.${admin2}`` 查表，缺条目就写 null。
+    """
+    path = tmp_path / "admin2Codes.txt"
+    _write_admin_file(
+        path,
+        {"DE.02.091": AdminEntry(geoname_id=1, name="Upper Bavaria")},
+        {"DE.02.091": "上巴伐利亚"},
+        variant="hans",
+        extra={"DE.03.00": "不来梅州", "DE.02.091": "不应覆盖已有条目"},
+    )
+    lines = path.read_text(encoding="utf-8").splitlines()
+    assert "DE.02.091\t上巴伐利亚\t上巴伐利亚\t1" in lines
+    assert "DE.03.00\t不来梅州\t不来梅州\t" in lines
+    assert not any(line.startswith("DE.02.091\t不应覆盖") for line in lines)
 
 
 def test_end_to_end_build(build_options: BuildOptions) -> None:

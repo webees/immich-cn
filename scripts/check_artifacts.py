@@ -338,6 +338,43 @@ def check_admin_area_consistency(dist: Path, errors: list[str]) -> None:
             errors.append(f"{country} 的 admin1 特别行政区覆盖未生效：{wrong[:3]} 的名称不是 {expected!r}")
 
 
+def check_admin_code_resolution(dist: Path, errors: list[str]) -> None:
+    """适配器自己的 cities500.txt 引用的行政代码必须能在同一份制品的 adminN 表里解析。
+
+    Immich 用 ``${country}.${admin1}``（admin1Name）与 ``${country}.${admin1}.${admin2}``
+    （admin2Name）做键；缺条目的行会写入 ``null``，按该行政区名检索就会落空。
+    """
+    candidates = sorted(dist.glob("immich-cn-geodata-*-default-v1.zip"))
+    if not candidates:
+        return  # 缺件由 check_required_files / check_zips 负责报错
+    geodata = candidates[0]
+    unresolved1: dict[str, int] = {}
+    unresolved2: dict[str, int] = {}
+    try:
+        names = _adapter_admin_names(geodata)
+        with zipfile.ZipFile(geodata) as archive, archive.open("geodata/cities500.txt") as handle:
+            for raw_line in handle:
+                fields = raw_line.decode("utf-8").rstrip("\n").split("\t")
+                if len(fields) < 19:
+                    continue
+                country, admin1, admin2 = fields[8], fields[10], fields[11]
+                if admin1 and (1, f"{country}.{admin1}") not in names:
+                    key = f"{country}.{admin1}"
+                    unresolved1[key] = unresolved1.get(key, 0) + 1
+                if admin2 and (2, f"{country}.{admin1}.{admin2}") not in names:
+                    key = f"{country}.{admin1}.{admin2}"
+                    unresolved2[key] = unresolved2.get(key, 0) + 1
+    except (zipfile.BadZipFile, OSError, UnicodeDecodeError, KeyError) as error:
+        errors.append(f"无法校验行政代码可解析性（{geodata.name}）：{error}")
+        return
+    if unresolved1 or unresolved2:
+        samples = "、".join(sorted(unresolved1)[:3] + sorted(unresolved2)[:3])
+        errors.append(
+            f"{geodata.name} 有 {len(unresolved1) + len(unresolved2)} 个行政代码无法解析"
+            f"（admin1 {sum(unresolved1.values())} 行、admin2 {sum(unresolved2.values())} 行）：{samples}"
+        )
+
+
 def check_zip_members(path: Path, archive: zipfile.ZipFile, errors: list[str]) -> None:
     """拒绝可能造成 Zip Slip 或符号链接逃逸的归档成员。"""
     seen: dict[str, int] = {}
@@ -481,6 +518,7 @@ def main(argv: list[str] | None = None) -> int:
     zips = check_zips(args.dist, errors)
     check_dataset(args.dist, errors)
     check_admin_area_consistency(args.dist, errors)
+    check_admin_code_resolution(args.dist, errors)
     verified = check_checksums(args.dist, errors)
 
     for error in errors:
