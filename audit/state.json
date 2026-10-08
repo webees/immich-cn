@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 355,
-  "consecutive_clean": 5,
+  "round": 356,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 225,
+    "findings": 226,
     "clean_rounds": 119,
     "p0": 0,
     "p1": 33,
-    "p2": 147,
+    "p2": 148,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3597,6 +3597,16 @@
       "severity": null,
       "evidence": "在 `main=491d247` 上做真实容器端到端：`docker build -f docker/geodata.Dockerfile -t immich-cn-r355:local .` 成功（Docker 29.4.0，合成 `build/`+`dist/`）。① `docker image inspect`：OCI 标签四项齐全（title=`immich-cn geodata`、description、source、licenses=MIT），`ENTRYPOINT=[\"/usr/local/bin/immich-cn-install\"]`、`CMD=[\"--target\",\"/out\"]`，`RootFS.Layers=6`；`USER` 为空即 uid 0（Alpine 默认，数据镜像只往挂载目录写，与上游 Immich 服务端镜像同为 root）。② 镜像内 `/usr/local/bin/immich-cn-*` 均为 0755、shebang `#!/bin/sh`。③ 真实运行 `docker run --rm -v <tmp>:/out <img>`：exit 0，产出 `README.md` + `geodata/`（7 个文件，cities500 1043B、geodata-date 26B 等全部非空）+ `i18n-iso-countries/langs/`（LICENSE + en.json）。④ `--geodata-only`：exit 0，只产出 `README.md` + `geodata/`，不含 i18n。⑤ `--pattern '{admin_2} {admin_3}'` 在真实容器内生效：同一行展示名由 `元朗区` 变为 `元朗区 新界元朗区`。⑥ 容器内 README 同时给出 `Immich < 1.136.0` 与 `Immich 1.136.0 ~ 3.2.x` 两条挂载路径，并注明 3.3.0 起不再需要覆盖包。验证后已删除本地镜像与临时目录，`git status` 干净、`git diff` 为空。本轮未发现 P0-P2 问题，clean_streak=5。",
       "pr": null
+    },
+    {
+      "round": 356,
+      "timestamp": "2026-10-08T14:06:00+08:00",
+      "focus": "清理客户端的分页（破坏性决策的输入源）",
+      "method": "M1 变异探针",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`scripts/cleanup.py::GitHubClient._list` 是 `list_releases` / `list_runs` / `list_package_versions` / `release_assets` 共用的列表读取实现，终止条件是 `if len(current) < 100: break`。`rg '_list|per_page|page=|分页' tests/` 命中 0 条——该函数在测试里从未被提及。变异探针：把终止条件改成 `if True: break`（只看第一页），隔离字节码缓存跑**完整**套件：473 passed，全绿。影响：`_list` 是所有破坏性决策的输入源；截断到 100 条后 `select_releases`/`select_package_versions`/`select_stale_assets` 只看到第一页，保留策略在对象数超过 100 时静默失效（方向是少删，但「按策略回收」的承诺不再成立），且无测试与日志提示。修复：实现本来就正确，补用例——`test_github_client_list_paginates_until_short_page`（假 `urlopen` 第一页 100 条、第二页 2 条，断言 `_list` 返回 102 条且按序请求 page=1/page=2）。负向控制：改成 `if True: break` 后新用例立即 AssertionError（`Right contains 2 more items, first extra item: 100`），恢复后通过。修复后 `make check` 474 passed（+1，覆盖率 88.27%），`ruff`/`mypy` 通过。PR #253 四项必需检查全绿后 squash 合并，main=0033ec0。",
+      "pr": "https://github.com/webees/immich-cn/pull/253"
     }
   ],
   "residual_risks": [
@@ -3842,7 +3852,9 @@
     "第 354 轮只检查了 URL 可达性与两个固定下载地址的内容长度，没有校验链接指向的*内容*是否仍然正确（例如 `immich-app/immich` 的 LICENSE 链接是否仍指向 AGPL 文本、`v3.3.0` 的 zh_Hans.json 是否仍是当时核对的那份）",
     "第 355 轮的真实容器验证用的是合成 `build/`+`dist/`（cities500 仅 1KB），因此镜像层数（6）与体积不代表真实数据镜像；真实镜像的层与体积仍以 docs/packages.md 的 2026-10-07 时点数字为准",
     "第 355 轮确认数据镜像以 uid 0 运行（`USER` 未设置，Alpine 默认）；它只写挂载目录，且服务端镜像与上游 Immich 同为 root，因此本轮不作为缺陷，但「以非 root 运行容器」仍是后续可收紧项",
-    "第 355 轮没有验证 `immich-cn-server` 覆盖镜像（构建需拉取 1.6 GB 上游镜像）；该镜像的端到端验证仍只在发布流水线与 CI 的 Docker 冒烟作业里执行"
+    "第 355 轮没有验证 `immich-cn-server` 覆盖镜像（构建需拉取 1.6 GB 上游镜像）；该镜像的端到端验证仍只在发布流水线与 CI 的 Docker 冒烟作业里执行",
+    "第 356 轮只覆盖了 `_list` 的翻页终止条件；`_list` 的 100 页硬上限（最多 10,000 条）仍是静默截断——超出后不报错也不告警，只是少看到对象。当前仓库对象数远低于该上限，需要时再加「达到上限即报错」的护栏",
+    "第 356 轮没有对 `_request` 的 429/5xx 重试与 `allow_not_found` 组合做新实验（既有用例覆盖 5xx 重试、401 不重试、404 幂等删除三条路径），其余状态码组合仍属未覆盖"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
