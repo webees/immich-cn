@@ -81,6 +81,7 @@ immich-cn fingerprint dist/immich-cn-manifest-json-v1.json  # 打印发布指纹
 | `--keep-raw` | 关 | 保留解压后的原始大文件和明文 `immich-cn-patterns-v1.tsv`（默认不生成明文表） |
 | `--clean` | 关 | 执行前清空 work/dist |
 | `--quiet` | 关 | 只输出警告与错误 |
+| `--min-cn-ratio` | `0.90` | 仅 `verify`：中国记录的中文名称覆盖率下限 |
 
 `--provider auto` 在没有 `AMAP_API_KEY` 时会回退到离线模式，并打印一行显式告警：产物与 `--provider offline` 完全相同，只有清单的 `config.provider` 记为 `offline`。这样「密钥缺失 / 改名 / 过期」不会伪装成一次成功的高德增强构建；`--provider amap` 则是硬要求，缺密钥直接以 `ConfigError` 失败。
 

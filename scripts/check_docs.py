@@ -324,6 +324,28 @@ def _cli_surface() -> tuple[set[str], set[str]]:
     return commands, flags
 
 
+#: argparse 自动提供的标准参数，不要求在文档中逐一列出。
+STANDARD_CLI_FLAGS = frozenset({"-h", "--help", "--version"})
+
+
+def _all_cli_flags() -> set[str]:
+    """递归收集全部子命令（含嵌套，例如 ``artifact resolve``）的选项。"""
+    sys.path.insert(0, str(Path("src").resolve()))
+    from immich_cn.cli import build_parser
+
+    flags: set[str] = set()
+
+    def collect(parser: argparse.ArgumentParser) -> None:
+        for action in parser._actions:
+            flags.update(action.option_strings)
+            if isinstance(action, argparse._SubParsersAction):
+                for sub in action.choices.values():
+                    collect(sub)
+
+    collect(build_parser())
+    return flags
+
+
 def _make_targets() -> set[str]:
     targets: set[str] = set()
     for line in Path("Makefile").read_text(encoding="utf-8").splitlines():
@@ -401,6 +423,22 @@ def check_cli(doc_text: str, errors: list[str]) -> None:
         for flag in re.findall(r"--[a-z-]+", flag_text):
             if flag not in flags:
                 errors.append(f"文档使用了不存在的参数：immich-cn {command} {flag}")
+
+
+def check_cli_coverage(doc_text: str, errors: list[str]) -> None:
+    """反向检查：实现里存在的每个 CLI 参数都必须在文档中出现。
+
+    ``check_cli`` 只保证「文档写的参数存在」，不保证「存在的参数都被写到」。
+    ``immich-cn verify --min-cn-ratio``（默认 0.90）曾因此在实现与源码注释里可调、
+    却在 README/docs 中完全缺席，用户无从发现。
+    """
+    undocumented = sorted(
+        flag
+        for flag in _all_cli_flags() - STANDARD_CLI_FLAGS
+        if not re.search(rf"(?<![A-Za-z0-9-]){re.escape(flag)}(?![A-Za-z0-9-])", doc_text)
+    )
+    if undocumented:
+        errors.append("实现存在但文档未记录的 CLI 参数：" + "、".join(undocumented))
 
 
 def check_make(doc_text: str, errors: list[str]) -> None:
@@ -1428,6 +1466,7 @@ def main(argv: list[str] | None = None) -> int:
     check_env(doc_text, code_text, errors)
     check_env_defaults(errors)
     check_cli(doc_text, errors)
+    check_cli_coverage(doc_text, errors)
     check_make(doc_text, errors)
     check_make_check_description(errors)
     check_langs_mounts(doc_files + _expand(("examples/*.yml",)), errors)
