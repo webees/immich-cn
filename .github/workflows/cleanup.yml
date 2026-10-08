@@ -82,25 +82,26 @@ jobs:
           PACKAGE_RETENTION: ${{ inputs.package-retention || 20 }}
         run: |
           set -euo pipefail
-          args=(
+          common=(
             --release-retention "$RELEASE_RETENTION"
             --run-retention-days "$RUN_RETENTION_DAYS"
             --run-keep-per-workflow "$RUN_KEEP_PER_WORKFLOW"
             --package-retention "$PACKAGE_RETENTION"
           )
           if [ "$APPLY" = "true" ]; then
-            args+=(--apply)
+            common+=(--apply)
           fi
+          general=("${common[@]}")
           if [ "$PRUNE_ALL" = "true" ]; then
-            args+=(--prune-all)
+            general+=(--prune-all)
           fi
+          python scripts/cleanup.py "${general[@]}"
           if [ "$PRUNE_LEGACY_ASSETS" = "true" ]; then
-            args+=(--prune-legacy-assets)
+            python scripts/cleanup.py "${common[@]}" --prune-legacy-assets
           fi
           if [ "$PRUNE_SUPERSEDED_VERSIONS" = "true" ]; then
-            args+=(--prune-superseded-versions)
+            python scripts/cleanup.py "${common[@]}" --prune-superseded-versions
           fi
-          python scripts/cleanup.py "${args[@]}"
 
   notify-failure:
     name: Notify Failure

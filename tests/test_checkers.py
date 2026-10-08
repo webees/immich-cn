@@ -1376,6 +1376,15 @@ def test_check_workflows_requires_cleanup_apply_policy(repo_copy: Path) -> None:
     assert "定时任务没有自动切换为 apply" in result.stdout
 
 
+def test_check_workflows_requires_cleanup_modes_after_general_plan(repo_copy: Path) -> None:
+    """专项清理必须补充常规保留策略，不能替代它。"""
+    workflow = repo_copy / ".github" / "workflows" / "cleanup.yml"
+    mutate(workflow, '          python scripts/cleanup.py "${general[@]}"\n', "")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "常规保留策略" in result.stdout
+
+
 def test_check_workflows_requires_cleanup_failure_notifier(repo_copy: Path) -> None:
     """清理工作流失败时必须创建告警，不能只把失败留在 Actions 历史里。"""
     workflow = repo_copy / ".github" / "workflows" / "cleanup.yml"
