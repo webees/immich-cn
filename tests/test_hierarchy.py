@@ -45,11 +45,22 @@ def test_finalize_fills_gaps() -> None:
     assert names.admin_4 == "苏州市"
 
 
+def test_finalize_uses_place_name_when_admin2_missing() -> None:
+    place = Place.from_line(geo_row(5128581, "New York City", country="US", admin1="NY"))
+    assert place is not None
+    names = resolve_place_names(place, Hierarchy(admin1={"US.NY": "纽约州"}), ChineseNameIndex())
+
+    finalize_place_names(names, "US", NameOverrides(), fallback_name="纽约")
+
+    assert names.admin_2 == "纽约"
+    assert names.admin_3 == "纽约"
+
+
 def test_finalize_rewrites_hong_kong_levels() -> None:
     overrides = NameOverrides(hk_districts={"元朗区": "新界"})
     place = make_place(country="HK", admin1="NYL")
     names = resolve_place_names(place, Hierarchy(admin1={"HK.NYL": "元朗区"}), ChineseNameIndex())
-    finalize_place_names(names, "HK", overrides)
+    finalize_place_names(names, "HK", overrides, fallback_name="香港")
     assert names.admin_1 == "香港"
     assert names.admin_2 == "元朗区"
     assert names.admin_3 == "新界 元朗区"

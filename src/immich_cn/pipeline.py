@@ -584,7 +584,13 @@ def _write_levels(
             names = chain.enrich(place, names)
             if not names.admin_1:
                 names.admin_1 = index.get_country(place.country_code) or country_names.get(place.country_code, "")
-            finalize_place_names(names, place.country_code, overrides, index.variant)
+            finalize_place_names(
+                names,
+                place.country_code,
+                overrides,
+                index.variant,
+                fallback_name=(index.get(place.geoname_id) or place.name) if place.admin1_code else "",
+            )
             if not names.admin_2:
                 fallback += 1
             levels = names.levels()

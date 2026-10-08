@@ -114,6 +114,8 @@ def finalize_place_names(
     country_code: str,
     overrides: NameOverrides,
     variant: ChineseVariant = "hans",
+    *,
+    fallback_name: str = "",
 ) -> None:
     """在所有 provider 增强完成后整理层级并补齐缺口。"""
     for attribute in ("admin_1", "admin_2", "admin_3", "admin_4"):
@@ -135,5 +137,8 @@ def finalize_place_names(
 
     if top_level:
         names.admin_1 = strip_suffix(names.admin_1, country_code, overrides, variant)
+
+    if not top_level and not names.admin_2:
+        names.admin_2 = fallback_name or names.admin_1
 
     names.fill_gaps()
