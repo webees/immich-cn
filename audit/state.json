@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 388,
-  "consecutive_clean": 1,
+  "round": 389,
+  "consecutive_clean": 2,
   "totals": {
     "findings": 240,
-    "clean_rounds": 137,
+    "clean_rounds": 138,
     "p0": 0,
     "p1": 33,
     "p2": 162,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M5 真实数据抽样",
+  "last_method": "M10 shell/容器安全审查",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3927,6 +3927,16 @@
       "severity": null,
       "evidence": "下载当前 `auto-release` 的 `immich-cn-geodata-admin2-default-v1.zip`，抽样默认 `{admin_2}` 的跨地区展示名：北京 `1816670=北京市`、台北 `1668341=台北市`、香港元朗 `1818222=元朗区`、东京 `1850147=东京都`、纽约 `5128581=纽约州`，5 个 ID 全部存在且与预期一致。负向控制：把北京期望改成「错误名称」后立即报出 `1816670` 不一致，证明抽样不是恒真。检查清单：已覆盖大陆、台湾、香港、日本和美国的默认粒度展示；未全量审核海外英文回退或 `hant` 变体。本轮未发现 P0-P2 问题，clean_streak=1。残余风险：默认 `{admin_2}` 的海外名称可能保持上游英文/地区名，这是现有设计边界而非本轮新发现。",
       "pr": null
+    },
+    {
+      "round": 389,
+      "timestamp": "2026-10-09T05:15:00+08:00",
+      "focus": "安全（zip slip、注入、密钥泄漏、供应链、权限）",
+      "method": "M10 shell/容器安全审查",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "安全复核 `main=25decf5`：`make shellcheck`、`check_workflows.py`、`check_docs.py` 全部通过；已知令牌前缀、私钥标记与顶层权限扫描无命中。对抗控制：在临时仓库副本把 `ci.yml` 顶层权限改为 `write-all`，`check_workflows.py` 立即报「顶层 permissions 使用 write-all，权限范围过大」并 exit 1，证明权限护栏有牙齿。检查清单：已复核 shell 注入、zip slip、Actions 固定引用、Secrets 用法与最小权限；未启用 GitHub non-provider secret scanning/validity checks，也未做真实外部包权限操作。本轮未发现 P0-P2 问题，clean_streak=2。残余风险：启发式秘密扫描不能发现高熵自定义凭据；工作流静态检查不能替代 GitHub 侧的规则与扫描设置。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -4219,6 +4229,7 @@
     "第 386 轮的带空格路径实验在 macOS/POSIX 上完成，未在目标 Alpine BusyBox 与容器 overlayfs 中逐项重放；不同 shell 实现的空白与错误码差异仍是残余风险",
     "第 387 轮未在真实 GitHub Actions 中制造 API/令牌失败来观察两类 issue 的创建与恢复；只通过退出码分支、工作流契约和单元测试验证",
     "第 388 轮只抽样了 5 个跨地区 ID 和默认 `{admin_2}`；海外全量中文覆盖、`hant` 变体和四级行政层级仍未做同等级抽样",
+    "第 389 轮的安全扫描仍是启发式：GitHub non-provider secret scanning、validity checks 与真实包权限操作没有在本轮验证",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
