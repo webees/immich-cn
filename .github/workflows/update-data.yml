@@ -242,12 +242,13 @@ jobs:
 
   resolve-previous-failure:
     name: Resolve Previous Failure
-    needs: [build, release]
+    needs: [build, release, no-change]
     # 仅当"构建成功且发布没有失败"时关闭历史告警：
     #   build 成功 + release 跳过（无变化）→ 关闭
+    #   build 成功 + no-change 失败        → 保持打开（不能把失败摘要当成成功）
     #   build 成功 + release 成功        → 关闭
     #   build 成功 + release 失败        → 保持打开（否则会把刚创建的告警立刻关掉）
-    if: ${{ !cancelled() && needs.build.result == 'success' && (needs.release.result == 'success' || needs.release.result == 'skipped') }}
+    if: ${{ !cancelled() && needs.build.result == 'success' && (needs.release.result == 'success' || needs.release.result == 'skipped') && (needs.no-change.result == 'success' || needs.no-change.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
