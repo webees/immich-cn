@@ -96,7 +96,7 @@ immich-cn artifact resolve --manifest immich-cn-manifest-json-v1.json \
 | `dataset` | 规范数据集的文件名、格式、结构版本、大小与摘要 |
 | `license` | 代码与数据许可说明 |
 
-`artifacts` 的元素包含 `pattern`、`full`、`file`、`id`、`profile`、`scope`、`schemaVersion`、`canonicalFile`、`sizeBytes` 与 `sha256`；`assets` 的元素包含 `file`、`kind`、`sizeBytes` 与 `sha256`。清单与校验和文件自身不列入 `assets`，由 `immich-cn-checksums-sha256-v1.txt` 覆盖。
+`artifacts` 的元素包含 `pattern`、`full`、`file`、`id`、`profile`、`scope`、`schemaVersion`、`canonicalFile`、`sizeBytes` 与 `sha256`；`assets` 的元素包含 `file`、`kind`、`sizeBytes` 与 `sha256`。清单与 checksums 文件不列入 `assets`；checksums 覆盖清单与全部 assets，checksums 文件不自校验。
 
 ### 统计口径
 
@@ -107,7 +107,7 @@ immich-cn artifact resolve --manifest immich-cn-manifest-json-v1.json \
 - `droppedPlaces = droppedCities + droppedExtra`：前者是 cities500 中缺少有效一级行政区代码而丢弃的噪声行，后者是国家数据转储在额外点位筛选阶段因 GeoNames ID 已存在或经纬度冲突而丢弃的记录；两者来源不同，合并计数会掩盖差异；
 - 默认变体在打包时按人口阈值过滤 extra 记录，因此变体行数小于 `outputPlaces`；每个变体的展示粒度与数据规模记录在包内 `geodata/build-info.json`，行数以包内 `cities500.txt` 为准。
 
-实测示例（发布 `data-2026-10-06`）：`outputPlaces=1318848`、`perCountry.CN=956792`，而 `immich-cn-geodata-admin2-default-v1.zip` 内 `cities500.txt` 为 256,644 行、其中 CN 34,897 行（= `sourcePlaces` 235,649 + 人口 ≥100 的 extra 20,995）。把 `stats` 当作「这个 zip 有多少条记录」会高估。
+`stats` 描述规范层完整口径，默认变体在打包时按人口阈值过滤 extra，因此 `stats.outputPlaces` 会大于包内 `cities500.txt` 行数；具体数值以对应清单与包内文件为准。
 
 ## 目录约束
 
