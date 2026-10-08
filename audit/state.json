@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 362,
-  "consecutive_clean": 5,
+  "round": 363,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 227,
+    "findings": 228,
     "clean_rounds": 124,
     "p0": 0,
     "p1": 33,
-    "p2": 149,
+    "p2": 150,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M2 阈值反演",
+  "last_method": "M3 负向制品实验",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3667,6 +3667,16 @@
       "severity": null,
       "evidence": "对 `scripts/cleanup.py` 中决定删除范围的四个正则做边界反演，并用 `re.fullmatch` 与生产路径使用的 `re.match` 对照。`STABLE_VERSION`：`1.0.4`/`3.3.0.1`/`v3.3.0.1` 接受，`1.0`/`1.0.4.1.2` 拒绝；`LEGACY_VERSION`：三段式 `1.0.4` 与 `v1.0.4` 接受，`1.0`/`1.0.4.1`/`1.0.4-rc1` 拒绝；`ALIGNED_VERSION`：四段式 `3.3.0.1` 接受，`3.3.0`/`3.3.0.1.2`/`v3.3.0.1` 拒绝；`CONTROL_TAG`：恰好 7 位与 40 位小写十六进制接受，6 位、41 位、大小写混合和非法字符拒绝。每组边界两侧均有相反结果，未发现恒真、恒假或误删扩张。检查清单：已检查四个正则的接受/拒绝边界、`select_superseded_versions` 的 `match` 调用路径、完整测试与静态检查；未逐条重跑 GitHub Packages 生产删除（破坏性外部操作，已有 dry-run/保守条件保护）。`make check` 全绿：479 passed、覆盖率 88.27%、ruff/mypy/docs/workflows/shell 均通过；`git status` 与 `git diff` 为空。本轮未发现 P0-P2 问题，clean_streak=5。残余风险：Python 的 `$` 在 `re.match` 下允许尾随换行，但 Git ref 与 OCI tag 语法不允许换行，因此当前不可达；若未来复用这些正则解析任意文本，应改用 `fullmatch`。",
       "pr": null
+    },
+    {
+      "round": 363,
+      "timestamp": "2026-10-08T20:25:00+08:00",
+      "focus": "死代码与未使用配置（含只写不读的变量）",
+      "method": "M3 负向制品实验",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`scripts/check_artifacts.py` 的畸形制品元数据没有统一错误路径：把 manifest 的 `sizeBytes` 篡改为 `\"not-an-integer\"`，直接调用 `_check_file_entry` 抛出未捕获 `ValueError: invalid literal for int()`；把校验和文件改为单行 `deadbeef`，`check_checksums` 把空文件名当成 dist 目录读取，抛出未捕获 `IsADirectoryError`。两条路径都发生在发布门禁脚本内部，虽然退出码最终可能非 0，但不能给出可诊断的校验错误，也会中断后续检查。修复：新增 `_is_sha256` 统一校验 64 位小写十六进制摘要；manifest 的 `sizeBytes` 必须为整数、`sha256` 必须为合法摘要、目标必须为普通文件；校验和条目必须包含分隔符、合法摘要、basename 且目标为普通文件。新增两个负向回归用例，修复前分别复现 `ValueError` 与 `IsADirectoryError`，修复后均转为明确错误。验证：`make check` 481 passed、覆盖率 88.27%、ruff/mypy/docs/workflows/shell 全绿；`make smoke artifacts` 通过（15 个压缩包、18 项校验和）；篡改 manifest 的 CLI 实验返回 1 且无 traceback。PR #259 四项必需检查全绿后 squash 合并，main=a76c000。",
+      "pr": "https://github.com/webees/immich-cn/pull/259"
     }
   ],
   "residual_risks": [
@@ -3929,6 +3939,8 @@
     "第 361 轮只验证了这一处守卫的等价性；`finalize_place_names` 的其它分支（`district = names.admin_2 or names.admin_1` 的取空回退、HK 的 admin_3 区域前缀拼接、`strip_suffixes` 为空配置时的行为）没有在本轮逐一变异",
     "第 362 轮的正则边界反演只覆盖当前清理脚本的四个正则；`STABLE_VERSION` 对预发布/构建元数据（例如 `1.0.4-rc1`、`1.0.4+meta`）的接受范围比四段式发布契约更宽，这是为保护既有稳定标签而保留的兼容行为，不表示这些形态可由当前发布工作流产生",
     "第 362 轮使用 `re.match` 的四个正则因 `$` 语义会接受尾随换行；Git ref 与 OCI tag 均不允许换行，故当前不可达，但若这些正则被复用于任意文本解析，应改为 `fullmatch`",
+    "第 363 轮只修复了畸形 manifest 的 `sizeBytes`/`sha256` 与校验和文件条目格式；校验和文件本身为非 UTF-8、目录或无权限时，`read_text` 仍可能抛出未包装的 I/O 异常；manifest 文件为非 UTF-8 时也可能绕过 JSON 解析错误路径",
+    "第 363 轮的负向实验针对合成 dist 与单机 Python；没有重跑 GitHub Actions 的 Docker/GHCR 发布链路来验证所有外部失败模式，发布级异常仍需由后续流水线与审计覆盖",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
