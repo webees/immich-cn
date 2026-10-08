@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 408,
-  "consecutive_clean": 0,
+  "round": 409,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 250,
-    "clean_rounds": 147,
+    "clean_rounds": 148,
     "p0": 0,
     "p1": 34,
     "p2": 171,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M5 真实数据抽样",
+  "last_method": "M3 负向制品实验",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4132,9 +4132,22 @@
       "severity": "P1",
       "evidence": "从 GitHub Release `v3.3.0.1` 下载默认 `{admin_2}` 制品抽样：`5128581` 在 GeoNames 原始数据中是 `New York City`（PPL），发布制品却输出 `纽约州`。根因是缺少 admin2 时 `fill_gaps` 把 admin1 省名填进 admin2。修复：非港澳特殊层级中，admin2 缺失时优先使用地点自身中文名；无 admin1 的国家/地区仍保留国家名回退，避免新加坡回归。负向证据：旧树加新端到端回归实际得到 `纽约州`；修复后得到 `纽约`。验证：`make check` 500 passed、覆盖率 88.77%；PR #281 四项必需检查全绿后 squash 合并，main=528be9d。",
       "pr": "https://github.com/webees/immich-cn/pull/281"
+    },
+    {
+      "round": 409,
+      "timestamp": "2026-10-09T10:05:00+08:00",
+      "focus": "安全（zip slip、注入、密钥泄漏、供应链、权限）",
+      "method": "M3 负向制品实验",
+      "method_note": "轮换位次为 M9；本轮按 focus 使用恶意制品探针，避免重复文档核对。",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对 `scripts/check_artifacts.py::check_zip_members` 做恶意归档实验：构造含 `../escape.txt` 路径越界成员与符号链接成员的 zip，检查器均拒绝，分别报“路径越界”和“是符号链接”；供应链与权限侧，`check_action_pins` 25 个 Action 固定引用全部通过，`check_workflows` 与 `check_shell` 均通过；密钥启发式扫描未发现字面量凭据，只命中环境变量名与测试假值。检查清单：已覆盖 zip slip、符号链接逃逸、Action pin、工作流权限与密钥扫描；未把启发式扫描当作完整 secret scanning 替代。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 409 轮恶意归档实验使用合成 zip，没有对真实发布资产的每个成员重新构造攻击样本；正式制品仍由 `check_artifacts` 和发布流水线校验",
+    "第 409 轮 Action pin 校验依赖 GitHub API；密钥扫描是模式启发式，不能替代 GitHub secret scanning 的 provider 验证与历史对象扫描",
     "第 408 轮的修复只通过合成端到端构建验证；已发布的 `v3.3.0.1` 制品仍含 `5128581=纽约州`，需要下一次数据发布才能替换 Release 与镜像中的内容",
     "第 408 轮只抽样了纽约市一个缺少 admin2 的境外地点；修复会影响所有缺少 admin2 但存在 admin1 的地点，需在下一轮真实全量构建中继续抽样其它国家/地区",
     "第 407 轮使用 `httpx.MockTransport` 注入非对象 JSON，没有对真实 Immich 实例制造该响应；真实网络错误与代理响应仍由发布/运行环境覆盖",
