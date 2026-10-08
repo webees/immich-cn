@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 342,
-  "consecutive_clean": 0,
+  "round": 343,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 220,
-    "clean_rounds": 111,
+    "clean_rounds": 112,
     "p0": 0,
     "p1": 33,
     "p2": 142,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M2 阈值反演",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3467,6 +3467,16 @@
       "severity": "P2",
       "evidence": "对 `src/immich_cn/validation.py:303-308` 的三处列宽上限做阈值反演：`len(fields[1]) > NAME_MAX_CHARS`（200）、`len(fields[10]) > ADMIN1_CODE_MAX_CHARS`（20）、`len(fields[11]) > ADMIN2_CODE_MAX_CHARS`（80）。现有 `test_invalid_immich_column_values_are_rejected` 只覆盖「超一格被拒」（201/21/81），没有钉住「正好等于上限必须通过」。变异探针确认：把三处 `>` 都改成 `>=` 后，隔离字节码缓存跑**完整**套件：465 passed，全绿——接受侧边界零覆盖。影响：`geodata_places` 的列就是 `varchar(200)`/`varchar(20)`/`varchar(80)`，满长记录合法；`>=` 会把它们误判成违规，构建在发布前直接失败（false rejection），而测试不会报警。修复：实现本来就正确，补接受侧用例——`tests/test_validation.py` 新增 `test_immich_column_values_at_limit_are_accepted`（三个参数化用例分别把 US 记录的 name/admin1Code/admin2Code 设成正好等于上限，断言 `cities500-immich-columns` 不在失败集合），并从 `immich_cn.validation` 导入三个上限常量避免重复抄数字。负向控制：三处改回 `>=` 后三个新用例全部 FAILED，恢复后通过。修复后 `make check` 468 passed（+3），`ruff`/`mypy` 通过。PR #247 四项必需检查全绿后 squash 合并，main=ad53690。",
       "pr": "https://github.com/webees/immich-cn/pull/247"
+    },
+    {
+      "round": 343,
+      "timestamp": "2026-10-08T11:20:08+08:00",
+      "focus": "死代码与未使用配置（Makefile / workflow env）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "补上第 333 轮点名的「未使用配置」剩余形态。Makefile：变量只有 PYTHON / VENV / BIN（外加内置 MAKEFILE_LIST），逐个在目标体里搜引用，全部被使用，没有只定义不引用的变量。工作流 env：自写探针逐层收集 workflow / job / step 级 env 共 90 个条目，按 `$NAME`、`${NAME...}`、`${{ env.NAME }}` 三种形态在同一作用域内搜引用，首轮报 32 个；逐条复核后全部是「隐式消费」——`TZ` 供 shell/Python 读取、`GH_TOKEN`/`GITHUB_TOKEN`/`GITHUB_REPOSITORY` 由 `gh` CLI 隐式读取、`GITHUB_RUN_ID`/`PACKAGE_ADMIN_TOKEN`/`AMAP_API_KEY` 由 Python 脚本经 os.environ 读取。探针第一版漏掉 `${NAME:-默认值}` 形态（把 `${SNAPSHOT_RETENTION:-14}`、`${STATE:-unknown}`、`${DIGEST:-未推送}` 判成未引用），修正后这 4 条自动消失——这一步本身证明「不改宽正则就会得到假拒绝」。负向控制：向 `ci.yml` 顶层 env 注入 `ROUND343_UNUSED_PROBE`，探针立即报 `ci.yml:env.ROUND343_UNUSED_PROBE`（29 个），证明该探针不是恒真；同一注入 `check_workflows.py` 不报警（当前没有这条护栏）。恢复后 `git status` 干净、`git diff` 为空、`check_workflows` 通过。结论：真实「只声明不引用」的配置为 0。本轮未发现 P0-P2 问题，clean_streak=1。注：本轮刻意不把该探针固化成护栏——它需要一张 28 条的「隐式消费白名单」，比它要防的问题更容易产生假拒绝。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3682,7 +3692,9 @@
     "第 341 轮只钉住了 `normalize_level` 的「空格两侧都要 CJK」这一条；同一函数还有两处边界没被用例区分——`0 < index < len(collapsed) - 1` 的首尾保护（`split()` 后首尾不会是空格，目前等价）与 `_CJK_RANGES` 里扩展 A 区（3400–4dbf）是否被纳入判定",
     "第 341 轮未在真实 geodata 上统计「中英混排层级名」的实际条数；如果这类名字根本不存在，则该分支只有防御价值，需要按真实数据量决定是否继续投入",
     "第 342 轮只反演了 cities500 的三处列宽上限；同一函数里 `len(fields[8]) != 2` 的 countryCode 等号边界（已由既有用例覆盖 1/3 字符）与坐标范围 `-90/90`、`-180/180` 的接受侧边界没有在本轮逐一反演",
-    "第 342 轮的接受侧用例只断言 `cities500-immich-columns` 不在失败集合里，没有断言其它检查项也不受影响（把 admin1Code 改成 20 个 x 会改变层级解析）；这是刻意的窄断言，但也意味着该用例不能替代整体构建校验"
+    "第 342 轮的接受侧用例只断言 `cities500-immich-columns` 不在失败集合里，没有断言其它检查项也不受影响（把 admin1Code 改成 20 个 x 会改变层级解析）；这是刻意的窄断言，但也意味着该用例不能替代整体构建校验",
+    "第 343 轮的 env 探针是文本级：它会漏掉「用间接方式取值」的引用（例如 `eval`、把变量名存进另一个变量、或 shell 数组拼接），也会把「在注释里提到变量名」当成已引用；结论「0 个未使用」只在当前这 6 个工作流与现有写法下成立",
+    "第 343 轮没有检查 `pyproject.toml` 的未使用键（ruff/mypy/pytest/coverage 等配置项是否仍被工具读取），也没有检查 `vars.*` 仓库变量是否都已创建；这两类需要外部工具或仓库 API，留待后续轮次"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
