@@ -2119,6 +2119,25 @@ def test_check_artifacts_rejects_zip_duplicate_member(tmp_path: Path) -> None:
     assert any("同名重复归档成员" in error for error in errors), errors
 
 
+def test_check_artifacts_sha256_cache_invalidates_on_change(tmp_path: Path) -> None:
+    """摘要缓存必须随文件变化失效，否则改掉制品后仍会拿到旧摘要而假通过。"""
+    target = tmp_path / "a.bin"
+    target.write_bytes(b"aaaa")
+    first = check_artifacts.sha256_file(target)
+    assert check_artifacts.sha256_file(target) == first  # 第二次命中缓存
+
+    target.write_bytes(b"bbbbbb")  # 长度变化 -> 缓存键失效
+    assert check_artifacts.sha256_file(target) != first
+
+    same_size = tmp_path / "b.bin"
+    same_size.write_bytes(b"aaaa")
+    before = check_artifacts.sha256_file(same_size)
+    same_size.write_bytes(b"bbbb")  # 同长度，只改内容
+    stat_result = same_size.stat()
+    os.utime(same_size, ns=(stat_result.st_atime_ns, stat_result.st_mtime_ns + 1_000_000_000))
+    assert check_artifacts.sha256_file(same_size) != before
+
+
 def test_check_artifacts_rejects_zip_compression_bomb(tmp_path: Path) -> None:
     dist = _make_dist(tmp_path)
     with zipfile.ZipFile(dist / "immich-cn-geodata-admin2-default-v1.zip", "a") as archive:
