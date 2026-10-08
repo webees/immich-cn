@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 376,
-  "consecutive_clean": 1,
+  "round": 377,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 235,
+    "findings": 236,
     "clean_rounds": 130,
     "p0": 0,
     "p1": 33,
-    "p2": 157,
+    "p2": 158,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M1 变异探针（网络故障注入）",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3807,6 +3807,16 @@
       "severity": null,
       "evidence": "对容器入口、安装器与变体应用脚本做异常输入复核。`bash scripts/check-entrypoint.sh` 全部通过，覆盖只读完整/不完整目标、符号链接、空文件、嵌套路径、缺失参数与根目录；`make shellcheck` 通过（4 个脚本、6 个工作流）。额外对抗实验：① `install.sh --target <普通文件>` 返回 1，输出无法创建目标目录；② `entrypoint.sh` 的 `IMMICH_BUILD_DATA` 指向普通文件时返回 1，未静默启动；③ 用损坏的 gzip 作为变体表运行 `apply-pattern.sh`，`gzip` 失败、脚本返回 1，且源 `cities500.txt` 的 SHA256 前后不变，证明失败不会留下半写结果。`make check` 全绿：487 passed、覆盖率 88.44%、ruff/mypy/docs/workflows/shell 通过；生成物已清理，工作区干净。本轮未发现 P0-P2 问题，clean_streak=1。残余风险：未在真实只读挂载与不同文件系统（overlay/NFS）上重复上述异常实验。",
       "pr": null
+    },
+    {
+      "round": 377,
+      "timestamp": "2026-10-09T01:15:00+08:00",
+      "focus": "错误处理与网络健壮性（超时、截断、空响应、重试）",
+      "method": "M1 变异探针（网络故障注入）",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`scripts/set_asset_timezone.py::_request` 只对 HTTP 408/425/429/5xx 重试，传输层异常会直接穿透。用旧源码注入 `httpx.ConnectError`，实测 `_request` 抛出裸 `ConnectError`，没有重试也没有可读错误。修复：捕获 `httpx.TransportError`，前两次按 2/4 秒退避重试，第三次仍失败时抛出带 URL 与原因的 `RuntimeError`。新增两个负向用例：第三次成功返回 200 且调用 3 次；持续 `ReadTimeout` 最终抛出 `RuntimeError`。`make check` 全绿：489 passed、覆盖率 88.44%、ruff/mypy/docs/workflows/shell 通过。PR #267 四项必需检查全绿后 squash 合并，main=d65d27e。",
+      "pr": "https://github.com/webees/immich-cn/pull/267"
     }
   ],
   "residual_risks": [
@@ -4087,6 +4097,7 @@
     "第 374 轮移除了 `docs/china.md` 的日期特定数字，但其他文档仍可能保留时点体积、来源统计或示例数字；`check_docs` 只能校验部分数字契约，不能自动发现所有滚动数据导致的漂移",
     "第 375 轮只修复了 `update-data.yml` 的告警收敛依赖；`release.yml` 的 `publish` 失败没有同构的失败告警任务，其他工作流的失败路径也需要后续逐格复核",
     "第 376 轮的容器异常实验在宿主机文件系统上完成，没有覆盖真实只读挂载、overlayfs 或 NFS 的错误码差异；容器运行时边界仍需由发布冒烟和运行环境覆盖",
+    "第 377 轮只补齐 `set_asset_timezone.py` 的传输错误重试；其他 HTTP 客户端（数据源下载、清理 API、Nominatim/Amap）各自已有不同重试策略，尚未在本轮统一复核超时与重试上限",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
