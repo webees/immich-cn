@@ -15,6 +15,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import warnings
 import zipfile
 from pathlib import Path
 
@@ -2102,6 +2103,20 @@ def test_check_artifacts_rejects_zip_symlink(tmp_path: Path) -> None:
     errors: list[str] = []
     check_artifacts.check_zips(dist, errors)
     assert any("符号链接" in error for error in errors), errors
+
+
+def test_check_artifacts_rejects_zip_duplicate_member(tmp_path: Path) -> None:
+    """同名重复成员会让校验看到的内容与实际解压结果不一致。"""
+    dist = _make_dist(tmp_path)
+    # zipfile 写入重复成员时会自己发 UserWarning；这里刻意构造坏归档，先屏蔽该告警。
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        with zipfile.ZipFile(dist / "immich-cn-geodata-admin2-default-v1.zip", "a") as archive:
+            archive.writestr("geodata/cities500.txt", "second\n")
+
+    errors: list[str] = []
+    check_artifacts.check_zips(dist, errors)
+    assert any("同名重复归档成员" in error for error in errors), errors
 
 
 def test_check_artifacts_rejects_zip_compression_bomb(tmp_path: Path) -> None:

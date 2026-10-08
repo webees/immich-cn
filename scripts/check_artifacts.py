@@ -328,8 +328,10 @@ def check_admin_area_consistency(dist: Path, errors: list[str]) -> None:
 
 def check_zip_members(path: Path, archive: zipfile.ZipFile, errors: list[str]) -> None:
     """拒绝可能造成 Zip Slip 或符号链接逃逸的归档成员。"""
+    seen: dict[str, int] = {}
     for info in archive.infolist():
         raw = info.filename.replace("\\", "/")
+        seen[raw] = seen.get(raw, 0) + 1
         member = PurePosixPath(raw)
         if raw.startswith("/") or member.is_absolute() or ".." in member.parts:
             errors.append(f"{path.name} 的归档成员 {info.filename!r} 路径越界")
@@ -339,6 +341,11 @@ def check_zip_members(path: Path, archive: zipfile.ZipFile, errors: list[str]) -
             continue
         if stat.S_ISLNK(info.external_attr >> 16):
             errors.append(f"{path.name} 的归档成员 {info.filename!r} 是符号链接")
+    # 同名重复成员会让「已校验的内容」与「解压后生效的内容」不一致：
+    # ZipFile.read 取最后一个，`unzip -p` 会把两个成员首尾拼接，解压则覆盖成最后一个。
+    duplicates = sorted(name for name, count in seen.items() if count > 1)
+    if duplicates:
+        errors.append(f"{path.name} 含同名重复归档成员：" + "、".join(duplicates))
 
 
 def check_zip_budget(path: Path, archive: zipfile.ZipFile, errors: list[str]) -> None:
