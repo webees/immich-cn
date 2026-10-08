@@ -51,3 +51,16 @@ def test_positive_int_env_rejects_non_integer(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setenv("IMMICH_CN_TEST_POSITIVE_INT", "not-a-number")
     with pytest.raises(ConfigError, match="必须是整数"):
         positive_int_env("IMMICH_CN_TEST_POSITIVE_INT", 3)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"min_population": -1}, "min_population"),
+        ({"patterns": ()}, "至少需要"),
+        ({"patterns": ("no-placeholder",)}, "需要包含"),
+    ],
+)
+def test_build_options_rejects_invalid_configuration(kwargs: dict[str, object], message: str) -> None:
+    with pytest.raises(ConfigError, match=message):
+        BuildOptions(**kwargs)
