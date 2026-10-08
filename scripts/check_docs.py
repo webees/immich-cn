@@ -169,6 +169,8 @@ README_DIMENSION_LABELS = ("代码许可", "构建入口", "外部依赖", "行�
 README_DOC_LINK = re.compile(r"^\s*-\s+\[[^\]]+\]\((docs/[^)#]+\.md)\)", re.MULTILINE)
 ENGLISH_ONLY_HEADING = re.compile(r"^#{2,6}\s+[A-Za-z][A-Za-z0-9 /&+-]*$")
 TABLE_SEPARATOR = re.compile(r"^\|(?:\s*:?-{2,}:?\s*\|)+\s*$")
+#: 本地 `make test` 与 CI 必须使用同一个覆盖率下限，否则「make check 全绿」不代表 CI 会绿。
+COVERAGE_FLOOR = re.compile(r"--cov-fail-under=(\d+)")
 PROSE_ENGLISH_TERMS = (
     "release",
     "image",
@@ -453,6 +455,24 @@ def check_make_check_description(errors: list[str]) -> None:
     for path in (Path("CONTRIBUTING.md"), Path("docs/development.md")):
         if MAKE_CHECK_DESCRIPTION not in path.read_text(encoding="utf-8"):
             errors.append(f"{path} 的 make check 说明未覆盖实际门禁：{MAKE_CHECK_DESCRIPTION}")
+
+
+def check_coverage_gate(errors: list[str]) -> None:
+    """本地 ``make test`` 与 CI 必须使用同一个覆盖率下限。
+
+    CI 的 pytest 步骤带 ``--cov-fail-under=70``，而 ``make test`` 曾经不带；
+    于是「本地 make check 全绿」并不代表必需的 CI 检查会绿，覆盖率跌破下限时
+    本地完全无感。
+    """
+    ci_floor = COVERAGE_FLOOR.search(Path(".github/workflows/ci.yml").read_text(encoding="utf-8"))
+    make_floor = COVERAGE_FLOOR.search(Path("Makefile").read_text(encoding="utf-8"))
+    if ci_floor is None:
+        errors.append("ci.yml 未设置 --cov-fail-under，覆盖率门禁可能已失效")
+        return
+    if make_floor is None:
+        errors.append("Makefile 的 test 目标缺少 --cov-fail-under，make check 会弱于 CI")
+    elif make_floor.group(1) != ci_floor.group(1):
+        errors.append(f"覆盖率门禁不一致：CI {ci_floor.group(1)}%，Makefile {make_floor.group(1)}%")
 
 
 def check_langs_mounts(paths: list[Path], errors: list[str]) -> None:
@@ -1469,6 +1489,7 @@ def main(argv: list[str] | None = None) -> int:
     check_cli_coverage(doc_text, errors)
     check_make(doc_text, errors)
     check_make_check_description(errors)
+    check_coverage_gate(errors)
     check_langs_mounts(doc_files + _expand(("examples/*.yml",)), errors)
     check_discoverable(errors)
     check_numeric_contracts(errors)

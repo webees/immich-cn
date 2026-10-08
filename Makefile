@@ -26,7 +26,7 @@ typecheck: ## 类型检查
 	$(BIN)/mypy
 
 test: ## 单元测试
-	$(BIN)/pytest --cov=immich_cn --cov-report=term-missing
+	$(BIN)/pytest --cov=immich_cn --cov-report=term-missing --cov-fail-under=70
 
 docs: ## 校验文档与实现的一致性（环境变量/CLI/make/挂载路径）
 	$(BIN)/python scripts/check_docs.py

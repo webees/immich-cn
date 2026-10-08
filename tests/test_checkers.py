@@ -204,6 +204,19 @@ def test_check_docs_detects_cli_flag_drift(repo_copy: Path) -> None:
     assert "--definitely-not-a-flag" in result.stdout
 
 
+def test_check_docs_requires_matching_coverage_gate(repo_copy: Path) -> None:
+    """本地 make test 与 CI 的覆盖率下限必须一致，否则本地全绿不代表 CI 会绿。"""
+    makefile = repo_copy / "Makefile"
+    mutate(
+        makefile,
+        "--cov-report=term-missing --cov-fail-under=70",
+        "--cov-report=term-missing",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "make check 会弱于 CI" in result.stdout
+
+
 def test_check_docs_detects_undocumented_cli_flag(repo_copy: Path) -> None:
     """反向检查：实现里存在的 CLI 参数在文档中消失时必须报警。"""
     development = repo_copy / "docs" / "development.md"
