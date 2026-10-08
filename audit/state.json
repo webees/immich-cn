@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 328,
-  "consecutive_clean": 1,
+  "round": 329,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 209,
+    "findings": 210,
     "clean_rounds": 108,
     "p0": 0,
     "p1": 32,
-    "p2": 132,
+    "p2": 133,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M5 真实数据抽样",
+  "last_method": "M3 负向制品实验",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3327,6 +3327,16 @@
       "severity": null,
       "evidence": "从滚动 `auto-release` 下载真实制品核对：`immich-cn-dataset-sqlite-v1.zip`（74 MB）与 `immich-cn-geodata-admin2-admin3-admin4-default-v1.zip`（20 MB）。规范数据集：`places` 1,318,862 条，重复 `geoname_id` 0，空 `country_name` 0；CN 956,792 / HK 1,953 / TW 45,041 / MO 19 / JP 98,045 / US 21,785 六组的空 `admin1_name` 与空 `geoname_name` 均为 0。抽样层级：北京 `北京市/北京市/北京市/北京市`、上海同构、昆山 `江苏省 苏州市 昆山市`、香港 `香港 / 中西区`、台湾 `云林县 斗六市`、澳门 `嘉模堂区`、名古屋 `爱知县 名古屋市`，均与文档描述的逐级回退与港澳台重排一致。适配器：HK/MO 的 admin1 为 `香港特别行政区`（与 data-format.md 记录的 SPECIAL_ADMIN_TOP_LEVEL 例外一致）；CN/HK/TW/MO 展示名繁体残留 0；256,658 行全部 19 列、空展示名 0；`geodata-date.txt` 为 `2026-10-08T02:39:27+08:00`（ISO +08:00）；`build-info.json` 的 pattern 与文件名一致。对抗性实验：先按「任意重复词」扫描得到 277 行，逐条复核确认全部是单个地名内部的合法重复词（如 `Departamento de Paso de los Libres`），属假阳性启发式；改为只查相邻层级重复后全量 256,658 行为 0，证明去重规则确实生效而不是靠断言恒真。本轮未发现 P0-P2 问题，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 329,
+      "timestamp": "2026-10-08T08:49:13+08:00",
+      "focus": "安全：归档成员歧义（zip slip 之外的同类）",
+      "method": "M3 负向制品实验",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对 `scripts/check_artifacts.py` 的 `check_zip_members` / `check_zip_budget` 做 7 组负向实验（临时探针脚本，已删除）：控制组合法归档 0 错误（证明护栏不是无差别拒绝）；`geodata/../../etc/passwd`、`..\\\\..\\\\evil.txt`、`/etc/passwd`、`C:/Windows/system32/evil`、`S_IFLNK` 符号链接成员各自命中「路径越界 / 使用绝对路径 / 是符号链接」。但**同名重复成员未被拒绝**：构造含两个 `geodata/cities500.txt` 的归档，`check_zip_members` + `check_zip_budget` 返回 0 错误。实测三种消费方式对同一归档结果不一致——Python `ZipFile.read` 得到 `second`（取最后一个），`unzip -p` 得到 `first\\nsecond`（两个成员首尾拼接），`unzip -o` 解压得到 `second`（覆盖）。即「校验器看到的内容」与「解压后生效的内容」可能不同源，`unzip -p` 这条常见读取路径会直接产出损坏文件而校验完全看不到。修复：`check_zip_members` 记录归一化成员名并在重复时报「含同名重复归档成员」；新增 `test_check_artifacts_rejects_zip_duplicate_member`（构造时用 `warnings.catch_warnings` 屏蔽 zipfile 自身的 Duplicate name 告警）。负向控制：移除新增判断后该用例立即 `AssertionError: assert False`，恢复后通过；`scripts/check_artifacts.py dist` 真实 15 包 18 校验和仍通过；`make check` 457 passed（+1）。PR #237 四项必需检查全绿后 squash 合并，main=ce20dcf。",
+      "pr": "https://github.com/webees/immich-cn/pull/237"
     }
   ],
   "residual_risks": [
@@ -3513,7 +3523,9 @@
     "第 326 轮的容器审查仍未在真实只读 bind mount 下执行 `entrypoint.sh`：只读分支是用 `chmod 0555` 模拟的，且以 root 运行时会整体跳过（CI 运行用户为非 root，但 root 场景未覆盖）",
     "第 327 轮只收紧了「profile 段含 immich」这一条命名空间规则；`ARTIFACT_ID_PATTERN` / `CANONICAL_FILE_PATTERN` 仍允许其它形式的重名（例如 profile 为 `admin2-default` 时正则靠回溯仍可能解析出不同切分），且 `check_artifacts.py` 不会用 `canonical_filename(profile, scope)` 反推比对，只校验形态，因此「清单里的 profile 与文件名不一致」仍不会被机械发现",
     "第 328 轮抽样来自滚动 `auto-release`（内容 2026-10-08 生成），不是不可变 `data-*` 快照；滚动发布后续会被新构建覆盖，样本不能当作长期黄金基准，需要固定基准时应改用 `data-*` 快照或把样本写进测试夹具",
-    "第 328 轮只核对了 CN/HK/TW/MO/JP/US 六个地区的空名与繁体残留，其余约 250 个国家的展示名仍没有抽样；「任意重复词」启发式被证伪为假阳性后，没有把「相邻层级去重」固化成 make 目标，后续仍靠人工判断"
+    "第 328 轮只核对了 CN/HK/TW/MO/JP/US 六个地区的空名与繁体残留，其余约 250 个国家的展示名仍没有抽样；「任意重复词」启发式被证伪为假阳性后，没有把「相邻层级去重」固化成 make 目标，后续仍靠人工判断",
+    "第 329 轮只把「同名重复成员」补进 `check_zip_members`；归档层的其它歧义仍未覆盖——大小写冲突名（`Cities500.txt` vs `cities500.txt`，Windows/macOS 解压会互相覆盖）、NFC/NFD 归一化冲突、以及成员名含控制字符的情况都没有用例，也未在真实制品上验证",
+    "第 329 轮的负向实验是直接在 `check_zip_members`/`check_zip_budget` 上调用，没有构造完整 dist 走 `check_zips` 全链路（新测试用 `_make_dist` 补了这条，但探针脚本本身未走完整校验路径）"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
