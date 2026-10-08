@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 349,
-  "consecutive_clean": 1,
+  "round": 350,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 224,
+    "findings": 225,
     "clean_rounds": 114,
     "p0": 0,
     "p1": 33,
-    "p2": 146,
+    "p2": 147,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M3 负向制品实验",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3537,6 +3537,16 @@
       "severity": null,
       "evidence": "把第 348 轮的「未验证：没跑真实全量构建」补上：在临时 work/dist/cache 目录执行真实 `.venv/bin/immich-cn all`（`main=b44005e`），全程无外网失败，产物 17 个，构建内校验 15 项全 PASS（`cities500` 256,669 条、重复 ID 0、列宽 0 违规、modification date 0 违规、CN 34,897 条 100% 中文、`chinese-regions-cjk-strict` CN/HK/MO/TW 全部通过、countryInfo 252/252、natural-earth 258 要素、CN admin2 可解析 34,410/34,410 = 100%）。随后用新护栏复核新产物：`.venv/bin/python scripts/check_artifacts.py <dist>` → 制品校验通过（15 个压缩包、18 项校验和），即 `check_admin_code_resolution` 报 0 个未解析代码（同一护栏在第 348 轮对旧发布制品报的是 94 个）。独立交叉验证（不依赖护栏本身）：admin1 表 3,865 → 3,871 行（+6）、admin2 表 47,643 → 47,731 行（+88），增量正好等于第 348 轮测出的 6 + 88；`DE.03.00` 已出现在 `admin2Codes.txt`（grep 命中 1 次）。本轮没有任何 P0-P2 新发现，是对已合并修复的端到端确认，clean_streak=1。残余：本次只跑了默认 display 变体的完整流程（其余 13 个变体共用同一份 levels 与同一个 admin 表生成路径），临时目录（约 2.2 GB）已在复验后清理。",
       "pr": null
+    },
+    {
+      "round": 350,
+      "timestamp": "2026-10-08T13:18:01+08:00",
+      "focus": "错误处理与网络健壮性（分页终止条件）",
+      "method": "M1 变异探针",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对 `scripts/set_asset_timezone.py::iter_assets` 做语义微改：把 `if not isinstance(total, int) and len(items) < SEARCH_PAGE_SIZE:` 简化成 `if not isinstance(total, int):`（`total` 一缺就停）。隔离字节码缓存跑**完整**套件：472 passed，全绿——`total` 缺失时的分页终止条件没有任何用例。既有 `test_iter_assets_reads_search_pages` 只覆盖带 `total: 2` 的路径。影响：该分支覆盖「代理/网关吞掉 total」或未来 Immich 版本不再返回 total 的情况；改坏后第一页之后的 asset 会被静默丢弃，dry-run 报的数字偏小，用户以为设置完了其实只处理了前 1000 张。修复：实现本来就正确，补用例——`test_iter_assets_pages_when_total_missing`（第一页满页且不带 total、第二页短页，断言请求页序 `[1, 2]` 且结果条数 = `SEARCH_PAGE_SIZE + 1`）。负向控制：改成 `if not isinstance(total, int):` 后新用例立即 AssertionError，恢复后通过。修复后 `make check` 473 passed（+1，覆盖率 88.27%），`ruff`/`mypy` 通过。PR #252 四项必需检查全绿后 squash 合并，main=491d247。",
+      "pr": "https://github.com/webees/immich-cn/pull/252"
     }
   ],
   "residual_risks": [
@@ -3768,7 +3778,10 @@
     "第 348 轮只处理 admin1/admin2 两张被 Immich 查找的表；`countryInfo.txt` 与 `ne_10m_admin_0_countries.geojson` 的引用完整性（例如地点国家码是否都在 countryInfo 里）本轮顺带核对为 0 差异，但没有固化成护栏",
     "第 349 轮的真实全量构建只覆盖默认 display 变体的完整流程；其余 13 个变体共用同一份 levels 与同一个 admin 表生成路径，但本轮没有逐个下载并复验它们的校验和",
     "第 349 轮的复验跑在本机 macOS（Python 3.14 环境里的 .venv），与 CI 的 Linux + Python 3.11/3.12/3.13 不完全同构；跨平台差异仍由 CI 的 Docker 冒烟与发布流水线覆盖",
-    "第 349 轮把 admin 表补齐后，data-format.md 的时点数字（如「二级有 33,661 条可比记录」）已经与最新构建不一致，需要在下一次发布后据实测更新文档"
+    "第 349 轮把 admin 表补齐后，data-format.md 的时点数字（如「二级有 33,661 条可比记录」）已经与最新构建不一致，需要在下一次发布后据实测更新文档",
+    "第 350 轮只覆盖了 `iter_assets` 的 `total` 缺失分支；同一脚本的其它边界（`assets` 非对象、`items` 非数组、`total` 为负数或小数、`batch_size` 上界、`_request` 的传输异常重试）仍没有专项用例",
+    "第 350 轮的用例构造了一整页 1000 条记录，只验证终止条件与条数，不验证内存占用；真实用户库上万张照片时的分页内存与请求次数没有实测",
+    "第 350 轮仍未对真实 Immich 数据库执行批量写入；工具的写入路径只有 MockTransport 覆盖，真实 API 兼容性（尤其 PATCH/PUT 回退）仍属未验证"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
