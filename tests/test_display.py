@@ -41,6 +41,18 @@ def test_normalize_level_removes_cjk_inner_spaces() -> None:
     assert normalize_level("New   York") == "New York"
 
 
+def test_normalize_level_keeps_space_next_to_non_cjk() -> None:
+    """只有两侧都是 CJK 时才去掉空格；中英混排的空格必须保留。
+
+    只测「株洲 市」区分不了「左侧是 CJK」与「两侧都是 CJK」，
+    会把「香港 Hong Kong」压成「香港Hong Kong」。
+    """
+    assert normalize_level("苏州市 A") == "苏州市 A"
+    assert normalize_level("香港 Hong Kong") == "香港 Hong Kong"
+    assert normalize_level("A 苏州市") == "A 苏州市"
+    assert normalize_level("苏州市 昆山市") == "苏州市昆山市"
+
+
 def test_pattern_keys_preserves_order() -> None:
     assert pattern_keys("{admin_3}-{admin_2}") == ("admin_3", "admin_2")
 
