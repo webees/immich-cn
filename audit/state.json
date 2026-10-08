@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 329,
+  "round": 330,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 210,
+    "findings": 211,
     "clean_rounds": 108,
     "p0": 0,
     "p1": 32,
-    "p2": 133,
+    "p2": 134,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M3 负向制品实验",
+  "last_method": "M8 资源与性能剖析",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3337,6 +3337,16 @@
       "severity": "P2",
       "evidence": "对 `scripts/check_artifacts.py` 的 `check_zip_members` / `check_zip_budget` 做 7 组负向实验（临时探针脚本，已删除）：控制组合法归档 0 错误（证明护栏不是无差别拒绝）；`geodata/../../etc/passwd`、`..\\\\..\\\\evil.txt`、`/etc/passwd`、`C:/Windows/system32/evil`、`S_IFLNK` 符号链接成员各自命中「路径越界 / 使用绝对路径 / 是符号链接」。但**同名重复成员未被拒绝**：构造含两个 `geodata/cities500.txt` 的归档，`check_zip_members` + `check_zip_budget` 返回 0 错误。实测三种消费方式对同一归档结果不一致——Python `ZipFile.read` 得到 `second`（取最后一个），`unzip -p` 得到 `first\\nsecond`（两个成员首尾拼接），`unzip -o` 解压得到 `second`（覆盖）。即「校验器看到的内容」与「解压后生效的内容」可能不同源，`unzip -p` 这条常见读取路径会直接产出损坏文件而校验完全看不到。修复：`check_zip_members` 记录归一化成员名并在重复时报「含同名重复归档成员」；新增 `test_check_artifacts_rejects_zip_duplicate_member`（构造时用 `warnings.catch_warnings` 屏蔽 zipfile 自身的 Duplicate name 告警）。负向控制：移除新增判断后该用例立即 `AssertionError: assert False`，恢复后通过；`scripts/check_artifacts.py dist` 真实 15 包 18 校验和仍通过；`make check` 457 passed（+1）。PR #237 四项必需检查全绿后 squash 合并，main=ce20dcf。",
       "pr": "https://github.com/webees/immich-cn/pull/237"
+    },
+    {
+      "round": 330,
+      "timestamp": "2026-10-08T09:01:19+08:00",
+      "focus": "性能与资源（重复计算、可流式化）",
+      "method": "M8 资源与性能剖析",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "剖析发布门禁 `scripts/check_artifacts.py`：`sha256_file` 在一次运行里对同一文件重复计算——`manifest.artifacts` 调 `_check_file_entry` 一次、`manifest.assets` 再调一次、`check_checksums` 第三次。用 spy 计数本地 `dist/`：49 次调用 / 18 个唯一文件；用真实 `auto-release` manifest 的 `sizeBytes` 换算：17 个文件共 615,536,981 字节，当前读取 1,765,845,860 字节（≈2.87 倍），冗余 65%（约 1.15 GB）。修复：`sha256_file` 增加按「路径 + mtime_ns + size」索引的 `_DIGEST_CACHE`，命中即复用；缓存只减少字节读取，不改变任何比较结果（每项检查仍各自把自己的期望值与摘要比对）。修复后实际计算摘要 18 次（=唯一文件数），本地 dist 校验仍为 15 包 18 校验和通过。负向控制：把缓存键改成 `(path, 0, 0)`（只按路径缓存）后，新用例 `test_check_artifacts_sha256_cache_invalidates_on_change` 立即 AssertionError，证明该用例不是恒真；恢复后通过。该用例同时覆盖「长度变化」与「同长度改内容 + 显式 utime」两条失效路径。`make check` 458 passed（+1）、`make audit-dead-symbols` 通过。PR #238 四项必需检查全绿后 squash 合并，main=ea11ac0。",
+      "pr": "https://github.com/webees/immich-cn/pull/238"
     }
   ],
   "residual_risks": [
@@ -3525,7 +3535,9 @@
     "第 328 轮抽样来自滚动 `auto-release`（内容 2026-10-08 生成），不是不可变 `data-*` 快照；滚动发布后续会被新构建覆盖，样本不能当作长期黄金基准，需要固定基准时应改用 `data-*` 快照或把样本写进测试夹具",
     "第 328 轮只核对了 CN/HK/TW/MO/JP/US 六个地区的空名与繁体残留，其余约 250 个国家的展示名仍没有抽样；「任意重复词」启发式被证伪为假阳性后，没有把「相邻层级去重」固化成 make 目标，后续仍靠人工判断",
     "第 329 轮只把「同名重复成员」补进 `check_zip_members`；归档层的其它歧义仍未覆盖——大小写冲突名（`Cities500.txt` vs `cities500.txt`，Windows/macOS 解压会互相覆盖）、NFC/NFD 归一化冲突、以及成员名含控制字符的情况都没有用例，也未在真实制品上验证",
-    "第 329 轮的负向实验是直接在 `check_zip_members`/`check_zip_budget` 上调用，没有构造完整 dist 走 `check_zips` 全链路（新测试用 `_make_dist` 补了这条，但探针脚本本身未走完整校验路径）"
+    "第 329 轮的负向实验是直接在 `check_zip_members`/`check_zip_budget` 上调用，没有构造完整 dist 走 `check_zips` 全链路（新测试用 `_make_dist` 补了这条，但探针脚本本身未走完整校验路径）",
+    "第 330 轮的 65% 冗余比例由真实 `auto-release` manifest 的 `sizeBytes` 换算得出，不是对 615 MB 制品实测挂钟时间；`_DIGEST_CACHE` 是进程内缓存，长时间常驻进程（例如把它当库反复调用）会持续增长，当前用法是短生命周期脚本所以未加淘汰",
+    "第 330 轮只消除了 `check_artifacts` 内部的重复哈希；构建侧 `packaging.py` 与 `check_artifacts` 之间、以及 CI 里 `check_artifacts` 与 `cosign`/Trivy 之间是否对同一制品重复读取，本轮没有跨进程测量"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
