@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 341,
+  "round": 342,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 219,
+    "findings": 220,
     "clean_rounds": 111,
     "p0": 0,
     "p1": 33,
-    "p2": 141,
+    "p2": 142,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3457,6 +3457,16 @@
       "severity": "P2",
       "evidence": "对 `src/immich_cn/display.py` 的 `normalize_level` 做语义微改：删掉右侧判定 `and _is_cjk(collapsed[index + 1])`，只保留「左侧是 CJK」。隔离字节码缓存跑**完整**套件：464 passed，全绿——「左侧是 CJK」与「两侧都是 CJK」这两种语义没有被任何用例区分开。实测差异：`normalize_level('苏州市 A')` 由 `'苏州市 A'` 变成 `'苏州市A'`，`normalize_level('香港 Hong Kong')` 由 `'香港 Hong Kong'` 变成 `'香港Hong Kong'`。现有唯一相关用例是 `normalize_level('株洲\\u3000市')`（两侧都是 CJK），对该变异无感；`test_compose_matches_reference_implementation` 也拦不住，因为参考实现同样调用 `normalize_level`，两边一起变仍逐字节一致。影响：中英混排地名会被压成没有分隔的字符串并直接进入 geodata 展示名。修复：实现本来就正确，补边界用例——`tests/test_display.py` 新增 `test_normalize_level_keeps_space_next_to_non_cjk`，覆盖「CJK 空格 ASCII」「ASCII 空格 CJK」「CJK 空格 CJK」三种组合。负向控制：删掉右侧判定后新用例立即 `AssertionError: 苏州市A`，恢复后通过。修复后 `make check` 465 passed（+1），`ruff`/`mypy` 通过。PR #246 四项必需检查全绿后 squash 合并，main=7f32823。",
       "pr": "https://github.com/webees/immich-cn/pull/246"
+    },
+    {
+      "round": 342,
+      "timestamp": "2026-10-08T11:12:24+08:00",
+      "focus": "校验与阈值（cities500 列宽接受侧边界）",
+      "method": "M2 阈值反演",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对 `src/immich_cn/validation.py:303-308` 的三处列宽上限做阈值反演：`len(fields[1]) > NAME_MAX_CHARS`（200）、`len(fields[10]) > ADMIN1_CODE_MAX_CHARS`（20）、`len(fields[11]) > ADMIN2_CODE_MAX_CHARS`（80）。现有 `test_invalid_immich_column_values_are_rejected` 只覆盖「超一格被拒」（201/21/81），没有钉住「正好等于上限必须通过」。变异探针确认：把三处 `>` 都改成 `>=` 后，隔离字节码缓存跑**完整**套件：465 passed，全绿——接受侧边界零覆盖。影响：`geodata_places` 的列就是 `varchar(200)`/`varchar(20)`/`varchar(80)`，满长记录合法；`>=` 会把它们误判成违规，构建在发布前直接失败（false rejection），而测试不会报警。修复：实现本来就正确，补接受侧用例——`tests/test_validation.py` 新增 `test_immich_column_values_at_limit_are_accepted`（三个参数化用例分别把 US 记录的 name/admin1Code/admin2Code 设成正好等于上限，断言 `cities500-immich-columns` 不在失败集合），并从 `immich_cn.validation` 导入三个上限常量避免重复抄数字。负向控制：三处改回 `>=` 后三个新用例全部 FAILED，恢复后通过。修复后 `make check` 468 passed（+3），`ruff`/`mypy` 通过。PR #247 四项必需检查全绿后 squash 合并，main=ad53690。",
+      "pr": "https://github.com/webees/immich-cn/pull/247"
     }
   ],
   "residual_risks": [
@@ -3670,7 +3680,9 @@
     "第 340 轮把缓存加在 `fetching.sha256_file` 上，`scripts/check_artifacts.py` 仍保留第 330 轮那份独立实现（避免给发布门禁脚本引入 HTTP 依赖），两处逻辑现在靠注释而不是代码共享来保持一致，后续改动需要同步",
     "第 340 轮只测了合成数据下的调用次数；真实 131 万级构建里 `levels` 字典与 alternate-names 索引的内存占用、以及 14 个变体各自重读 cities500/extra_all 的 I/O 成本没有在本轮测量（本轮测的打包耗时为 0.13s，来自 10 行合成数据，不可外推）",
     "第 341 轮只钉住了 `normalize_level` 的「空格两侧都要 CJK」这一条；同一函数还有两处边界没被用例区分——`0 < index < len(collapsed) - 1` 的首尾保护（`split()` 后首尾不会是空格，目前等价）与 `_CJK_RANGES` 里扩展 A 区（3400–4dbf）是否被纳入判定",
-    "第 341 轮未在真实 geodata 上统计「中英混排层级名」的实际条数；如果这类名字根本不存在，则该分支只有防御价值，需要按真实数据量决定是否继续投入"
+    "第 341 轮未在真实 geodata 上统计「中英混排层级名」的实际条数；如果这类名字根本不存在，则该分支只有防御价值，需要按真实数据量决定是否继续投入",
+    "第 342 轮只反演了 cities500 的三处列宽上限；同一函数里 `len(fields[8]) != 2` 的 countryCode 等号边界（已由既有用例覆盖 1/3 字符）与坐标范围 `-90/90`、`-180/180` 的接受侧边界没有在本轮逐一反演",
+    "第 342 轮的接受侧用例只断言 `cities500-immich-columns` 不在失败集合里，没有断言其它检查项也不受影响（把 admin1Code 改成 20 个 x 会改变层级解析）；这是刻意的窄断言，但也意味着该用例不能替代整体构建校验"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
