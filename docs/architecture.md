@@ -111,7 +111,7 @@
 | 场景 | `build` | `release` | 期望行为 |
 |:--|:--|:--|:--|
 | 构建失败 | ✗ | 跳过 | 创建/更新 `automation` 议题告警 |
-| 上游无变化 | ✓ | 跳过 | `no-change` 记录摘要；关闭既有告警 |
+| 上游无变化 | ✓ | 跳过 | `no-change` 记录摘要；摘要成功时关闭既有告警，摘要失败时保留告警 |
 | 有变化且发布成功 | ✓ | ✓ | 发布与推送镜像；关闭既有告警 |
 | 有变化但发布失败 | ✓ | ✗ | **保留告警**（此时若关闭，会把刚创建的告警立刻关掉） |
 
@@ -119,7 +119,7 @@
 
 日期快照 `data-YYYY-MM-DD` 只代表当日第一次成功发布，不接受覆盖；同日因构建逻辑或上游数据再次变化而重跑时，会创建 `data-YYYY-MM-DD-sha-<短提交>`；在 GitHub 权限和仓库规则未被绕过的前提下，已创建的日期快照不会被覆盖。
 
-`resolve-previous-failure` 的条件因此必须同时判断 `build` 与 `release` 的结果； `scripts/check_workflows.py` 会静态检查"用 `if` 判断依赖结果时是否遗漏了某个依赖"。
+`resolve-previous-failure` 的条件因此必须同时判断 `build`、`release` 与 `no-change` 的结果；`scripts/check_workflows.py` 会静态检查"用 `if` 判断依赖结果时是否遗漏了某个依赖"。
 
 ## 地名组合规则
 

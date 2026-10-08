@@ -1461,8 +1461,22 @@ def test_check_workflows_rejects_always_for_dependency_guard(repo_copy: Path) ->
     mutate(
         workflow,
         "    if: ${{ !cancelled() && needs.build.result == 'success' && "
-        "(needs.release.result == 'success' || needs.release.result == 'skipped') }}",
+        "(needs.release.result == 'success' || needs.release.result == 'skipped') && "
+        "(needs.no-change.result == 'success' || needs.no-change.result == 'skipped') }}",
         "    if: ${{ always() }}",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "只判断了部分依赖" in result.stdout
+
+
+def test_check_workflows_rejects_incomplete_no_change_resolution_guard(repo_copy: Path) -> None:
+    """no-change 失败时不能关闭既有告警。"""
+    workflow = repo_copy / ".github" / "workflows" / "update-data.yml"
+    mutate(
+        workflow,
+        " && (needs.no-change.result == 'success' || needs.no-change.result == 'skipped')",
+        "",
     )
     result = run_checker(repo_copy, "check_workflows.py")
     assert result.returncode == 1
