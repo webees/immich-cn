@@ -29,6 +29,7 @@ from immich_cn.pipeline import (
     BuildResult,
     cleanup_removable,
     display_name,
+    is_fine_grained,
     iter_output_places,
     load_levels,
     write_pattern_rows,
@@ -168,9 +169,10 @@ def _write_variant(
                     place = type(place)(columns=list(place.columns))
                     place.columns[1] = name
                     place.columns[2] = name
-                # 上游缺中文别名时会把英文原名透传；这类值会让 {admin_3}/{admin_4} 变体
-                # 显示英文地名（2026-10-07 实测 7~8 行），必须在打包阶段拦下而不是发布。
-                if place.country_code in CHINESE_OUTPUT_REGIONS and not has_cjk(place.columns[1]):
+                # 默认范围内的地名必须有中文；full 额外包含人口为 0 的边境山峰、
+                # 冰川和无中文别名的自然要素，不能把这些真实上游原名当成发布缺陷。
+                strict = not variant.full or place.population >= options.min_population or is_fine_grained(place)
+                if strict and place.country_code in CHINESE_OUTPUT_REGIONS and not has_cjk(place.columns[1]):
                     untranslated += 1
                     if len(untranslated_samples) < 5:
                         untranslated_samples.append(f"{place.country_code}:{place.geoname_id}={place.columns[1]}")

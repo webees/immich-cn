@@ -1220,7 +1220,7 @@ def check_adm4_coverage_wording(paths: list[Path], errors: list[str]) -> None:
     """ADM4 的表述必须区分「要素数量」与「带 admin4 代码的数量」。
 
     GeoNames 是滚动数据，要素数量和代码覆盖都会变化；文档应说明四级回退取决于当前
-    `admin3`/`admin4` 代码与匹配策略，而不是写死某一批数据的计数。
+    行政代码与匹配策略，而不是写死某一批数据的计数。
     """
     claims = 0
     for path in paths:

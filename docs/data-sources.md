@@ -9,7 +9,7 @@
 | `admin2Codes.txt` | GeoNames | CC BY 4.0 | 二级行政区代码表 |
 | `countryInfo.txt` | GeoNames | CC BY 4.0 | 国家名称与元数据 |
 | `alternateNamesV2.zip` | GeoNames | CC BY 4.0 | 中文别名来源 |
-| `{CC}.zip`（CN/HK/TW/MO/JP） | GeoNames | CC BY 4.0 | 国家数据转储，用于补充点位与 `ADM3`/`ADM4` |
+| `{CC}.zip`（CN/HK/TW/MO/JP） | GeoNames | CC BY 4.0 | 国家数据转储，用于补充点位与 `ADM2`/`ADM2H`/`ADM3`/`ADM4` |
 | `ne_10m_admin_0_countries.geojson` | Natural Earth v5.1.2 | 公有领域 | 国家边界回退 |
 | `i18n-iso-countries@7.0.0` | npm | MIT | 国家名称中文覆盖（Immich 1.136.0 ~ 3.2.x） |
 
@@ -36,17 +36,17 @@ CI 中 `.cache/immich-cn` 由 `actions/cache` 缓存，配合条件校验，每�
 1. 过滤 `cities500.txt`：丢弃缺少有效一级行政区代码的噪声记录（`SG`、`VA` 除外）；
 2. 扫描各国家数据转储，把不在 `cities500` 中、且 GeoNames ID 与经纬度都未出现过的记录写入 `extra_all.txt`；
 3. `extra_all.txt` 是完整与非完整变体的超集，非完整变体打包时按人口阈值过滤；
-4. 顺带从国家数据转储中抽取 `ADM3`/`ADM4` 要素，构造 `CC.A1.A2[.A3[.A4]]` 形式的行政区代码表。
+4. 顺带从国家数据转储中抽取 `ADM2`/`ADM2H`/`ADM3`/`ADM4` 要素，构造 `CC.A1.A2[.A3[.A4]]` 形式的行政区代码表。
 
-> 第 4 步是本项目不依赖付费 API 也能给出区县、乡镇粒度的关键：GeoNames 只发布 admin1/admin2 的代码表，但各国全量数据中包含部分 `ADM3`/`ADM4` 记录与代码，覆盖程度因国家而异。
+> 第 4 步是本项目不依赖付费 API 也能给出区县、乡镇粒度的关键：GeoNames 发布 admin1/admin2 代码表，但个别 admin2 代码以及大量 `ADM3`/`ADM4` 记录只存在于国家全量数据，覆盖程度因国家而异。
 
-实际覆盖情况随 GeoNames 滚动数据变化：国家数据转储包含 `ADM3`/`ADM4` 记录，但是否进入 `{admin_4}` 变体取决于当前记录中的 `admin3`/`admin4` 代码与匹配策略。默认 `{admin_4}` 变体可能回退到区县；如果必须精确到乡镇，请配置 `AMAP_API_KEY` 并使用 `--provider amap`；此时高德会补齐乡镇层级，其余国家与地区仍由 GeoNames 与 Nominatim 负责。
+实际覆盖情况随 GeoNames 滚动数据变化：国家数据转储包含 `ADM2`/`ADM2H`/`ADM3`/`ADM4` 记录，但是否进入对应变体取决于当前记录中的行政代码与匹配策略。默认 `{admin_4}` 变体可能回退到区县；如果必须精确到乡镇，请配置 `AMAP_API_KEY` 并使用 `--provider amap`；此时高德会补齐乡镇层级，其余国家与地区仍由 GeoNames 与 Nominatim 负责。
 
 ### 3. 中文索引
 
 `alternateNamesV2.txt` 有上千万行，直接全量加载既慢又占内存，因此：
 
-1. 先收集本次构建真正需要的 GeoNames ID（地点、行政区、`ADM3`/`ADM4`）；
+1. 先收集本次构建真正需要的 GeoNames ID（地点、行政区、`ADM2`/`ADM2H`/`ADM3`/`ADM4`）；
 2. 单次流式扫描 `alternateNamesV2.txt`，只保留命中的记录；
 3. 按语言优先级选择名称：
 

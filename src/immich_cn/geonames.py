@@ -22,7 +22,7 @@ from immich_cn.logging_config import get_logger
 logger = get_logger("geonames")
 
 #: 我们会从国家全量 dump 中抽取的行政级别 feature code 及其层级。
-ADMIN_FEATURE_LEVELS: dict[str, int] = {"ADM3": 3, "ADM4": 4}
+ADMIN_FEATURE_LEVELS: dict[str, int] = {"ADM2": 2, "ADM2H": 2, "ADM3": 3, "ADM4": 4}
 
 
 def read_admin_codes(path: Path) -> dict[str, AdminEntry]:
@@ -69,13 +69,13 @@ class AdminUnit:
 
 
 def build_admin_units(paths: Iterable[Path]) -> dict[int, dict[str, AdminUnit]]:
-    """从国家 dump 中抽取 ADM3/ADM4 记录，构造代码到行政单元的映射。
+    """从国家 dump 中抽取 ADM2/ADM3/ADM4 记录，构造代码到行政单元的映射。
 
     GeoNames 只发布 admin1/admin2 的代码表，admin3/admin4 需要自行从各国家
-    全量数据中的 ``ADM3`` / ``ADM4`` 要素抽取，这也是本项目不依赖付费 API
-    也能给出区县、乡镇粒度的原因。
+    全量数据中的要素抽取；部分 admin2 代码也不在代码表中，同样从 ``ADM2``
+    记录补齐。这也是本项目不依赖付费 API 也能给出区县、乡镇粒度的原因。
     """
-    tables: dict[int, dict[str, AdminUnit]] = {3: {}, 4: {}}
+    tables: dict[int, dict[str, AdminUnit]] = {2: {}, 3: {}, 4: {}}
     for path in paths:
         if not path.exists():
             continue
@@ -91,7 +91,13 @@ def build_admin_units(paths: Iterable[Path]) -> dict[int, dict[str, AdminUnit]]:
                 name=place.columns[IDX_NAME],
                 alternate_names=tuple(place.alternate_names),
             )
-        logger.info("从 %s 抽取 admin3/admin4 记录后累计：%d / %d", path.name, len(tables[3]), len(tables[4]))
+        logger.info(
+            "从 %s 抽取 admin2/admin3/admin4 记录后累计：%d / %d / %d",
+            path.name,
+            len(tables[2]),
+            len(tables[3]),
+            len(tables[4]),
+        )
     return tables
 
 
