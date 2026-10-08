@@ -72,6 +72,16 @@ def test_resolve_artifact_rejects_missing_or_ambiguous_selectors() -> None:
         resolve_artifact(manifest(), profile="admin4", scope="default")
 
 
+def test_resolve_artifact_rejects_multiple_matches() -> None:
+    payload = manifest()
+    first = payload["artifacts"][0]
+    assert isinstance(first, dict)
+    payload["artifacts"] = [first, dict(first)]
+
+    with pytest.raises(ConfigError, match="多个"):
+        resolve_artifact(payload, profile="admin2", scope="default")
+
+
 def test_cli_artifact_resolve(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     path = tmp_path / "immich-cn-manifest-json-v1.json"
     path.write_text(json.dumps(manifest(), ensure_ascii=False), encoding="utf-8")
