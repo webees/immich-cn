@@ -71,10 +71,10 @@ def iter_assets(client: httpx.Client) -> Iterator[dict[str, Any]]:
         )
         block = payload.get("assets")
         if not isinstance(block, dict):
-            raise ValueError("Immich search response 缺少 assets 对象")
+            raise RuntimeError("Immich search response 缺少 assets 对象")
         items = block.get("items")
         if not isinstance(items, list):
-            raise ValueError("Immich search response 缺少 assets.items")
+            raise RuntimeError("Immich search response 缺少 assets.items")
         for item in items:
             if isinstance(item, dict):
                 seen += 1
