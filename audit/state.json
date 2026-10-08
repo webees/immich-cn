@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 421,
-  "consecutive_clean": 0,
+  "round": 422,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 254,
-    "clean_rounds": 156,
+    "clean_rounds": 157,
     "p0": 0,
     "p1": 34,
     "p2": 175,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4268,9 +4268,20 @@
       "severity": "P2",
       "evidence": "对 `artifact_spec.py::resolve_artifact` 移除多匹配检查后，完整 `pytest` 仍全绿，说明错误分支没有回归覆盖。新增 `test_resolve_artifact_rejects_multiple_matches`：profile/scope 命中两个 canonical artifact 时必须抛 `ConfigError`，变异副本会失败。验证：`make check` 504 passed、覆盖率 88.83%；PR #285 四项必需检查全绿后 squash 合并，main=4502727。",
       "pr": "https://github.com/webees/immich-cn/pull/285"
+    },
+    {
+      "round": 422,
+      "timestamp": "2026-10-09T18:45:00+08:00",
+      "focus": "校验与阈值（恒真检查、阈值误判、边界翻转）",
+      "method": "M2 阈值反演",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对 `scripts/check_artifacts.py::_is_sha256` 做长度与字符边界反演：63 位与 65 位十六进制字符串均拒绝，64 位通过，64 位含非十六进制字符 `g` 拒绝。检查清单：已覆盖 64 位长度边界与字符集边界；未对 checksums 文件的重复条目和 manifest 字段组合做同等反演。`pytest -q tests/test_checkers.py -k 'sha256 or checksum'` 4 passed。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 422 轮只反演了 SHA256 字符串的长度与字符集；checksums 条目格式、重复项和 manifest 字段组合仍由其它定向测试覆盖，未在本轮全部重放",
     "第 421 轮只补了 `resolve_artifact` 的多匹配分支；其它错误路径（非法 artifactSpecVersion、空 artifacts、非对象条目）已有覆盖但未在同一轮重新变异",
     "第 420 轮的 ctime 失效依赖当前 POSIX 文件系统语义；在不更新 ctime 的平台或文件系统上，仍需避免在校验过程中修改制品",
     "第 420 轮只验证了单进程内的摘要缓存失效；并发写入或校验期间替换整个文件仍需要上层发布流程保证制品不可变",
