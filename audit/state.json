@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 398,
-  "consecutive_clean": 0,
+  "round": 399,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 245,
-    "clean_rounds": 142,
+    "clean_rounds": 143,
     "p0": 0,
     "p1": 33,
     "p2": 167,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M8 资源与性能剖析",
+  "last_method": "M9 文档-实现逐条核对",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4027,9 +4027,21 @@
       "severity": "P2",
       "evidence": "`src/immich_cn/dataset.py::_create_database` 原先用 `_load_places` 把 1,318,830 条地点全部载入列表并排序，再构造 places/place_names 两份插入列表；真实数据 `write_canonical_dataset` 峰值 RSS 2,224,324,608 字节、耗时 33.11s。改为 `_iter_places` 两遍流式读取：第一遍写 places 并收集 admin_areas，第二遍写 place_names；峰值 RSS 616,579,072 字节（下降 72.3%）、耗时 34.40s。修复前后按主键排序逐表哈希一致：places 1,318,830、place_names 1,318,830、admin_areas 131,602、countries 252；`make check` 494 passed、覆盖率 88.74%，`make smoke` 通过。PR #276 四项必需检查全绿后 squash 合并，main=f375410。",
       "pr": "https://github.com/webees/immich-cn/pull/276"
+    },
+    {
+      "round": 399,
+      "timestamp": "2026-10-09T03:20:00+08:00",
+      "focus": "安全（zip slip、注入、密钥泄漏、供应链、权限）",
+      "method": "M9 文档-实现逐条核对",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对 `SECURITY.md` 的供应链声明做实现核对：`check_docs.py` 通过（15 个文档、56 个实现文件），`check_workflows.py` 通过（6 个工作流），`check_action_pins.py` 通过（25 个固定 Action 与上游 tag 一致）；`actions/checkout` 的 `persist-credentials: false`、最小权限声明和 OIDC 签名路径均由实现或工作流原文覆盖。对抗控制：在临时副本删除 `SECURITY.md` 中的 `urllib` 传输说明后，`check_docs.py` 立即以退出码 1 报“未说明 Python 脚本使用 urllib 访问 GitHub API”，证明该护栏不是恒真。检查清单：已核对安全策略、工作流权限、Action pin 与 GitHub API 传输方式；未重复执行完整 Docker 发布链。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 399 轮的对抗控制只覆盖 `SECURITY.md` 的 GitHub API 传输说明；策略中“Trivy 阻断范围”“Cosign 签名”“checkout 不持久化凭据”等声明由工作流契约与真实发布链分别覆盖，本轮没有重新运行完整发布链",
+    "第 399 轮的 Action pin 校验依赖 GitHub API 网络访问；本次通过，但网络、限流或上游仓库状态仍可能造成环境性失败",
     "第 398 轮的内存与耗时数字来自 macOS / Python 3.14 与已有 131 万条真实地点文件，未在 CI 的 Python 3.11-3.13 或 GitHub runner 上重复测量；实现路径相同，但平台内存统计不可直接横向比较",
     "第 398 轮改为按 cities500、extra 的输入顺序流式写入，`places` 的默认物理行序不再按 geoname_id 排序；文档没有承诺默认查询顺序，但若外部消费者依赖未声明的 SELECT 顺序，需要显式 ORDER BY",
     "第 397 轮只验证了 HTTP 200 返回非 JSON 文本；`response.json()` 返回合法 JSON 但非对象时仍会进入后续裸 `ValueError`，本轮未覆盖",
