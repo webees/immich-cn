@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 382,
-  "consecutive_clean": 0,
+  "round": 383,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 238,
-    "clean_rounds": 133,
+    "clean_rounds": 134,
     "p0": 0,
     "p1": 33,
     "p2": 160,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M2 阈值反演",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3867,6 +3867,16 @@
       "severity": "P2",
       "evidence": "`check_update_freshness.evaluate_freshness` 用 `age > stall_grace` 判断停摆，语义与 `max_age` 一致：恰好命中阈值仍放行。变异探针把 `>` 改为 `>=`，完整测试仍为 489 passed，说明该边界没有护栏。修复：新增 `test_attempt_exactly_at_stall_grace_is_not_stalled`，构造运行恰好 3 小时、同时存在新鲜成功与定时触发记录的输入，要求 state=ok。负向控制：再次注入 `>=` 后新用例立即失败（state 变为 stalled），恢复后 `make check` 全绿（490 passed、覆盖率 88.44%、ruff/mypy/docs/workflows/shell 通过）。PR #269 四项必需检查全绿后 squash 合并，main=7783fad。",
       "pr": "https://github.com/webees/immich-cn/pull/269"
+    },
+    {
+      "round": 383,
+      "timestamp": "2026-10-09T03:15:00+08:00",
+      "focus": "死代码与未使用配置（含只写不读的变量）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "`python -m scripts.check_dead_symbols` 通过，0 个零引用模块级定义；对 Dockerfile/env、Makefile 与 Python 环境变量读取点做人工核对，未发现新的未消费生产配置，`IMMICH_CN_DATA_DATE` 仅作为镜像内只读元信息暴露。对抗控制：向 `src/immich_cn/rate_limit.py` 注入未使用的 `ROUND383_UNUSED = 1`，扫描器立即报出 `src/immich_cn/rate_limit.py:10 ROUND383_UNUSED` 并 exit 1；移除后重新扫描通过。`make check` 全绿：490 passed、覆盖率 88.44%、ruff/mypy/docs/workflows/shell 通过，`git status` 与 `git diff` 为空。检查清单：已做模块级定义扫描与配置引用核对；未逐一复核所有 dataclass 字段的写读关系。本轮未发现 P0-P2 问题，clean_streak=4。残余风险：名字级扫描无法发现只写不读字段或仅由外部字符串消费的配置。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -4153,6 +4163,7 @@
     "第 380 轮只测量了单个真实地理数据资产的 zip 完整性检查；19 个资产的整批校验、规范数据集 SQLite 校验和真实全量构建的内存峰值仍未在同一轮测量",
     "第 381 轮只变异了 `normalize_level` 的空白折叠；`slugify`/`profile_id` 的空 keys 分支、`compose` 的异常渲染分支与 display 模块的其他边界仍未在本轮逐一验证",
     "第 382 轮只锁定了 `stall_grace` 的恰好命中边界；`max_age` 的其他边界、`schedule_stalled` 的精确阈值与运行状态组合没有在本轮重新反演",
+    "第 383 轮的死代码扫描仍是名字级文本匹配；`IMMICH_CN_DATA_DATE` 目前只作为 Docker 环境元信息暴露，不能证明外部消费者的读取方式，也未做 dataclass 字段写读探针",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
