@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 338,
-  "consecutive_clean": 1,
+  "round": 339,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 216,
+    "findings": 217,
     "clean_rounds": 111,
     "p0": 0,
     "p1": 33,
-    "p2": 138,
+    "p2": 139,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M5 真实数据抽样",
+  "last_method": "M3 负向制品实验",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3427,6 +3427,16 @@
       "severity": null,
       "evidence": "补上第 249 轮遗留的「跨制品只比对 admin1/admin2」缺口：下载真实 `immich-cn-dataset-sqlite-v1.zip`（74 MB）与 `immich-cn-geodata-admin2-admin3-admin4-default-v1.zip`（20 MB），把规范数据集里 1,318,862 条 `place_names` 读成 levels 字典，对适配器 `geodata/cities500.txt` **全部 256,658 行**用 `display.compose('{admin_2} {admin_3} {admin_4}', levels)` 独立重算展示名并与第 1 列（0 基）比对：数据集缺该 ID 0 行、展示名不一致 0 行。即适配器的展示名可以逐行由规范数据集复现，两条制品链路没有漂移。负向控制：在内存里把 `geoname_id=1804647`（昆山市）的 `admin_3` 改成 `昆山市X`，比对立刻报 1 处不一致（适配器 `苏州市 昆山市` vs 重算 `苏州市 昆山市X 昆山市`）并 exit 1，证明该比对不是恒真。本轮未发现 P0-P2 问题，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 339,
+      "timestamp": "2026-10-08T10:34:35+08:00",
+      "focus": "供应链与 workflow 假通过（continue-on-error）",
+      "method": "M3 负向制品实验",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "先做供应链快照（`main=966d053`）：全部 6 个工作流 `continue-on-error` 出现 0 次；`|| true` 只出现在 fail-safe 位置——`gh label create`（幂等）、`docker image prune`/`docker rm`/`docker logs`（best-effort）、以及 `_build-data.yml:178/207` 的 fingerprint 调用（失败得到空串，而变更判定在 217-222 行要求 `[ -n \"$previous\" ]` 且 base digest / data image digest / Release 资产 / 快照四项全等，任一缺失都会退化为 `changed=true` 强制发布，不是静默跳过）。Trivy 用 `status=1` + `exit \"$status\"` 真正阻断；Cosign 签名与 `cosign verify` 都在 `set -euo pipefail` 下无 `|| true`；版本标签只在签名校验之后的步骤追加。随后做负向实验：把 `continue-on-error: true` 加到 `_build-data.yml` 的「安装 cosign」步骤（发布链路安全步骤）上，`check_workflows.py` **返回 0**，没有任何护栏能发现——这正是 objective 第 0.1 条禁止的「让 CI 变绿而不修问题」。修复：`check_workflows.py` 新增 `check_continue_on_error()`，检查每个 job 与每个 step，命中即报精确位置（如 `build/step#23`）并指向 `CONTINUE_ON_ERROR_ALLOWED`（当前为空，要求注明原因，与 `check_dead_symbols.ALLOWED` 同构）；docstring 护栏清单补第 8 条；`tests/test_checkers.py` 新增 `test_check_workflows_detects_continue_on_error`。验证：注入后新护栏报「使用 continue-on-error=True，会让失败的门禁显示为绿色」并 exit 1；注释掉 `check_continue_on_error` 调用后新用例立即 AssertionError；当前树 6 个工作流全部通过。`make check` 463 passed（+1），`ruff`/`mypy` 通过。PR #244 四项必需检查全绿后 squash 合并，main=c24a552。",
+      "pr": "https://github.com/webees/immich-cn/pull/244"
     }
   ],
   "residual_risks": [
@@ -3633,7 +3643,9 @@
     "第 337 轮只覆盖了 429 这一条重试状态；`_RETRY_STATUS` 里其余六个状态码、以及非 HTTPStatusError 的 httpx 异常（ReadTimeout/ConnectError）路径没有逐一驱动真实重试循环，集合内其它成员的增删仍可能静默通过",
     "第 337 轮的用例把 `retry-after` 设成 `0` 以避免真实等待，因此没有端到端验证「按 Retry-After 实际等待」；退避秒数本身由独立用例覆盖，但两者拼接后的行为只有这一条路径",
     "第 338 轮的跨制品重算只覆盖 `{admin_2} {admin_3} {admin_4}` 一种 pattern 与 default 规模；其余 6 种 pattern、full 规模变体、以及 `admin1CodesASCII.txt`/`admin2Codes.txt`/`countryInfo.txt` 三个附件没有做同样的逐行重算",
-    "第 338 轮的探针脚本是一次性的、未固化为 make 目标，也没有进入 CI；跨制品重算目前仍靠人工在审计轮次里重跑，制品增长后不会自动复验"
+    "第 338 轮的探针脚本是一次性的、未固化为 make 目标，也没有进入 CI；跨制品重算目前仍靠人工在审计轮次里重跑，制品增长后不会自动复验",
+    "第 339 轮新增的 continue-on-error 护栏只检查显式字段值；`if: always()` 配合把失败写进日志而不 exit 的写法、`set +e`、以及把命令包进 `bash -c '... || true'` 仍能绕过该规则，需要按同类假通过模式在后续轮次评估",
+    "第 339 轮仍未把 release.yml 的 `secrets: inherit`（zizmor 旧提示）收窄为显式 `secrets:` 列表；当前 release.yml 只由 workflow_dispatch 触发、_build-data.yml 只由 workflow_call 触发，外部 PR 无法触达，因此本轮按残余项记录而非缺陷"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
