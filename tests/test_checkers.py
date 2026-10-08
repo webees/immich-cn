@@ -204,6 +204,20 @@ def test_check_docs_detects_cli_flag_drift(repo_copy: Path) -> None:
     assert "--definitely-not-a-flag" in result.stdout
 
 
+def test_check_docs_detects_undocumented_cli_flag(repo_copy: Path) -> None:
+    """反向检查：实现里存在的 CLI 参数在文档中消失时必须报警。"""
+    development = repo_copy / "docs" / "development.md"
+    mutate(
+        development,
+        "| `--min-cn-ratio` | `0.90` | 仅 `verify`：中国记录的中文名称覆盖率下限 |\n",
+        "",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "文档未记录的 CLI 参数" in result.stdout
+    assert "--min-cn-ratio" in result.stdout
+
+
 def test_check_docs_detects_missing_notice_reference(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     licensing = repo_copy / "docs" / "licensing.md"
