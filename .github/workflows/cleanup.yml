@@ -18,6 +18,10 @@ on:
         description: 删除已有规范 v4 替代品的旧命名 Release 资产
         type: boolean
         default: false
+      prune-superseded-versions:
+        description: 删除已有四段式 Immich 对齐版本的 GHCR 三段式版本
+        type: boolean
+        default: false
       release-retention:
         description: 保留最近多少个 data-* Release 快照
         type: number
@@ -71,6 +75,7 @@ jobs:
           APPLY: ${{ github.event_name == 'schedule' || inputs.apply }}
           PRUNE_ALL: ${{ inputs.prune-all || false }}
           PRUNE_LEGACY_ASSETS: ${{ (github.event_name == 'schedule' && vars.PRUNE_LEGACY_ASSETS == 'true') || inputs.prune-legacy-assets || false }}
+          PRUNE_SUPERSEDED_VERSIONS: ${{ (github.event_name == 'schedule' && vars.PRUNE_SUPERSEDED_VERSIONS == 'true') || inputs.prune-superseded-versions || false }}
           RELEASE_RETENTION: ${{ inputs.release-retention || 3 }}
           RUN_RETENTION_DAYS: ${{ inputs.run-retention-days || 30 }}
           RUN_KEEP_PER_WORKFLOW: ${{ inputs.run-keep-per-workflow || 20 }}
@@ -91,6 +96,9 @@ jobs:
           fi
           if [ "$PRUNE_LEGACY_ASSETS" = "true" ]; then
             args+=(--prune-legacy-assets)
+          fi
+          if [ "$PRUNE_SUPERSEDED_VERSIONS" = "true" ]; then
+            args+=(--prune-superseded-versions)
           fi
           python scripts/cleanup.py "${args[@]}"
 
