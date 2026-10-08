@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 419,
-  "consecutive_clean": 2,
+  "round": 420,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 252,
+    "findings": 253,
     "clean_rounds": 156,
     "p0": 0,
     "p1": 34,
-    "p2": 173,
+    "p2": 174,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M9 文档-实现逐条核对",
+  "last_method": "M8 资源与性能剖析",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4247,9 +4247,22 @@
       "severity": null,
       "evidence": "对 `SECURITY.md` 与供应链实现逐条核对：`check_docs.py`、`check_workflows.py`、`check_shell.py` 均通过；`check_action_pins` 25 个 Action 固定引用全部与上游 tag 一致；密钥启发式扫描未发现字面量凭据，只命中环境变量名与测试假值。对抗控制：在临时副本删除 `SECURITY.md` 的 `urllib` 传输说明后，`check_docs.py` 立即以退出码 1 报“未说明 Python 脚本使用 urllib 访问 GitHub API”，证明该契约不是恒真。检查清单：已覆盖 Action pin、checkout 凭据、工作流权限、脚本传输方式与密钥模式扫描；未触发真实发布失败链。本轮未发现 P0-P2 问题，clean_streak=2。",
       "pr": null
+    },
+    {
+      "round": 420,
+      "timestamp": "2026-10-09T17:25:00+08:00",
+      "focus": "性能与资源（内存、磁盘、重复计算、可流式化）",
+      "method": "M8 资源与性能剖析",
+      "method_note": "轮换位次为 M10；本轮按 focus 审查摘要缓存的性能与失效边界。",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`scripts/check_artifacts.py` 的 SHA256 缓存只用路径、mtime 与大小作键。对抗实验：先校验 manifest，再把制品改成同长度内容并恢复原 mtime，`check_checksums` 复用旧摘要并错误通过；修复为缓存键加入 `st_ctime_ns`，并把回归改成“同长度、同 mtime”修改。修复后同一实验报“checksums 与实际文件不符”。验证：`make check` 503 passed、覆盖率 88.78%；PR #284 四项必需检查全绿后 squash 合并，main=a46bac3。",
+      "pr": "https://github.com/webees/immich-cn/pull/284"
     }
   ],
   "residual_risks": [
+    "第 420 轮的 ctime 失效依赖当前 POSIX 文件系统语义；在不更新 ctime 的平台或文件系统上，仍需避免在校验过程中修改制品",
+    "第 420 轮只验证了单进程内的摘要缓存失效；并发写入或校验期间替换整个文件仍需要上层发布流程保证制品不可变",
     "第 419 轮只有 `urllib` 传输说明有机械文档护栏；Trivy 阻断范围、Cosign 签名与 checkout 凭据等声明由实现契约间接覆盖，仍可能发生文档与工作流同步漂移",
     "第 419 轮的密钥扫描是模式启发式，不能替代 GitHub secret scanning 的 provider 验证与历史对象扫描",
     "第 418 轮的内存反演只覆盖 `load_levels` 的字符串池，不覆盖打包、SQLite 写入和提供方增强的整链路峰值；完整构建仍需发布流水线或后续审计覆盖",
