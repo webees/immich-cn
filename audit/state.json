@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 369,
-  "consecutive_clean": 3,
+  "round": 370,
+  "consecutive_clean": 4,
   "totals": {
     "findings": 231,
-    "clean_rounds": 127,
+    "clean_rounds": 128,
     "p0": 0,
     "p1": 33,
     "p2": 153,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M8 资源与性能剖析",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3737,6 +3737,16 @@
       "severity": null,
       "evidence": "对容器入口、安装器和交付脚本做安全边界复核。`make shellcheck`（仓库自带的静态契约器）通过：4 个脚本、6 个工作流；静态扫描未发现 `eval`、管道直连 shell、`chmod 777`、`write-all`、未固定的第三方 Action 或凭据文件；`sudo rm -rf` 只出现在 GitHub runner 的固定缓存清理路径，没有用户输入插值。对抗实验：构造指向 `/` 的 `--target` 符号链接，`docker/install.sh` 返回 2 并输出「不能是根目录」，未执行删除；既有 `scripts/check-entrypoint.sh` 覆盖 zip slip/路径嵌套/符号链接/只读目标/空文件等路径。检查清单：已复核 shell 注入、路径穿越、权限边界、Secrets 使用和工作流最小权限；未安装独立 shellcheck 二进制，因此没有跑外部 linter；未用具备包管理权限的凭据重做 GHCR 可见性/关联仓库检查。本轮未发现 P0-P2 问题，clean_streak=3。残余风险：外部 shellcheck 与真实容器权限环境不在本轮执行范围内。",
       "pr": null
+    },
+    {
+      "round": 370,
+      "timestamp": "2026-10-08T22:55:00+08:00",
+      "focus": "性能与资源（内存、磁盘、重复计算、可流式化）",
+      "method": "M8 资源与性能剖析",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对合成流水线做资源剖析：`make clean` 后运行 `/usr/bin/time -l .venv/bin/python -m scripts.smoke_data --work-dir build --dist-dir dist`，14 个变体与规范数据集全部完成，0.26 s real、0.15 s user、0.07 s sys、最大 RSS 45,793,280 字节（约 43.7 MiB）、peak memory footprint 33,948,152 字节。代码路径已包含 `_DIGEST_CACHE` 去重摘要读取、直接流式生成 gzip 变体表、以及 `iter_output_places` 逐行写出，没有发现新的重复扫描或明显可流式化热点。对抗控制：以 `ulimit -t 0` 运行同一命令，进程以 152 退出，证明资源限制确实生效、测量不是恒真。检查清单：已完成合成流水线 CPU/RSS 测量、热点路径静态核对与资源限制控制；未运行 131 万级真实数据构建（需下载并解压约 260 MiB 上游数据，超出本轮最小实验范围）。本轮未发现 P0-P2 问题，clean_streak=4。残余风险：合成数据量很小，RSS 与耗时不代表真实全量构建的内存峰值。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -4010,6 +4020,7 @@
     "第 367 轮只对 `_MAX_RETRY_DELAY` 做了一个变异；`_revalidate_cached` 的 304/200/空正文/写失败回退、`_download` 的 OSError 包装与 Range 耗尽等分支没有在本轮逐一做变异探针",
     "第 368 轮只抽样了默认 `{admin_2}` 制品的 10 个城市 ID；`hant` 变体、`{admin_3}`/`{admin_4}` 粒度和海外地名回退没有在本轮做同等抽样",
     "第 369 轮没有安装独立 shellcheck 二进制，只使用仓库自带的 `check_shell.py` 与人工静态复核；ShellCheck 的额外规则仍可能发现未覆盖的写法问题",
+    "第 370 轮的性能数字来自合成数据集；真实 131 万级地点构建的峰值内存、SQLite VACUUM 与 14 变体压缩耗时仍需在真实数据批次上测量",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
