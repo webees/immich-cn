@@ -15,7 +15,7 @@ import json
 import os
 import shutil
 import tarfile
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
@@ -688,6 +688,25 @@ def _emit_geodata(
     generated_at: str,
 ) -> None:
     geodata_dir.mkdir(parents=True, exist_ok=True)
+    # 先写地点行，同时收集它们引用到的行政代码：上游代码表没收录、但地点行会引用的代码
+    # 必须补进 adminN 表，否则 Immich 会把对应行的 admin1Name/admin2Name 写成 null。
+    admin_areas: dict[tuple[int, str], str] = {}
+    with (geodata_dir / "cities500.txt").open("w", encoding="utf-8") as sink:
+        for place in iter_output_places(
+            cities500=cities500,
+            extra_file=extra_file,
+            min_population=min_population,
+            full=full,
+        ):
+            names = levels.get(place.geoname_id)
+            name = display_name(names, pattern)
+            if name:
+                place = Place(columns=list(place.columns))
+                place.columns[1] = name
+                place.columns[2] = name
+            sink.write(place.to_line() + "\n")
+            _collect_place_admin_codes(place, names, admin_areas)
+
     # 港澳在 GeoNames 中以区/堂区作为 admin1，但 Immich 会把 admin1Name 当作"省/州"展示，
     # 因此文件里统一写特别行政区名称（区级信息仍保留在 place 层级的 admin_2/admin_3）。
     _write_admin_file(
@@ -696,26 +715,41 @@ def _emit_geodata(
         hierarchy.admin1,
         variant=index.variant,
         top_level_countries=tuple(SPECIAL_ADMIN_TOP_LEVEL),
+        extra={code: name for (level, code), name in admin_areas.items() if level == 1},
     )
-    _write_admin_file(geodata_dir / "admin2Codes.txt", admin2_raw, hierarchy.admin2, variant=index.variant)
+    _write_admin_file(
+        geodata_dir / "admin2Codes.txt",
+        admin2_raw,
+        hierarchy.admin2,
+        variant=index.variant,
+        extra={code: name for (level, code), name in admin_areas.items() if level == 2},
+    )
     _write_country_info(geodata_dir / "countryInfo.txt", country_rows, index, paths.langs_dir)
     shutil.copyfile(paths.geojson, geodata_dir / "ne_10m_admin_0_countries.geojson")
     (geodata_dir / "geodata-date.txt").write_text(generated_at + "\n", encoding="utf-8")
     (geodata_dir / "NOTICE.txt").write_text(GEODATA_NOTICE, encoding="utf-8")
 
-    with (geodata_dir / "cities500.txt").open("w", encoding="utf-8") as sink:
-        for place in iter_output_places(
-            cities500=cities500,
-            extra_file=extra_file,
-            min_population=min_population,
-            full=full,
-        ):
-            name = display_name(levels.get(place.geoname_id), pattern)
-            if name:
-                place = Place(columns=list(place.columns))
-                place.columns[1] = name
-                place.columns[2] = name
-            sink.write(place.to_line() + "\n")
+
+def _collect_place_admin_codes(
+    place: Place,
+    names: tuple[str, str, str, str, str] | None,
+    areas: dict[tuple[int, str], str],
+) -> None:
+    """把地点行引用到的行政代码收进 ``(level, code) -> name``。
+
+    与规范数据集的 ``_collect_admin_areas`` 同口径：代码取自地点行，名称取自层级表，
+    遇到空代码即停止（层级必须连续）。
+    """
+    if names is None:
+        return
+    code_parts = [place.country_code]
+    codes = (place.admin1_code, place.admin2_code, place.admin3_code, place.admin4_code)
+    for level, (code, name) in enumerate(zip(codes, names[1:], strict=True), start=1):
+        if not code:
+            return
+        code_parts.append(code)
+        if name:
+            areas.setdefault((level, ".".join(code_parts)), name)
 
 
 def _write_admin_file(
@@ -725,15 +759,33 @@ def _write_admin_file(
     *,
     variant: ChineseVariant,
     top_level_countries: tuple[str, ...] = (),
+    extra: Mapping[str, str] | None = None,
 ) -> None:
+    """写出 Immich 的 adminN 代码表。
+
+    GeoNames 发布的代码表并不覆盖所有地点行用到的代码（例如德国州级市用 ``DE.03.00``，
+    但 admin2Codes.txt 里没有这一条）。Immich 用 ``${country}.${admin1}[.${admin2}]``
+    做键，缺条目会让这些行的 ``admin1Name`` / ``admin2Name`` 变成 null，按行政区名检索
+    就会落空。因此除了上游代码表，还要补上地点行实际引用、且层级表能给出名称的代码。
+    """
+
+    def render(code: str, fallback: str) -> str:
+        country = code.split(".")[0]
+        if country in top_level_countries:
+            return to_variant(SPECIAL_ADMIN_TOP_LEVEL[country], variant)
+        return fallback
+
+    written: set[str] = set()
     with path.open("w", encoding="utf-8") as sink:
         for code, entry in raw.items():
-            country = code.split(".")[0]
-            if country in top_level_countries:
-                name = to_variant(SPECIAL_ADMIN_TOP_LEVEL[country], variant)
-            else:
-                name = translated.get(code) or to_variant(entry.name, variant)
+            name = render(code, translated.get(code) or to_variant(entry.name, variant))
             sink.write("\t".join([code, name, name, str(entry.geoname_id or "")]) + "\n")
+            written.add(code)
+        for code, fallback in sorted((extra or {}).items()):
+            if code in written or not fallback:
+                continue
+            name = render(code, fallback)
+            sink.write("\t".join([code, name, name, ""]) + "\n")
 
 
 def _write_country_info(

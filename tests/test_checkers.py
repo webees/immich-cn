@@ -1929,7 +1929,13 @@ def test_check_artifacts_admin_area_consistency_flags_empty_inventory(tmp_path: 
 def _make_dist(root: Path) -> Path:
     dist = root / "dist"
     dist.mkdir()
-    lines = "\t".join(["1"] + ["x"] * 18) + "\n"
+    # 行政代码要与下面的 adminN 表一致：适配器自洽检查会核对 cities500 引用的代码能否解析。
+    fields = ["x"] * 19
+    fields[0] = "1"
+    fields[8] = "CN"
+    fields[10] = "22"
+    fields[11] = "11876380"
+    lines = "\t".join(fields) + "\n"
     geodata_default = dist / "immich-cn-geodata-admin2-default-v1.zip"
     geodata_full = dist / "immich-cn-geodata-admin2-full-v1.zip"
     for name in (geodata_default.name, geodata_full.name):
@@ -2121,6 +2127,36 @@ def test_check_artifacts_checksums_require_manifest_coverage(tmp_path: Path) -> 
     errors: list[str] = []
     check_artifacts.check_checksums(dist, errors)
     assert any("未覆盖 manifest assets" in error for error in errors), errors
+
+
+def test_check_artifacts_requires_admin_codes_to_resolve(tmp_path: Path) -> None:
+    """适配器 cities500 引用的行政代码必须在同一份制品的 adminN 表里解析到名称。"""
+    dist = tmp_path / "dist"
+    dist.mkdir()
+
+    def write_geodata(*, with_admin2: bool) -> None:
+        fields = [""] * 19
+        fields[0] = "1"
+        fields[8] = "CN"
+        fields[10] = "22"
+        fields[11] = "11876380"
+        with zipfile.ZipFile(dist / "immich-cn-geodata-admin2-default-v1.zip", "w") as archive:
+            archive.writestr("geodata/cities500.txt", "\t".join(fields) + "\n")
+            archive.writestr("geodata/admin1CodesASCII.txt", "CN.22\t北京市\t北京市\t1816670\n")
+            archive.writestr(
+                "geodata/admin2Codes.txt",
+                "CN.22.11876380\t北京市\t北京市\t11876380\n" if with_admin2 else "",
+            )
+
+    write_geodata(with_admin2=True)
+    errors: list[str] = []
+    check_artifacts.check_admin_code_resolution(dist, errors)
+    assert errors == []
+
+    write_geodata(with_admin2=False)
+    errors = []
+    check_artifacts.check_admin_code_resolution(dist, errors)
+    assert any("无法解析" in error for error in errors), errors
 
 
 def test_check_artifacts_rejects_zip_path_traversal(tmp_path: Path) -> None:
