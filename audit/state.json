@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 345,
-  "consecutive_clean": 1,
+  "round": 346,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 221,
+    "findings": 222,
     "clean_rounds": 113,
     "p0": 0,
     "p1": 33,
-    "p2": 143,
+    "p2": 144,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M6 边界与异常输入",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3497,6 +3497,16 @@
       "severity": null,
       "evidence": "审查 `scripts/cleanup.py` 的两条破坏性路径及其闸门，并对每个闸门做变异探针（在 `main=ab8fab7` 上）。① 旧命名资产回收：`select_legacy_assets` 只有在「仓库里已存在规范 v4 资产」（`canonical_available` 参数或任一 `CANONICAL_ASSET` 命中）时才返回可删除清单，否则把旧资产放进 manual 列表只报告不删。把返回值改成无条件 `(ordered, [])` 后，`test_select_legacy_assets_requires_canonical_replacement` 立即失败（`Left contains one more item: (1, 'geodata.zip')`），证明该闸门不是恒真。② 按 dist 清单回收 Release 资产：`_prune_release_assets` 在删除前要求 `keep` 与 Release 现有资产**至少有交集**，否则抛「没有任何交集，拒绝删除（疑似清单来源错误）」；空清单由 `_release_manifest` 提前拒绝。把交集判断改成 `if False` 后，`test_prune_release_assets_refuses_disjoint_manifest` 立即失败（日志显示它会真的打印「待删除 1 个」并进入 APPLY 分支），证明该闸门也不是恒真。两条闸门各自的负向用例（空清单 / 零交集 / 无规范替代品）在 `tests/test_cleanup.py` 中都存在，26 项全过。恢复两处变异后 `git status` 干净、`git diff` 为空。本轮未发现 P0-P2 问题，clean_streak=1。残余：「清单变小但仍有交集」不在两道闸覆盖范围内（已记录于既有 residual）。",
       "pr": null
+    },
+    {
+      "round": 346,
+      "timestamp": "2026-10-08T11:51:11+08:00",
+      "focus": "容器与 shell（非法展示粒度的异常输入）",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "对 `docker/apply-pattern.sh` 的异常输入做检查：`grep -rn 未知展示粒度 tests scripts docker` 只命中实现本身——第 69-73 行的「未知展示粒度」分支（打印 `未知展示粒度：<pattern>` + `可用粒度：<表头>` 后 `exit 2`）在 tests/ 与 scripts/check-entrypoint.sh 中没有任何用例。实测行为正确：`IMMICH_CN_PATTERN='{admin_5}'` → exit 2 并给出提示与可选值；`'{admin_2'`（少右花括号）同样被拦；合法 pattern → exit 0。对抗性实验证明这条分支不是可有可无：把它换成 `column=1` 兜底后，`make entrypoint` 立即报 `失败：非法展示粒度不应启动成功`——即没有该分支时，非法 pattern 会静默落到第 1 列（geoname_id），把 GeoNames 数字 ID 写进展示名，容器照常启动但数据全错。修复：实现本来就正确，补回归用例——`scripts/check-entrypoint.sh` 新增 `invalid_pattern_case`，用 `{admin_5}` 启动入口脚本并断言退出非 0、输出含「未知展示粒度」与「可用粒度」。负向控制：把分支改成 `column=1` 兜底后新用例立即失败，恢复后通过。`make entrypoint` 19 项全过、`make check` 469 passed（覆盖率 87.92%）、`check_shell.py` 通过。PR #249 四项必需检查全绿后 squash 合并，main=5b51703。",
+      "pr": "https://github.com/webees/immich-cn/pull/249"
     }
   ],
   "residual_risks": [
@@ -3718,7 +3728,9 @@
     "第 344 轮只对齐了覆盖率这一个阈值；CI 与 Makefile 还各自维护 ruff/mypy/pytest 的命令行（例如 CI 分步执行、Makefile 用 make 目标串起来），其它参数（如 `--cov-report` 形式、pytest 选择器）仍可能漂移，没有统一为「CI 调用 make 目标」",
     "第 344 轮把下限同步成 70% 后，本地与 CI 的**统计口径**仍可能有差异（本地跑全部 tests/，CI 在 checkout 后同样跑全部），本轮只比对阈值数字，没有比对覆盖率的分母集合",
     "第 345 轮只验证了 cleanup 的两条闸门「会被变异杀死」；两条闸门都建立在「本次 dist 清单可信」之上——如果构建因 bug 少产出若干变体但仍有交集，旧资产会在同一次运行里被删掉（既有 residual 已记录，本轮未新增防护）",
-    "第 345 轮的变异探针在本地跑，没有走真实 GitHub API 的删除路径；`--apply` 的真实删除自第 274 轮之后未再执行过，权限与 API 语义变化仍需在下次真实清理时复核"
+    "第 345 轮的变异探针在本地跑，没有走真实 GitHub API 的删除路径；`--apply` 的真实删除自第 274 轮之后未再执行过，权限与 API 语义变化仍需在下次真实清理时复核",
+    "第 346 轮只覆盖了 `apply-pattern.sh` 的未知粒度分支；同一脚本的其它异常输入（变体表首列重复 ID、cities500 含 CRLF、名称列内含制表符、超长行）仍没有专项用例，本轮未逐一构造",
+    "第 346 轮的用例只断言「启动失败 + 提示含关键字」，不断言退出码具体值（实现是 2）；若将来改成 1 仍会通过，属于刻意的宽松断言"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
