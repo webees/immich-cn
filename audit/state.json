@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 375,
-  "consecutive_clean": 0,
+  "round": 376,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 235,
-    "clean_rounds": 129,
+    "clean_rounds": 130,
     "p0": 0,
     "p1": 33,
     "p2": 157,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M6 边界与异常输入",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3797,6 +3797,16 @@
       "severity": "P2",
       "evidence": "`update-data.yml` 的 `resolve-previous-failure` 原先只依赖 `build` 与 `release`，条件也只检查这两者。失败路径真值表出现缺口：`build` 成功、`release` 跳过（无变化）、`no-change` 摘要失败时，收敛任务仍会关闭告警，且可能与 `notify-failure` 竞争，把刚创建的告警关掉。修复：`resolve-previous-failure` 增加 `no-change` 依赖；关闭条件要求 `no-change.result` 为 `success` 或 `skipped`；同步更新 `docs/architecture.md`。新增 `test_check_workflows_rejects_incomplete_no_change_resolution_guard`，在删除 `no-change` 条件时 `check_workflows.py` 立即报「只判断了部分依赖」。`make check` 全绿：487 passed、覆盖率 88.44%、ruff/mypy/docs/workflows/shell 通过。PR #266 四项必需检查全绿后 squash 合并，main=bd44570。",
       "pr": "https://github.com/webees/immich-cn/pull/266"
+    },
+    {
+      "round": 376,
+      "timestamp": "2026-10-09T00:55:00+08:00",
+      "focus": "容器与 shell 脚本（引用、权限、只读挂载、路径差异）",
+      "method": "M6 边界与异常输入",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对容器入口、安装器与变体应用脚本做异常输入复核。`bash scripts/check-entrypoint.sh` 全部通过，覆盖只读完整/不完整目标、符号链接、空文件、嵌套路径、缺失参数与根目录；`make shellcheck` 通过（4 个脚本、6 个工作流）。额外对抗实验：① `install.sh --target <普通文件>` 返回 1，输出无法创建目标目录；② `entrypoint.sh` 的 `IMMICH_BUILD_DATA` 指向普通文件时返回 1，未静默启动；③ 用损坏的 gzip 作为变体表运行 `apply-pattern.sh`，`gzip` 失败、脚本返回 1，且源 `cities500.txt` 的 SHA256 前后不变，证明失败不会留下半写结果。`make check` 全绿：487 passed、覆盖率 88.44%、ruff/mypy/docs/workflows/shell 通过；生成物已清理，工作区干净。本轮未发现 P0-P2 问题，clean_streak=1。残余风险：未在真实只读挂载与不同文件系统（overlay/NFS）上重复上述异常实验。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -4076,6 +4086,7 @@
     "第 373 轮的死代码扫描是名字级文本匹配，不能证明所有只写不读字段、外部字符串入口或同名符号都无问题；这些仍需 AST/运行级探针覆盖",
     "第 374 轮移除了 `docs/china.md` 的日期特定数字，但其他文档仍可能保留时点体积、来源统计或示例数字；`check_docs` 只能校验部分数字契约，不能自动发现所有滚动数据导致的漂移",
     "第 375 轮只修复了 `update-data.yml` 的告警收敛依赖；`release.yml` 的 `publish` 失败没有同构的失败告警任务，其他工作流的失败路径也需要后续逐格复核",
+    "第 376 轮的容器异常实验在宿主机文件系统上完成，没有覆盖真实只读挂载、overlayfs 或 NFS 的错误码差异；容器运行时边界仍需由发布冒烟和运行环境覆盖",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
