@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 367,
-  "consecutive_clean": 1,
+  "round": 368,
+  "consecutive_clean": 2,
   "totals": {
     "findings": 231,
-    "clean_rounds": 125,
+    "clean_rounds": 126,
     "p0": 0,
     "p1": 33,
     "p2": 153,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M5 真实数据抽样",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3717,6 +3717,16 @@
       "severity": null,
       "evidence": "对 `src/immich_cn/fetching.py` 的 `_MAX_RETRY_DELAY = 120.0` 做语义变异，改为 `60.0`，运行完整测试：`test_retry_delay_prefers_retry_after_header` 立即失败，实际 60.0、断言期望 120.0；恢复常量后 `make check` 全绿（482 passed、覆盖率 88.27%、ruff/mypy/docs/workflows/shell 全绿），`git status` 与 `git diff` 为空。检查清单：已覆盖 Retry-After 数值/HTTP-date/过去时间/指数退避、下载重试与断点续传关键测试路径；未做真实上游 429/500 网络实验（环境噪声，容易产生假拒绝），也未逐一变异其他错误分支。本轮未发现 P0-P2 问题，clean_streak=1。残余风险：变异只证明重试上限常量有测试覆盖，不证明 `_revalidate_cached` 的所有 I/O 与空正文分支都被同样锁住。",
       "pr": null
+    },
+    {
+      "round": 368,
+      "timestamp": "2026-10-08T22:15:00+08:00",
+      "focus": "数据正确性（行政层级、繁简、去重、排序、抽样核对）",
+      "method": "M5 真实数据抽样",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "下载当前 `auto-release` 的 `immich-cn-geodata-admin2-default-v1.zip`，对默认展示粒度做抽样核对：直辖市/省会/港澳台共 10 个已知 GeoNames ID 的展示名全部符合预期（北京市、上海市、天津市、重庆市、广州市、深圳市、杭州市、南京市、西安市、台北市），无缺失；默认包中 CN 34,897 条、HK 342 条、MO 13 条、TW 391 条，CN/HK/MO/TW 的展示名均非空且都含 CJK 字符。负向控制：把北京期望值改成「错误名称」后，抽样脚本立即报出 `1816670` 不一致，证明检查不是恒真。检查清单：已抽样直辖市、省会和港澳台；未做港澳台全量繁简人工审核，也未重新构建 `hant` 变体做对照。本轮未发现 P0-P2 问题，clean_streak=2。残余风险：抽样只覆盖 10 个 ID 和默认 `{admin_2}` 粒度，不能替代对 256,669 行全量数据的语义审核。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3988,6 +3998,7 @@
     "第 366 轮的写入探针依赖容器内 `mktemp` 可用；当前数据镜像已依赖同一命令实现 `apply-pattern.sh` 的临时目录，但若未来替换为不含 `mktemp` 的最小基础镜像，需要同步提供等价探针",
     "第 366 轮没有做真实文件系统故障注入（磁盘满、NFS/overlay 局部 EIO）；复制失败的中间态是否可能留下已覆盖的部分文件仍需由容器级发布冒烟和运行环境监控覆盖",
     "第 367 轮只对 `_MAX_RETRY_DELAY` 做了一个变异；`_revalidate_cached` 的 304/200/空正文/写失败回退、`_download` 的 OSError 包装与 Range 耗尽等分支没有在本轮逐一做变异探针",
+    "第 368 轮只抽样了默认 `{admin_2}` 制品的 10 个城市 ID；`hant` 变体、`{admin_3}`/`{admin_4}` 粒度和海外地名回退没有在本轮做同等抽样",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
