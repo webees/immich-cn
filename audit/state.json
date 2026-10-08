@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 350,
-  "consecutive_clean": 0,
+  "round": 351,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 225,
-    "clean_rounds": 114,
+    "clean_rounds": 115,
     "p0": 0,
     "p1": 33,
     "p2": 147,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3547,6 +3547,16 @@
       "severity": "P2",
       "evidence": "对 `scripts/set_asset_timezone.py::iter_assets` 做语义微改：把 `if not isinstance(total, int) and len(items) < SEARCH_PAGE_SIZE:` 简化成 `if not isinstance(total, int):`（`total` 一缺就停）。隔离字节码缓存跑**完整**套件：472 passed，全绿——`total` 缺失时的分页终止条件没有任何用例。既有 `test_iter_assets_reads_search_pages` 只覆盖带 `total: 2` 的路径。影响：该分支覆盖「代理/网关吞掉 total」或未来 Immich 版本不再返回 total 的情况；改坏后第一页之后的 asset 会被静默丢弃，dry-run 报的数字偏小，用户以为设置完了其实只处理了前 1000 张。修复：实现本来就正确，补用例——`test_iter_assets_pages_when_total_missing`（第一页满页且不带 total、第二页短页，断言请求页序 `[1, 2]` 且结果条数 = `SEARCH_PAGE_SIZE + 1`）。负向控制：改成 `if not isinstance(total, int):` 后新用例立即 AssertionError，恢复后通过。修复后 `make check` 473 passed（+1，覆盖率 88.27%），`ruff`/`mypy` 通过。PR #252 四项必需检查全绿后 squash 合并，main=491d247。",
       "pr": "https://github.com/webees/immich-cn/pull/252"
+    },
+    {
+      "round": 351,
+      "timestamp": "2026-10-08T13:27:01+08:00",
+      "focus": "监控判定逻辑（阈值边界与真实运行）",
+      "method": "M2 阈值反演",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "审查 `scripts/check_update_freshness.py::evaluate_freshness` 的三处阈值比较（`age > max_age`、`success_age_hours > max_age_hours`、`schedule_age_hours > max_age_hours`）。阈值反演 / 变异探针：把后两处同时改成 `>=` 后跑完整套件，`test_age_exactly_at_threshold_is_not_flagged` 立即失败（`stale_success`）；只把第三处（schedule 比较）改成 `>=` 再跑，同一用例仍然失败（`schedule_stalled`）——即「恰好等于阈值不算超时」这条边界对成功新鲜度与定时新鲜度两条路径都被既有用例钉住，不是恒真。真实端到端：`python -m scripts.check_update_freshness --repository webees/immich-cn --workflow update-data.yml --json`（用 gh token）返回 `state=ok`、`healthy=true`、`ageHours=11.14`、`successAgeHours=11.14`、`scheduleAgeHours=17.56`，结论为「最近一次运行成功（workflow_dispatch）…最近一次定时触发在 17.6 小时前」——监控的正常路径在真实 Actions 记录上工作，且顺带证实 `update-data` 的 schedule 确实在阈值内触发过（此前多轮记录的是「schedule 极少触发」）。两处变异都已恢复，`git status` 干净、`git diff` 为空。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3781,7 +3791,9 @@
     "第 349 轮把 admin 表补齐后，data-format.md 的时点数字（如「二级有 33,661 条可比记录」）已经与最新构建不一致，需要在下一次发布后据实测更新文档",
     "第 350 轮只覆盖了 `iter_assets` 的 `total` 缺失分支；同一脚本的其它边界（`assets` 非对象、`items` 非数组、`total` 为负数或小数、`batch_size` 上界、`_request` 的传输异常重试）仍没有专项用例",
     "第 350 轮的用例构造了一整页 1000 条记录，只验证终止条件与条数，不验证内存占用；真实用户库上万张照片时的分页内存与请求次数没有实测",
-    "第 350 轮仍未对真实 Immich 数据库执行批量写入；工具的写入路径只有 MockTransport 覆盖，真实 API 兼容性（尤其 PATCH/PUT 回退）仍属未验证"
+    "第 350 轮仍未对真实 Immich 数据库执行批量写入；工具的写入路径只有 MockTransport 覆盖，真实 API 兼容性（尤其 PATCH/PUT 回退）仍属未验证",
+    "第 351 轮只反演了 `evaluate_freshness` 的三处阈值比较；`never_run`/`no_run`/`stalled`/`failed`/`cancelled` 五种状态的组合边界（例如「最新运行被取消且没有成功记录」与「最新运行在跑但超过 grace」同时成立时的优先级）没有逐一构造",
+    "第 351 轮的真实调用只覆盖 `update-data.yml` 的健康路径（state=ok）；`never_run`/`stale_success`/`schedule_stalled` 等异常状态在真实 Actions 记录上没有触发过，无法排除线上才出现的形态"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
