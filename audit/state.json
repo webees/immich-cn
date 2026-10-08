@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 335,
-  "consecutive_clean": 1,
+  "round": 336,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 214,
+    "findings": 215,
     "clean_rounds": 110,
     "p0": 0,
-    "p1": 32,
+    "p1": 33,
     "p2": 137,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M6 边界与异常输入",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3397,6 +3397,16 @@
       "severity": null,
       "evidence": "对 `main=19665fd` 的 6 个工作流做权限与失败路径快照：每个工作流都声明顶层 `permissions: {contents: read}`，写权限一律下沉到具体 job（`_build-data.yml`/`release.yml`/`update-data.yml` 的 build 为 `id-token+packages`，`release.yml` publish 为 `contents`，`cleanup.yml` 为 `contents+actions+packages`，三个 notify/resolve job 为 `issues`），没有任何 `write-all` 或顶层 write。并发：`ci.yml`/`cleanup.yml`/`monitor-update.yml`/`release.yml`/`update-data.yml` 都有 concurrency 组，可复用的 `_build-data.yml` 依赖调用方的并发组。失败路径与 architecture.md 的真值表一致：`release` 与 `no-change` 条件互斥（`changed == 'true' || force-publish` 对 `changed != 'true' && !force-publish`），`notify-failure` 在 `failure()` 下汇总 `[build, release, no-change, resolve-previous-failure]`，`resolve-previous-failure` 要求 `build` 成功且 `release` 成功或跳过。负向控制：把 `ci.yml` 顶层改成 `contents: write` 后 `check_workflows.py` 立即报「顶层 permissions 含 write：['contents']；应下沉到具体 job」；改成 `permissions: write-all` 后立即报「顶层 permissions 使用 write-all，权限范围过大」；两次都 exit 1，恢复后通过。`make audit-pins`（带 token）复核 25 个固定引用与上游 tag 一致。本轮未发现 P0-P2 问题，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 336,
+      "timestamp": "2026-10-08T09:54:14+08:00",
+      "focus": "容器与 shell 脚本（路径嵌套边界）",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P1",
+      "evidence": "对 `docker/install.sh` 做边界输入实验：它先 `rm -rf \"$target/geodata\"` 再 `cp -a \"$geodata_root\" \"$target/geodata\"`，没有源/目标嵌套检查。复现：`d=$(mktemp -d); mkdir -p \"$d/out\"; cp -a build/geodata \"$d/out/geodata\"; IMMICH_CN_GEODATA_DIR=\"$d/out/geodata\" sh docker/install.sh --target \"$d/out\" --geodata-only` → `cp: …/out/geodata: No such file or directory`，且**源目录 7 个文件被 rm -rf 删光**（不可逆数据丢失）。反向嵌套（目标在源内）会让 `cp -a` 递归复制进自身。对照：`docker/entrypoint.sh:53` 早就显式处理 `source_dir == target`（「源目录与目标目录相同，跳过复制」），`install.sh` 没有等价保护。修复：在任何删除之前先把 `geodata_root` 解析为 `pwd -P` 真实路径，再用路径段安全的 `case` 前缀匹配拒绝「源在目标内」与「目标在源内」两种嵌套；`scripts/check-entrypoint.sh` 新增 `install_nested_source_case`（两种嵌套 + 断言源目录文件数不变）。验证：修复后复现命令 exit 2 并给出明确提示，源目录 7 个文件完好；负向控制：移除新增判断后 `make entrypoint` 立即报 `失败：嵌套源未给出明确提示：cp: …/out/geodata: No such file or directory`；正常路径（`IMMICH_CN_GEODATA_DIR=build/geodata --target <新目录>`）仍 exit 0。`make entrypoint` 17 项全过、`make check` 461 passed。顺带发现并修正自身测试代码里 `$after` 紧跟中文的变量名粘连（由 `check_shell.py` 拦下）。PR #242 四项必需检查全绿后 squash 合并，main=f6d8a6f。",
+      "pr": "https://github.com/webees/immich-cn/pull/242"
     }
   ],
   "residual_risks": [
@@ -3597,7 +3607,9 @@
     "第 334 轮新增的 `check_cli_coverage` 只校验「参数名在文档文本里出现过」，不校验它出现在正确的命令章节（例如把 verify 的参数写进 all 的说明也能通过），也不校验默认值是否与实现一致；默认值一致性仍只由 `check_env_defaults` 覆盖环境变量，CLI 参数默认值没有护栏",
     "第 334 轮的 69 个参数统计来自 argparse 内部结构；若将来改用 click/typer 等其它解析器，`_cli_surface()` 与 `_all_cli_flags()` 会一起失效，需要同步重写",
     "第 335 轮只核对了 job 级 permissions 与条件表达式；step 级 `permissions`、`secrets: inherit` 的使用面、以及 reusable workflow 的 `workflow_call` inputs/outputs 契约没有在本轮逐一核对（zizmor 此前的 `secrets:inherit` 提示仍属残余项）",
-    "第 335 轮确认了 release 与 update-data 各有自己的 concurrency 组：两组不同名，理论上 release 与 update-data 可以同时向同一 GHCR 包推送不同标签。当前标签集合不重叠，但若将来两者都写同一标签，仍需额外的跨工作流互斥"
+    "第 335 轮确认了 release 与 update-data 各有自己的 concurrency 组：两组不同名，理论上 release 与 update-data 可以同时向同一 GHCR 包推送不同标签。当前标签集合不重叠，但若将来两者都写同一标签，仍需额外的跨工作流互斥",
+    "第 336 轮只修了 `install.sh` 的源/目标嵌套；同类「先删后拷」写法若将来出现在其它脚本（例如新的导出器或迁移工具）仍需各自加守卫，没有统一封装",
+    "第 336 轮的嵌套判断用 `case` 前缀匹配并已把两侧都解析为 `pwd -P`，但未覆盖「大小写不敏感文件系统」与「绑定挂载把两个不同路径指向同一 inode」的情形；这两种情况下 `$target/geodata` 与 `$geodata_root` 字符串不同却可能是同一目录"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
