@@ -2307,9 +2307,9 @@ def test_check_artifacts_sha256_cache_invalidates_on_change(tmp_path: Path) -> N
     same_size = tmp_path / "b.bin"
     same_size.write_bytes(b"aaaa")
     before = check_artifacts.sha256_file(same_size)
-    same_size.write_bytes(b"bbbb")  # 同长度，只改内容
     stat_result = same_size.stat()
-    os.utime(same_size, ns=(stat_result.st_atime_ns, stat_result.st_mtime_ns + 1_000_000_000))
+    same_size.write_bytes(b"bbbb")  # 同长度，只改内容
+    os.utime(same_size, ns=(stat_result.st_atime_ns, stat_result.st_mtime_ns))
     assert check_artifacts.sha256_file(same_size) != before
 
 
