@@ -201,13 +201,27 @@ def test_prune_superseded_versions_reports_shielded_legacy_tags(capsys: pytest.C
         def list_package_versions(self, package: str) -> list[PackageVersionRecord]:
             if package == "immich-cn":
                 return [PackageVersionRecord(1, at(1), ("1.0.4", "latest"))]
-            return []
+            return [PackageVersionRecord(2, at(1), ("latest",))]
 
     args = SimpleNamespace(apply=False)
     assert _prune_superseded_versions(_Client(), args) == 0
     out = capsys.readouterr().out
     assert "同时带其它标签，按保守规则保留" in out
     assert "1.0.4, latest" in out
+
+
+def test_prune_superseded_versions_rejects_empty_inventory() -> None:
+    """空版本列表不能当成「没有三段式旧版本」并报告成功。"""
+
+    class _Client:
+        def list_package_versions(self, package: str) -> list[PackageVersionRecord]:
+            del package
+            return []
+
+    with pytest.raises(CleanupError, match="返回 0 个版本"):
+        _prune_superseded_versions(_Client(), SimpleNamespace(apply=False, allow_empty_packages=False))
+
+    assert _prune_superseded_versions(_Client(), SimpleNamespace(apply=False, allow_empty_packages=True)) == 0
 
 
 def test_run_cleanup_preserves_cutoff_latest_per_workflow_protected_and_current() -> None:
