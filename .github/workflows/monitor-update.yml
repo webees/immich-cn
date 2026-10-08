@@ -53,10 +53,15 @@ jobs:
           MAX_AGE_HOURS: ${{ inputs.max-age-hours || 30 }}
           STALL_GRACE_HOURS: ${{ inputs.stall-grace-hours || 3 }}
         run: |
+          set +e
           python -m scripts.check_update_freshness \
             --workflow update-data.yml \
             --max-age-hours "$MAX_AGE_HOURS" \
             --stall-grace-hours "$STALL_GRACE_HOURS"
+          code=$?
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit "$code"
       - name: 创建或更新告警 issue
         if: failure()
         env:
@@ -64,6 +69,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           STATE: ${{ steps.freshness.outputs.state }}
           DETAIL: ${{ steps.freshness.outputs.detail }}
+          CHECK_EXIT_CODE: ${{ steps.freshness.outputs.exit_code }}
         run: |
           set -euo pipefail
           # 标签 upsert 是尽力而为：失败不阻塞告警本身，但必须留下可见的 warning
@@ -72,12 +78,20 @@ jobs:
             echo "::warning::无法创建或更新 automation 标签，继续创建 issue"
           fi
 
-          title="自动更新停摆（$(date +%F)）"
-          body="$(printf 'Auto Data Update 新鲜度检查未通过。\n\n- 状态：%s\n- 详情：%s\n- 检查记录：%s\n\n先确认 GitHub 是否真的触发了定时任务，再决定手动 workflow_dispatch 还是修复工作流。\n' \
-            "${STATE:-unknown}" "${DETAIL:-未取得检查详情}" "$RUN_URL")"
+          if [ "${CHECK_EXIT_CODE:-}" = "2" ]; then
+            title="更新监控检查失败（$(date +%F)）"
+            body="$(printf 'Auto Data Update 新鲜度监控自身执行失败，不能据此判断定时更新是否停摆。\n\n- 状态：%s\n- 详情：%s\n- 检查记录：%s\n\n先确认 GitHub API、令牌或监控工作流是否异常；瞬时故障可在重跑后再判断更新是否真的停摆。\n' \
+              "${STATE:-unknown}" "${DETAIL:-未取得检查详情}" "$RUN_URL")"
+            search="更新监控检查失败 in:title"
+          else
+            title="自动更新停摆（$(date +%F)）"
+            body="$(printf 'Auto Data Update 新鲜度检查未通过。\n\n- 状态：%s\n- 详情：%s\n- 检查记录：%s\n\n先确认 GitHub 是否真的触发了定时任务，再决定手动 workflow_dispatch 还是修复工作流。\n' \
+              "${STATE:-unknown}" "${DETAIL:-未取得检查详情}" "$RUN_URL")"
+            search="自动更新停摆 in:title"
+          fi
 
           number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
-            --label automation --search '自动更新停摆 in:title' \
+            --label automation --search "$search" \
             --json number --jq '.[0].number // empty')"
           if [ -n "$number" ]; then
             gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "$body"
@@ -91,13 +105,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
-            --label automation --search '自动更新停摆 in:title' \
-            --json number --jq '.[0].number // empty')"
-          if [ -z "$number" ]; then
-            echo "没有未关闭的停摆告警"
-            exit 0
-          fi
-          gh issue comment "$number" --repo "$GITHUB_REPOSITORY" \
-            --body "新鲜度检查已恢复：最近一次 Auto Data Update 在阈值内。"
-          gh issue close "$number" --repo "$GITHUB_REPOSITORY"
+          for search in '自动更新停摆 in:title' '更新监控检查失败 in:title'; do
+            number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+              --label automation --search "$search" \
+              --json number --jq '.[0].number // empty')"
+            if [ -z "$number" ]; then
+              echo "没有未关闭的告警：${search}"
+              continue
+            fi
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" \
+              --body "新鲜度检查已恢复：最近一次 Auto Data Update 在阈值内。"
+            gh issue close "$number" --repo "$GITHUB_REPOSITORY"
+          done

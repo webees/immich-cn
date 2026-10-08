@@ -1628,6 +1628,15 @@ def test_check_workflows_requires_monitor_target(repo_copy: Path) -> None:
     assert "update-data.yml" in result.stdout
 
 
+def test_check_workflows_requires_monitor_self_failure_path(repo_copy: Path) -> None:
+    """监控 API/令牌错误必须与更新停摆分开告警，不能被误报成调度停摆。"""
+    workflow = repo_copy / ".github" / "workflows" / "monitor-update.yml"
+    mutate(workflow, "更新监控检查失败", "监控异常")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "误报为停摆" in result.stdout
+
+
 def test_check_workflows_requires_immich_search_predicate(repo_copy: Path) -> None:
     """地点搜索 smoke 必须用 Immich 的 %>> 谓词，缺失即失败。"""
     workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
