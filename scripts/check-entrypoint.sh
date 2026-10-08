@@ -384,6 +384,47 @@ install_zero_byte_source_case() {
 
 install_zero_byte_source_case
 
+# install.sh：源目录位于目标目录内时，`rm -rf "$target/geodata"` 会先删掉源数据再 cp 失败，
+# 造成不可逆的数据丢失。必须在删除之前拒绝，并且源目录必须保持完好。
+install_nested_source_case() {
+  local root="$work/install-nested"
+  mkdir -p "$root/out"
+  cp -a "$repo_root/build/geodata" "$root/out/geodata"
+  local before after output
+  before="$(ls "$root/out/geodata" | wc -l)"
+
+  if output="$(IMMICH_CN_GEODATA_DIR="$root/out/geodata" \
+      IMMICH_CN_LANGS_DIR="$root/langs" \
+      sh "$repo_root/docker/install.sh" --target "$root/out" --geodata-only 2>&1)"; then
+    echo "失败：源目录位于目标目录内时不应成功" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "位于目标目录"; then
+    echo "失败：嵌套源未给出明确提示：${output}" >&2
+    exit 1
+  fi
+  after="$(ls "$root/out/geodata" 2>/dev/null | wc -l)"
+  if [ "$after" != "$before" ]; then
+    echo "失败：拒绝路径已经删掉了源数据（${before} -> ${after}）" >&2
+    exit 1
+  fi
+
+  # 反向嵌套：目标位于源目录内，复制会递归写入自身。
+  if output="$(IMMICH_CN_GEODATA_DIR="$root/out/geodata" \
+      IMMICH_CN_LANGS_DIR="$root/langs" \
+      sh "$repo_root/docker/install.sh" --target "$root/out/geodata/inner" --geodata-only 2>&1)"; then
+    echo "失败：目标位于源目录内时不应成功" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "位于数据源"; then
+    echo "失败：反向嵌套未给出明确提示：${output}" >&2
+    exit 1
+  fi
+  echo "通过：源与目标互相嵌套时拒绝且不删源数据"
+}
+
+install_nested_source_case
+
 # 语言目录存在但内容不完整时必须在写入目标目录前失败。
 install_incomplete_langs_case() {
   local root="$work/install-incomplete"
