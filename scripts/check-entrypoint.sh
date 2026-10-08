@@ -115,6 +115,28 @@ same_source_target_case() {
 
 same_source_target_case
 
+# 目标可写但复制失败时，不能因为目录里已有完整旧数据就静默成功。
+writable_conflict_case() {
+  local root="$work/writable-conflict"
+  mkdir -p "$root/build/geodata/admin1CodesASCII.txt"
+  local output
+  if output="$(IMMICH_BUILD_DATA="$root/build" \
+      IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
+      IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
+      bash "$repo_root/docker/entrypoint.sh" true 2>&1)"; then
+    echo "失败：目标可写但复制冲突时不应成功：${output}" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "无法写入"; then
+    echo "失败：目标可写但复制冲突时未给出明确错误：${output}" >&2
+    exit 1
+  fi
+  echo "通过：目标可写但复制冲突时明确失败"
+}
+
+writable_conflict_case
+
 # 目标目录不可写且没有现成数据时，必须给出"无法写入"提示（第 6 轮修过的分支）。
 unwritable_target_case() {
   if [ "$(id -u)" = "0" ]; then
