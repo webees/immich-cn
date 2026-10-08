@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 406,
+  "round": 407,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 248,
+    "findings": 249,
     "clean_rounds": 147,
     "p0": 0,
     "p1": 33,
-    "p2": 170,
+    "p2": 171,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M1 变异探针（非对象 JSON 响应）",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4110,9 +4110,22 @@
       "severity": "P2",
       "evidence": "`docker/entrypoint.sh` 与 `docker/install.sh` 只检查了目标目录内的文件符号链接，没有检查目标目录本身。实测把 `target/geodata` 设为指向外部目录的符号链接后，`entrypoint.sh` 返回 0，并跟随链接把 `cities500.txt` 等 8 个文件写到目标目录之外。修复：两个脚本在创建/解析目标目录前拒绝符号链接目标；`scripts/check-entrypoint.sh` 新增两条负向回归。修复前旧树加新校验在“入口脚本拒绝符号链接目标目录”处失败；修复后 `bash scripts/check-entrypoint.sh` 通过，`make check` 497 passed、覆盖率 88.81%。PR #279 四项必需检查全绿后 squash 合并，main=b27be8f。",
       "pr": "https://github.com/webees/immich-cn/pull/279"
+    },
+    {
+      "round": 407,
+      "timestamp": "2026-10-09T08:45:00+08:00",
+      "focus": "错误处理与网络健壮性（超时、截断、空响应、重试）",
+      "method": "M1 变异探针（非对象 JSON 响应）",
+      "method_note": "轮换位次为 M7；本轮按 focus 使用错误响应注入探针。",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`scripts/set_asset_timezone.py::_request_json` 对无效 JSON 已包装为 `RuntimeError`，但对合法非对象 JSON（如 `[]`）仍抛裸 `ValueError`，`main` 不捕获后会留下 traceback。修复：非对象 JSON 也统一抛带 URL 的 `RuntimeError`，新增 `test_request_json_wraps_non_object_json`。负向证据：修复前同一 `MockTransport` 响应抛 `ValueError: Immich API returned non-object JSON`；修复后抛 `RuntimeError: Immich API returned non-object JSON`。验证：`make check` 498 passed、覆盖率 88.81%；PR #280 四项必需检查全绿后 squash 合并，main=ee80038。",
+      "pr": "https://github.com/webees/immich-cn/pull/280"
     }
   ],
   "residual_risks": [
+    "第 407 轮使用 `httpx.MockTransport` 注入非对象 JSON，没有对真实 Immich 实例制造该响应；真实网络错误与代理响应仍由发布/运行环境覆盖",
+    "第 407 轮只覆盖 `_request_json` 的非对象 JSON 分支；`iter_assets` 的 `assets`/`items` 结构异常仍可能抛出裸 `ValueError`，需后续审计",
     "第 406 轮只拒绝目标路径本身是符号链接；若目标的父目录中存在符号链接，脚本仍会按操作系统解析后的路径写入，当前没有对整条路径逐级拒绝",
     "第 406 轮的目标目录符号链接实验在 macOS/POSIX 上执行，未在 Alpine BusyBox、容器 overlayfs 或只读挂载的真实运行时逐项重放",
     "第 405 轮没有触发一次真实失败的 Release 运行来观察 issue 创建与关闭，只通过工作流契约、actionlint 和本地检查验证；GitHub 权限或 API 故障仍可能使通知步骤失败",
