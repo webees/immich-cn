@@ -2283,6 +2283,51 @@ def test_check_artifacts_rejects_zip_compression_bomb(tmp_path: Path) -> None:
     assert any("压缩比" in error for error in errors), errors
 
 
+def test_check_artifacts_zip_budget_boundaries_are_exclusive(monkeypatch: pytest.MonkeyPatch) -> None:
+    """阈值本身允许，超过 1 个单位才失败，避免边界语义漂移。"""
+
+    class _Info:
+        def __init__(self, filename: str, size: int, compressed: int) -> None:
+            self.filename = filename
+            self.file_size = size
+            self.compress_size = compressed
+
+        def is_dir(self) -> bool:
+            return False
+
+    class _Archive:
+        def __init__(self, entries: list[_Info]) -> None:
+            self._entries = entries
+
+        def infolist(self) -> list[_Info]:
+            return self._entries
+
+    monkeypatch.setattr(check_artifacts, "MAX_ENTRY_UNCOMPRESSED_BYTES", 1000)
+    monkeypatch.setattr(check_artifacts, "MAX_COMPRESSION_RATIO", 4)
+    monkeypatch.setattr(check_artifacts, "MAX_ARCHIVE_UNCOMPRESSED_BYTES", 1000)
+    path = Path("budget.zip")
+
+    errors: list[str] = []
+    check_artifacts.check_zip_budget(path, _Archive([_Info("exact", 1000, 250)]), errors)
+    assert errors == []
+
+    errors = []
+    check_artifacts.check_zip_budget(path, _Archive([_Info("entry-over", 1001, 250)]), errors)
+    assert any("解压后超过" in error for error in errors), errors
+
+    errors = []
+    check_artifacts.check_zip_budget(path, _Archive([_Info("ratio-over", 100, 20)]), errors)
+    assert any("压缩比" in error for error in errors), errors
+
+    errors = []
+    check_artifacts.check_zip_budget(path, _Archive([_Info("a", 600, 150), _Info("b", 401, 101)]), errors)
+    assert any("解压总量" in error for error in errors), errors
+
+    errors = []
+    check_artifacts.check_zip_budget(path, _Archive([_Info("a", 600, 150), _Info("b", 400, 100)]), errors)
+    assert errors == []
+
+
 def test_check_artifacts_rejects_archive_uncompressed_budget(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     dist = _make_dist(tmp_path)
     monkeypatch.setattr(check_artifacts, "MAX_ARCHIVE_UNCOMPRESSED_BYTES", 1024)
