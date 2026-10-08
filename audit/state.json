@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 379,
-  "consecutive_clean": 1,
+  "round": 380,
+  "consecutive_clean": 2,
   "totals": {
     "findings": 237,
-    "clean_rounds": 131,
+    "clean_rounds": 132,
     "p0": 0,
     "p1": 33,
     "p2": 159,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M8 资源与性能剖析",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3837,6 +3837,16 @@
       "severity": null,
       "evidence": "对当前 `main=a0fce72` 做安全快照：`make shellcheck`、`check_workflows.py`、`check_docs.py` 全部通过；扫描已知令牌前缀、私钥标记、工作流 Secrets 用法与顶层权限，未发现泄漏或 write-all。对抗控制：在临时文件写入假的 `ghp_...` 令牌，同一扫描规则立即命中并返回 0，证明密钥扫描不是恒真；仓库当前树同一规则无命中。检查清单：已复核 shell 注入、zip slip、路径穿越、Actions 固定引用、最小权限与密钥泄漏；未开启 GitHub 的 non-provider secret scanning/validity checks，也没有使用独立 shellcheck 二进制。本轮未发现 P0-P2 问题，clean_streak=1。残余风险：模式扫描不能发现高熵自定义密钥或 GitHub 侧未启用的 provider 验证。",
       "pr": null
+    },
+    {
+      "round": 380,
+      "timestamp": "2026-10-09T02:15:00+08:00",
+      "focus": "性能与资源（内存、磁盘、重复计算、可流式化）",
+      "method": "M8 资源与性能剖析",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "下载当前 `auto-release` 的真实 `immich-cn-geodata-admin2-default-v1.zip`（20,203,341 字节），直接调用 `check_artifacts.check_zips` 做资源剖析：检查 1 个压缩包、0 错误，耗时 0.071 s，进程最大 RSS 44,236,800 字节（约 42.2 MiB）。对抗控制：同尺寸篡改 zip 中间字节后，`archive.testzip()` 立即报出 `geodata/cities500.txt 校验失败`，证明完整性检查不是恒真。检查清单：已完成真实制品 zip 完整性与资源测量；未下载全部 19 个发布资产做整批耗时测量，也未在真实 131 万级构建上复测内存。本轮未发现 P0-P2 问题，clean_streak=2。残余风险：单资产测量不能代表完整发布校验的总耗时或峰值 RSS。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -4120,6 +4130,7 @@
     "第 377 轮只补齐 `set_asset_timezone.py` 的传输错误重试；其他 HTTP 客户端（数据源下载、清理 API、Nominatim/Amap）各自已有不同重试策略，尚未在本轮统一复核超时与重试上限",
     "第 378 轮移除了 ADM4 的旧计数并更新了护栏，但其他文档仍可能保留滚动数据的时点数字；`check_docs.py` 只能覆盖已编码的契约，不能自动发现所有数据批次漂移",
     "第 379 轮的秘密扫描是已知前缀/私钥标记与 Secrets 用法的启发式检查；高熵自定义凭据、历史对象与 GitHub non-provider scanning 仍不在本轮覆盖范围内",
+    "第 380 轮只测量了单个真实地理数据资产的 zip 完整性检查；19 个资产的整批校验、规范数据集 SQLite 校验和真实全量构建的内存峰值仍未在同一轮测量",
     "第 362 轮（无新增审计轮次）曾把账本与 goal 置为 blocked；用户随后明确裁决「按连续 50 轮 clean 继续」，账本已恢复 active，该阻塞解除",
     "v3.3.0.1 已于 2026-10-08 发布并清理旧版本线，但 Release 与 GHCR 的状态是时点事实：`data-*` 快照、`latest`、`release`、当日标签仍会随每日数据更新滚动，`docs/packages.md` 里的版本示例与体积数字需要在下一次发布后复核",
     "`PRUNE_SUPERSEDED_VERSIONS=true` 已启用，每周定时清理会自动删除「三段式版本标签 + sha-<短提交>」的 GHCR 版本；若将来重新启用三段式版本线（例如回退到 Immich 未对齐的编号），该变量会让新版本立刻被回收，需要先关掉它"
