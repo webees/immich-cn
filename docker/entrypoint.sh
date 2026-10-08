@@ -52,8 +52,15 @@ done
 
 if [ "$source_dir" = "$target" ]; then
   echo "immich-cn: 源目录与目标目录相同，跳过复制，直接使用 ${target}" >&2
-elif ! cp -a "$source_dir/." "$target/" 2>/dev/null; then
-  # 用户可能把 /build/geodata 以只读方式挂载进来
+elif write_probe="$(mktemp "$target/.immich-cn-write-test.XXXXXX" 2>/dev/null)"; then
+  # 目标可写时，复制失败必须失败；不能因为目标里恰好有旧的完整数据就继续。
+  rm -f "$write_probe"
+  if ! cp -a "$source_dir/." "$target/"; then
+    echo "immich-cn: 无法写入 ${target}" >&2
+    exit 1
+  fi
+else
+  # 用户可能把 /build/geodata 以只读方式挂载进来；此时才允许沿用已有完整数据。
   target_missing="$(missing_required_files "$target")"
   if [ -z "$target_missing" ]; then
     echo "immich-cn: ${target} 不可写，沿用其中已有的 geodata" >&2
