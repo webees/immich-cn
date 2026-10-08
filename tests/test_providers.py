@@ -10,7 +10,7 @@ import pytest
 from immich_cn.domain import Place, PlaceNames
 from immich_cn.errors import ConfigError
 from immich_cn.logging_config import get_logger
-from immich_cn.providers import build_chain
+from immich_cn.providers import ProviderChain, build_chain
 from immich_cn.providers.amap import AMAP_ENDPOINT, AmapEnricher, AmapOptions, _parse_regeocode
 from immich_cn.providers.geo import _LAT_MAX, _LAT_MIN, _LON_MAX, _LON_MIN, out_of_china, wgs84_to_gcj02
 from immich_cn.providers.nominatim import NOMINATIM_ENDPOINT, NominatimEnricher, NominatimOptions, _parse
@@ -89,6 +89,46 @@ def test_build_chain_is_quiet_when_auto_has_key(
 
     assert chain.names == ["amap"]
     assert "回退到离线模式" not in caplog.text
+
+
+def test_provider_chain_composes_enrichers_and_lifecycle() -> None:
+    """ProviderChain 必须按顺序叠加名称，并完整转发预取与关闭生命周期。"""
+
+    class _Enricher:
+        def __init__(self, name: str, value: str) -> None:
+            self.name = name
+            self.value = value
+            self.prefetched: list[Place] = []
+            self.closed = False
+
+        def prefetch(self, places: object) -> None:
+            self.prefetched = list(places)  # type: ignore[arg-type]
+
+        def enrich(self, place: Place, names: PlaceNames) -> PlaceNames:
+            del place
+            names.admin_2 = self.value
+            return names
+
+        def close(self) -> None:
+            self.closed = True
+
+    first = _Enricher("first", "第一层")
+    second = _Enricher("second", "第二层")
+    chain = ProviderChain([first, second])
+    place = make_place()
+    names = PlaceNames(geoname_id=1)
+
+    assert chain
+    assert chain.names == ["first", "second"]
+    assert chain.enrich(place, names).admin_2 == "第二层"
+    chain.prefetch([place])
+    assert first.prefetched == [place]
+    assert second.prefetched == [place]
+    with chain as entered:
+        assert entered is chain
+    assert first.closed is True
+    assert second.closed is True
+    assert not ProviderChain([])
 
 
 def test_out_of_china() -> None:
