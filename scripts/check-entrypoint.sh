@@ -263,6 +263,32 @@ mismatch_case() {
 
 mismatch_case
 
+# 非法展示粒度必须在启动时明确失败，而不是静默落回默认粒度继续服务。
+invalid_pattern_case() {
+  local output
+  if output="$(PATH="$work/bin:$PATH" \
+      IMMICH_BUILD_DATA="$work/invalid-pattern/build" \
+      IMMICH_CN_GEODATA_DIR="$repo_root/build/geodata" \
+      IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
+      IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
+      IMMICH_CN_PATTERN='{admin_5}' \
+      bash "$repo_root/docker/entrypoint.sh" true 2>&1)"; then
+    echo "失败：非法展示粒度不应启动成功" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "未知展示粒度"; then
+    echo "失败：非法展示粒度未给出明确提示：${output}" >&2
+    exit 1
+  fi
+  if ! printf '%s' "$output" | grep -q "可用粒度"; then
+    echo "失败：非法展示粒度未列出可选值：${output}" >&2
+    exit 1
+  fi
+  echo "通过：非法展示粒度在启动时明确失败"
+}
+
+invalid_pattern_case
+
 # 只匹配部分地点同样是假成功：必须整表匹配，不能悄悄保留大多数错误粒度。
 partial_match_case() {
   local data="$work/partial/geodata"
