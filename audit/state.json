@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 334,
-  "consecutive_clean": 0,
+  "round": 335,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 214,
-    "clean_rounds": 109,
+    "clean_rounds": 110,
     "p0": 0,
     "p1": 32,
     "p2": 137,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M4 契约快照",
+  "last_method": "M10 shell/容器安全审查",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -3387,6 +3387,16 @@
       "severity": "P2",
       "evidence": "对 `main=2279756` 做 CLI 契约快照：递归遍历 argparse（含嵌套 `artifact resolve`）得到 69 个参数，逐条在 README/docs/CONTRIBUTING/SECURITY/.github 中搜索，未记录的恰好 1 个——`immich-cn verify --min-cn-ratio`（`cli.py:100`，`type=float, default=0.90`，中国记录中文名称覆盖率下限）。该参数在实现里被 `verify_geodata(min_cn_cjk_ratio=...)` 消费，`validation.py:378` 的注释也写着「可用 --min-cn-ratio 调整」，但所有用户文档中一次都没出现，用户无从发现。根因：`check_docs.py` 的 `check_cli` 只做「文档 → 实现」单向校验，没有反向校验，所以「实现有、文档无」在 CI 里恒绿。修复：① `docs/development.md` 命令行参数表补 `--min-cn-ratio` 行（默认 `0.90`，仅 `verify`）；② `check_docs.py` 新增 `_all_cli_flags()`（递归嵌套子命令）与 `check_cli_coverage()`，要求实现里的每个参数都出现在文档中，标准参数 `-h/--help/--version` 除外；③ `tests/test_checkers.py` 新增 `test_check_docs_detects_undocumented_cli_flag`。验证：先加护栏、后补文档——护栏加完立刻报「实现存在但文档未记录的 CLI 参数：--min-cn-ratio」，补文档后 0 未记录；负向控制：注释掉 `check_cli_coverage` 调用后新用例立即 AssertionError（checker 返回 0），恢复后通过。`make check` 461 passed（+1），`ruff`/`mypy` 通过。PR #241 四项必需检查全绿后 squash 合并，main=19665fd。",
       "pr": "https://github.com/webees/immich-cn/pull/241"
+    },
+    {
+      "round": 335,
+      "timestamp": "2026-10-08T09:41:57+08:00",
+      "focus": "工作流逻辑（权限、并发与失败路径）",
+      "method": "M10 shell/容器安全审查",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对 `main=19665fd` 的 6 个工作流做权限与失败路径快照：每个工作流都声明顶层 `permissions: {contents: read}`，写权限一律下沉到具体 job（`_build-data.yml`/`release.yml`/`update-data.yml` 的 build 为 `id-token+packages`，`release.yml` publish 为 `contents`，`cleanup.yml` 为 `contents+actions+packages`，三个 notify/resolve job 为 `issues`），没有任何 `write-all` 或顶层 write。并发：`ci.yml`/`cleanup.yml`/`monitor-update.yml`/`release.yml`/`update-data.yml` 都有 concurrency 组，可复用的 `_build-data.yml` 依赖调用方的并发组。失败路径与 architecture.md 的真值表一致：`release` 与 `no-change` 条件互斥（`changed == 'true' || force-publish` 对 `changed != 'true' && !force-publish`），`notify-failure` 在 `failure()` 下汇总 `[build, release, no-change, resolve-previous-failure]`，`resolve-previous-failure` 要求 `build` 成功且 `release` 成功或跳过。负向控制：把 `ci.yml` 顶层改成 `contents: write` 后 `check_workflows.py` 立即报「顶层 permissions 含 write：['contents']；应下沉到具体 job」；改成 `permissions: write-all` 后立即报「顶层 permissions 使用 write-all，权限范围过大」；两次都 exit 1，恢复后通过。`make audit-pins`（带 token）复核 25 个固定引用与上游 tag 一致。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
@@ -3585,7 +3595,9 @@
     "第 333 轮的未引用参数探针只按「参数名是否作为 Name 出现在函数体内」判定：同名全局变量、嵌套函数里的同名局部、以及 `getattr`/字符串方式取参都会被算作已引用，属假阴性方向；探针本身是临时脚本、未固化为 make 目标，后续新增函数时仍需重扫",
     "第 333 轮没有覆盖「未使用配置」的其它形态：`pyproject.toml` 里没有被任何工具读取的键、`.github/workflows/*.yml` 里声明了但从未使用的 `env`/`vars`、以及 Makefile 变量只定义不引用，这三类本轮都没有逐一核对",
     "第 334 轮新增的 `check_cli_coverage` 只校验「参数名在文档文本里出现过」，不校验它出现在正确的命令章节（例如把 verify 的参数写进 all 的说明也能通过），也不校验默认值是否与实现一致；默认值一致性仍只由 `check_env_defaults` 覆盖环境变量，CLI 参数默认值没有护栏",
-    "第 334 轮的 69 个参数统计来自 argparse 内部结构；若将来改用 click/typer 等其它解析器，`_cli_surface()` 与 `_all_cli_flags()` 会一起失效，需要同步重写"
+    "第 334 轮的 69 个参数统计来自 argparse 内部结构；若将来改用 click/typer 等其它解析器，`_cli_surface()` 与 `_all_cli_flags()` 会一起失效，需要同步重写",
+    "第 335 轮只核对了 job 级 permissions 与条件表达式；step 级 `permissions`、`secrets: inherit` 的使用面、以及 reusable workflow 的 `workflow_call` inputs/outputs 契约没有在本轮逐一核对（zizmor 此前的 `secrets:inherit` 提示仍属残余项）",
+    "第 335 轮确认了 release 与 update-data 各有自己的 concurrency 组：两组不同名，理论上 release 与 update-data 可以同时向同一 GHCR 包推送不同标签。当前标签集合不重叠，但若将来两者都写同一标签，仍需额外的跨工作流互斥"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
