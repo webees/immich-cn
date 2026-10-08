@@ -255,6 +255,15 @@ def check_dataset(dist: Path, errors: list[str]) -> None:
                     errors.append(f"{path.name} 的 places/place_names 数量不一致：{place_count}/{name_count}")
                 if meta.get("schemaVersion") != "1" or meta.get("format") != "immich-cn.dataset/1":
                     errors.append(f"{path.name} 的 dataset_meta 格式版本不一致")
+                # 只查 places/place_names 不够：countries 为空会让 localized_places 的国家名全为 NULL。
+                # 不查 sources——`--skip-fetch` 路径本来就不产生 SourceRecord，合成冒烟构建依赖它。
+                counts = {
+                    "countries": connection.execute("SELECT COUNT(*) FROM countries").fetchone()[0],
+                    "admin_areas": connection.execute("SELECT COUNT(*) FROM admin_areas").fetchone()[0],
+                }
+                for label, count in counts.items():
+                    if count < 1:
+                        errors.append(f"{path.name} 的 {label} 表为空")
             except sqlite3.Error as error:
                 errors.append(f"{path.name} 的 SQLite 结构无法校验：{error}")
             finally:
