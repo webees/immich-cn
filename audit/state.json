@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 403,
-  "consecutive_clean": 2,
+  "round": 404,
+  "consecutive_clean": 3,
   "totals": {
     "findings": 246,
-    "clean_rounds": 146,
+    "clean_rounds": 147,
     "p0": 0,
     "p1": 33,
     "p2": 168,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M7 死代码与引用计数",
+  "last_method": "M4 契约快照",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4079,9 +4079,21 @@
       "severity": null,
       "evidence": "运行 `make audit-dead-symbols`，`src/` 与 `scripts/` 没有零引用模块级定义；`ALLOWED` 当前为空。对抗控制：在临时副本的 `src/immich_cn/domain.py` 注入未引用常量 `ROUND403_PROBE`，`check_dead_symbols` 立即以退出码 1 报出 `domain.py:9 ROUND403_PROBE`，证明扫描器不是恒真。检查清单：已覆盖模块级函数、类、大写常量、仓库文本引用范围；未建立运行级 `getattr`/字符串入口引用图。本轮未发现 P0-P2 问题，clean_streak=2。",
       "pr": null
+    },
+    {
+      "round": 404,
+      "timestamp": "2026-10-09T06:45:00+08:00",
+      "focus": "文档与实现一致性（命令/路径/标签/数字）",
+      "method": "M4 契约快照",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对 `main=c8cd78a` 做文档、CLI 与发布资产契约快照：`check_docs.py` 通过（15 个文档、56 个实现文件），`check_workflows.py` 通过（6 个工作流）；CLI 顶层仍暴露 `fetch/build/all/verify/fingerprint/artifact` 六个子命令，`artifact`/`verify`/`fingerprint` 帮助与文档一致；GitHub Release `v3.3.0.1` 仍有 19 个规范资产，名称与 `docs/data-format.md` 的命名规范一致。对抗控制：在临时副本把 `docs/data-format.md` 的 SQLite 示例成员改为 `dataset.sqlite`，`check_docs.py` 立即以退出码 1 报“与归档成员不一致”，证明契约快照不是恒真。检查清单：已核对 CLI、文档、工作流与 Release 资产；未逐一下载并复核 19 个资产内容。本轮未发现 P0-P2 问题，clean_streak=3。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 404 轮的 Release 资产快照是时点状态；`auto-release`、`data-*` 与每日镜像标签会随后续更新变化，不能把 19 个资产数量当作永久常量",
+    "第 404 轮只核对 CLI 的顶层与三个子命令帮助，没有对每个参数组合做端到端执行；Release 资产也只核对了名称与数量，没有重新下载校验全部内容",
     "第 403 轮的死代码扫描是名字级文本匹配，无法证明 `getattr`、字符串入口、插件注册表或外部消费者的引用；注入探针只能证明当前扫描口径可失败",
     "第 402 轮只反演了 `CleanupSettings.validate` 的四个下限；清理策略的保留数量、分页上限和专项模式计数没有在同一轮全部反演",
     "第 402 轮只反演了 `CleanupSettings.validate` 的四个下限；清理策略的保留数量、分页上限和专项模式计数没有在同一轮全部反演",
