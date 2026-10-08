@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 411,
-  "consecutive_clean": 1,
+  "round": 412,
+  "consecutive_clean": 2,
   "totals": {
     "findings": 251,
-    "clean_rounds": 149,
+    "clean_rounds": 150,
     "p0": 0,
     "p1": 34,
     "p2": 172,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4163,9 +4163,20 @@
       "severity": null,
       "evidence": "对 `src/immich_cn/rate_limit.py::_prune` 做边界变异，把窗口边界判定从 `<=` 改为 `<`。隔离副本运行完整 `pytest` 后，`test_rate_limiter_releases_slot_at_window_boundary` 按预期失败并触发“未在窗口边界释放槽位”断言；当前 `main` 未改动，恢复态 `make check` 全绿：501 passed、覆盖率 88.78%，ruff/mypy/docs/workflows/shell 均通过。检查清单：已覆盖限速窗口边界变异、完整测试与静态检查；未对 RateLimiter 的线程竞争和系统时钟跳变做同等变异。本轮未发现 P0-P2 问题，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 412,
+      "timestamp": "2026-10-09T12:05:00+08:00",
+      "focus": "校验与阈值（恒真检查、阈值误判、边界翻转）",
+      "method": "M2 阈值反演",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对 `settings.py::positive_int_env` 做阈值反演：环境变量为 `1` 与 ` 2 ` 时分别返回 1/2；为 `0` 与 `-1` 时均抛 `ConfigError`，消息为“必须大于 0”。检查清单：已覆盖下界、负数、空白与整数解析；未对所有读取整数环境变量的入口做同等反演。`pytest -q tests/test_settings.py` 7 passed。本轮未发现 P0-P2 问题，clean_streak=2。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 412 轮只反演了 `positive_int_env` 的下界；其它整数环境变量入口若绕过该函数，仍需单独审计",
     "第 411 轮只变异了 RateLimiter 的窗口边界；线程竞争、系统时钟跳变、多实例并发与极端 period 仍未覆盖",
     "第 410 轮的 65.3% 是读取字节数估算，实际耗时受系统缓存、磁盘与 SHA256 吞吐影响；本地热缓存下单次与三次哈希耗时差异不足以作为稳定性能结论",
     "第 410 轮假设制品在写入完成后不再变化；当前流程满足该前提，若未来在 manifest 或 checksums 前再次改写制品，摘要缓存会失效并需要显式刷新",
