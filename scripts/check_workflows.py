@@ -271,7 +271,9 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
     """镜像发布必须保留 digest 冒烟、Trivy 扫描和 keyless 签名。"""
     if path.name != "_build-data.yml":
         return
-    text = yaml.safe_dump(workflow, allow_unicode=True)
+    del workflow
+    # 这里需要匹配 run 块里的精确 shell 片段；yaml.safe_dump 会折行并转义，必须读原文。
+    text = path.read_text(encoding="utf-8")
     raw_text = path.read_text(encoding="utf-8")
     if text.count("docker pull") < 2:
         errors.append(f"{path} 缺少数据或 server 镜像的最终 digest 冒烟验证")
@@ -354,9 +356,15 @@ def check_cleanup_workflow(path: Path, workflow: dict[str, Any], errors: list[st
     """定时清理必须默认 apply、支持 prune-all、报告失败，并具备所需最小权限。"""
     if path.name != "cleanup.yml":
         return
-    text = yaml.safe_dump(workflow, allow_unicode=True)
+    # run 块需要按原文匹配；yaml.safe_dump 会折行并转义 shell 片段。
+    text = path.read_text(encoding="utf-8")
     if "scripts/cleanup.py" not in text or "--prune-all" not in text:
         errors.append(f"{path} 缺少清理脚本或稳定前 prune-all 入口")
+    if 'python scripts/cleanup.py "${general[@]}"' not in text:
+        errors.append(f"{path} 定时清理没有先执行常规保留策略，专项清理会替代而非补充常规清理")
+    for mode in ("legacy-assets", "superseded-versions"):
+        if f'python scripts/cleanup.py "${{common[@]}}" --prune-{mode}' not in text:
+            errors.append(f"{path} 的 {mode} 专项清理没有作为独立步骤执行")
     if "APPLY: ${{ github.event_name == 'schedule' || inputs.apply }}" not in text:
         errors.append(f"{path} 定时任务没有自动切换为 apply")
     if "actions: write" not in text or "packages: write" not in text or "contents: write" not in text:
