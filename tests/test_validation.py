@@ -11,6 +11,9 @@ import pytest
 from immich_cn.pipeline import run_build
 from immich_cn.settings import BuildOptions
 from immich_cn.validation import (
+    ADMIN1_CODE_MAX_CHARS,
+    ADMIN2_CODE_MAX_CHARS,
+    NAME_MAX_CHARS,
     _check_admin,
     _check_cities500,
     _check_country_info,
@@ -262,6 +265,41 @@ def test_invalid_immich_column_values_are_rejected(
 
     failures = _failures(result.geodata_dir)
     assert "cities500-immich-columns" in failures, case
+
+
+@pytest.mark.parametrize(
+    ("field_index", "value", "case"),
+    [
+        (1, "x" * NAME_MAX_CHARS, "name 正好 varchar(200) 上限"),
+        (10, "x" * ADMIN1_CODE_MAX_CHARS, "admin1Code 正好 varchar(20) 上限"),
+        (11, "x" * ADMIN2_CODE_MAX_CHARS, "admin2Code 正好 varchar(80) 上限"),
+    ],
+)
+def test_immich_column_values_at_limit_are_accepted(
+    build_options: BuildOptions,
+    field_index: int,
+    value: str,
+    case: str,
+) -> None:
+    """列宽判定是「超过才拒绝」：正好等于上限的记录必须通过。
+
+    只测「超一格被拒」区分不了 `>` 与 `>=`，而 `>=` 会把合法的满长记录误判成违规。
+    """
+    result = run_build(build_options)
+    cities = result.geodata_dir / "cities500.txt"
+    lines = cities.read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(lines):
+        fields = line.split("\t")
+        if fields[8] == "US":
+            fields[field_index] = value
+            lines[index] = "\t".join(fields)
+            break
+    else:
+        raise AssertionError("测试前提：样例数据应包含 US 记录")
+    cities.write_text("".join(line + "\n" for line in lines), encoding="utf-8")
+
+    failures = _failures(result.geodata_dir)
+    assert "cities500-immich-columns" not in failures, case
 
 
 def test_invalid_modification_date_is_rejected(build_options: BuildOptions) -> None:
