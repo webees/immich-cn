@@ -84,10 +84,22 @@ jobs:
           python scripts/check_audit_ledger.py --path "$state"
       - name: 校验 GitHub Actions 工作流
         run: |
-          docker run --rm \
-            -v "$PWD:/repo" -w /repo \
-            rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
-            -no-color
+          set -euo pipefail
+          version="1.7.12"
+          archive="actionlint_1.7.12_linux_amd64.tar.gz"
+          checksum="8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+          curl -fsSL --retry 5 --retry-all-errors \
+            -o "/tmp/${archive}" \
+            "https://github.com/rhysd/actionlint/releases/download/v${version}/${archive}"
+          echo "${checksum}  /tmp/${archive}" | sha256sum -c -
+          tar -xzf "/tmp/${archive}" -C /tmp actionlint
+          /tmp/actionlint -no-color
+      - name: 预拉取 Docker 基础镜像
+        run: |
+          bash scripts/docker-pull-retry.sh \
+            public.ecr.aws/docker/library/alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 \
+            public.ecr.aws/docker/library/alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507 \
+            public.ecr.aws/docker/library/nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
       - name: 生成合成数据（不依赖外网）
         run: python -m scripts.smoke_data --work-dir build --dist-dir dist
       - name: 校验发布制品（zip / manifest / immich-cn-checksums-sha256-v1.txt）
@@ -116,7 +128,8 @@ jobs:
         run: |
           docker run --rm \
             -v "$PWD/examples/nginx/immich-cn.conf:/etc/nginx/conf.d/default.conf:ro" \
-            docker.io/nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de \
+            --pull=never \
+            public.ecr.aws/docker/library/nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de \
             nginx -t
       - name: 构建数据镜像
         run: docker build -f docker/geodata.Dockerfile -t immich-cn-geodata:ci .
@@ -130,7 +143,7 @@ jobs:
       - name: 构建 Immich 覆盖镜像（占位基础镜像，仅验证构建步骤）
         run: |
           docker build -f docker/immich.Dockerfile \
-            --build-arg IMMICH_BASE=alpine \
+            --build-arg IMMICH_BASE=public.ecr.aws/docker/library/alpine \
             --build-arg IMMICH_VERSION=3.21 \
             -t immich-cn-server:ci .
       - name: 校验镜像尺寸预算与语言包最小化
