@@ -680,11 +680,9 @@ def test_check_docs_requires_i18n_asset_for_release_users(repo_copy: Path) -> No
     deployment = repo_copy / "docs" / "deployment.md"
     mutate(
         deployment,
-        "curl -fsSL -o immich-cn-i18n-json-v1.zip \\\n"
-        "  https://github.com/webees/immich-cn/releases/latest/download/immich-cn-i18n-json-v1.zip\n",
-        "",
+        "`immich-cn-i18n-json-v1.zip`",
+        "国家名称覆盖包",
     )
-    mutate(deployment, "unzip -o immich-cn-i18n-json-v1.zip -d i18n-iso-countries", "true")
 
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
