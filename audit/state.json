@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 432,
+  "round": 433,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 261,
+    "findings": 262,
     "clean_rounds": 160,
     "p0": 0,
     "p1": 35,
-    "p2": 182,
+    "p2": 183,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M9 文档-实现逐条核对",
+  "last_method": "M4 契约快照",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4381,9 +4381,20 @@
       "severity": "P2",
       "evidence": "README 配置总览与 `docs/development.md` 各自维护一份提供方变量默认值表，7 行配置需要双处同步。修复为 README 作为唯一事实来源，开发文档只链接配置总览；`check_env_defaults` 改为直接校验 README，负向测试同步迁移并在错误默认值下仍以退出码 1 失败。`docs/development.md` 177 → 167 行，重复默认值行 7 → 0；`make check` 509 passed、覆盖率 88.92%，四项必需检查全绿；PR #296 已 squash 合并。",
       "pr": "https://github.com/webees/immich-cn/pull/296"
+    },
+    {
+      "round": 433,
+      "timestamp": "2026-10-10T05:11:47+07:00",
+      "focus": "文档与实现一致性（命令/路径/标签/数字）",
+      "method": "M4 契约快照",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`docs/deployment.md` 内嵌 Compose 摘要，与 `examples/compose.server.yml` 重复维护同一服务拓扑；部署文档未包含 machine-learning，仍需与示例文件同步更新。修复为只引用唯一可执行示例，并保留 `TZ: Asia/Shanghai`、`/data`、`model-cache` 和 README 启动入口说明。`docs/deployment.md` 117 → 89 行，内嵌 YAML 块 1 → 0；`make check` 509 passed、覆盖率 88.92%，四项必需检查全绿；PR #297 已 squash 合并。",
+      "pr": "https://github.com/webees/immich-cn/pull/297"
     }
   ],
   "residual_risks": [
+    "第 433 轮只收敛了 Compose 示例的重复来源；README 仍保留用于快速定位改动的最小 YAML 片段，其完整拓扑由 `examples/compose.server.yml` 与检查器约束",
     "第 432 轮只把检查覆盖的四个提供方默认值与两个国家列表迁到 README 单一来源；`AMAP_API_KEY` 和 `IMMICH_CN_LOG_LEVEL` 仍由同一 README 表格维护，没有变更消费逻辑",
     "第 432 轮将默认值护栏绑定到 README 表格格式；若未来调整表格列或标题，需要同步调整解析器，否则检查会以“缺少默认值行”明确失败",
     "第 431 轮只收敛了可直接复制执行的重复命令块；README 与部署文档之间仍有描述性重合，但当前没有参数漂移或维护双源，暂不做进一步删减",
