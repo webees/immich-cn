@@ -305,10 +305,7 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
         errors.append(f"{path} change detection 未把最新 data-* 不可变快照纳入重建判断")
     if text.count("imagetools create") < 1 or text.count("${IMAGE_VERSION}") < 2:
         errors.append(f"{path} 缺少数据与 server 镜像的 Immich 对齐版本标签")
-    if (
-        text.count("org.opencontainers.image.version=${TOOL_VERSION}") < 2
-        or text.count("org.immich-cn.data-date") < 2
-    ):
+    if text.count("org.opencontainers.image.version=${TOOL_VERSION}") < 2 or text.count("org.immich-cn.data-date") < 2:
         errors.append(f"{path} OCI version 未使用项目版本，或缺少独立的数据日期标签")
     if "org.opencontainers.image.licenses=AGPL-3.0-only AND MIT" not in text:
         errors.append(f"{path} server 组合镜像未声明 AGPL-3.0-only AND MIT")
@@ -664,8 +661,13 @@ def check_actionlint_in_ci(path: Path, workflow: dict[str, Any], errors: list[st
         return
     del workflow
     text = path.read_text(encoding="utf-8")
-    if "rhysd/actionlint:1.7.12@sha256:b1934ee5" not in text or "校验 GitHub Actions 工作流" not in text:
-        errors.append(f"{path} 缺少固定 digest 的 actionlint workflow 校验")
+    expected = (
+        "actionlint_1.7.12_linux_amd64.tar.gz",
+        "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8",
+        "actionlint -no-color",
+    )
+    if "校验 GitHub Actions 工作流" not in text or not all(item in text for item in expected):
+        errors.append(f"{path} 缺少校验 checksum 的 actionlint workflow 检查")
 
 
 def _triggers(workflow: dict[str, Any]) -> dict[str, Any]:
