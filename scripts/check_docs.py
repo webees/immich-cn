@@ -14,7 +14,9 @@ import argparse
 import re
 import sys
 import tomllib
+from functools import cache
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -303,6 +305,16 @@ def _expand(patterns: tuple[str, ...]) -> list[Path]:
     return [path for path in files if path.is_file()]
 
 
+@cache
+def _readme_text() -> str:
+    return Path("README.md").read_text(encoding="utf-8")
+
+
+@cache
+def _pyproject_data() -> dict[str, Any]:
+    return tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+
+
 def _env_names(text: str) -> set[str]:
     return {name for name in ENV_PATTERN.findall(text) if not name.endswith("_")}
 
@@ -580,7 +592,7 @@ def check_pattern_table(errors: list[str]) -> None:
     """
     from immich_cn.settings import DEFAULT_PATTERNS
 
-    readme = Path("README.md").read_text(encoding="utf-8")
+    readme = _readme_text()
     parts = readme.split("## 展示粒度", 1)
     if len(parts) != 2:
         errors.append("README 缺少「展示粒度」小节，无法校验 pattern 覆盖")
@@ -663,7 +675,7 @@ def check_referenced_paths(doc_files: list[Path], errors: list[str]) -> None:
 
 def check_project_positioning(errors: list[str]) -> None:
     """项目定位必须保持独立实现，且上游启发只在 README 底部致谢中出现。"""
-    readme = Path("README.md").read_text(encoding="utf-8")
+    readme = _readme_text()
     for phrase in FORBIDDEN_POSITIONING:
         if phrase in readme:
             errors.append(f"README 出现错误的项目定位：{phrase}")
@@ -684,7 +696,7 @@ def check_project_positioning(errors: list[str]) -> None:
 
 def check_china_localization_contract(errors: list[str]) -> None:
     """项目定位必须引用唯一 scope 文档，并区分 core 与 optional support。"""
-    readme = Path("README.md").read_text(encoding="utf-8")
+    readme = _readme_text()
     if CHINA_LOCALIZATION_ANCHOR not in readme:
         errors.append(f"README 缺少中国本地化定位锚点：{CHINA_LOCALIZATION_ANCHOR}")
     if "docs/china.md" not in readme:
@@ -750,7 +762,7 @@ def check_china_localization_contract(errors: list[str]) -> None:
 
 def check_documentation_language(errors: list[str]) -> None:
     """文档以中文为主，只有专有名词与标识符保留英文，并保留术语入口。"""
-    readme = Path("README.md").read_text(encoding="utf-8")
+    readme = _readme_text()
     if "[![Data Update]" not in readme:
         errors.append("README 的 data update badge alt text 必须使用英文简写 [![Data Update]")
     if "[![全自动更新数据]" in readme:
@@ -779,7 +791,7 @@ def check_registry_mirror_contract(errors: list[str]) -> None:
         if GHCR_MIRROR_ENV not in text:
             errors.append(f"{path} 未提供 GHCR mirror 覆盖入口：{GHCR_MIRROR_ENV}")
 
-    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    pyproject = _pyproject_data()
     container_url = ((pyproject.get("project") or {}).get("urls") or {}).get("Container Image")
     if container_url != CONTAINER_URL:
         errors.append(f"pyproject.toml 的 Container Image 必须是 {CONTAINER_URL}，当前为 {container_url!r}")
@@ -826,7 +838,7 @@ def check_image_tag_examples(doc_files: list[Path], errors: list[str]) -> None:
 
 def check_immich_integration_contract(errors: list[str]) -> None:
     """Immich 上游依赖、配置边界与不可修改项必须有唯一契约文档。"""
-    readme = Path("README.md").read_text(encoding="utf-8")
+    readme = _readme_text()
     if "docs/immich-integration.md" not in readme:
         errors.append("README 必须链接 docs/immich-integration.md")
     if not UPSTREAM_INTEGRATION_DOC.exists():
@@ -943,7 +955,7 @@ def check_current_state_docs(paths: list[Path], errors: list[str]) -> None:
 
 def check_independence_guidance(errors: list[str]) -> None:
     """README 的独立性声明必须标注为项目声明，并指向核查范围与边界。"""
-    readme = Path("README.md").read_text(encoding="utf-8")
+    readme = _readme_text()
     head, _, _ = readme.partition(INDEPENDENCE_SECTION_END)
     paragraph = next((line for line in head.splitlines() if INDEPENDENCE_ANCHOR in line), "")
     if not paragraph:
@@ -1373,14 +1385,12 @@ def check_license_consistency(errors: list[str]) -> None:
     代码是 MIT，但数据制品不是；两句话一旦在某一处丢失或改错，会直接影响使用者的
     合规判断（pyproject 的 license 还会进入发布元数据）。
     """
-    import tomllib
-
     problems: list[str] = []
     license_text = Path("LICENSE").read_text(encoding="utf-8").lstrip()
     if not license_text.startswith("MIT License"):
         problems.append("LICENSE 不是 MIT 文本")
 
-    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    pyproject = _pyproject_data()
     py_license = str((pyproject.get("project") or {}).get("license", ""))
     if py_license != "MIT":
         problems.append(f"pyproject.toml 的 license 是 {py_license!r}，不是 MIT")
@@ -1415,9 +1425,7 @@ def check_version_consistency(errors: list[str]) -> None:
     包的 ``__version__``、Release tag 取自输入版本。三者一旦漂移，会出现「tag 是
     3.3.0.2、镜像 OCI version 是 3.3.0.1」这类不一致。
     """
-    import tomllib
-
-    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    pyproject = _pyproject_data()
     init_text = Path("src/immich_cn/__init__.py").read_text(encoding="utf-8")
     citation_text = Path("CITATION.cff").read_text(encoding="utf-8")
     init_match = re.search(r'__version__\s*=\s*"([^"]+)"', init_text)
