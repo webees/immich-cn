@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 434,
+  "round": 435,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 263,
+    "findings": 264,
     "clean_rounds": 160,
     "p0": 0,
     "p1": 35,
-    "p2": 184,
+    "p2": 185,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M8 资源与性能剖析",
+  "last_method": "M9 文档-实现逐条核对",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4401,9 +4401,20 @@
       "severity": "P2",
       "evidence": "`make clean` 声称清理构建产物，但实测仍保留 `src/`、`scripts/`、`tests/` 下 4 个 `__pycache__` 目录，共约 2.4 MiB。修复后 `make clean` 删除这些可再生缓存且不触碰 `.venv`；清理后目录数 4 → 0，`make check` 509 passed、覆盖率 88.92%，四项必需检查全绿；PR #298 已 squash 合并。",
       "pr": "https://github.com/webees/immich-cn/pull/298"
+    },
+    {
+      "round": 435,
+      "timestamp": "2026-10-10T05:25:30+07:00",
+      "focus": "文档与实现一致性（命令/路径/标签/数字）",
+      "method": "M9 文档-实现逐条核对",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`docs/deployment.md` 的静态加速章节重复 README 与 `docs/china.md` 的缓存边界，三处任何一处更新都可能漂移。修复为部署文档只引用加速 Compose、Nginx 示例和中国本地化专题，缓存矩阵由 `docs/china.md` 单一维护；`docs/deployment.md` 89 → 84 行，重复缓存说明 1 → 0；`make check` 509 passed、覆盖率 88.92%，四项必需检查全绿；PR #299 已 squash 合并。",
+      "pr": "https://github.com/webees/immich-cn/pull/299"
     }
   ],
   "residual_risks": [
+    "第 435 轮只收敛了部署文档的静态加速边界；README 仍保留快速开始所需的简短缓存摘要，完整矩阵由 `docs/china.md` 维护",
     "第 434 轮的缓存清理只覆盖 `src/`、`scripts/`、`tests/`，并刻意不进入 `.venv`；若未来新增其他 Python 源码目录，需要同步扩大清理范围",
     "第 433 轮只收敛了 Compose 示例的重复来源；README 仍保留用于快速定位改动的最小 YAML 片段，其完整拓扑由 `examples/compose.server.yml` 与检查器约束",
     "第 432 轮只把检查覆盖的四个提供方默认值与两个国家列表迁到 README 单一来源；`AMAP_API_KEY` 和 `IMMICH_CN_LOG_LEVEL` 仍由同一 README 表格维护，没有变更消费逻辑",
