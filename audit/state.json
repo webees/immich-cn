@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 430,
+  "round": 431,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 259,
+    "findings": 260,
     "clean_rounds": 160,
     "p0": 0,
     "p1": 35,
-    "p2": 180,
+    "p2": 181,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M9 文档-实现逐条核对",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4361,9 +4361,21 @@
       "severity": "P2",
       "evidence": "真实 schedule 运行 37927139444 首次在 setup-trivy 安装失败，重跑两次又在数据镜像阶段连续命中 Docker Hub `library/alpine` 的 429。修复：数据镜像基础层改用摘要相同的 AWS Public ECR 镜像，数据镜像推送增加 3 次指数退避；CI 的 actionlint 改为 Release 二进制 + sha256；冒烟基础镜像预拉取统一走可重试脚本和 ECR。验证：PR #294 四项必需检查全绿后合并，main=384387e；随后运行 37994074894 的数据镜像推送、server 镜像、两个 digest 冒烟、完整 Immich 栈、Trivy、Cosign 与 Release 全部成功。",
       "pr": "https://github.com/webees/immich-cn/pull/294"
+    },
+    {
+      "round": 431,
+      "timestamp": "2026-10-10T04:59:40+07:00",
+      "focus": "文档与实现一致性（命令/路径/标签/数字）",
+      "method": "M9 文档-实现逐条核对",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "README 与 `docs/deployment.md` 重复维护数据释放、下载、解压命令和刷新生效步骤；两处数据释放示例的参数已经不同。修复为 README 作为快速开始与命令的单一出处，部署文档只保留版本边界、部署专属说明和链接。`docs/deployment.md` 155 → 117 行，重复命令块 5 → 0；对应负向契约测试改为直接删除部署文档中的 i18n 资产名并仍能触发失败。验证：`make check` 509 passed、覆盖率 88.92%，文档、工作流、Shell 契约全部通过；PR #295 四项必需检查全绿后 squash 合并。",
+      "pr": "https://github.com/webees/immich-cn/pull/295"
     }
   ],
   "residual_risks": [
+    "第 431 轮只收敛了可直接复制执行的重复命令块；README 与部署文档之间仍有描述性重合，但当前没有参数漂移或维护双源，暂不做进一步删减",
+    "第 431 轮使用 README 的中文标题锚点；GitHub 渲染器与本地检查器都能解析，其他 Markdown 渲染器若生成不同锚点，链接可能退化到 README 顶部",
     "第 430 轮改用 AWS Public ECR 镜像 Alpine 与 nginx；其线路质量仍受外部 registry 影响，但构建重试与摘要固定将单次限流降为可恢复故障",
     "第 430 轮把 actionlint 改为 GitHub Release 二进制并校验 sha256；若上游删除该资产或 checksum 漂移，CI 会明确失败而不是静默跳过",
     "第 429 轮的行政链共享函数只覆盖代码与名称的连续产出；dataset 与 adapter 对 `admin_areas` 的最终排序、渲染差异仍由各自写入逻辑负责",
