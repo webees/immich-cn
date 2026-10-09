@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 433,
+  "round": 434,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 262,
+    "findings": 263,
     "clean_rounds": 160,
     "p0": 0,
     "p1": 35,
-    "p2": 183,
+    "p2": 184,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M4 契约快照",
+  "last_method": "M8 资源与性能剖析",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4391,9 +4391,20 @@
       "severity": "P2",
       "evidence": "`docs/deployment.md` 内嵌 Compose 摘要，与 `examples/compose.server.yml` 重复维护同一服务拓扑；部署文档未包含 machine-learning，仍需与示例文件同步更新。修复为只引用唯一可执行示例，并保留 `TZ: Asia/Shanghai`、`/data`、`model-cache` 和 README 启动入口说明。`docs/deployment.md` 117 → 89 行，内嵌 YAML 块 1 → 0；`make check` 509 passed、覆盖率 88.92%，四项必需检查全绿；PR #297 已 squash 合并。",
       "pr": "https://github.com/webees/immich-cn/pull/297"
+    },
+    {
+      "round": 434,
+      "timestamp": "2026-10-10T05:18:51+07:00",
+      "focus": "性能与资源（内存、磁盘、重复计算、可流式化）",
+      "method": "M8 资源与性能剖析",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`make clean` 声称清理构建产物，但实测仍保留 `src/`、`scripts/`、`tests/` 下 4 个 `__pycache__` 目录，共约 2.4 MiB。修复后 `make clean` 删除这些可再生缓存且不触碰 `.venv`；清理后目录数 4 → 0，`make check` 509 passed、覆盖率 88.92%，四项必需检查全绿；PR #298 已 squash 合并。",
+      "pr": "https://github.com/webees/immich-cn/pull/298"
     }
   ],
   "residual_risks": [
+    "第 434 轮的缓存清理只覆盖 `src/`、`scripts/`、`tests/`，并刻意不进入 `.venv`；若未来新增其他 Python 源码目录，需要同步扩大清理范围",
     "第 433 轮只收敛了 Compose 示例的重复来源；README 仍保留用于快速定位改动的最小 YAML 片段，其完整拓扑由 `examples/compose.server.yml` 与检查器约束",
     "第 432 轮只把检查覆盖的四个提供方默认值与两个国家列表迁到 README 单一来源；`AMAP_API_KEY` 和 `IMMICH_CN_LOG_LEVEL` 仍由同一 README 表格维护，没有变更消费逻辑",
     "第 432 轮将默认值护栏绑定到 README 表格格式；若未来调整表格列或标题，需要同步调整解析器，否则检查会以“缺少默认值行”明确失败",
