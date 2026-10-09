@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 444,
-  "consecutive_clean": 3,
+  "round": 445,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 269,
+    "findings": 270,
     "clean_rounds": 164,
     "p0": 0,
     "p1": 35,
-    "p2": 190,
+    "p2": 191,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M5 真实数据抽样",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4501,9 +4501,20 @@
       "severity": null,
       "evidence": "从最新 `auto-release` 下载 `immich-cn-geodata-admin2-default-v1.zip` 并抽样：zip SHA256 `51b852…`；`cities500.txt` 256,672 行，其中 CN 34,897 行；苏州市、北京市与昆山市样本均输出中文名，admin2Codes 47,731 行可解析；manifest 记录 outputPlaces 1,318,876，HK/MO/TW/JP 分别 1,953/19/45,041/98,045；Release 资产为 19 个规范名称。检查清单：已覆盖中国名称、港澳台与海外统计、归档结构和 manifest 配置；未逐条比对全部 131 万记录。本轮未发现 P0-P2 问题，clean_streak=3。",
       "pr": null
+    },
+    {
+      "round": 445,
+      "timestamp": "2026-10-10T06:18:51+07:00",
+      "focus": "死代码与未使用配置（含只写不读的变量）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`scripts/check_docs.py` 的 7 个检查函数各自重复插入一次 `src` 到 `sys.path`，同一检查进程重复执行副作用且遗漏点分散。修复为仅在 `main()` 初始化一次；重复路径初始化 7 → 1，文件净减少 6 行。`make check` 510 passed、覆盖率 88.96%，文档契约检查通过；PR #305 四项必需检查全绿后合并。",
+      "pr": "https://github.com/webees/immich-cn/pull/305"
     }
   ],
   "residual_risks": [
+    "第 445 轮把 `sys.path` 初始化移到 `main()`；若未来直接导入并单独调用某个检查函数，需要调用方先按仓库根目录设置导入路径",
     "第 444 轮抽样验证了苏州、北京、昆山与东京等少量真实记录；乡镇级全量语义、繁简变体和同日快照差异仍未逐条核对",
     "第 443 轮只在普通可写临时目录验证 `clean-work`；若 `work` 位于只读挂载或存在权限拒绝项，`find` 仍会以非零退出",
     "第 442 轮验证了国家代码大小写归一化和空白回退，但没有为重复代码（如 `CN,CN`）定义或测试去重策略",
