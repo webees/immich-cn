@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 455,
-  "consecutive_clean": 3,
+  "round": 456,
+  "consecutive_clean": 4,
   "totals": {
     "findings": 271,
-    "clean_rounds": 173,
+    "clean_rounds": 174,
     "p0": 0,
     "p1": 35,
     "p2": 192,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M4 契约快照",
+  "last_method": "M10 shell/容器安全审查",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4611,9 +4611,20 @@
       "severity": null,
       "evidence": "GitHub 外部状态快照：open PR 0、open issue 0、非完成 Actions 运行 0；Release 共 5 个，保留 `auto-release`、`v3.3.0.1`、两个日期快照和一个同日 revision，均在当前保留策略内且无 legacy 命名残留。当前树无未提交改动。检查清单：已覆盖队列、运行状态、Release 数量与命名；未读取 GHCR 版本列表（当前 token 缺少 read:packages）。本轮未发现 P0-P2 问题，clean_streak=3。",
       "pr": null
+    },
+    {
+      "round": 456,
+      "timestamp": "2026-10-10T06:39:03+07:00",
+      "focus": "安全（zip slip、注入、密钥泄漏、供应链、权限）",
+      "method": "M10 shell/容器安全审查",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对 `GitHubClient._request()` 注入绝对 URL `https://evil.example`，客户端在发起网络访问前以 `拒绝非 GitHub API URL` 退出；请求只能落到 `https://api.github.com/`。当前树无未提交改动，账本一致性通过。检查清单：已覆盖绝对 URL 注入与主机固定；未模拟 DNS 重绑定或代理劫持。本轮未发现 P0-P2 问题，clean_streak=4。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 456 轮验证了应用层 URL 白名单，不覆盖 DNS 重绑定、受控代理或系统 CA 被替换等运行环境攻击",
     "第 455 轮的 GHCR 版本列表因当前 token 缺少 read:packages 无法核验；Release、Actions 与本地账本已核验",
     "第 454 轮阈值反演使用合成 zip，不重新测量真实 53.8 MB Release 资产在不同压缩实现下的极值",
     "第 453 轮文档护栏覆盖固定模式与锚点，无法发现语义等价但措辞完全不同的过时描述；仍需专题变更时人工复核",
