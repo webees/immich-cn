@@ -5,6 +5,9 @@
 #   --geodata-only  只释放 geodata/，不复制 i18n-iso-countries/ 国家名覆盖（Immich >= 3.3.0 不再需要）
 set -eu
 
+script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)"
+. "$script_dir/immich-cn-common.sh"
+
 target="${IMMICH_CN_TARGET:-/out}"
 pattern="${IMMICH_CN_PATTERN:-}"
 geodata_root="${IMMICH_CN_GEODATA_DIR:-/opt/immich-cn/geodata}"
@@ -50,13 +53,7 @@ if [ "$target" = "/" ]; then
   exit 2
 fi
 
-REQUIRED_FILES="admin1CodesASCII.txt admin2Codes.txt cities500.txt countryInfo.txt geodata-date.txt ne_10m_admin_0_countries.geojson"
-missing_files=""
-for name in $REQUIRED_FILES; do
-  if [ ! -s "$geodata_root/$name" ]; then
-    missing_files="${missing_files} ${name}"
-  fi
-done
+missing_files="$(missing_required_files "$geodata_root")"
 if [ -n "$missing_files" ]; then
   echo "错误：geodata 源缺少必需文件或文件为空：${missing_files# }" >&2
   echo "      请检查 IMMICH_CN_GEODATA_DIR=${geodata_root}" >&2
