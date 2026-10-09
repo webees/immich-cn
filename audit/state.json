@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 457,
-  "consecutive_clean": 5,
+  "round": 458,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 271,
+    "findings": 272,
     "clean_rounds": 175,
     "p0": 0,
     "p1": 35,
-    "p2": 192,
+    "p2": 193,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4631,9 +4631,20 @@
       "severity": null,
       "evidence": "执行 `make entrypoint`：合成流水线生成 17 个制品并通过全部数据校验，入口脚本 26 项检查全部通过，覆盖默认/显式粒度、强制刷新、只读目标、符号链接、嵌套目录、空文件、变体表不匹配与非法粒度。检查清单：已覆盖容器入口主要失败路径与端到端复制；未在真实 Alpine BusyBox 和 overlayfs 上重复全部用例。本轮未发现 P0-P2 问题，clean_streak=5。",
       "pr": null
+    },
+    {
+      "round": 458,
+      "timestamp": "2026-10-10T06:51:04+07:00",
+      "focus": "死代码与未使用配置（含只写不读的变量）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`docker/install.sh` 与 `docker/entrypoint.sh` 各自维护相同的 6 文件清单和校验循环。修复为共享 `docker/immich-cn-common.sh`，两个镜像一起打包并 source 同一函数；重复清单 2 → 1，生产脚本净减少 5 行。首次 CI 因共享片段被标记 `COPY --chmod=0755` 触发镜像层断言，改为普通 COPY 后不放宽测试；`make entrypoint` 26 项、`make check` 510 passed、四项必需检查全绿；PR #307 已 squash 合并。",
+      "pr": "https://github.com/webees/immich-cn/pull/307"
     }
   ],
   "residual_risks": [
+    "第 458 轮共享片段依赖镜像构建显式 COPY；若未来新增第三个容器入口，必须同步打包该片段并继续 source 同一文件",
     "第 457 轮入口检查在 macOS/POSIX 环境运行，未逐项重放到真正 Alpine BusyBox 与容器 overlayfs；CI 仅覆盖构建和基础启动",
     "第 456 轮验证了应用层 URL 白名单，不覆盖 DNS 重绑定、受控代理或系统 CA 被替换等运行环境攻击",
     "第 455 轮的 GHCR 版本列表因当前 token 缺少 read:packages 无法核验；Release、Actions 与本地账本已核验",
