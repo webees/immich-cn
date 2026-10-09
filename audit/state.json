@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 447,
-  "consecutive_clean": 2,
+  "round": 448,
+  "consecutive_clean": 3,
   "totals": {
     "findings": 270,
-    "clean_rounds": 166,
+    "clean_rounds": 167,
     "p0": 0,
     "p1": 35,
     "p2": 191,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4531,9 +4531,20 @@
       "severity": null,
       "evidence": "在隔离临时目录中把 `work/junk` 设为指向外部目录的符号链接，执行 `make clean-work` 后外部队列文件仍存在，符号链接本身被清除，证明 `find` 未沿链接递归删除目录外内容。当前树 `make check` 510 passed、覆盖率 88.96%，账本检查通过。检查清单：已覆盖 symlink 路径穿越、账本保留与重复执行；未覆盖只读挂载和权限拒绝。本轮未发现 P0-P2 问题，clean_streak=2。",
       "pr": null
+    },
+    {
+      "round": 448,
+      "timestamp": "2026-10-10T06:25:34+07:00",
+      "focus": "校验与阈值（恒真检查、阈值误判、边界翻转）",
+      "method": "M2 阈值反演",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "运行 `tests/test_cleanup.py` 的 Release、Actions、GHCR 保留边界测试共 9 项：保留数量内不删除，超过阈值时只删除最旧候选；`prune-all` 分别收敛为最新一项，稳定版本、受保护提交、当前运行、`latest`/`release`/digest 保持不变。当前树沿用上轮 `make check` 510 passed、覆盖率 88.96%，账本一致性通过。检查清单：已覆盖三种保留对象的边界翻转；未重新执行真实删除。本轮未发现 P0-P2 问题，clean_streak=3。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 448 轮阈值反演使用合成记录，不调用真实 GitHub 删除 API；权限、分页和外部状态变化仍由 Actions 清理运行覆盖",
     "第 447 轮验证了 `clean-work` 不沿符号链接递归；只读挂载或权限拒绝仍会让清理以非零退出，这是保守失败而非静默跳过",
     "第 446 轮只验证了现有四级模型的变异会被捕获；若未来扩展 PlaceNames 层级，`apply_cached_levels()` 的硬编码范围需要同步修改并新增边界测试",
     "第 445 轮把 `sys.path` 初始化移到 `main()`；若未来直接导入并单独调用某个检查函数，需要调用方先按仓库根目录设置导入路径",
