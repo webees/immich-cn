@@ -520,8 +520,21 @@ def build_plan(
     )
 
 
+def _mode(apply: bool) -> str:
+    return "APPLY" if apply else "DRY-RUN"
+
+
+def _raise_partial_failure(context: str, failures: list[str]) -> None:
+    if not failures:
+        return
+    detail = "；".join(failures[:5])
+    if len(failures) > 5:
+        detail += f"；另有 {len(failures) - 5} 项"
+    raise CleanupError(f"{context}：{len(failures)} 项：{detail}")
+
+
 def print_plan(plan: CleanupPlan, *, apply: bool) -> None:
-    mode = "APPLY" if apply else "DRY-RUN"
+    mode = _mode(apply)
     print(f"[{mode}] {plan.inventory.describe()}")
     print(f"[{mode}] 待删除 Release：{len(plan.releases)}")
     for release in plan.releases:
@@ -555,11 +568,7 @@ def apply_plan(client: GitHubClient, plan: CleanupPlan) -> None:
                 f"package {package} version {version.id}",
                 lambda package=package, version=version: client.delete_package_version(package, version),
             )
-    if failures:
-        detail = "；".join(failures[:5])
-        if len(failures) > 5:
-            detail += f"；另有 {len(failures) - 5} 项"
-        raise CleanupError(f"清理部分失败：{len(failures)} 项：{detail}")
+    _raise_partial_failure("清理部分失败", failures)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -622,7 +631,7 @@ def _prune_release_assets(client: GitHubClient, args: argparse.Namespace) -> int
             f"{args.dist_dir} 与 Release {args.prune_release_assets} 的资产没有任何交集，拒绝删除（疑似清单来源错误）"
         )
     stale = select_stale_assets(assets, keep)
-    mode = "APPLY" if args.apply else "DRY-RUN"
+    mode = _mode(args.apply)
     print(f"[{mode}] Release {args.prune_release_assets}：现有 {len(assets)} 个资产，待删除 {len(stale)} 个")
     failures: list[str] = []
     for asset_id, name in stale:
@@ -632,11 +641,7 @@ def _prune_release_assets(client: GitHubClient, args: argparse.Namespace) -> int
                 client.delete_release_asset(asset_id)
             except CleanupError as error:
                 failures.append(f"{name}: {error}")
-    if failures:
-        detail = "；".join(failures[:5])
-        if len(failures) > 5:
-            detail += f"；另有 {len(failures) - 5} 项"
-        raise CleanupError(f"Release {args.prune_release_assets} 资产清理部分失败：{len(failures)} 项：{detail}")
+    _raise_partial_failure(f"Release {args.prune_release_assets} 资产清理部分失败", failures)
     return 0
 
 
@@ -666,7 +671,7 @@ def _prune_legacy_assets(client: GitHubClient, args: argparse.Namespace) -> int:
     releases = client.list_releases()
     observed = {release.tag_name: client.release_assets(release.tag_name) for release in releases}
     canonical_available = any(CANONICAL_ASSET.fullmatch(name) for assets in observed.values() for _, name in assets)
-    mode = "APPLY" if args.apply else "DRY-RUN"
+    mode = _mode(args.apply)
     deletable_total = 0
     manual_total = 0
     failures: list[str] = []
@@ -691,11 +696,7 @@ def _prune_legacy_assets(client: GitHubClient, args: argparse.Namespace) -> int:
             print(f"  ! {name}（无规范替代品，跳过）")
         deletable_total += len(deletable)
     print(f"[{mode}] 旧命名资产：可删除 {deletable_total} 个，需人工确认 {manual_total} 个")
-    if failures:
-        detail = "；".join(failures[:5])
-        if len(failures) > 5:
-            detail += f"；另有 {len(failures) - 5} 项"
-        raise CleanupError(f"旧命名资产清理部分失败：{len(failures)} 项：{detail}")
+    _raise_partial_failure("旧命名资产清理部分失败", failures)
     return 0
 
 
@@ -705,7 +706,7 @@ def _prune_superseded_versions(client: GitHubClient, args: argparse.Namespace) -
     与 `--prune-legacy-assets` 同构：默认只试运行，且只有同一个包里已经存在四段式版本时才删除；
     没有四段式替代品时只报告、不删除。
     """
-    mode = "APPLY" if args.apply else "DRY-RUN"
+    mode = _mode(args.apply)
     deletable_total = 0
     manual_total = 0
     failures: list[str] = []
@@ -748,11 +749,7 @@ def _prune_superseded_versions(client: GitHubClient, args: argparse.Namespace) -
             print(f"  ! {', '.join(version.tags)}（无四段式替代品，跳过）")
         deletable_total += len(deletable)
     print(f"[{mode}] 三段式旧版本：可删除 {deletable_total} 个，需人工确认 {manual_total} 个")
-    if failures:
-        detail = "；".join(failures[:5])
-        if len(failures) > 5:
-            detail += f"；另有 {len(failures) - 5} 项"
-        raise CleanupError(f"三段式旧版本清理部分失败：{len(failures)} 项：{detail}")
+    _raise_partial_failure("三段式旧版本清理部分失败", failures)
     return 0
 
 
