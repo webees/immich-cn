@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 438,
-  "consecutive_clean": 1,
+  "round": 439,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 266,
+    "findings": 267,
     "clean_rounds": 161,
     "p0": 0,
     "p1": 35,
-    "p2": 187,
+    "p2": 188,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4441,9 +4441,20 @@
       "severity": null,
       "evidence": "对 `scripts/check_workflows.py::check_action_pins` 注入语义变异：把 `not separator or not ACTION_SHA.fullmatch(revision)` 改为只检查 `not separator`，完整 `pytest -q` 得到 1 failure（`test_check_workflows_detects_unpinned_action`，检查器错误地返回 0），证明 Action pin 规则不是恒真；恢复后 `make check` 509 passed、覆盖率 88.92%，文档、工作流与 Shell 契约全部通过。检查清单：已覆盖 Action pin、工作流遍历与契约快照；未对真实 GitHub Actions 重放该坏工作流。本轮未发现 P0-P2 问题，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 439,
+      "timestamp": "2026-10-10T05:50:15+07:00",
+      "focus": "死代码与未使用配置（含只写不读的变量）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "Amap 与 Nominatim 各自实现国家列表环境变量解析，去空白、大写和空值回退规则需要双处维护。修复为 `settings.country_codes_env()` 单一实现；新增边界测试覆盖空项、全空白回退。重复解析器 2 → 1，生产代码净减少 6 行；`make check` 510 passed、覆盖率 88.97%，四项必需检查全绿；PR #302 已 squash 合并。",
+      "pr": "https://github.com/webees/immich-cn/pull/302"
     }
   ],
   "residual_risks": [
+    "第 439 轮只合并了国家代码列表解析；provider 自身的缓存加载、enrich 覆盖顺序和 HTTP 重试策略仍按各自 API 语义独立",
     "第 438 轮只在临时工作树中验证了 Action pin 变异会被测试捕获；真实 GitHub Actions 对未固定 Action 的拒绝行为未重新执行",
     "第 437 轮合并了工作流检查器的公共遍历逻辑；`continue-on-error`、Action pin 与 checkout 检查内部仍有少量按 job 展开的 step 循环，因各自需要额外上下文而保留",
     "第 436 轮只合并了清理脚本的模式标签与失败摘要；Release 资产清理和三段式版本清理的主体流程仍因资源 API 不同而保持独立",
