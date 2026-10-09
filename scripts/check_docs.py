@@ -309,7 +309,6 @@ def _env_names(text: str) -> set[str]:
 
 def _cli_surface() -> tuple[set[str], set[str]]:
     """从 CLI 解析器提取子命令与全部选项。"""
-    sys.path.insert(0, str(Path("src").resolve()))
     from immich_cn.cli import build_parser
 
     parser = build_parser()
@@ -332,7 +331,6 @@ STANDARD_CLI_FLAGS = frozenset({"-h", "--help", "--version"})
 
 def _all_cli_flags() -> set[str]:
     """递归收集全部子命令（含嵌套，例如 ``artifact resolve``）的选项。"""
-    sys.path.insert(0, str(Path("src").resolve()))
     from immich_cn.cli import build_parser
 
     flags: set[str] = set()
@@ -530,7 +528,6 @@ def check_discoverable(errors: list[str]) -> None:
 
 def check_numeric_contracts(errors: list[str]) -> None:
     """文档里的数字必须与实现一致（变体数、定时时刻、快照保留数量）。"""
-    sys.path.insert(0, str(Path("src").resolve()))
     from immich_cn.packaging import build_variants
     from immich_cn.settings import DEFAULT_PATTERNS
 
@@ -581,7 +578,6 @@ def check_pattern_table(errors: list[str]) -> None:
     `immich-cn-geodata-admin2-admin4-*.zip` / `admin3-admin4-*.zip` 已经躺在 Release
     里，却没有任何文档入口——用户不读源码就不知道它们存在。
     """
-    sys.path.insert(0, str(Path("src").resolve()))
     from immich_cn.settings import DEFAULT_PATTERNS
 
     readme = Path("README.md").read_text(encoding="utf-8")
@@ -605,7 +601,6 @@ def check_source_contracts(errors: list[str]) -> None:
 
     新增或重命名 `SourceSpec` 时必须同步文档，否则文档会静默描述一套不存在的源。
     """
-    sys.path.insert(0, str(Path("src").resolve()))
     from immich_cn.settings import geonames_sources, i18n_sources, natural_earth_source
 
     doc = Path("docs/data-sources.md").read_text(encoding="utf-8")
@@ -1256,7 +1251,6 @@ def check_dataset_member_doc(errors: list[str]) -> None:
     文档曾写成构建期的中间文件名 `dataset.sqlite`，用户照抄会得到一个空库并报
     `no such table: localized_places`。
     """
-    sys.path.insert(0, str(Path("src").resolve()))
     from immich_cn.artifact_spec import DATASET_MEMBER
 
     path = Path("docs/data-format.md")
@@ -1445,7 +1439,6 @@ def check_version_consistency(errors: list[str]) -> None:
 
 def check_asset_names(paths: list[Path], errors: list[str]) -> None:
     """文档中的发布资产名必须符合 v4 规范，且不能回退到 legacy 命名。"""
-    sys.path.insert(0, str(Path("src").resolve()))
     from immich_cn.artifact_spec import (
         CHECKSUMS_FILE,
         DATASET_FILE,
@@ -1479,6 +1472,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)
 
+    sys.path.insert(0, str(Path("src").resolve()))
     doc_files = _expand(DOC_GLOBS)
     code_files = _expand(CODE_GLOBS)
     doc_text = _read(doc_files)
