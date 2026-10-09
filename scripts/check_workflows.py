@@ -70,18 +70,31 @@ def load(path: Path) -> dict[str, Any] | None:
     return parsed if isinstance(parsed, dict) else None
 
 
-def check_run_blocks(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
-    for job_name, job in (workflow.get("jobs") or {}).items():
-        if not isinstance(job, dict):
-            continue
+def _iter_jobs(workflow: dict[str, Any]) -> Iterator[tuple[str, dict[str, Any]]]:
+    for name, job in (workflow.get("jobs") or {}).items():
+        if isinstance(job, dict):
+            yield name, job
+
+
+def _iter_steps(workflow: dict[str, Any]) -> Iterator[tuple[str, int, dict[str, Any]]]:
+    for job_name, job in _iter_jobs(workflow):
         for index, step in enumerate(job.get("steps") or [], start=1):
-            if not isinstance(step, dict) or "run" not in step:
-                continue
-            script = str(step["run"])
-            found = INTERPOLATION.findall(script)
-            if found:
-                name = step.get("name", f"step#{index}")
-                errors.append(f"{path}:{job_name}/{name} 的 run 块直接插值 {found[0]}，应改用 env")
+            if isinstance(step, dict):
+                yield job_name, index, step
+
+
+def _iter_run_steps(workflow: dict[str, Any]) -> Iterator[tuple[str, int, dict[str, Any], str]]:
+    for job_name, index, step in _iter_steps(workflow):
+        if "run" in step:
+            yield job_name, index, step, str(step["run"])
+
+
+def check_run_blocks(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    for job_name, index, step, script in _iter_run_steps(workflow):
+        found = INTERPOLATION.findall(script)
+        if found:
+            name = step.get("name", f"step#{index}")
+            errors.append(f"{path}:{job_name}/{name} 的 run 块直接插值 {found[0]}，应改用 env")
 
 
 #: 调用 reusable workflow 的 job 允许出现的键（GitHub 的 schema 限制）
@@ -89,10 +102,7 @@ REUSABLE_JOB_KEYS = {"name", "uses", "with", "secrets", "strategy", "needs", "if
 
 
 def check_jobs(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
-    jobs = workflow.get("jobs") or {}
-    for job_name, job in jobs.items():
-        if not isinstance(job, dict):
-            continue
+    for job_name, job in _iter_jobs(workflow):
         if "uses" in job:
             illegal = sorted(set(job) - REUSABLE_JOB_KEYS)
             if illegal:
@@ -136,9 +146,7 @@ def check_continue_on_error(path: Path, workflow: dict[str, Any], errors: list[s
                 "确需例外时写入 check_workflows.CONTINUE_ON_ERROR_ALLOWED 并注明原因"
             )
 
-    for job_name, job in (workflow.get("jobs") or {}).items():
-        if not isinstance(job, dict):
-            continue
+    for job_name, job in _iter_jobs(workflow):
         flag(job.get("continue-on-error"), job_name)
         for index, step in enumerate(job.get("steps") or [], start=1):
             if isinstance(step, dict):
@@ -155,9 +163,7 @@ def check_action_pins(path: Path, workflow: dict[str, Any], errors: list[str]) -
         if not separator or not ACTION_SHA.fullmatch(revision):
             errors.append(f"{path}:{location} 的 Action {value!r} 未固定到 40 位 commit SHA")
 
-    for job_name, job in (workflow.get("jobs") or {}).items():
-        if not isinstance(job, dict):
-            continue
+    for job_name, job in _iter_jobs(workflow):
         if "uses" in job:
             validate(job["uses"], job_name)
         for index, step in enumerate(job.get("steps") or [], start=1):
@@ -167,41 +173,29 @@ def check_action_pins(path: Path, workflow: dict[str, Any], errors: list[str]) -
 
 def check_release_replacements(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
     """同名 Release 不得先删除再创建，否则创建失败会直接造成发布空窗。"""
-    for job_name, job in (workflow.get("jobs") or {}).items():
-        if not isinstance(job, dict):
-            continue
-        for index, step in enumerate(job.get("steps") or [], start=1):
-            if not isinstance(step, dict) or "run" not in step:
-                continue
-            script = str(step["run"])
-            deleted = set(RELEASE_DELETE.findall(script))
-            created = set(RELEASE_CREATE.findall(script))
-            for tag in sorted(deleted & created):
-                errors.append(
-                    f"{path}:{job_name}/step#{index} 对 Release {tag!r} 先删除后重建；"
-                    "创建失败会造成发布空窗，应原地 edit/upload"
-                )
+    for job_name, index, _, script in _iter_run_steps(workflow):
+        deleted = set(RELEASE_DELETE.findall(script))
+        created = set(RELEASE_CREATE.findall(script))
+        for tag in sorted(deleted & created):
+            errors.append(
+                f"{path}:{job_name}/step#{index} 对 Release {tag!r} 先删除后重建；"
+                "创建失败会造成发布空窗，应原地 edit/upload"
+            )
 
 
 def check_release_update_order(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
     """滚动 Release 必须先替换资产，再更新标题/说明，避免资产失败后元数据谎报新版本。"""
-    for job_name, job in (workflow.get("jobs") or {}).items():
-        if not isinstance(job, dict):
-            continue
-        for index, step in enumerate(job.get("steps") or [], start=1):
-            if not isinstance(step, dict) or "run" not in step:
-                continue
-            script = str(step["run"])
-            edited = set(RELEASE_EDIT.findall(script))
-            uploaded = set(RELEASE_UPLOAD.findall(script))
-            for tag in sorted(edited & uploaded):
-                edit_at = script.find(f"gh release edit {tag}")
-                upload_at = script.find(f"gh release upload {tag}")
-                if edit_at < upload_at:
-                    errors.append(
-                        f"{path}:{job_name}/step#{index} 对 Release {tag!r} 在替换资产前更新了元数据；"
-                        "upload 失败时标题会谎报新版本"
-                    )
+    for job_name, index, _, script in _iter_run_steps(workflow):
+        edited = set(RELEASE_EDIT.findall(script))
+        uploaded = set(RELEASE_UPLOAD.findall(script))
+        for tag in sorted(edited & uploaded):
+            edit_at = script.find(f"gh release edit {tag}")
+            upload_at = script.find(f"gh release upload {tag}")
+            if edit_at < upload_at:
+                errors.append(
+                    f"{path}:{job_name}/step#{index} 对 Release {tag!r} 在替换资产前更新了元数据；"
+                    "upload 失败时标题会谎报新版本"
+                )
 
 
 def check_release_asset_reconciliation(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
@@ -223,24 +217,18 @@ def check_snapshot_immutability(path: Path, workflow: dict[str, Any], errors: li
     """同日后续发布不得覆盖 data-YYYY-MM-DD，必须落到不可变 revision tag。"""
     if path.name != "update-data.yml":
         return
-    for job_name, job in (workflow.get("jobs") or {}).items():
-        if not isinstance(job, dict):
+    for job_name, index, _, script in _iter_run_steps(workflow):
+        if 'gh release view "data-${DATE}"' not in script:
             continue
-        for index, step in enumerate(job.get("steps") or [], start=1):
-            if not isinstance(step, dict) or "run" not in step:
-                continue
-            script = str(step["run"])
-            if 'gh release view "data-${DATE}"' not in script:
-                continue
-            if "-sha-${short_sha}" not in script:
-                errors.append(
-                    f"{path}:{job_name}/step#{index} 的日期快照冲突分支未创建 data-DATE-sha-短提交；"
-                    "同日修订会丢失或覆盖不可变快照"
-                )
-            if re.search(r"gh release upload\s+\"data-\$\{DATE\}\"[^\n]*--clobber", script):
-                errors.append(
-                    f"{path}:{job_name}/step#{index} 使用 --clobber 覆盖 data-${{DATE}}；不可变日期快照不能被改写"
-                )
+        if "-sha-${short_sha}" not in script:
+            errors.append(
+                f"{path}:{job_name}/step#{index} 的日期快照冲突分支未创建 data-DATE-sha-短提交；"
+                "同日修订会丢失或覆盖不可变快照"
+            )
+        if re.search(r"gh release upload\s+\"data-\$\{DATE\}\"[^\n]*--clobber", script):
+            errors.append(
+                f"{path}:{job_name}/step#{index} 使用 --clobber 覆盖 data-${{DATE}}；不可变日期快照不能被改写"
+            )
 
 
 def check_ghcr_package_names(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
@@ -413,9 +401,7 @@ def check_needs_coverage(path: Path, workflow: dict[str, Any], errors: list[str]
     使用 failure()/success() 的运行级判断不受此规则约束；always()/!cancelled()
     必须同时逐个判断 needs，否则依赖失败时仍会运行。
     """
-    for job_name, job in (workflow.get("jobs") or {}).items():
-        if not isinstance(job, dict):
-            continue
+    for job_name, job in _iter_jobs(workflow):
         needs = job.get("needs")
         if not needs:
             continue
@@ -445,18 +431,12 @@ def _unscoped_issue_searches(script: str) -> list[str]:
 
 def check_issue_search_scope(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
     """自动化 issue 的标题搜索必须限定 automation 标签，避免误改用户 issue。"""
-    for job_name, job in (workflow.get("jobs") or {}).items():
-        if not isinstance(job, dict):
-            continue
-        for index, step in enumerate(job.get("steps") or [], start=1):
-            if not isinstance(step, dict) or "run" not in step:
-                continue
-            script = str(step["run"])
-            if _unscoped_issue_searches(script):
-                errors.append(
-                    f"{path}:{job_name}/step#{index} 的自动化 issue 标题搜索未限定 automation 标签，"
-                    "可能误改或误关用户 issue"
-                )
+    for job_name, index, _, script in _iter_run_steps(workflow):
+        if _unscoped_issue_searches(script):
+            errors.append(
+                f"{path}:{job_name}/step#{index} 的自动化 issue 标题搜索未限定 automation 标签，"
+                "可能误改或误关用户 issue"
+            )
 
 
 def check_failure_notifier_coverage(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
@@ -468,8 +448,8 @@ def check_failure_notifier_coverage(path: Path, workflow: dict[str, Any], errors
     raw_needs = notifier.get("needs")
     needs = {raw_needs} if isinstance(raw_needs, str) else set(raw_needs or [])
     expected: set[str] = set()
-    for name, job in jobs.items():
-        if name == "notify-failure" or not isinstance(job, dict):
+    for name, job in _iter_jobs(workflow):
+        if name == "notify-failure":
             continue
         job_needs = job.get("needs")
         downstream = {job_needs} if isinstance(job_needs, str) else set(job_needs or [])
@@ -503,9 +483,7 @@ def check_references(
     """
     dangling: set[str] = set()
     missing_outputs: set[str] = set()
-    for job_name, job in (workflow.get("jobs") or {}).items():
-        if not isinstance(job, dict):
-            continue
+    for job_name, job in _iter_jobs(workflow):
         text = yaml.safe_dump(job, allow_unicode=True)
         step_ids = {step.get("id") for step in (job.get("steps") or []) if isinstance(step, dict) and step.get("id")}
         for step_id in re.findall(r"steps\.([A-Za-z0-9_-]+)\.outputs\.", text):
@@ -762,9 +740,7 @@ def check_checkout_credentials(path: Path, workflow: dict[str, Any], errors: lis
     这些工作流全部通过 `gh` + `GH_TOKEN` 访问 GitHub API，不需要本地 git 凭据。
     """
     found = 0
-    for job_name, job in (workflow.get("jobs") or {}).items():
-        if not isinstance(job, dict):
-            continue
+    for job_name, job in _iter_jobs(workflow):
         for index, step in enumerate(job.get("steps") or [], start=1):
             if not isinstance(step, dict):
                 continue
