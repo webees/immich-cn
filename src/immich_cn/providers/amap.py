@@ -15,6 +15,7 @@ from immich_cn.domain import Place, PlaceNames
 from immich_cn.errors import ConfigError
 from immich_cn.fetching import retry_delay
 from immich_cn.logging_config import get_logger
+from immich_cn.providers.base import apply_cached_levels, place_cache_key
 from immich_cn.providers.cache import JsonlCache
 from immich_cn.providers.geo import wgs84_to_gcj02
 from immich_cn.rate_limit import RateLimiter
@@ -99,7 +100,7 @@ class AmapEnricher:
         for place in places:
             if place.country_code not in self._options.countries:
                 continue
-            cached = self._cache.get(_key(place))
+            cached = self._cache.get(place_cache_key(place))
             # 只信任成功结果：旧的 _error 条目视为缓存失效，重新请求（自愈）
             if cached is not None and "_error" not in cached:
                 continue
@@ -169,20 +170,17 @@ class AmapEnricher:
             if levels is None:
                 logger.debug("高德未返回有效地址，跳过缓存以便下次重试")
             else:
-                self._cache.put(_key(place), levels)
+                self._cache.put(place_cache_key(place), levels)
 
     # ---- enrich -------------------------------------------------------
 
     def enrich(self, place: Place, names: PlaceNames) -> PlaceNames:
         if place.country_code not in self._options.countries:
             return names
-        cached = self._cache.get(_key(place))
+        cached = self._cache.get(place_cache_key(place))
         if not cached or "_error" in cached:
             return names
-        for level in range(1, 5):
-            value = cached.get(f"admin_{level}")
-            if value:
-                setattr(names, f"admin_{level}", value)
+        apply_cached_levels(cached, names)
         if cached.get("country"):
             names.country = cached["country"]
         return names
@@ -215,10 +213,6 @@ def _parse_regeocode(record: object) -> dict[str, str] | None:
     if not any(parsed[f"admin_{level}"] for level in range(1, 5)):
         return None
     return parsed
-
-
-def _key(place: Place) -> str:
-    return f"{place.columns[5]},{place.columns[4]}"
 
 
 __all__ = ["AMAP_ENDPOINT", "AmapEnricher", "AmapOptions"]

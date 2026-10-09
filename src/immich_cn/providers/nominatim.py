@@ -13,6 +13,7 @@ import httpx
 from immich_cn.domain import Place, PlaceNames
 from immich_cn.fetching import retry_delay
 from immich_cn.logging_config import get_logger
+from immich_cn.providers.base import apply_cached_levels, place_cache_key
 from immich_cn.providers.cache import JsonlCache
 from immich_cn.rate_limit import RateLimiter
 from immich_cn.settings import USER_AGENT, BuildOptions, country_codes_env, positive_int_env
@@ -77,14 +78,14 @@ class NominatimEnricher:
         for place in places:
             if place.country_code not in self._options.countries:
                 continue
-            cached = self._cache.get(_key(place))
+            cached = self._cache.get(place_cache_key(place))
             if cached is not None and "_error" not in cached:
                 continue
             result = self._query(place)
             if "_error" in result:
                 # 瞬时故障不写负缓存，下次运行重试
                 continue
-            self._cache.put(_key(place), result)
+            self._cache.put(place_cache_key(place), result)
         logger.info("Nominatim 预取完成，缓存共 %d 条", len(self._cache))
 
     def _query(self, place: Place) -> dict[str, str]:
@@ -114,13 +115,10 @@ class NominatimEnricher:
     def enrich(self, place: Place, names: PlaceNames) -> PlaceNames:
         if place.country_code not in self._options.countries:
             return names
-        cached = self._cache.get(_key(place))
+        cached = self._cache.get(place_cache_key(place))
         if not cached or "_error" in cached:
             return names
-        for level in range(1, 5):
-            value = cached.get(f"admin_{level}")
-            if value:
-                setattr(names, f"admin_{level}", value)
+        apply_cached_levels(cached, names)
         return names
 
 
@@ -153,7 +151,3 @@ def _parse(payload: Any) -> dict[str, str]:
     if not result:
         return {"_error": "empty"}
     return result
-
-
-def _key(place: Place) -> str:
-    return f"{place.columns[5]},{place.columns[4]}"

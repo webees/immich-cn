@@ -11,6 +11,17 @@ from immich_cn.logging_config import get_logger
 logger = get_logger("providers")
 
 
+def place_cache_key(place: Place) -> str:
+    return f"{place.columns[5]},{place.columns[4]}"
+
+
+def apply_cached_levels(cached: dict[str, str], names: PlaceNames) -> None:
+    for level in range(1, 5):
+        value = cached.get(f"admin_{level}")
+        if value:
+            setattr(names, f"admin_{level}", value)
+
+
 @runtime_checkable
 class NameEnricher(Protocol):
     """在离线层级表基础上补充或修正中文名的能力。"""
