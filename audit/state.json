@@ -2,14 +2,14 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 431,
+  "round": 432,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 260,
+    "findings": 261,
     "clean_rounds": 160,
     "p0": 0,
     "p1": 35,
-    "p2": 181,
+    "p2": 182,
     "p3": 49
   },
   "status": "active",
@@ -4371,9 +4371,21 @@
       "severity": "P2",
       "evidence": "README 与 `docs/deployment.md` 重复维护数据释放、下载、解压命令和刷新生效步骤；两处数据释放示例的参数已经不同。修复为 README 作为快速开始与命令的单一出处，部署文档只保留版本边界、部署专属说明和链接。`docs/deployment.md` 155 → 117 行，重复命令块 5 → 0；对应负向契约测试改为直接删除部署文档中的 i18n 资产名并仍能触发失败。验证：`make check` 509 passed、覆盖率 88.92%，文档、工作流、Shell 契约全部通过；PR #295 四项必需检查全绿后 squash 合并。",
       "pr": "https://github.com/webees/immich-cn/pull/295"
+    },
+    {
+      "round": 432,
+      "timestamp": "2026-10-10T05:05:54+07:00",
+      "focus": "文档与实现一致性（命令/路径/标签/数字）",
+      "method": "M9 文档-实现逐条核对",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "README 配置总览与 `docs/development.md` 各自维护一份提供方变量默认值表，7 行配置需要双处同步。修复为 README 作为唯一事实来源，开发文档只链接配置总览；`check_env_defaults` 改为直接校验 README，负向测试同步迁移并在错误默认值下仍以退出码 1 失败。`docs/development.md` 177 → 167 行，重复默认值行 7 → 0；`make check` 509 passed、覆盖率 88.92%，四项必需检查全绿；PR #296 已 squash 合并。",
+      "pr": "https://github.com/webees/immich-cn/pull/296"
     }
   ],
   "residual_risks": [
+    "第 432 轮只把检查覆盖的四个提供方默认值与两个国家列表迁到 README 单一来源；`AMAP_API_KEY` 和 `IMMICH_CN_LOG_LEVEL` 仍由同一 README 表格维护，没有变更消费逻辑",
+    "第 432 轮将默认值护栏绑定到 README 表格格式；若未来调整表格列或标题，需要同步调整解析器，否则检查会以“缺少默认值行”明确失败",
     "第 431 轮只收敛了可直接复制执行的重复命令块；README 与部署文档之间仍有描述性重合，但当前没有参数漂移或维护双源，暂不做进一步删减",
     "第 431 轮使用 README 的中文标题锚点；GitHub 渲染器与本地检查器都能解析，其他 Markdown 渲染器若生成不同锚点，链接可能退化到 README 顶部",
     "第 430 轮改用 AWS Public ECR 镜像 Alpine 与 nginx；其线路质量仍受外部 registry 影响，但构建重试与摘要固定将单次限流降为可恢复故障",
