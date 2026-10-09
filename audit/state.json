@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 445,
-  "consecutive_clean": 0,
+  "round": 446,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 270,
-    "clean_rounds": 164,
+    "clean_rounds": 165,
     "p0": 0,
     "p1": 35,
     "p2": 191,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M7 死代码与引用计数",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4511,9 +4511,20 @@
       "severity": "P2",
       "evidence": "`scripts/check_docs.py` 的 7 个检查函数各自重复插入一次 `src` 到 `sys.path`，同一检查进程重复执行副作用且遗漏点分散。修复为仅在 `main()` 初始化一次；重复路径初始化 7 → 1，文件净减少 6 行。`make check` 510 passed、覆盖率 88.96%，文档契约检查通过；PR #305 四项必需检查全绿后合并。",
       "pr": "https://github.com/webees/immich-cn/pull/305"
+    },
+    {
+      "round": 446,
+      "timestamp": "2026-10-10T06:22:15+07:00",
+      "focus": "测试有效性（断言能否失败、覆盖是否真实）",
+      "method": "M1 变异探针",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对 `providers.base.apply_cached_levels()` 注入语义变异：把四级循环缩短为 `range(1, 4)`，完整 `pytest -q` 得到 2 failures，分别证明 Amap 的 `admin_4` 和 429 恢复后的第四级名称确实被测试覆盖；恢复后 `make check` 510 passed、覆盖率 88.96%，文档、工作流与 Shell 契约全部通过。检查清单：已覆盖第四级缓存覆盖和瞬时失败恢复；未验证第五级或未来层级扩展。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 446 轮只验证了现有四级模型的变异会被捕获；若未来扩展 PlaceNames 层级，`apply_cached_levels()` 的硬编码范围需要同步修改并新增边界测试",
     "第 445 轮把 `sys.path` 初始化移到 `main()`；若未来直接导入并单独调用某个检查函数，需要调用方先按仓库根目录设置导入路径",
     "第 444 轮抽样验证了苏州、北京、昆山与东京等少量真实记录；乡镇级全量语义、繁简变体和同日快照差异仍未逐条核对",
     "第 443 轮只在普通可写临时目录验证 `clean-work`；若 `work` 位于只读挂载或存在权限拒绝项，`find` 仍会以非零退出",
