@@ -366,7 +366,7 @@ def check_env(doc_text: str, code_text: str, errors: list[str]) -> None:
         errors.append(f"实现的环境变量未出现在文档中：{name}")
 
 
-#: 需要在 docs/development.md 表格中标注默认值的环境变量及其实现位置。
+#: 需要在 README 配置总览中标注默认值的环境变量及其实现位置。
 ENV_DEFAULT_FILES = {
     "IMMICH_CN_AMAP_QPS": Path("src/immich_cn/providers/amap.py"),
     "IMMICH_CN_AMAP_BATCH_SIZE": Path("src/immich_cn/providers/amap.py"),
@@ -398,8 +398,8 @@ def _implemented_env_defaults() -> dict[str, str]:
 
 
 def check_env_defaults(errors: list[str]) -> None:
-    """docs/development.md 记录的环境变量默认值必须与实现一致。"""
-    path = Path("docs/development.md")
+    """README 配置总览记录的环境变量默认值必须与实现一致。"""
+    path = Path("README.md")
     rows = re.findall(
         r"^\|\s*`(IMMICH_[A-Z0-9_]+)`\s*\|\s*`([^`]*)`\s*\|",
         path.read_text(encoding="utf-8"),
@@ -412,9 +412,9 @@ def check_env_defaults(errors: list[str]) -> None:
         return
     for name, expected in sorted(implemented.items()):
         if name not in documented:
-            errors.append(f"docs/development.md 缺少 {name} 的默认值行（实现默认 {expected!r}）")
+            errors.append(f"README.md 缺少 {name} 的默认值行（实现默认 {expected!r}）")
         elif documented[name] != expected:
-            errors.append(f"docs/development.md 记录 {name} 默认 {documented[name]!r}，实现为 {expected!r}")
+            errors.append(f"README.md 记录 {name} 默认 {documented[name]!r}，实现为 {expected!r}")
 
 
 def check_cli(doc_text: str, errors: list[str]) -> None:

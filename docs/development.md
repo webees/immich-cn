@@ -85,17 +85,7 @@ immich-cn fingerprint dist/immich-cn-manifest-json-v1.json  # 打印发布指纹
 
 `--provider auto` 在没有 `AMAP_API_KEY` 时会回退到离线模式，并打印一行显式告警：产物与 `--provider offline` 完全相同，只有清单的 `config.provider` 记为 `offline`。这样「密钥缺失 / 改名 / 过期」不会伪装成一次成功的高德增强构建；`--provider amap` 则是硬要求，缺密钥直接以 `ConfigError` 失败。
 
-### 提供方变量
-
-| 变量 | 默认值 | 说明 |
-|:--|:--|:--|
-| `AMAP_API_KEY` | 无 | 高德密钥；未设置时 `--provider amap` 会直接报错 |
-| `IMMICH_CN_AMAP_QPS` | `3` | 高德请求速率上限 |
-| `IMMICH_CN_AMAP_BATCH_SIZE` | `20` | 高德批量逆地理编码的每批坐标数 |
-| `IMMICH_CN_AMAP_COUNTRIES` | `CN,HK,MO` | 使用高德的国家码 |
-| `IMMICH_CN_NOMINATIM_QPS` | `1` | Nominatim 速率上限（服务条款要求 1） |
-| `IMMICH_CN_NOMINATIM_COUNTRIES` | `TW,JP` | 使用 Nominatim 的国家码 |
-| `IMMICH_CN_LOG_LEVEL` | `INFO` | 日志级别 |
+提供方变量的完整默认值见 [README 配置总览](../README.md#配置总览)。
 
 ## 目录结构
 
