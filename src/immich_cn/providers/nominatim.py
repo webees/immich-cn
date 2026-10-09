@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -16,7 +15,7 @@ from immich_cn.fetching import retry_delay
 from immich_cn.logging_config import get_logger
 from immich_cn.providers.cache import JsonlCache
 from immich_cn.rate_limit import RateLimiter
-from immich_cn.settings import USER_AGENT, BuildOptions, positive_int_env
+from immich_cn.settings import USER_AGENT, BuildOptions, country_codes_env, positive_int_env
 
 logger = get_logger("nominatim")
 
@@ -62,14 +61,9 @@ class NominatimEnricher:
 
     @classmethod
     def from_options(cls, options: BuildOptions) -> NominatimEnricher:
-        countries = tuple(
-            item.strip().upper()
-            for item in os.environ.get("IMMICH_CN_NOMINATIM_COUNTRIES", ",".join(DEFAULT_COUNTRIES)).split(",")
-            if item.strip()
-        )
         return cls(
             NominatimOptions(
-                countries=countries or DEFAULT_COUNTRIES,
+                countries=country_codes_env("IMMICH_CN_NOMINATIM_COUNTRIES", DEFAULT_COUNTRIES),
                 qps=positive_int_env("IMMICH_CN_NOMINATIM_QPS", 1),
             ),
             options.cache_dir / "nominatim-reverse.jsonl",

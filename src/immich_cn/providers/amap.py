@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import time
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -19,7 +18,7 @@ from immich_cn.logging_config import get_logger
 from immich_cn.providers.cache import JsonlCache
 from immich_cn.providers.geo import wgs84_to_gcj02
 from immich_cn.rate_limit import RateLimiter
-from immich_cn.settings import USER_AGENT, BuildOptions, positive_int_env
+from immich_cn.settings import USER_AGENT, BuildOptions, country_codes_env, positive_int_env
 
 logger = get_logger("amap")
 
@@ -66,7 +65,7 @@ class AmapEnricher:
         api_key = options.amap_api_key
         if not api_key:
             raise ConfigError("启用 amap provider 需要设置环境变量 AMAP_API_KEY")
-        countries = _split_env("IMMICH_CN_AMAP_COUNTRIES", DEFAULT_COUNTRIES)
+        countries = country_codes_env("IMMICH_CN_AMAP_COUNTRIES", DEFAULT_COUNTRIES)
         return cls(
             AmapOptions(
                 api_key=api_key,
@@ -220,13 +219,6 @@ def _parse_regeocode(record: object) -> dict[str, str] | None:
 
 def _key(place: Place) -> str:
     return f"{place.columns[5]},{place.columns[4]}"
-
-
-def _split_env(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
-    raw = os.environ.get(name, "").strip()
-    if not raw:
-        return default
-    return tuple(item.strip().upper() for item in raw.split(",") if item.strip()) or default
 
 
 __all__ = ["AMAP_ENDPOINT", "AmapEnricher", "AmapOptions"]

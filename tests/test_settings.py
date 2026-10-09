@@ -15,7 +15,13 @@ import pytest
 from immich_cn import __version__
 from immich_cn.cli import build_parser
 from immich_cn.errors import ConfigError
-from immich_cn.settings import DEFAULT_EXTRA_COUNTRIES, DEFAULT_PATTERNS, BuildOptions, positive_int_env
+from immich_cn.settings import (
+    DEFAULT_EXTRA_COUNTRIES,
+    DEFAULT_PATTERNS,
+    BuildOptions,
+    country_codes_env,
+    positive_int_env,
+)
 from immich_cn.validation import verify_geodata
 
 
@@ -51,6 +57,14 @@ def test_positive_int_env_rejects_non_integer(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setenv("IMMICH_CN_TEST_POSITIVE_INT", "not-a-number")
     with pytest.raises(ConfigError, match="必须是整数"):
         positive_int_env("IMMICH_CN_TEST_POSITIVE_INT", 3)
+
+
+def test_country_codes_env_normalizes_and_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("IMMICH_CN_TEST_COUNTRIES", " cn, hk ,, ")
+    assert country_codes_env("IMMICH_CN_TEST_COUNTRIES", ("TW",)) == ("CN", "HK")
+
+    monkeypatch.setenv("IMMICH_CN_TEST_COUNTRIES", " , ")
+    assert country_codes_env("IMMICH_CN_TEST_COUNTRIES", ("TW",)) == ("TW",)
 
 
 @pytest.mark.parametrize(

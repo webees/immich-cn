@@ -36,6 +36,14 @@ def positive_int_env(name: str, default: int) -> int:
     return value
 
 
+def country_codes_env(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    """读取逗号分隔的国家或地区代码，统一去空白并转大写。"""
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    return tuple(item.strip().upper() for item in raw.split(",") if item.strip()) or default
+
+
 #: 默认需要附带国家全量 dump 的地区；`cities500` 只有人口 > 500 的记录，国内数据在人口维度并不可靠。
 DEFAULT_EXTRA_COUNTRIES: tuple[str, ...] = ("CN", "HK", "TW", "MO", "JP")
 
