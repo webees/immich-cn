@@ -24,7 +24,7 @@ from typing import TextIO
 
 from immich_cn import SCHEMA_VERSION, __version__
 from immich_cn.display import compose, validate_pattern
-from immich_cn.domain import AdminEntry, BuildStats, Place, SourceRecord
+from immich_cn.domain import AdminEntry, BuildStats, Place, SourceRecord, iter_admin_areas
 from immich_cn.errors import ImmichCnError, ParseError
 from immich_cn.fetching import FetchedSource, Fetcher
 from immich_cn.geonames import (
@@ -722,7 +722,8 @@ def _emit_geodata(
                 place.columns[1] = name
                 place.columns[2] = name
             sink.write(place.to_line() + "\n")
-            _collect_place_admin_codes(place, names, admin_areas)
+            for level, code, name in iter_admin_areas(place, names):
+                admin_areas.setdefault((level, code), name)
 
     # 港澳在 GeoNames 中以区/堂区作为 admin1，但 Immich 会把 admin1Name 当作"省/州"展示，
     # 因此文件里统一写特别行政区名称（区级信息仍保留在 place 层级的 admin_2/admin_3）。
@@ -745,28 +746,6 @@ def _emit_geodata(
     shutil.copyfile(paths.geojson, geodata_dir / "ne_10m_admin_0_countries.geojson")
     (geodata_dir / "geodata-date.txt").write_text(generated_at + "\n", encoding="utf-8")
     (geodata_dir / "NOTICE.txt").write_text(GEODATA_NOTICE, encoding="utf-8")
-
-
-def _collect_place_admin_codes(
-    place: Place,
-    names: tuple[str, str, str, str, str] | None,
-    areas: dict[tuple[int, str], str],
-) -> None:
-    """把地点行引用到的行政代码收进 ``(level, code) -> name``。
-
-    与规范数据集的 ``_collect_admin_areas`` 同口径：代码取自地点行，名称取自层级表，
-    遇到空代码即停止（层级必须连续）。
-    """
-    if names is None:
-        return
-    code_parts = [place.country_code]
-    codes = (place.admin1_code, place.admin2_code, place.admin3_code, place.admin4_code)
-    for level, (code, name) in enumerate(zip(codes, names[1:], strict=True), start=1):
-        if not code:
-            return
-        code_parts.append(code)
-        if name:
-            areas.setdefault((level, ".".join(code_parts)), name)
 
 
 def _write_admin_file(

@@ -61,4 +61,4 @@ build: ## 真实构建（首次下载约 260 MiB 压缩数据）
 	$(BIN)/immich-cn all
 
 clean: ## 清理构建产物
-	$(BIN)/python -c "import shutil,pathlib;[shutil.rmtree(p, ignore_errors=True) for p in map(pathlib.Path, ('build','dist','.cache/immich-cn','.pytest_cache','.mypy_cache','.ruff_cache'))]"
+	rm -rf build build-* dist dist-* .cache/immich-cn .pytest_cache .mypy_cache .ruff_cache .coverage .coverage.* coverage.xml htmlcov

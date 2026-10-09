@@ -14,7 +14,7 @@ import pytest
 
 import immich_cn.packaging as packaging
 from immich_cn import __version__
-from immich_cn.domain import AdminEntry
+from immich_cn.domain import AdminEntry, Place, iter_admin_areas
 from immich_cn.errors import ParseError
 from immich_cn.packaging import build_variants, package_all
 from immich_cn.pipeline import (
@@ -30,6 +30,19 @@ from immich_cn.pipeline import (
 from immich_cn.settings import BuildOptions
 from immich_cn.validation import assert_valid, verify_geodata
 from tests.synthetic import alternate_row, create_synthetic_sources, geo_row, write_lines
+
+
+def test_iter_admin_areas_stops_at_first_gap() -> None:
+    """行政链断裂后不能继续生成更深的代码，避免伪造不连续层级。"""
+    place = Place.from_line(geo_row(1, "Test", admin1="04", admin2="SZ", admin3="", admin4="ZSZ"))
+    assert place is not None
+    names = ("中国", "江苏省", "苏州市", "昆山市", "周市镇")
+
+    assert list(iter_admin_areas(place, names)) == [
+        (1, "CN.04", "江苏省"),
+        (2, "CN.04.SZ", "苏州市"),
+    ]
+    assert list(iter_admin_areas(place, None)) == []
 
 
 def test_write_admin_file_includes_place_referenced_codes(tmp_path: Path) -> None:
