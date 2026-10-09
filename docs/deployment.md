@@ -9,35 +9,7 @@
 
 ## 镜像方案
 
-示例 Compose 文件（含 immich-server、immich-machine-learning、redis 与数据库，仍需提供 `.env` 与持久化目录）：[examples/compose.server.yml](../examples/compose.server.yml)。
-
-```yaml
-# compose.yaml
-name: immich
-
-services:
-  immich-server:
-    image: ${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/webees/immich-cn-server:latest
-    container_name: immich_server
-    env_file:
-      - .env
-    environment:
-      TZ: Asia/Shanghai
-      IMMICH_CN_PATTERN: "{admin_2}"
-      # 数据更新后强制重新导入（镜像内 geodata-date.txt 已是构建时间，一般不需要）
-      IMMICH_CN_FORCE_RELOAD: "0"
-    volumes:
-      - ${UPLOAD_LOCATION}:/data
-      - /etc/localtime:/etc/localtime:ro
-    ports:
-      - 2283:2283
-    depends_on:
-      - redis
-      - database
-    restart: always
-```
-
-Immich 官方 compose 当前将媒体目录挂载到 `/data`。machine-learning 服务需要持久化 `model-cache`，否则模型会在容器重建后重新下载。
+以 [examples/compose.server.yml](../examples/compose.server.yml) 为唯一可执行示例：它包含 immich-server、immich-machine-learning、redis 与数据库，默认 `TZ: Asia/Shanghai`，媒体目录挂载到 `/data`，machine-learning 的 `model-cache` 会持久化。复制后仍需提供 `.env` 与持久化目录；启动方式见 [README 方式一](../README.md#方式一镜像直用)。
 
 镜像标签、版本规则与拉取源见 [镜像发布](packages.md)。部署时优先固定 `sha-<短提交>` 或完整摘要，`latest` 只用于试用。
 
