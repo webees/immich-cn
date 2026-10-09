@@ -51,12 +51,7 @@ docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 
 ## 静态加速
 
-需要把 Immich 放在国内 CDN 或反向代理后面时，可使用：
-
-- [examples/compose.acceleration.yml](../examples/compose.acceleration.yml)：在 Immich 前增加 Nginx 源站；
-- [examples/nginx/immich-cn.conf](../examples/nginx/immich-cn.conf)：只缓存 `/_app/immutable/*`，其余请求默认旁路。
-
-本项目只提供源站策略，不运营公共 CDN。HTML、API、Cookie、认证头、原始照片和视频不得进入公共共享缓存；地图瓦片只能缓存自有或明确授权的内容。完整缓存矩阵、地图同源代理、CSP 和验证命令见 [中国本地化与加速](china.md)。
+需要把 Immich 放在国内 CDN 或反向代理后面时，使用 [加速 Compose 示例](../examples/compose.acceleration.yml) 与 [Nginx 配置](../examples/nginx/immich-cn.conf)。缓存矩阵、私有内容边界、地图瓦片、CSP 与验证命令见 [中国本地化与加速](china.md)。
 
 ## 数据更新
 
