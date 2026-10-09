@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 427,
+  "round": 429,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 256,
+    "findings": 258,
     "clean_rounds": 160,
     "p0": 0,
-    "p1": 34,
-    "p2": 177,
+    "p1": 35,
+    "p2": 179,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针（畸形搜索条目）",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4331,9 +4331,34 @@
       "severity": "P2",
       "evidence": "`iter_assets` 原先静默跳过 `assets.items` 中的非对象条目。对抗实验：响应返回 `items=[\"bad\"], total=1` 时，旧实现持续分页并可能无限循环，同时把异常响应当成无资产。修复：非对象 item 立即抛 `RuntimeError`，新增回归测试并在第二页返回空列表避免挂起。验证：`make check` 505 passed、覆盖率 88.83%；PR #287 四项必需检查全绿后 squash 合并，main=87c84d6。",
       "pr": "https://github.com/webees/immich-cn/pull/287"
+    },
+    {
+      "round": 428,
+      "timestamp": "2026-10-09T08:05:00+08:00",
+      "focus": "数据正确性（行政层级、繁简、去重、排序、抽样核对）",
+      "method": "M3 负向制品实验 + M5 真实数据抽样",
+      "verdict": "findings",
+      "severity": "P1/P2",
+      "evidence": "真实 update-data 首次失败：默认 admin2 变体有 139 条中国地名不含中文。修复行内 alternatenames 回退并补 28 个无中文来源点位后，full 变体又暴露 5868 条零人口边境自然要素，确认属于假拒绝而非数据缺陷；默认范围与人口达标记录继续零容忍，full 仅保留无中文别名的零人口原名。制品校验继续发现 JP.07.1864574 缺 admin2 映射，改为从国家 dump 的 ADM2/ADM2H 补表；同时修复 i18n 解包早退导致旧语言包假失败。验证：全量 pytest、ruff、format、mypy、check_docs、完整构建、verify、check_artifacts 均通过；PR #290 四项必需检查全绿后合并，main=c04c478。发布运行 37861321285 全绿，Release 19 个规范资产、data-2026-10-09、双镜像摘要与 Cosign 验证均确认。",
+      "pr": "https://github.com/webees/immich-cn/pull/290"
+    },
+    {
+      "round": 429,
+      "timestamp": "2026-10-10T11:10:00+08:00",
+      "focus": "死代码与未使用配置（含只写不读的变量）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`dataset._collect_admin_areas` 与 `pipeline._collect_place_admin_codes` 维护两份相同的行政链收集逻辑，正是上一轮 adapter/dataset 出现差异的风险点。修复前两处合计 36 行、两套独立实现；新增 `domain.iter_admin_areas()` 单一实现后，生产代码净减少 18 行，并新增行政链断裂边界测试。顺带扩大 `make clean`，本地删除 `build*`、`dist*`、覆盖率与测试缓存共约 2.6 GB 可再生文件。验证：全量 pytest、ruff check/format、mypy、check_docs 全通过；PR #293 四项必需检查全绿后合并。",
+      "pr": "https://github.com/webees/immich-cn/pull/293"
     }
   ],
   "residual_risks": [
+    "第 429 轮的行政链共享函数只覆盖代码与名称的连续产出；dataset 与 adapter 对 `admin_areas` 的最终排序、渲染差异仍由各自写入逻辑负责",
+    "第 429 轮的垃圾清理是本机工作区操作；`work/audit` 证据与 `.venv` 保留，其他开发机仍可能堆积旧的 `build-*`/`dist-*` 目录，需要依赖更新后的 `make clean`",
+    "第 428 轮的 full 变体策略允许人口为 0 且无中文别名的自然要素保留 GeoNames 原名；若未来把这些记录纳入用户可见默认范围，必须同步提高中文别名覆盖率并重新评估零容忍边界",
+    "第 428 轮新增的 28 个 [places] 覆盖依据 GeoNames 坐标与公开地名习惯人工核对；后续上游若补充 zh 别名，应优先由自动索引接管并在覆盖清理时复核",
+    "第 428 轮验证了发布运行 37861321285 的 Release、镜像摘要、Cosign 与关键样本；没有在本地逐字节复算 19 个 Release 资产，跨制品完整性仍由发布流水线校验和与签名覆盖",
     "第 427 轮使用 `httpx.MockTransport` 注入非对象 item，没有对真实 Immich 实例制造该响应；真实代理或版本差异仍由运行环境覆盖",
     "第 426 轮只修复了目标父路径是普通文件的提示；其它 `mkdir` 错误（权限、只读文件系统、路径过长）仍依赖系统错误文本，但会带 immich-cn 前缀",
     "第 425 轮只通过工作流静态契约和临时变异验证失败路径，没有触发真实 GitHub 失败运行来观察 issue 创建/关闭与权限行为",
