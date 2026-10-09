@@ -2,6 +2,9 @@
 # Immich 镜像入口包装：注入中文 geodata 后再执行原始启动命令。
 set -euo pipefail
 
+script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)"
+. "$script_dir/immich-cn-common.sh"
+
 build_root="${IMMICH_BUILD_DATA:-/build}"
 target="${build_root%/}/geodata"
 source_dir="${IMMICH_CN_GEODATA_DIR:-/opt/immich-cn/geodata}"
@@ -13,21 +16,6 @@ pattern="${IMMICH_CN_PATTERN:-}"
 if [ -z "$pattern" ]; then
   pattern='{admin_2}'
 fi
-
-# Immich 导入需要这 6 个文件；源数据不完整时必须立刻报错，
-# 否则容器会带着残缺数据启动，问题被推迟到 Immich 导入阶段才暴露。
-REQUIRED_FILES="admin1CodesASCII.txt admin2Codes.txt cities500.txt countryInfo.txt geodata-date.txt ne_10m_admin_0_countries.geojson"
-missing_required_files() {
-  local dir="$1"
-  local missing=""
-  local name
-  for name in $REQUIRED_FILES; do
-    if [ ! -s "$dir/$name" ]; then
-      missing="${missing} ${name}"
-    fi
-  done
-  printf '%s' "$missing"
-}
 
 missing_files="$(missing_required_files "$source_dir")"
 if [ -n "$missing_files" ]; then

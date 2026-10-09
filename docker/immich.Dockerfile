@@ -22,6 +22,7 @@ USER root
 COPY ${GEODATA_DIR} /opt/immich-cn/geodata
 COPY ${LANGS_DIR} /opt/immich-cn/i18n-iso-countries/langs
 COPY ${PATTERNS_TABLE} /opt/immich-cn/immich-cn-patterns-tsv-v1.gz
+COPY --chmod=0755 docker/immich-cn-common.sh /usr/local/bin/immich-cn-common.sh
 COPY --chmod=0755 docker/entrypoint.sh /usr/local/bin/immich-cn-entrypoint
 COPY --chmod=0755 docker/apply-pattern.sh /usr/local/bin/immich-cn-apply-pattern
 
