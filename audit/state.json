@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 449,
-  "consecutive_clean": 4,
+  "round": 450,
+  "consecutive_clean": 5,
   "totals": {
     "findings": 270,
-    "clean_rounds": 168,
+    "clean_rounds": 169,
     "p0": 0,
     "p1": 35,
     "p2": 191,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M4 契约快照",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4551,9 +4551,20 @@
       "severity": null,
       "evidence": "运行镜像 tag、项目版本和包版本漂移的负向测试共 6 项，全部按预期拒绝错误输入；`make docs workflows shellcheck` 全部通过（15 个文档、57 个实现文件、6 个工作流、5 个 Shell 脚本）。当前树无未提交改动。检查清单：已覆盖镜像 tag、版本一致性和文档/工作流/Shell 契约；未重新访问远端 Release。本轮未发现 P0-P2 问题，clean_streak=4。",
       "pr": null
+    },
+    {
+      "round": 450,
+      "timestamp": "2026-10-10T06:27:31+07:00",
+      "focus": "死代码与未使用配置（含只写不读的变量）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "运行 `tests/test_dead_symbols.py` 5 项，验证扫描器既能命中零引用定义，也不会误报被文档或测试引用的符号；随后执行 `make audit-dead-symbols`，当前 `src/` 与 `scripts/` 无零引用模块级定义。检查清单：已覆盖模块级函数、类和常量；未覆盖运行时动态 `getattr` 与外部消费者。本轮未发现 P0-P2 问题，clean_streak=5。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 450 轮死代码扫描基于仓库文本引用；外部消费者、运行时反射和第三方入口无法由静态语料发现",
     "第 449 轮契约快照使用本地仓库状态，不重新验证远端 Release 或 GHCR 标签；远端状态由发布与清理工作流覆盖",
     "第 448 轮阈值反演使用合成记录，不调用真实 GitHub 删除 API；权限、分页和外部状态变化仍由 Actions 清理运行覆盖",
     "第 447 轮验证了 `clean-work` 不沿符号链接递归；只读挂载或权限拒绝仍会让清理以非零退出，这是保守失败而非静默跳过",
