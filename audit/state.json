@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 429,
+  "round": 430,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 258,
+    "findings": 259,
     "clean_rounds": 160,
     "p0": 0,
     "p1": 35,
-    "p2": 179,
+    "p2": 180,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M7 死代码与引用计数",
+  "last_method": "M10 shell/容器安全审查",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4351,9 +4351,21 @@
       "severity": "P2",
       "evidence": "`dataset._collect_admin_areas` 与 `pipeline._collect_place_admin_codes` 维护两份相同的行政链收集逻辑，正是上一轮 adapter/dataset 出现差异的风险点。修复前两处合计 36 行、两套独立实现；新增 `domain.iter_admin_areas()` 单一实现后，生产代码净减少 18 行，并新增行政链断裂边界测试。顺带扩大 `make clean`，本地删除 `build*`、`dist*`、覆盖率与测试缓存共约 2.6 GB 可再生文件。验证：全量 pytest、ruff check/format、mypy、check_docs 全通过；PR #293 四项必需检查全绿后合并。",
       "pr": "https://github.com/webees/immich-cn/pull/293"
+    },
+    {
+      "round": 430,
+      "timestamp": "2026-10-10T12:10:00+08:00",
+      "focus": "工作流逻辑（条件、输出、权限、失败路径）",
+      "method": "M10 shell/容器安全审查",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "真实 schedule 运行 37927139444 首次在 setup-trivy 安装失败，重跑两次又在数据镜像阶段连续命中 Docker Hub `library/alpine` 的 429。修复：数据镜像基础层改用摘要相同的 AWS Public ECR 镜像，数据镜像推送增加 3 次指数退避；CI 的 actionlint 改为 Release 二进制 + sha256；冒烟基础镜像预拉取统一走可重试脚本和 ECR。验证：PR #294 四项必需检查全绿后合并，main=384387e；随后运行 37994074894 的数据镜像推送、server 镜像、两个 digest 冒烟、完整 Immich 栈、Trivy、Cosign 与 Release 全部成功。",
+      "pr": "https://github.com/webees/immich-cn/pull/294"
     }
   ],
   "residual_risks": [
+    "第 430 轮改用 AWS Public ECR 镜像 Alpine 与 nginx；其线路质量仍受外部 registry 影响，但构建重试与摘要固定将单次限流降为可恢复故障",
+    "第 430 轮把 actionlint 改为 GitHub Release 二进制并校验 sha256；若上游删除该资产或 checksum 漂移，CI 会明确失败而不是静默跳过",
     "第 429 轮的行政链共享函数只覆盖代码与名称的连续产出；dataset 与 adapter 对 `admin_areas` 的最终排序、渲染差异仍由各自写入逻辑负责",
     "第 429 轮的垃圾清理是本机工作区操作；`work/audit` 证据与 `.venv` 保留，其他开发机仍可能堆积旧的 `build-*`/`dist-*` 目录，需要依赖更新后的 `make clean`",
     "第 428 轮的 full 变体策略允许人口为 0 且无中文别名的自然要素保留 GeoNames 原名；若未来把这些记录纳入用户可见默认范围，必须同步提高中文别名覆盖率并重新评估零容忍边界",
