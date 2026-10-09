@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 441,
-  "consecutive_clean": 0,
+  "round": 442,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 269,
-    "clean_rounds": 161,
+    "clean_rounds": 162,
     "p0": 0,
     "p1": 35,
     "p2": 190,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M8 资源与性能剖析",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4471,9 +4471,20 @@
       "severity": "P2",
       "evidence": "`work/audit` 累积旧轮次构建、冒烟日志和探针共 65 MiB，`make clean` 不处理该目录且缺少安全的专项入口。新增 `make clean-work`，仅删除 `work/` 临时证据并保留 `work/audit/state.json`；实际执行后目录 65 MiB → 512 KiB，18 个旧临时项清除，审计账本检查继续通过。`make check` 510 passed、覆盖率 88.96%，四项必需检查全绿；PR #304 已 squash 合并。",
       "pr": "https://github.com/webees/immich-cn/pull/304"
+    },
+    {
+      "round": 442,
+      "timestamp": "2026-10-10T06:05:13+07:00",
+      "focus": "测试有效性（断言能否失败、覆盖是否真实）",
+      "method": "M1 变异探针",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "对新合并的 `settings.country_codes_env()` 注入语义变异：移除 `.upper()`，完整 `pytest -q` 得到 1 failure（`test_country_codes_env_normalizes_and_falls_back`，实际保留小写代码）；恢复后 `make check` 510 passed、覆盖率 88.96%，文档、工作流与 Shell 契约全部通过。检查清单：已覆盖国家代码大小写归一化、空项与全空白回退；未验证 provider 对重复国家码的去重语义。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 442 轮验证了国家代码大小写归一化和空白回退，但没有为重复代码（如 `CN,CN`）定义或测试去重策略",
     "第 441 轮的 `clean-work` 是显式破坏性本地清理；它保留唯一账本文件，但会删除旧原始证据，需要复现某一轮实验时必须按账本记录重新执行",
     "第 440 轮只合并了 provider 的缓存键与名称覆盖；HTTP 重试、响应解析、缓存命中判定仍按 Amap 与 Nominatim 的 API 语义独立",
     "第 439 轮只合并了国家代码列表解析；provider 自身的缓存加载、enrich 覆盖顺序和 HTTP 重试策略仍按各自 API 语义独立",
