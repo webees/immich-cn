@@ -53,47 +53,9 @@ Immich 官方 compose 当前将媒体目录挂载到 `/data`。machine-learning 
 
 ## 数据方案
 
-示例 compose 文件（需自行提供 `.env` 和持久化目录）：[examples/compose.volume.yml](../examples/compose.volume.yml)。
+使用官方 `immich-app/immich-server` 时，按 [README 方式二](../README.md#方式二数据挂载) 释放并挂载 `geodata/`。Immich 1.136.0 ~ 3.2.x 还需挂载独立的 `i18n-iso-countries/langs`；对应覆盖包为 `immich-cn-i18n-json-v1.zip`，下载与目录结构见 [README 方式三](../README.md#方式三发布下载)。完整 Compose 示例见 [examples/compose.volume.yml](../examples/compose.volume.yml)。
 
-```bash
-# 1. 把数据释放到宿主机
-docker run --rm -v "$PWD/immich-cn:/out" \
-  "${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/webees/immich-cn:latest" \
-  --target /out --pattern '{admin_2} {admin_3}'
-
-# 2. compose 中挂载
-```
-
-```yaml
-services:
-  immich-server:
-    image: ${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}/immich-app/immich-server:release
-    volumes:
-      - ./immich-cn/geodata:/build/geodata:ro
-      # 国家名称覆盖：仅 Immich 1.136.0 ~ 3.2.x 需要（3.3.0 起改读 countryInfo.txt）
-      # Immich >= 1.136.0
-      - ./immich-cn/i18n-iso-countries/langs:/usr/src/app/server/node_modules/i18n-iso-countries/langs:ro
-      # Immich < 1.136.0
-      # - ./immich-cn/i18n-iso-countries/langs:/usr/src/app/node_modules/i18n-iso-countries/langs:ro
-```
-
-## 下载数据
-
-```bash
-curl -fsSL -o immich-cn-geodata-admin2-default-v1.zip \
-  https://github.com/webees/immich-cn/releases/latest/download/immich-cn-geodata-admin2-default-v1.zip
-curl -fsSL -o immich-cn-i18n-json-v1.zip \
-  https://github.com/webees/immich-cn/releases/latest/download/immich-cn-i18n-json-v1.zip
-unzip -o immich-cn-geodata-admin2-default-v1.zip -d .
-mkdir -p i18n-iso-countries
-unzip -o immich-cn-i18n-json-v1.zip -d i18n-iso-countries
-```
-
-解压后得到 `geodata/` 与 `i18n-iso-countries/langs/en.json`，按数据方案挂载即可。国家名称覆盖是**独立资产**：`immich-cn-geodata-*.zip` 内没有 `langs/`，只下载它会缺失 Immich 1.136.0 ~ 3.2.x 需要的覆盖。
-
-## 刷新生效
-
-重启 Immich，确认日志出现 `geodata records imported`；随后在「系统管理 → 任务」执行一次「提取元数据 → 全部」刷新已有照片，之后新增照片会自动使用新地名。若替换数据后没有重新导入，说明 `geodata-date.txt` 与上次记录**完全相等**（上游只比较相等，不比较先后），改写方式见 [运维与常见问题](operations.md)。
+替换数据后按 [README 刷新生效](../README.md#刷新生效) 重新导入；若没有重新导入，说明 `geodata-date.txt` 与上次记录**完全相等**，处理方式见 [运维与常见问题](operations.md)。
 
 ## 国内网络
 
@@ -127,7 +89,7 @@ docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 ## 数据更新
 
 - **镜像方案**：`docker compose pull && docker compose up -d`；
-- **挂载方案**：重新执行数据方案的第一步，然后 `docker compose restart immich-server`；
+- **挂载方案**：按 [README 方式二](../README.md#方式二数据挂载) 重新释放数据，然后 `docker compose restart immich-server`；
 - **自动更新**：沿用自己的定时任务，例如每周执行一次上面的命令。
 
 ### 更新频率
