@@ -62,3 +62,4 @@ build: ## 真实构建（首次下载约 260 MiB 压缩数据）
 
 clean: ## 清理构建产物
 	rm -rf build build-* dist dist-* .cache/immich-cn .pytest_cache .mypy_cache .ruff_cache .coverage .coverage.* coverage.xml htmlcov
+	find src scripts tests -type d -name __pycache__ -prune -exec rm -rf {} +
