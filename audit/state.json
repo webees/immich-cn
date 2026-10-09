@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 446,
-  "consecutive_clean": 1,
+  "round": 447,
+  "consecutive_clean": 2,
   "totals": {
     "findings": 270,
-    "clean_rounds": 165,
+    "clean_rounds": 166,
     "p0": 0,
     "p1": 35,
     "p2": 191,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M10 shell/容器安全审查",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4521,9 +4521,20 @@
       "severity": null,
       "evidence": "对 `providers.base.apply_cached_levels()` 注入语义变异：把四级循环缩短为 `range(1, 4)`，完整 `pytest -q` 得到 2 failures，分别证明 Amap 的 `admin_4` 和 429 恢复后的第四级名称确实被测试覆盖；恢复后 `make check` 510 passed、覆盖率 88.96%，文档、工作流与 Shell 契约全部通过。检查清单：已覆盖第四级缓存覆盖和瞬时失败恢复；未验证第五级或未来层级扩展。本轮未发现 P0-P2 问题，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 447,
+      "timestamp": "2026-10-10T06:24:14+07:00",
+      "focus": "安全（zip slip、注入、密钥泄漏、供应链、权限）",
+      "method": "M10 shell/容器安全审查",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "在隔离临时目录中把 `work/junk` 设为指向外部目录的符号链接，执行 `make clean-work` 后外部队列文件仍存在，符号链接本身被清除，证明 `find` 未沿链接递归删除目录外内容。当前树 `make check` 510 passed、覆盖率 88.96%，账本检查通过。检查清单：已覆盖 symlink 路径穿越、账本保留与重复执行；未覆盖只读挂载和权限拒绝。本轮未发现 P0-P2 问题，clean_streak=2。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 447 轮验证了 `clean-work` 不沿符号链接递归；只读挂载或权限拒绝仍会让清理以非零退出，这是保守失败而非静默跳过",
     "第 446 轮只验证了现有四级模型的变异会被捕获；若未来扩展 PlaceNames 层级，`apply_cached_levels()` 的硬编码范围需要同步修改并新增边界测试",
     "第 445 轮把 `sys.path` 初始化移到 `main()`；若未来直接导入并单独调用某个检查函数，需要调用方先按仓库根目录设置导入路径",
     "第 444 轮抽样验证了苏州、北京、昆山与东京等少量真实记录；乡镇级全量语义、繁简变体和同日快照差异仍未逐条核对",
