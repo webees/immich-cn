@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 435,
+  "round": 436,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 264,
+    "findings": 265,
     "clean_rounds": 160,
     "p0": 0,
     "p1": 35,
-    "p2": 185,
+    "p2": 186,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M9 文档-实现逐条核对",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4411,9 +4411,20 @@
       "severity": "P2",
       "evidence": "`docs/deployment.md` 的静态加速章节重复 README 与 `docs/china.md` 的缓存边界，三处任何一处更新都可能漂移。修复为部署文档只引用加速 Compose、Nginx 示例和中国本地化专题，缓存矩阵由 `docs/china.md` 单一维护；`docs/deployment.md` 89 → 84 行，重复缓存说明 1 → 0；`make check` 509 passed、覆盖率 88.92%，四项必需检查全绿；PR #299 已 squash 合并。",
       "pr": "https://github.com/webees/immich-cn/pull/299"
+    },
+    {
+      "round": 436,
+      "timestamp": "2026-10-10T05:31:59+07:00",
+      "focus": "死代码与未使用配置（含只写不读的变量）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`scripts/cleanup.py` 在普通计划、Release 资产、旧命名资产和三段式版本四条清理路径中重复实现 APPLY/DRY-RUN 标签与最多 5 项失败摘要。修复为 `_mode()` 与 `_raise_partial_failure()` 两个单一实现，保留原有错误文案和退出行为；重复失败摘要块 4 → 1，文件 801 → 798 行。`make check` 509 passed、覆盖率 88.92%，四项必需检查全绿；PR #300 已 squash 合并。",
+      "pr": "https://github.com/webees/immich-cn/pull/300"
     }
   ],
   "residual_risks": [
+    "第 436 轮只合并了清理脚本的模式标签与失败摘要；Release 资产清理和三段式版本清理的主体流程仍因资源 API 不同而保持独立",
     "第 435 轮只收敛了部署文档的静态加速边界；README 仍保留快速开始所需的简短缓存摘要，完整矩阵由 `docs/china.md` 维护",
     "第 434 轮的缓存清理只覆盖 `src/`、`scripts/`、`tests/`，并刻意不进入 `.venv`；若未来新增其他 Python 源码目录，需要同步扩大清理范围",
     "第 433 轮只收敛了 Compose 示例的重复来源；README 仍保留用于快速定位改动的最小 YAML 片段，其完整拓扑由 `examples/compose.server.yml` 与检查器约束",
