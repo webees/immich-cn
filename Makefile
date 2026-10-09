@@ -2,7 +2,7 @@ PYTHON ?= python3
 VENV ?= .venv
 BIN := $(VENV)/bin
 
-.PHONY: help venv install lint format typecheck test docs workflows shellcheck check smoke artifacts entrypoint audit-ledger audit-pins audit-dead-symbols build clean
+.PHONY: help venv install lint format typecheck test docs workflows shellcheck check smoke artifacts entrypoint audit-ledger audit-pins audit-dead-symbols build clean clean-work
 
 help: ## 显示可用目标
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -63,3 +63,7 @@ build: ## 真实构建（首次下载约 260 MiB 压缩数据）
 clean: ## 清理构建产物
 	rm -rf build build-* dist dist-* .cache/immich-cn .pytest_cache .mypy_cache .ruff_cache .coverage .coverage.* coverage.xml htmlcov
 	find src scripts tests -type d -name __pycache__ -prune -exec rm -rf {} +
+
+clean-work: ## 清理 work/ 临时证据（保留 work/audit/state.json）
+	@if [ -d work ]; then find work -mindepth 1 -maxdepth 1 ! -name audit -exec rm -rf {} +; fi
+	@if [ -d work/audit ]; then find work/audit -mindepth 1 -maxdepth 1 ! -name state.json -exec rm -rf {} +; fi
