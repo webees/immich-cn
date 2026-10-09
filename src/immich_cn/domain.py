@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 from immich_cn.artifact_spec import canonical_filename, profile_id, scope_name
@@ -100,6 +101,23 @@ class Place:
 
     def to_line(self) -> str:
         return "\t".join(self.columns)
+
+
+def iter_admin_areas(
+    place: Place,
+    names: tuple[str, str, str, str, str] | None,
+) -> Iterator[tuple[int, str, str]]:
+    """按连续行政链产出 ``(level, code, name)``；代码断裂时停止。"""
+    if names is None:
+        return
+    code_parts = [place.country_code]
+    codes = (place.admin1_code, place.admin2_code, place.admin3_code, place.admin4_code)
+    for level, (code, name) in enumerate(zip(codes, names[1:], strict=True), start=1):
+        if not code:
+            return
+        code_parts.append(code)
+        if name:
+            yield level, ".".join(code_parts), name
 
 
 @dataclass(frozen=True, slots=True)

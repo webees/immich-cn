@@ -15,7 +15,7 @@ from collections.abc import Iterator, Mapping
 from pathlib import Path
 
 from immich_cn.artifact_spec import DATASET_FILE, DATASET_MEMBER
-from immich_cn.domain import Place
+from immich_cn.domain import Place, iter_admin_areas
 from immich_cn.errors import ParseError
 from immich_cn.geonames import iter_places
 from immich_cn.logging_config import get_logger
@@ -115,7 +115,8 @@ def _create_database(
             nonlocal place_count
             for place, source_name in _iter_places(result):
                 names = levels.get(place.geoname_id)
-                _collect_admin_areas(place, names, admin_areas)
+                for level, code, name in iter_admin_areas(place, names):
+                    admin_areas.setdefault((level, code), name)
                 place_count += 1
                 yield (
                     place.geoname_id,
@@ -292,23 +293,6 @@ def _load_countries(path: Path) -> dict[str, dict[str, object]]:
                 "geonameId": geoname_id,
             }
     return countries
-
-
-def _collect_admin_areas(
-    place: Place,
-    names: tuple[str, str, str, str, str] | None,
-    areas: dict[tuple[int, str], str],
-) -> None:
-    if names is None:
-        return
-    code_parts = [place.country_code]
-    codes = (place.admin1_code, place.admin2_code, place.admin3_code, place.admin4_code)
-    for level, (code, name) in enumerate(zip(codes, names[1:], strict=True), start=1):
-        if not code:
-            return
-        code_parts.append(code)
-        if name:
-            areas.setdefault((level, ".".join(code_parts)), name)
 
 
 def _coordinate(place: Place, index: int) -> float:
