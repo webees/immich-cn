@@ -403,7 +403,33 @@ install_missing_langs_case() {
   echo "通过：langs 源缺失时给出警告并继续释放 geodata"
 }
 
+# 单个必需文件缺失也必须失败，避免共享清单漏掉某一项时仍复制残缺数据。
+missing_required_file_cases() {
+  local name root output
+  local expected="admin1CodesASCII.txt admin2Codes.txt cities500.txt countryInfo.txt geodata-date.txt ne_10m_admin_0_countries.geojson"
+  for name in $expected; do
+    root="$work/missing-required-${name}"
+    mkdir -p "$root/build/geodata" "$root/source"
+    cp -a "$repo_root/build/geodata/." "$root/source/"
+    rm -f "$root/source/$name"
+    if output="$(IMMICH_BUILD_DATA="$root/build" \
+        IMMICH_CN_GEODATA_DIR="$root/source" \
+        IMMICH_CN_LANGS_DIR="$repo_root/build/langs" \
+        IMMICH_CN_PATTERNS_TABLE="$repo_root/dist/immich-cn-patterns-tsv-v1.gz" \
+        bash "$repo_root/docker/entrypoint.sh" true 2>&1)"; then
+      echo "失败：缺少 ${name} 时不应成功" >&2
+      exit 1
+    fi
+    if ! printf '%s' "$output" | grep -q "缺少必需文件"; then
+      echo "失败：缺少 ${name} 时未给出明确提示：${output}" >&2
+      exit 1
+    fi
+  done
+  echo "通过：每个必需文件缺失时均拒绝启动"
+}
+
 incomplete_source_case
+missing_required_file_cases
 install_missing_langs_case
 
 # install.sh：源 geodata 的必需文件为 0 字节时必须在写入前失败。
