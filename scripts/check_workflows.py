@@ -306,8 +306,7 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
     if text.count("imagetools create") < 1 or text.count("${IMAGE_VERSION}") < 2:
         errors.append(f"{path} 缺少数据与 server 镜像的 Immich 对齐版本标签")
     if (
-        text.count("org.opencontainers.image.version=${{ steps.tool.outputs.version }}") < 1
-        or text.count("org.opencontainers.image.version=${TOOL_VERSION}") < 1
+        text.count("org.opencontainers.image.version=${TOOL_VERSION}") < 2
         or text.count("org.immich-cn.data-date") < 2
     ):
         errors.append(f"{path} OCI version 未使用项目版本，或缺少独立的数据日期标签")

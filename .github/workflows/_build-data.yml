@@ -293,22 +293,44 @@ jobs:
       - name: 推送数据镜像
         id: data-image
         if: inputs.push-images && (steps.change.outputs.changed == 'true' || inputs.force-publish)
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
-        with:
-          context: .
-          file: docker/geodata.Dockerfile
-          platforms: ${{ inputs.data-platforms }}
-          push: true
-          provenance: true
-          sbom: true
-          tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.date }}
-            ghcr.io/${{ github.repository }}:sha-${{ steps.meta.outputs.short_sha }}
-          labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ steps.tool.outputs.version }}
-            org.immich-cn.data-date=${{ steps.meta.outputs.date }}
+        env:
+          DATA_PLATFORMS: ${{ inputs.data-platforms }}
+          DATA_DATE: ${{ steps.meta.outputs.date }}
+          SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
+          TOOL_VERSION: ${{ steps.tool.outputs.version }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY}"
+          metadata="$(mktemp)"
+          for attempt in 1 2 3; do
+            if docker buildx build \
+              --file docker/geodata.Dockerfile \
+              --platform "$DATA_PLATFORMS" \
+              --provenance=true \
+              --sbom=true \
+              --metadata-file "$metadata" \
+              --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+              --label "org.opencontainers.image.version=${TOOL_VERSION}" \
+              --label "org.immich-cn.data-date=${DATA_DATE}" \
+              --tag "${image}:latest" \
+              --tag "${image}:${DATA_DATE}" \
+              --tag "${image}:sha-${SHORT_SHA}" \
+              --push .; then
+              digest="$(jq -r '."containerimage.digest" // empty' "$metadata")"
+              if [ -z "$digest" ]; then
+                echo "::error::无法从 buildx 元数据读取数据镜像摘要"
+                exit 1
+              fi
+              echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::数据镜像推送失败，已重试 3 次"
+              exit 1
+            fi
+            echo "推送失败，$((attempt * 30)) 秒后重试（第 ${attempt} 次）"
+            sleep $((attempt * 30))
+          done
 
       - name: 推送 Immich 覆盖镜像
         id: server-image
