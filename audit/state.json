@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 451,
-  "consecutive_clean": 6,
+  "round": 452,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 270,
+    "findings": 271,
     "clean_rounds": 170,
     "p0": 0,
     "p1": 35,
-    "p2": 191,
+    "p2": 192,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M3 负向制品实验",
+  "last_method": "M8 资源与性能剖析",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4571,9 +4571,20 @@
       "severity": null,
       "evidence": "运行制品安全负向测试 7 项：同尺寸 zip 篡改、manifest 哈希削弱、checksum 清单削弱、zip path traversal、zip symlink、重复成员与压缩炸弹均被检查器拒绝。当前树无未提交改动，账本一致性通过。检查清单：已覆盖归档结构、摘要层级与路径穿越；未重新构建完整 dist 做整包负向实验。本轮未发现 P0-P2 问题，clean_streak=6。",
       "pr": null
+    },
+    {
+      "round": 452,
+      "timestamp": "2026-10-10T06:34:47+07:00",
+      "focus": "性能与资源（内存、磁盘、重复计算、可流式化）",
+      "method": "M8 资源与性能剖析",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`scripts/check_docs.py` 在单次检查中重复读取 README 6 次、解析 pyproject 3 次，并有 2 个冗余局部 `tomllib` 导入。修复为 `_readme_text()` 与 `_pyproject_data()` 进程内缓存；重复文件读取/解析 9 → 2，冗余导入 2 → 0。`make check` 510 passed、覆盖率 88.96%，四项必需检查全绿；PR #306 已 squash 合并。",
+      "pr": "https://github.com/webees/immich-cn/pull/306"
     }
   ],
   "residual_risks": [
+    "第 452 轮的缓存绑定到单个检查进程；若未来在同一进程内修改 README 或 pyproject 后再次调用检查函数，需要清理缓存或重启进程",
     "第 451 轮使用最小 dist 夹具执行制品负向实验，没有对最新 19 个 Release 资产逐一篡改并重放完整校验流程",
     "第 450 轮死代码扫描基于仓库文本引用；外部消费者、运行时反射和第三方入口无法由静态语料发现",
     "第 449 轮契约快照使用本地仓库状态，不重新验证远端 Release 或 GHCR 标签；远端状态由发布与清理工作流覆盖",
