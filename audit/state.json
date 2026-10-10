@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 460,
-  "consecutive_clean": 1,
+  "round": 461,
+  "consecutive_clean": 2,
   "totals": {
     "findings": 273,
-    "clean_rounds": 176,
+    "clean_rounds": 177,
     "p0": 0,
     "p1": 35,
     "p2": 194,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M4 契约快照",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4661,9 +4661,20 @@
       "severity": null,
       "evidence": "再次做独立变异：从共享清单移除 `admin1CodesASCII.txt`，入口测试在 `失败：缺少 admin1CodesASCII.txt 时不应成功` 处立即退出；恢复后 `check-entrypoint.sh` 与 `check_shell.py` 全部通过。检查清单：已覆盖另一个必需文件的独立 oracle、恢复后基线；未逐一对其余四个文件重复本轮变异。本轮未发现 P0-P2 问题，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 461,
+      "timestamp": "2026-10-10T07:02:13+07:00",
+      "focus": "文档与实现一致性（命令/路径/标签/数字）",
+      "method": "M4 契约快照",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "当前树契约快照：`make docs workflows shellcheck` 全部通过（15 个文档、58 个实现文件、6 个工作流、6 个 Shell 脚本）；open PR 与 open issue 均为 0，工作区无未提交改动。检查清单：已覆盖当前树文档、工作流、Shell 与队列状态；未重新构建镜像或访问远端 Release。本轮未发现 P0-P2 问题，clean_streak=2。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 461 轮契约快照只覆盖当前树与队列元数据，不重新构建镜像或访问远端 Release/GHCR",
     "第 460 轮只对第二个必需文件重复了手工变异；其余文件由同一循环 oracle 覆盖，未逐项重复修改实现",
     "第 459 轮的独立 oracle 固定当前六个必需文件；若未来有意新增必需文件，必须同时更新实现清单与测试 oracle",
     "第 458 轮共享片段依赖镜像构建显式 COPY；若未来新增第三个容器入口，必须同步打包该片段并继续 source 同一文件",
