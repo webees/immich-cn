@@ -73,7 +73,9 @@ def test_country_codes_env_normalizes_and_falls_back(monkeypatch: pytest.MonkeyP
         ({"min_population": -1}, "min_population"),
         ({"jobs": -1}, "jobs"),
         ({"patterns": ()}, "至少需要"),
-        ({"patterns": ("no-placeholder",)}, "需要包含"),
+        ({"patterns": ("no-placeholder",)}, "admin_N"),
+        ({"patterns": ("{admin_bad}",)}, "未知占位符"),
+        ({"patterns": ("{admin_2} {admin_2}",)}, "重复占位符"),
     ],
 )
 def test_build_options_rejects_invalid_configuration(kwargs: dict[str, object], message: str) -> None:

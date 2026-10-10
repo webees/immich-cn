@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Literal
 
 from immich_cn import __version__
+from immich_cn.display import validate_pattern
 from immich_cn.errors import ConfigError
 
 GEONAMES_BASE = "https://download.geonames.org/export/dump"
@@ -197,8 +198,7 @@ class BuildOptions:
         if not self.patterns:
             raise ConfigError("至少需要一个展示粒度变体")
         for pattern in self.patterns:
-            if "{admin_" not in pattern:
-                raise ConfigError(f"非法的展示粒度 {pattern!r}：需要包含 {{admin_N}} 占位符")
+            validate_pattern(pattern)
 
     @property
     def sources_dir(self) -> Path:
