@@ -145,6 +145,20 @@ def test_prune_legacy_assets_apply_deletes_only_safe_assets() -> None:
     assert deleted == [10, 20]
 
 
+def test_prune_legacy_assets_rejects_empty_inventory() -> None:
+    """空 Release 列表不能当成「没有旧资产」并报告成功。"""
+
+    class _Client:
+        def list_releases(self) -> list[ReleaseRecord]:
+            return []
+
+        def release_assets(self, tag: str) -> list[tuple[int, str]]:
+            raise AssertionError(tag)
+
+    with pytest.raises(CleanupError, match="Release 列表返回 0"):
+        _prune_legacy_assets(_Client(), SimpleNamespace(apply=False))
+
+
 def test_select_superseded_versions_requires_aligned_replacement() -> None:
     """三段式旧版本只有在同一个包里已有四段式 Immich 对齐版本时才可回收。"""
     legacy = [PackageVersionRecord(1, at(1), ("1.0.4",)), PackageVersionRecord(2, at(2), ("1.0.3",))]
@@ -381,6 +395,26 @@ def test_build_plan_reports_observed_inventory() -> None:
     assert plan.inventory.runs == 1
     assert plan.inventory.package_versions == {"immich-cn": 1, "immich-cn-server": 1}
     assert "immich-cn=1" in plan.inventory.describe()
+
+
+def test_build_plan_rejects_empty_release_inventory() -> None:
+    """Release 列表为空时不能继续生成清理计划。"""
+
+    class _Client:
+        def list_releases(self) -> list[ReleaseRecord]:
+            return []
+
+        def commit_sha_for_tag(self, tag: str) -> str:
+            raise AssertionError(tag)
+
+        def list_runs(self) -> list[RunRecord]:
+            raise AssertionError("空 Release 列表后不应继续读取其它清单")
+
+        def list_package_versions(self, package: str) -> list[PackageVersionRecord]:
+            raise AssertionError(package)
+
+    with pytest.raises(CleanupError, match="Release 列表返回 0"):
+        build_plan(_Client(), CleanupSettings(3, 30, 20, 20, False))
 
 
 def test_build_plan_rejects_empty_package_inventory() -> None:
