@@ -2,14 +2,14 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 484,
+  "round": 485,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 285,
+    "findings": 286,
     "clean_rounds": 188,
     "p0": 0,
     "p1": 35,
-    "p2": 206,
+    "p2": 207,
     "p3": 49
   },
   "status": "active",
@@ -4901,10 +4901,20 @@
       "severity": "P2",
       "evidence": "`data_fingerprint()` 的 `config`/`tool` 结构非法时仍会折叠为空对象并返回同一指纹，无法识别 manifest 损坏。现在 `config` 必须是对象、`tool` 必须含非空 `name`/`version`/`revision`；五项负向测试修复前均 `DID NOT RAISE`，修复后目标测试 19 passed、`make check` 528 passed、覆盖率 89.37%，PR #320 四项必需检查全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/320"
+    },
+    {
+      "round": 485,
+      "timestamp": "2026-10-10T09:04:22+07:00",
+      "focus": "错误处理与网络健壮性（超时、截断、空响应、重试）",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "顶层 `schemaVersion` 缺失、为 0/负数、字符串、浮点数或布尔值时原会直接参与哈希，无法识别 manifest 版本元数据损坏。新增 `_schema_version()` 后要求正整数且拒绝布尔值；六项负向测试修复前均 `DID NOT RAISE`，修复后目标测试 25 passed、`make check` 534 passed、覆盖率 89.39%，PR #321 四项必需检查全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/321"
     }
   ],
   "residual_risks": [
-    "第 484 轮已严格校验 `sources`/`config`/`tool`，但顶层 `schemaVersion` 仍可为缺失或非整数；后续如需收紧需同步确认旧 manifest 兼容范围",
+    "第 485 轮已校验 `schemaVersion` 类型，但未校验其值等于当前支持的 schema；未来升版时必须明确旧指纹的兼容或失效策略",
     "第 482 轮只做国家代码归一化与去重，不校验代码是否属于 GeoNames 支持列表；不存在的代码仍会在下载阶段给出外部错误",
     "第 481 轮只重复验证了严格中文判定这一个变异点；其他关键模块仍需轮换探针，不能把单点存活/杀死结果外推为整体测试充分",
     "第 480 轮只在 `BuildOptions` 边界校验字形；直接绕过配置调用 `localization.to_variant()` 的非法值仍由该函数自身承担",
