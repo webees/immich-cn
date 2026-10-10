@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 467,
-  "consecutive_clean": 8,
+  "round": 468,
+  "consecutive_clean": 9,
   "totals": {
     "findings": 273,
-    "clean_rounds": 183,
+    "clean_rounds": 184,
     "p0": 0,
     "p1": 35,
     "p2": 194,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M3 负向制品实验",
+  "last_method": "M9 文档-实现逐条核对",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4731,9 +4731,20 @@
       "severity": null,
       "evidence": "运行制品负向测试 7 项：同尺寸 zip 篡改、manifest 哈希削弱、checksum 清单削弱、zip path traversal、zip symlink、重复成员与压缩炸弹均被拒绝；账本一致性通过。检查清单：已覆盖归档完整性、摘要层和路径安全；未对全部 Release 资产做整包篡改。本轮未发现 P0-P2 问题，clean_streak=8。",
       "pr": null
+    },
+    {
+      "round": 468,
+      "timestamp": "2026-10-10T07:11:19+07:00",
+      "focus": "文档与实现一致性（命令/路径/标签/数字）",
+      "method": "M9 文档-实现逐条核对",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "运行当前状态、历史过程、独立性、废弃范围和绝对化声明相关的 11 项文档负向测试，全部按预期拒绝坏输入；`make docs` 通过（15 个文档、58 个实现文件），账本一致性通过。检查清单：已覆盖固定禁用模式与定位锚点；未逐句人工复核每个专题段落。本轮未发现 P0-P2 问题，clean_streak=9。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 468 轮文档护栏无法识别语义等价但措辞完全不同的过时描述，仍需专题变更时人工复核",
     "第 467 轮制品负向实验使用最小夹具，未逐一篡改最新 19 个 Release 资产并重放完整校验器",
     "第 466 轮死代码扫描仍是静态文本引用判定，无法覆盖运行时反射、动态入口和外部仓库消费者",
     "第 465 轮只更新账本顶层目标口径；历史轮次证据保留原始记录，不回写成当前叙事",
