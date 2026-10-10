@@ -106,3 +106,9 @@ def test_fingerprint_rejects_non_mapping_sections(field: str) -> None:
 def test_fingerprint_rejects_incomplete_tool(tool: dict[str, str]) -> None:
     with pytest.raises(ValueError, match=r"manifest\.tool"):
         data_fingerprint(make_manifest(tool=tool))
+
+
+@pytest.mark.parametrize("schema_version", [None, 0, -1, "1", 1.5, True])
+def test_fingerprint_rejects_invalid_schema_version(schema_version: object) -> None:
+    with pytest.raises(ValueError, match=r"manifest\.schemaVersion"):
+        data_fingerprint(make_manifest(schemaVersion=schema_version))

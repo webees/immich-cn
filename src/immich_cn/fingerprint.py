@@ -53,6 +53,13 @@ def _tool(manifest: Mapping[str, Any]) -> dict[str, str]:
     return tool
 
 
+def _schema_version(manifest: Mapping[str, Any]) -> int:
+    value = manifest.get("schemaVersion")
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+        raise ValueError("manifest.schemaVersion 必须是正整数")
+    return value
+
+
 def data_fingerprint(manifest: Mapping[str, Any]) -> str:
     """返回 manifest 的发布指纹（sha256 十六进制）。
 
@@ -60,7 +67,7 @@ def data_fingerprint(manifest: Mapping[str, Any]) -> str:
     不改上游文件与构建配置时被误判为“无变化”而跳过发布。
     """
     payload = {
-        "schemaVersion": manifest.get("schemaVersion"),
+        "schemaVersion": _schema_version(manifest),
         "sources": _sources(manifest),
         "config": _config(manifest),
         "tool": _tool(manifest),
