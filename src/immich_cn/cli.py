@@ -116,9 +116,7 @@ def build_parser() -> argparse.ArgumentParser:
 def _options(args: argparse.Namespace) -> BuildOptions:
     extra = tuple(item.strip().upper() for item in str(args.extra_countries).split(",") if item.strip())
     patterns = tuple(item.strip() for item in str(args.patterns).split(",") if item.strip())
-    from os import cpu_count
 
-    jobs = args.jobs or max(1, min(8, cpu_count() or 2))
     return BuildOptions(
         work_dir=args.work_dir,
         dist_dir=args.dist_dir,
@@ -133,7 +131,7 @@ def _options(args: argparse.Namespace) -> BuildOptions:
         revalidate=args.revalidate,
         keep_raw=args.keep_raw,
         skip_fetch=args.skip_fetch,
-        jobs=jobs,
+        jobs=args.jobs,
     )
 
 

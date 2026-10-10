@@ -76,6 +76,10 @@ ProviderName = Literal["offline", "amap", "nominatim", "auto"]
 ChineseVariant = Literal["hans", "hant"]
 
 
+def _default_jobs() -> int:
+    return max(1, min(8, os.cpu_count() or 2))
+
+
 @dataclass(frozen=True, slots=True)
 class SourceSpec:
     """一个上游数据源文件。"""
@@ -188,11 +192,13 @@ class BuildOptions:
     revalidate: bool = False
     keep_raw: bool = False
     skip_fetch: bool = False
-    jobs: int = field(default_factory=lambda: max(1, min(8, (os.cpu_count() or 2))))
+    jobs: int = field(default_factory=_default_jobs)
 
     def __post_init__(self) -> None:
         if self.jobs < 0:
             raise ConfigError("jobs 不能为负数")
+        if self.jobs == 0:
+            self.jobs = _default_jobs()
         if self.min_population < 0:
             raise ConfigError("min_population 不能为负数")
         if not self.patterns:
