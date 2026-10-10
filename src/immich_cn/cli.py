@@ -16,7 +16,7 @@ from immich_cn.fingerprint import fingerprint_from_file
 from immich_cn.logging_config import configure, get_logger
 from immich_cn.packaging import package_all
 from immich_cn.pipeline import fetch_sources, run_build
-from immich_cn.settings import DEFAULT_EXTRA_COUNTRIES, DEFAULT_PATTERNS, BuildOptions
+from immich_cn.settings import DEFAULT_EXTRA_COUNTRIES, DEFAULT_PATTERNS, BuildOptions, parse_country_codes
 from immich_cn.validation import assert_valid, format_results, verify_geodata
 
 logger = get_logger("cli")
@@ -114,7 +114,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _options(args: argparse.Namespace) -> BuildOptions:
-    extra = tuple(item.strip().upper() for item in str(args.extra_countries).split(",") if item.strip())
+    extra = parse_country_codes(str(args.extra_countries), DEFAULT_EXTRA_COUNTRIES)
     patterns = tuple(item.strip() for item in str(args.patterns).split(",") if item.strip())
 
     return BuildOptions(
@@ -122,7 +122,7 @@ def _options(args: argparse.Namespace) -> BuildOptions:
         dist_dir=args.dist_dir,
         cache_dir=args.cache_dir,
         config_dir=args.config_dir,
-        extra_countries=extra or DEFAULT_EXTRA_COUNTRIES,
+        extra_countries=extra,
         patterns=patterns or DEFAULT_PATTERNS,
         min_population=args.min_population,
         provider=args.provider,

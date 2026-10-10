@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from immich_cn import __version__
-from immich_cn.cli import build_parser
+from immich_cn.cli import _options, build_parser
 from immich_cn.errors import ConfigError
 from immich_cn.settings import (
     DEFAULT_EXTRA_COUNTRIES,
@@ -65,11 +65,16 @@ def test_positive_int_env_rejects_non_integer(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_country_codes_env_normalizes_and_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("IMMICH_CN_TEST_COUNTRIES", " cn, hk ,, ")
+    monkeypatch.setenv("IMMICH_CN_TEST_COUNTRIES", " cn, CN, hk, HK ,, ")
     assert country_codes_env("IMMICH_CN_TEST_COUNTRIES", ("TW",)) == ("CN", "HK")
 
     monkeypatch.setenv("IMMICH_CN_TEST_COUNTRIES", " , ")
     assert country_codes_env("IMMICH_CN_TEST_COUNTRIES", ("TW",)) == ("TW",)
+
+
+def test_cli_extra_countries_are_deduplicated() -> None:
+    args = build_parser().parse_args(["all", "--extra-countries", "CN,CN,hk,HK"])
+    assert _options(args).extra_countries == ("CN", "HK")
 
 
 @pytest.mark.parametrize(
