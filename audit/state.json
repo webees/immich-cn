@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 478,
-  "consecutive_clean": 0,
+  "round": 479,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 281,
-    "clean_rounds": 186,
+    "clean_rounds": 187,
     "p0": 0,
     "p1": 35,
     "p2": 202,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M7 死代码与引用计数",
+  "last_method": "M10 shell/容器安全审查",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4841,9 +4841,20 @@
       "severity": "P2",
       "evidence": "CLI 把 `--jobs 0` 解释为自动，但直接构造 `BuildOptions(jobs=0)` 会保留 0，并在打包层被夹为 1 个 worker；自动并发公式同时存在于 CLI 与数据类。新增 `_default_jobs()` 并在 `BuildOptions` 统一归一 0 后，CLI 只传参；负向测试修复前 `0 != 8`，修复后目标测试 8 passed、`make check` 517 passed、覆盖率 89.05%，PR #316 四项必需检查全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/316"
+    },
+    {
+      "round": 479,
+      "timestamp": "2026-10-10T08:26:02+07:00",
+      "focus": "容器与 shell 脚本（引用、权限、只读挂载、路径差异）",
+      "method": "M10 shell/容器安全审查",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "用合成数据实际构建 Alpine 数据镜像并在容器内执行：默认释放成功，生成的 10 个文件均可读；`--pattern '{admin_2} {admin_3}'` 实际匹配 9 条，ID 9100 写为 `苏州市 昆山市`；负向控制 `--target /` 在删除前返回 2 并报告拒绝根目录。检查清单：已覆盖真实容器入口、粒度重写和根目录保护；未运行完整 Immich 服务端镜像。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 479 轮使用合成数据并只运行纯数据镜像；完整 19 资产数据与 Immich 服务端覆盖镜像尚未在同一轮内重放",
     "第 478 轮自动并发仍固定上限为 8；若要调整并行度上限，必须只改 `_default_jobs()` 并重新评估 CI/内存压力",
     "第 477 轮把 pattern 校验前移到配置构造阶段；直接依赖“先构造、后失败”异常时机的调用方会看到更早失败，但合法 pattern 的行为未变",
     "第 475 轮的 GHCR 校验仍要求调用方逐个传入包名；未来扩展 `PACKAGE_NAMES` 时必须继续走同一公共循环，避免绕过空清单保护",
