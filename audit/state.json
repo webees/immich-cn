@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 490,
-  "consecutive_clean": 2,
+  "round": 491,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 288,
+    "findings": 289,
     "clean_rounds": 191,
     "p0": 0,
     "p1": 35,
-    "p2": 209,
+    "p2": 210,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M9 文档-实现逐条核对",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4961,9 +4961,20 @@
       "severity": null,
       "evidence": "把 `_MAX_RETRY_DELAY` 从 `120.0` 变异为 `121.0` 后，完整 `make check` 变红，`test_retry_delay_prefers_retry_after_header` 报 `121.0 == 120.0`；恢复后 `make check` 540 passed、覆盖率 89.39%。本轮未发现 P0-P2 问题，clean_streak=2。",
       "pr": null
+    },
+    {
+      "round": 491,
+      "timestamp": "2026-10-10T09:32:58+07:00",
+      "focus": "文档与实现一致性（命令/路径/标签/数字）",
+      "method": "M9 文档-实现逐条核对",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`docs/deployment.md` 重复维护 README 中 5 条环境变量的默认值与语义，形成双事实源。删除重复列表并保留 README 配置总览入口；文件 84→78 行，重复变量默认项 5→0，`make docs` 通过（15 个文档、58 个实现文件），PR #324 四项必需检查全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/324"
     }
   ],
   "residual_risks": [
+    "第 491 轮通过链接维持单一事实源；若 README 配置总览锚点改名，部署文档链接需同步更新，现有文档检查器只验证部分锚点",
     "第 490 轮只证明 Retry-After 上限被测试捕获；下载重试的其它边界分支仍需轮换探针，不能据此推定整个客户端覆盖充分",
     "第 489 轮是本地契约快照，不访问远端 Release、Actions 队列或 GHCR 标签；外部状态仍可能独立漂移",
     "第 488 轮只验证顶层触发键兼容；若未来工作流触发结构不再是对象，`_triggers()` 会返回空对象并保持 fail-safe，但不会单独报告格式异常",
