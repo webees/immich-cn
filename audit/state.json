@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 472,
-  "consecutive_clean": 0,
+  "round": 473,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 276,
-    "clean_rounds": 185,
+    "clean_rounds": 186,
     "p0": 0,
     "p1": 35,
     "p2": 197,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M5 真实数据抽样",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4781,9 +4781,20 @@
       "severity": "P2",
       "evidence": "负向实验让 `list_releases()` 返回空列表：`_prune_legacy_assets()` 返回 0 并打印「可删除 0 个」，`build_plan()` 也继续生成 Release 0 个的清理计划，无法区分空仓库、权限不足和 API 结构变化。新增 `_require_release_inventory()` 并在两处调用；目标测试修复前失败（`DID NOT RAISE`），修复后 `make check` 513 passed、覆盖率 88.97%，PR #311 四项必需检查全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/311"
+    },
+    {
+      "round": 473,
+      "timestamp": "2026-10-10T07:49:42+07:00",
+      "focus": "数据正确性（行政层级、繁简、去重、排序、抽样核对）",
+      "method": "M5 真实数据抽样",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "下载 `data-2026-10-10` 官方 Release 的 manifest 与默认 geodata 资产，zip SHA256 `51b85259…` 与清单一致；对 256,672 条 `cities500.txt` 运行 CLI verify 全部通过（CN 34,897、HK 342、MO 13、TW 391 全中文；中国 admin2 可解析 34,410/34,410）。抽样北京、苏州、香港、澳门、台北、东京、纽约等层级与名称均符合预期。负向控制把 `countryInfo.txt` 的「安道尔」改为 `Andorra`，`verify --min-cn-ratio 1.0` 返回 2 并准确报告中文 251/252；恢复后通过。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 473 轮只核对默认 `{admin_2}` 发布变体；其他展示粒度、`hant` 输出与 SQLite 数据集未在真实 Release 上逐项复验",
     "第 472 轮对零 Release 改为硬失败；若未来需要在空仓库中执行清理，必须先明确单独的安全开关与用途，不能恢复静默成功",
     "第 471 轮新增 CN/HK 混合严格校验；TW/MO 仍依赖同一循环逻辑，未逐对组合覆盖，未来扩展 `CHINESE_OUTPUT_REGIONS` 时需要补样本",
     "第 470 轮新增的 `_discard_part()` 只服务 `Fetcher` 内部；未来若新增分片清理路径，应继续复用该 helper，避免只删除分片而遗留 `.meta`",
