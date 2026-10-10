@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 
-from scripts.jsdelivr_url import DEFAULT_JSDELIVR_BASE, build_url, main
+import pytest
+from scripts.jsdelivr_url import DEFAULT_JSDELIVR_BASE, build_url, main, normalize_base
 
 
 def test_build_url_uses_china_mirror_by_default() -> None:
@@ -24,3 +25,18 @@ def test_main_outputs_fallbacks(capsys) -> None:
     payload = json.loads(capsys.readouterr().out)
     assert payload["primary"].startswith("https://cdn.jsdmirror.com/gh/")
     assert "https://cdn.jsdelivr.net/gh/" in payload["fallbacks"][0]
+
+
+@pytest.mark.parametrize(
+    "base",
+    [
+        "http://cdn.example.com",
+        "https://user:pass@cdn.example.com",
+        "https://cdn.example.com?x=1",
+        "https://cdn.example.com/#frag",
+        "https://",
+    ],
+)
+def test_normalize_base_rejects_unsafe_urls(base: str) -> None:
+    with pytest.raises(ValueError, match="HTTPS"):
+        normalize_base(base)

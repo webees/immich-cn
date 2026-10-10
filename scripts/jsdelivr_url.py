@@ -11,6 +11,7 @@ import json
 import os
 import sys
 from collections.abc import Sequence
+from urllib.parse import urlsplit
 
 DEFAULT_JSDELIVR_BASE = "https://cdn.jsdmirror.com"
 JSDELIVR_FALLBACKS = (
@@ -24,8 +25,17 @@ JSDELIVR_FALLBACKS = (
 
 def normalize_base(value: str) -> str:
     base = value.strip().rstrip("/")
-    if not base.startswith(("https://", "http://")):
-        raise ValueError(f"CDN base 必须是 http(s) URL：{value!r}")
+    parsed = urlsplit(base)
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or any(char.isspace() for char in base)
+    ):
+        raise ValueError(f"CDN base 必须是不含凭据、查询或片段的 HTTPS URL：{value!r}")
     return base
 
 
