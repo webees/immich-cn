@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 481,
-  "consecutive_clean": 1,
+  "round": 482,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 282,
+    "findings": 283,
     "clean_rounds": 188,
     "p0": 0,
     "p1": 35,
-    "p2": 203,
+    "p2": 204,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4871,9 +4871,20 @@
       "severity": null,
       "evidence": "再次把 `validation.py` 的严格中文判定从 `all(...)` 变异为 `any(...)`，完整 `make check` 变红：新增的 `test_cities500_cjk_strict_checks_every_present_region` 报 `True is False`，明确包含 `HK 1 条缺 1`。恢复后 `make check` 518 passed、覆盖率 89.07%。本轮未发现 P0-P2 问题，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 482,
+      "timestamp": "2026-10-10T08:43:40+07:00",
+      "focus": "死代码与未使用配置（含只写不读的变量）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "环境变量与 CLI 原先各自解析国家代码，`CN,CN,hk,HK` 会得到 `(\"CN\",\"CN\",\"HK\",\"HK\")`，把重复项带入后续来源配置。新增 `parse_country_codes()` 作为唯一解析入口，统一大写、去空白并按首次出现顺序去重；负向测试修复前失败，修复后目标测试 2 passed、`make check` 519 passed、覆盖率 89.17%，PR #318 四项必需检查全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/318"
     }
   ],
   "residual_risks": [
+    "第 482 轮只做国家代码归一化与去重，不校验代码是否属于 GeoNames 支持列表；不存在的代码仍会在下载阶段给出外部错误",
     "第 481 轮只重复验证了严格中文判定这一个变异点；其他关键模块仍需轮换探针，不能把单点存活/杀死结果外推为整体测试充分",
     "第 480 轮只在 `BuildOptions` 边界校验字形；直接绕过配置调用 `localization.to_variant()` 的非法值仍由该函数自身承担",
     "第 479 轮使用合成数据并只运行纯数据镜像；完整 19 资产数据与 Immich 服务端覆盖镜像尚未在同一轮内重放",
@@ -4912,7 +4923,6 @@
     "第 445 轮把 `sys.path` 初始化移到 `main()`；若未来直接导入并单独调用某个检查函数，需要调用方先按仓库根目录设置导入路径",
     "第 444 轮抽样验证了苏州、北京、昆山与东京等少量真实记录；乡镇级全量语义、繁简变体和同日快照差异仍未逐条核对",
     "第 443 轮只在普通可写临时目录验证 `clean-work`；若 `work` 位于只读挂载或存在权限拒绝项，`find` 仍会以非零退出",
-    "第 442 轮验证了国家代码大小写归一化和空白回退，但没有为重复代码（如 `CN,CN`）定义或测试去重策略",
     "第 441 轮的 `clean-work` 是显式破坏性本地清理；它保留唯一账本文件，但会删除旧原始证据，需要复现某一轮实验时必须按账本记录重新执行",
     "第 440 轮只合并了 provider 的缓存键与名称覆盖；HTTP 重试、响应解析、缓存命中判定仍按 Amap 与 Nominatim 的 API 语义独立",
     "第 439 轮只合并了国家代码列表解析；provider 自身的缓存加载、enrich 覆盖顺序和 HTTP 重试策略仍按各自 API 语义独立",
