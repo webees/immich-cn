@@ -15,13 +15,7 @@
 
 ### 环境变量
 
-两个镜像的完整变量、默认值与数据镜像参数见 [README 配置总览](../README.md#配置总览)。部署时通常只需要：
-
-- `IMMICH_CN_PATTERN`（默认 `{admin_2}`）在启动时切换展示粒度，等价于数据镜像的 `--pattern`；
-- `IMMICH_CN_FORCE_RELOAD=1` 把 `geodata-date.txt` 改写为当前时间，强制 Immich 重新导入；
-- 数据镜像入口 `immich-cn-install` 还接受 `--target <目录>`（等价 `IMMICH_CN_TARGET`）与 `--geodata-only`（只释放 `geodata/`，Immich 3.3.0 起不再需要国家名覆盖）；
-- `IMMICH_CN_DATA_DATE` 是镜像内只读的数据批次元信息，无需设置；
-- `TZ=Asia/Shanghai` 是中国本地化默认值；与 `/etc/localtime` 挂载同时存在时，容器内 `TZ` 优先。
+两个镜像的完整变量、默认值与数据镜像参数以 [README 配置总览](../README.md#配置总览) 为准。示例默认 `TZ: Asia/Shanghai`；与 `/etc/localtime` 挂载同时存在时，容器内 `TZ` 优先。
 
 ## 数据方案
 
