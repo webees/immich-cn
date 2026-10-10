@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 import scripts.check_artifacts as check_artifacts
+import scripts.check_workflows as check_workflows
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 #: 护栏运行所需的仓库子集（按脚本实际读取的内容）
@@ -1043,6 +1044,13 @@ def test_check_docs_rejects_unregistered_asset_names(repo_copy: Path) -> None:
 # --------------------------------------------------------------------------
 # check_workflows.py
 # --------------------------------------------------------------------------
+
+
+def test_check_workflows_detects_missing_concurrency_for_legacy_on_key() -> None:
+    workflow = {True: {"schedule": [{"cron": "5 23 * * *"}]}}
+    errors: list[str] = []
+    check_workflows.check_concurrency(Path("workflow.yml"), workflow, errors)
+    assert errors and "concurrency" in errors[0]
 
 
 def test_check_workflows_passes_on_repo_copy(repo_copy: Path) -> None:
