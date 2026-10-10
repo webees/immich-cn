@@ -66,6 +66,11 @@ def _part_meta_path(part: Path) -> Path:
     return part.parent / f"{part.name}.meta"
 
 
+def _discard_part(part: Path) -> None:
+    part.unlink(missing_ok=True)
+    _part_meta_path(part).unlink(missing_ok=True)
+
+
 def _content_range(value: str) -> tuple[int, int, int | None] | None:
     """解析 ``Content-Range: bytes 10-39/40``；总长度未知时返回 ``None``。"""
     match = re.match(r"\s*bytes\s+(\d+)-(\d+)/(\d+|\*)\s*$", value)
@@ -293,8 +298,7 @@ class Fetcher:
                     headers["If-Range"] = expected_etag
             else:
                 logger.debug("分片缺少可信校验信息，改为完整重下 %s", spec.name)
-                part.unlink(missing_ok=True)
-                _part_meta_path(part).unlink(missing_ok=True)
+                _discard_part(part)
 
         last_error: Exception | None = None
         attempt = 1
@@ -303,8 +307,7 @@ class Fetcher:
                 return self._stream_to_file(spec, target, part, headers, expected_etag=expected_etag)
             except _RangeNotSatisfiableError:
                 logger.warning("分片 %s 的 Range 已越界，丢弃后完整重下", spec.name)
-                part.unlink(missing_ok=True)
-                _part_meta_path(part).unlink(missing_ok=True)
+                _discard_part(part)
                 headers.pop("Range", None)
                 headers.pop("If-Range", None)
                 expected_etag = ""
@@ -375,28 +378,24 @@ class Fetcher:
                 raw_content_range = response.headers.get("content-range", "")
                 parsed_range = _content_range(raw_content_range)
                 if parsed_range is None:
-                    part.unlink(missing_ok=True)
-                    _part_meta_path(part).unlink(missing_ok=True)
+                    _discard_part(part)
                     raise SourceError(f"{spec.name} 的 206 响应缺少有效的 Content-Range，已丢弃分片改为完整重下")
                 start, end, total = parsed_range
                 if start != resume_from:
-                    part.unlink(missing_ok=True)
-                    _part_meta_path(part).unlink(missing_ok=True)
+                    _discard_part(part)
                     raise SourceError(
                         f"{spec.name} 的 Content-Range 起点 {start} 与本地分片 {resume_from} 不符，"
                         "已丢弃分片改为完整重下"
                     )
                 if end < start or (total is not None and (total <= end or end != total - 1)):
-                    part.unlink(missing_ok=True)
-                    _part_meta_path(part).unlink(missing_ok=True)
+                    _discard_part(part)
                     raise SourceError(
                         f"{spec.name} 的 Content-Range {raw_content_range!r} 不是完整尾部，已丢弃分片改为完整重下"
                     )
             if resume_from and response.status_code == 206:
                 # 206 的校验值必须与本地分片一致，否则会拼出两个版本的混合文件
                 if not expected_etag or response_etag != expected_etag:
-                    part.unlink(missing_ok=True)
-                    _part_meta_path(part).unlink(missing_ok=True)
+                    _discard_part(part)
                     raise SourceError(
                         f"{spec.name} 断点续传校验值不匹配（本地 {expected_etag or '未知'} / "
                         f"上游 {response_etag or '未知'}），已丢弃分片改为完整重下"
