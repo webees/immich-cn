@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 465,
-  "consecutive_clean": 6,
+  "round": 466,
+  "consecutive_clean": 7,
   "totals": {
     "findings": 273,
-    "clean_rounds": 181,
+    "clean_rounds": 182,
     "p0": 0,
     "p1": 35,
     "p2": 194,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M4 契约快照",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4711,9 +4711,20 @@
       "severity": null,
       "evidence": "GitHub 状态：open PR 0、open issue 0、非完成 Actions 运行 0、Release 5 个，均在保留策略内；当前工作区无未提交改动。同时将账本顶层 objective 从过时的“复刻”口径修正为“完全独立实现”的当前定位。检查清单：已覆盖队列、运行、Release 与顶层目标口径；未读取 GHCR 版本列表。本轮未发现 P0-P2 问题，clean_streak=6。",
       "pr": null
+    },
+    {
+      "round": 466,
+      "timestamp": "2026-10-10T07:09:07+07:00",
+      "focus": "死代码与未使用配置（含只写不读的变量）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "运行 `tests/test_dead_symbols.py` 5 项，验证零引用命中、文档/测试引用不误报和 ALLOWED 显式例外；`make audit-dead-symbols` 通过，当前 `src/` 与 `scripts/` 无零引用模块级定义。检查清单：已覆盖函数、类和大写常量；未覆盖运行时动态 `getattr` 与外部消费者。本轮未发现 P0-P2 问题，clean_streak=7。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 466 轮死代码扫描仍是静态文本引用判定，无法覆盖运行时反射、动态入口和外部仓库消费者",
     "第 465 轮只更新账本顶层目标口径；历史轮次证据保留原始记录，不回写成当前叙事",
     "第 464 轮清理边界只在当前 macOS 文件系统执行；只读挂载或权限拒绝会保守失败，尚未在 Alpine overlayfs 中重放",
     "第 463 轮人口阈值使用合成记录；完整 GeoNames 的人口分布变化不会改变边界语义，但真实变体规模仍需发布清单覆盖",
