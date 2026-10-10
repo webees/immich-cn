@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 487,
-  "consecutive_clean": 1,
+  "round": 488,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 287,
+    "findings": 288,
     "clean_rounds": 189,
     "p0": 0,
     "p1": 35,
-    "p2": 208,
+    "p2": 209,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4931,9 +4931,20 @@
       "severity": null,
       "evidence": "用导出的假 `docker`/`sleep` 函数执行 `docker-pull-retry.sh`：前两次失败、第三次成功时实拉 3 次并返回 0；持续失败时实拉 3 次、输出明确错误并返回 1。`make shellcheck` 通过（6 个脚本、6 个工作流），工作树干净。检查清单：已覆盖成功重试、重试耗尽和退出码；未连接真实 registry/daemon。本轮未发现 P0-P2 问题，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 488,
+      "timestamp": "2026-10-10T09:21:32+07:00",
+      "focus": "工作流逻辑（条件、输出、权限、失败路径）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "PyYAML 会把裸 `on:` 解析为布尔键 `True`，但 `check_concurrency()` 只查字符串 `\"on\"`；从真实 `update-data.yml` 删除 `concurrency` 后检查仍返回空。三处触发解析统一复用 `_triggers()` 后，负向测试正确报缺少 concurrency；`make check` 540 passed、覆盖率 89.39%，PR #323 四项必需检查全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/323"
     }
   ],
   "residual_risks": [
+    "第 488 轮只验证顶层触发键兼容；若未来工作流触发结构不再是对象，`_triggers()` 会返回空对象并保持 fail-safe，但不会单独报告格式异常",
     "第 487 轮的拉取重试使用假命令，不验证真实 Docker daemon、registry 鉴权或限流错误分类；当前实现会对所有 pull 失败统一重试 3 次",
     "第 486 轮只限制 URL 结构，不验证目标 CDN 的 DNS、证书或内容；这些仍由部署方在使用前实测",
     "第 485 轮已校验 `schemaVersion` 类型，但未校验其值等于当前支持的 schema；未来升版时必须明确旧指纹的兼容或失效策略",
