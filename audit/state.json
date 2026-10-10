@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 480,
-  "consecutive_clean": 0,
+  "round": 481,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 282,
-    "clean_rounds": 187,
+    "clean_rounds": 188,
     "p0": 0,
     "p1": 35,
     "p2": 203,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4861,9 +4861,20 @@
       "severity": "P2",
       "evidence": "`ChineseVariant` 的 `Literal` 不提供运行时校验，`BuildOptions(chinese_variant=\"bad\")` 原先接受非法值，直到本地化阶段才可能因未知键失败。改为从 `get_args(ChineseVariant)` 读取允许值并立即拒绝；负向测试修复前 `DID NOT RAISE ConfigError`，修复后目标测试 7 passed、`make check` 518 passed、覆盖率 89.07%，PR #317 四项必需检查全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/317"
+    },
+    {
+      "round": 481,
+      "timestamp": "2026-10-10T08:36:41+07:00",
+      "focus": "测试有效性（断言能否失败、覆盖是否真实）",
+      "method": "M1 变异探针",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "再次把 `validation.py` 的严格中文判定从 `all(...)` 变异为 `any(...)`，完整 `make check` 变红：新增的 `test_cities500_cjk_strict_checks_every_present_region` 报 `True is False`，明确包含 `HK 1 条缺 1`。恢复后 `make check` 518 passed、覆盖率 89.07%。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 481 轮只重复验证了严格中文判定这一个变异点；其他关键模块仍需轮换探针，不能把单点存活/杀死结果外推为整体测试充分",
     "第 480 轮只在 `BuildOptions` 边界校验字形；直接绕过配置调用 `localization.to_variant()` 的非法值仍由该函数自身承担",
     "第 479 轮使用合成数据并只运行纯数据镜像；完整 19 资产数据与 Immich 服务端覆盖镜像尚未在同一轮内重放",
     "第 478 轮自动并发仍固定上限为 8；若要调整并行度上限，必须只改 `_default_jobs()` 并重新评估 CI/内存压力",
