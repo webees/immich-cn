@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 479,
-  "consecutive_clean": 1,
+  "round": 480,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 281,
+    "findings": 282,
     "clean_rounds": 187,
     "p0": 0,
     "p1": 35,
-    "p2": 202,
+    "p2": 203,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M6 边界与异常输入",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4851,9 +4851,20 @@
       "severity": null,
       "evidence": "用合成数据实际构建 Alpine 数据镜像并在容器内执行：默认释放成功，生成的 10 个文件均可读；`--pattern '{admin_2} {admin_3}'` 实际匹配 9 条，ID 9100 写为 `苏州市 昆山市`；负向控制 `--target /` 在删除前返回 2 并报告拒绝根目录。检查清单：已覆盖真实容器入口、粒度重写和根目录保护；未运行完整 Immich 服务端镜像。本轮未发现 P0-P2 问题，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 480,
+      "timestamp": "2026-10-10T08:32:40+07:00",
+      "focus": "校验与阈值（恒真检查、阈值误判、边界翻转）",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`ChineseVariant` 的 `Literal` 不提供运行时校验，`BuildOptions(chinese_variant=\"bad\")` 原先接受非法值，直到本地化阶段才可能因未知键失败。改为从 `get_args(ChineseVariant)` 读取允许值并立即拒绝；负向测试修复前 `DID NOT RAISE ConfigError`，修复后目标测试 7 passed、`make check` 518 passed、覆盖率 89.07%，PR #317 四项必需检查全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/317"
     }
   ],
   "residual_risks": [
+    "第 480 轮只在 `BuildOptions` 边界校验字形；直接绕过配置调用 `localization.to_variant()` 的非法值仍由该函数自身承担",
     "第 479 轮使用合成数据并只运行纯数据镜像；完整 19 资产数据与 Immich 服务端覆盖镜像尚未在同一轮内重放",
     "第 478 轮自动并发仍固定上限为 8；若要调整并行度上限，必须只改 `_default_jobs()` 并重新评估 CI/内存压力",
     "第 477 轮把 pattern 校验前移到配置构造阶段；直接依赖“先构造、后失败”异常时机的调用方会看到更早失败，但合法 pattern 的行为未变",
