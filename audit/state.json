@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 475,
+  "round": 476,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 278,
+    "findings": 279,
     "clean_rounds": 186,
     "p0": 0,
     "p1": 35,
-    "p2": 199,
+    "p2": 200,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M7 死代码与引用计数",
+  "last_method": "M6 边界与异常输入",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4811,9 +4811,20 @@
       "severity": "P2",
       "evidence": "`build_plan()` 与 `_prune_superseded_versions()` 各自维护相同的 GHCR 空版本错误块。新增 `_require_package_inventory()` 作为唯一校验入口，重复错误块 `2→1`，`allow_empty_packages` 例外语义集中；目标测试 3 passed，`make check` 513 passed、覆盖率 88.97%，PR #313 四项必需检查全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/313"
+    },
+    {
+      "round": 476,
+      "timestamp": "2026-10-10T08:10:31+07:00",
+      "focus": "校验与阈值（恒真检查、阈值误判、边界翻转）",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`BuildOptions(jobs=-1)` 原先接受负数，打包阶段再被 `max(1, ...)` 静默改成单 worker；CLI 只定义 `0` 为自动。新增 `jobs < 0` 校验后，负向测试修复前 `DID NOT RAISE ConfigError`，修复后目标测试 4 passed、`make check` 514 passed、覆盖率 88.99%，PR #314 四项必需检查全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/314"
     }
   ],
   "residual_risks": [
+    "第 476 轮只拒绝负数并发度；直接构造 `BuildOptions(jobs=0)` 仍由打包层夹为 1 个 worker，只有 CLI 会把 `0` 解释为自动，后续若把 dataclass 当公开入口需要统一该语义",
     "第 475 轮的 GHCR 校验仍要求调用方逐个传入包名；未来扩展 `PACKAGE_NAMES` 时必须继续走同一公共循环，避免绕过空清单保护",
     "第 474 轮的镜像字节差在 Alpine 替代基线上测量；全量 Immich 基础镜像的绝对体积差会不同，但删除一个 RUN 层的层数收益确定",
     "第 473 轮只核对默认 `{admin_2}` 发布变体；其他展示粒度、`hant` 输出与 SQLite 数据集未在真实 Release 上逐项复验",
