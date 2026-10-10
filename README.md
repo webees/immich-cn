@@ -213,7 +213,7 @@ jsDelivr 等免费 CDN 只作为 GitHub 分支、标签或提交中静态文件�
 
 #### 上游 Immich 配置
 
-以下变量属于 Immich 上游契约，本项目只保留或透传，默认不覆盖：`TZ`、`IMMICH_CONFIG_FILE`、`IMMICH_HELMET_FILE`、`IMMICH_TRUSTED_PROXIES`、`IMMICH_WORKERS_INCLUDE`、`IMMICH_WORKERS_EXCLUDE`、`IMMICH_ALLOW_SETUP`、`IMMICH_IGNORE_MOUNT_CHECK_ERRORS`、`IMMICH_ALLOW_EXTERNAL_PLUGINS`。完整边界见 [Immich 集成契约](docs/immich-integration.md)。
+Immich 上游变量、默认处理与本项目边界见 [Immich 集成契约](docs/immich-integration.md)。
 
 ### 刷新生效
 
