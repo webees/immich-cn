@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 494,
+  "round": 495,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 291,
+    "findings": 292,
     "clean_rounds": 192,
     "p0": 0,
     "p1": 35,
-    "p2": 212,
+    "p2": 213,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M3 负向制品实验",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -5001,9 +5001,20 @@
       "severity": "P2",
       "evidence": "`_positive_hours()` 原先只拒绝 `<= 0`，会接受 `nan` 与 `inf`，使监控阈值失去确定含义并可能在构造 `timedelta` 时失败。改为要求有限正数；`nan`/`inf` 负向测试修复前未抛错，修复后目标测试 20 passed、`make check` 543 passed、覆盖率 89.39%，PR #326 四项必需检查全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/326"
+    },
+    {
+      "round": 495,
+      "timestamp": "2026-10-10T09:55:54+07:00",
+      "focus": "数据正确性（行政层级、繁简、去重、排序、抽样核对）",
+      "method": "M3 负向制品实验",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "向 `admin1CodesASCII.txt` 注入重复的 `CN.00` 后，`_check_admin()` 原仍报告校验通过。新增重复代码计数后，任一重复行会明确失败；负向测试修复前为 PASS，修复后目标测试通过、`make check` 544 passed、覆盖率 89.42%，PR #327 四项必需检查全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/327"
     }
   ],
   "residual_risks": [
+    "第 495 轮只检测行政表中的重复代码；`_load_admin_codes()` 仍以字典覆盖重复值，但发布命令直接消费 `_check_admin()` 的门禁结果",
     "第 494 轮限制了命令行小时阈值为有限正数；库级 `evaluate_freshness()` 仍只接受 `timedelta`，调用方需自行保证其可表示且为正",
     "第 493 轮把上游变量详细清单集中到集成文档；README 仍保留指向该文档的链接，若集成文档改名需同步更新",
     "第 492 轮的 Action 校验依赖 GitHub API 与当前 token 状态；上游仓库删除标签或 API 限流时需重跑，不能把本次快照当永久结论",
