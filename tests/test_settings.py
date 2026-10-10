@@ -42,6 +42,11 @@ def test_build_options_defaults_match_cli() -> None:
     assert tuple(item.strip() for item in args.patterns.split(",") if item.strip()) == tuple(DEFAULT_PATTERNS)
 
 
+def test_zero_jobs_uses_auto_default() -> None:
+    """`0` 在 CLI 与库入口都必须表示自动并发。"""
+    assert BuildOptions(jobs=0).jobs == BuildOptions().jobs
+
+
 def test_project_version_matches_runtime() -> None:
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     assert __version__ == project["project"]["version"]
