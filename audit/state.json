@@ -2,18 +2,18 @@
   "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 462,
-  "consecutive_clean": 3,
+  "round": 463,
+  "consecutive_clean": 4,
   "totals": {
     "findings": 273,
-    "clean_rounds": 178,
+    "clean_rounds": 179,
     "p0": 0,
     "p1": 35,
     "p2": 194,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4681,9 +4681,20 @@
       "severity": null,
       "evidence": "把共享必需文件校验从 `-s` 变异为 `-e` 后，入口测试在“只读目标含 0 字节必需文件时不应成功”处失败，证明非空校验有真实覆盖；恢复后 `check-entrypoint.sh` 与 `check_shell.py` 全部通过。检查清单：已覆盖零字节必需文件与恢复基线；未覆盖 ACL、只读挂载拒绝等更细权限差异。本轮未发现 P0-P2 问题，clean_streak=3。",
       "pr": null
+    },
+    {
+      "round": 463,
+      "timestamp": "2026-10-10T07:05:12+07:00",
+      "focus": "校验与阈值（恒真检查、阈值误判、边界翻转）",
+      "method": "M2 阈值反演",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "运行人口阈值与 full 范围边界测试 2 项：非 full 输出在人口 99 时排除、100 与 101 时保留；full 输出允许无中文别名的零人口自然要素。当前树无未提交改动，账本一致性通过。检查清单：已覆盖默认阈值两侧与 full 例外；未重新用完整 GeoNames 全量数据测量人口分布。本轮未发现 P0-P2 问题，clean_streak=4。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 463 轮人口阈值使用合成记录；完整 GeoNames 的人口分布变化不会改变边界语义，但真实变体规模仍需发布清单覆盖",
     "第 462 轮验证了零字节必需文件会被拒绝；更细粒度的 ACL 与只读挂载权限差异仍未在 Alpine 容器内逐项重放",
     "第 461 轮契约快照只覆盖当前树与队列元数据，不重新构建镜像或访问远端 Release/GHCR",
     "第 460 轮只对第二个必需文件重复了手工变异；其余文件由同一循环 oracle 覆盖，未逐项重复修改实现",
