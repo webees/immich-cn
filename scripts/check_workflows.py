@@ -384,12 +384,7 @@ def check_cleanup_workflow(path: Path, workflow: dict[str, Any], errors: list[st
 
 
 def check_concurrency(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
-    triggers = workflow.get("on")
-    scheduled = isinstance(triggers, dict) and any(key in triggers for key in SCHEDULED)
-    # YAML 1.1 会把裸 on: 解析成 True，这里兼容两种键名
-    if not scheduled and isinstance(triggers, dict):
-        scheduled = "schedule" in {str(key) for key in triggers}
-    if scheduled and "concurrency" not in workflow:
+    if any(trigger in _triggers(workflow) for trigger in SCHEDULED) and "concurrency" not in workflow:
         errors.append(f"{path} 是定时工作流但缺少 concurrency")
 
 
@@ -461,10 +456,7 @@ def check_failure_notifier_coverage(path: Path, workflow: dict[str, Any], errors
 
 
 def _workflow_call_outputs(workflow: dict[str, Any]) -> set[str]:
-    triggers = workflow.get("on")
-    if not isinstance(triggers, dict):
-        legacy = workflow.get(True)
-        triggers = legacy if isinstance(legacy, dict) else {}
+    triggers = _triggers(workflow)
     call = triggers.get("workflow_call") if isinstance(triggers, dict) else None
     outputs = (call or {}).get("outputs") if isinstance(call, dict) else None
     return set(outputs) if isinstance(outputs, dict) else set()
@@ -568,10 +560,7 @@ def check_required_check_names(
     produced: dict[str, list[str]] = {}
     pr_workflows: set[str] = set()
     for name, workflow in loaded.items():
-        triggers = workflow.get("on")
-        if not isinstance(triggers, dict):
-            legacy = workflow.get(True)
-            triggers = legacy if isinstance(legacy, dict) else {}
+        triggers = _triggers(workflow)
         if "pull_request" in triggers:
             pr_workflows.add(name)
         for job_name in _job_names(workflow):
