@@ -446,6 +446,17 @@ def test_admin_country_ratio_threshold_boundary(tmp_path: Path) -> None:
     assert below.passed is False, below.detail
 
 
+def test_admin_duplicate_codes_are_rejected(tmp_path: Path) -> None:
+    path = tmp_path / "admin1-duplicate.txt"
+    rows = [f"CN.{i:02d}\t浙江省\tZhejiang\t{1000 + i}" for i in range(20)]
+    rows.append("CN.00\t重复名称\tDuplicate\t9999")
+    write_lines(path, rows)
+
+    result = _check_admin(path, "admin1", min_overall_ratio=0.0, min_country_ratio=0.0)
+    assert result.passed is False
+    assert "重复" in result.detail
+
+
 def test_admin_region_english_entry_is_rejected(tmp_path: Path) -> None:
     """港澳条目里出现英文名（例如 GeoNames 缺中文别名）必须被判失败。"""
     path = tmp_path / "admin1.txt"
