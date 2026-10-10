@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Literal, get_args
 
 from immich_cn import __version__
 from immich_cn.display import validate_pattern
@@ -195,6 +195,9 @@ class BuildOptions:
     jobs: int = field(default_factory=_default_jobs)
 
     def __post_init__(self) -> None:
+        variants = get_args(ChineseVariant)
+        if self.chinese_variant not in variants:
+            raise ConfigError(f"chinese_variant 必须是 {' 或 '.join(variants)}：{self.chinese_variant!r}")
         if self.jobs < 0:
             raise ConfigError("jobs 不能为负数")
         if self.jobs == 0:
