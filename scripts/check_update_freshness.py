@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 from collections.abc import Sequence
@@ -190,7 +191,7 @@ def _positive_hours(value: str) -> float:
         hours = float(value)
     except ValueError as error:
         raise argparse.ArgumentTypeError(f"{value!r} 不是数字") from error
-    if hours <= 0:
+    if not math.isfinite(hours) or hours <= 0:
         raise argparse.ArgumentTypeError("小时数必须为正")
     return hours
 

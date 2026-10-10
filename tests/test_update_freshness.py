@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import argparse
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 from scripts.check_update_freshness import (
     UNHEALTHY_STATES,
+    _positive_hours,
     _write_github_output,
     evaluate_freshness,
     main,
@@ -159,6 +161,12 @@ def test_zero_thresholds_are_rejected() -> None:
         evaluate_freshness([], now=NOW, max_age=timedelta(0), stall_grace=STALL_GRACE)
     with pytest.raises(ValueError):
         evaluate_freshness([], now=NOW, max_age=MAX_AGE, stall_grace=timedelta(0))
+
+
+@pytest.mark.parametrize("value", ["nan", "inf", "-inf"])
+def test_positive_hours_rejects_non_finite_values(value: str) -> None:
+    with pytest.raises(argparse.ArgumentTypeError, match="小时数"):
+        _positive_hours(value)
 
 
 def test_github_output_writes_machine_readable_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
