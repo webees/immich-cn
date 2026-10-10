@@ -147,6 +147,8 @@ def _check_admin(
     country_chinese = 0
     region_counts: dict[str, list[int]] = {region: [0, 0] for region in regions}
     bad = 0
+    duplicates = 0
+    seen: set[str] = set()
     prefix = f"{country}."
     with path.open("r", encoding="utf-8") as handle:
         for line in handle:
@@ -154,6 +156,10 @@ def _check_admin(
             if len(fields) < 4:
                 bad += 1
                 continue
+            code = fields[0]
+            if code in seen:
+                duplicates += 1
+            seen.add(code)
             total += 1
             is_chinese = has_cjk(fields[1])
             if is_chinese:
@@ -169,6 +175,8 @@ def _check_admin(
                         region_counts[region][1] += 1
     if bad:
         return CheckResult(label, False, f"{bad} 行字段不足")
+    if duplicates:
+        return CheckResult(label, False, f"{duplicates} 行行政区代码重复")
     if total == 0:
         return CheckResult(label, False, "文件为空")
     overall = chinese / total
