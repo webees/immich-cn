@@ -2,14 +2,14 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 483,
+  "round": 484,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 284,
+    "findings": 285,
     "clean_rounds": 188,
     "p0": 0,
     "p1": 35,
-    "p2": 205,
+    "p2": 206,
     "p3": 49
   },
   "status": "active",
@@ -4891,10 +4891,20 @@
       "severity": "P2",
       "evidence": "`data_fingerprint()` 原先把空数组、非对象条目、缺少 `sha256` 或字符串形式的 `sources` 全部折叠成同一空来源集合，三类畸形输入均返回相同指纹。现在 `sources` 必须是至少一条的对象数组且每项含非空 `name`/`sha256`；四项负向测试修复前均 `DID NOT RAISE`，修复后目标测试 14 passed、`make check` 523 passed、覆盖率 89.27%，PR #319 四项必需检查全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/319"
+    },
+    {
+      "round": 484,
+      "timestamp": "2026-10-10T08:57:45+07:00",
+      "focus": "错误处理与网络健壮性（超时、截断、空响应、重试）",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`data_fingerprint()` 的 `config`/`tool` 结构非法时仍会折叠为空对象并返回同一指纹，无法识别 manifest 损坏。现在 `config` 必须是对象、`tool` 必须含非空 `name`/`version`/`revision`；五项负向测试修复前均 `DID NOT RAISE`，修复后目标测试 19 passed、`make check` 528 passed、覆盖率 89.37%，PR #320 四项必需检查全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/320"
     }
   ],
   "residual_risks": [
-    "第 483 轮只严格校验指纹中的 `sources`；`config`/`tool` 仍会在结构异常时折叠为空对象，后续可用同类负向测试继续收紧",
+    "第 484 轮已严格校验 `sources`/`config`/`tool`，但顶层 `schemaVersion` 仍可为缺失或非整数；后续如需收紧需同步确认旧 manifest 兼容范围",
     "第 482 轮只做国家代码归一化与去重，不校验代码是否属于 GeoNames 支持列表；不存在的代码仍会在下载阶段给出外部错误",
     "第 481 轮只重复验证了严格中文判定这一个变异点；其他关键模块仍需轮换探针，不能把单点存活/杀死结果外推为整体测试充分",
     "第 480 轮只在 `BuildOptions` 边界校验字形；直接绕过配置调用 `localization.to_variant()` 的非法值仍由该函数自身承担",
