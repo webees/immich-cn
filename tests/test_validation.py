@@ -682,6 +682,46 @@ def test_cities500_cjk_strict_requires_zero_missing(tmp_path: Path) -> None:
     assert full["chinese-regions-cjk-strict"] is True
 
 
+def test_cities500_cjk_strict_checks_every_present_region(tmp_path: Path) -> None:
+    """一个地区无缺口，不能掩盖另一个中文地区的缺失。"""
+    path = tmp_path / "cities-mixed-regions.txt"
+    write_lines(
+        path,
+        [
+            geo_row(
+                4_000_000,
+                "苏州市",
+                country="CN",
+                admin1="04",
+                admin2="A000",
+                latitude="31.3",
+                longitude="120.6",
+            ),
+            geo_row(
+                4_000_001,
+                "Sha Tin",
+                country="HK",
+                admin1="NST",
+                latitude="22.4",
+                longitude="114.2",
+            ),
+        ],
+    )
+
+    results = {
+        result.name: result
+        for result in _check_cities500(
+            path,
+            min_cn_cjk_ratio=1.0,
+            min_hk_cjk_ratio=0.0,
+            min_cn_admin2_code_ratio=1.0,
+            admin2_codes={"CN.04.A000"},
+        )
+    }
+
+    assert results["chinese-regions-cjk-strict"].passed is False
+
+
 def test_cities500_admin2_code_ratio_threshold_boundary(tmp_path: Path) -> None:
     def check(with_admin2: int):
         path = tmp_path / f"cities-a2-{with_admin2}.txt"
