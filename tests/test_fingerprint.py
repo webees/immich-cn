@@ -94,3 +94,15 @@ def test_fingerprint_from_file(tmp_path: Path) -> None:
 def test_fingerprint_rejects_malformed_sources(sources: object) -> None:
     with pytest.raises(ValueError, match=r"manifest\.sources"):
         data_fingerprint(make_manifest(sources=sources))
+
+
+@pytest.mark.parametrize("field", ["config", "tool"])
+def test_fingerprint_rejects_non_mapping_sections(field: str) -> None:
+    with pytest.raises(ValueError, match=rf"manifest\.{field}"):
+        data_fingerprint(make_manifest(**{field: None}))
+
+
+@pytest.mark.parametrize("tool", [{}, {"name": "immich-cn"}, {"name": "immich-cn", "version": "1.0.0"}])
+def test_fingerprint_rejects_incomplete_tool(tool: dict[str, str]) -> None:
+    with pytest.raises(ValueError, match=r"manifest\.tool"):
+        data_fingerprint(make_manifest(tool=tool))

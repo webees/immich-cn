@@ -35,14 +35,22 @@ def _sources(manifest: Mapping[str, Any]) -> list[dict[str, str]]:
 
 def _config(manifest: Mapping[str, Any]) -> dict[str, Any]:
     raw = manifest.get("config")
-    return dict(raw) if isinstance(raw, Mapping) else {}
+    if not isinstance(raw, Mapping):
+        raise ValueError("manifest.config 必须是对象")
+    return dict(raw)
 
 
 def _tool(manifest: Mapping[str, Any]) -> dict[str, str]:
     raw = manifest.get("tool")
     if not isinstance(raw, Mapping):
-        return {}
-    return {key: str(raw.get(key, "")) for key in ("name", "version", "revision")}
+        raise ValueError("manifest.tool 必须是对象")
+    tool: dict[str, str] = {}
+    for key in ("name", "version", "revision"):
+        value = raw.get(key)
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"manifest.tool.{key} 必须是非空字符串")
+        tool[key] = value
+    return tool
 
 
 def data_fingerprint(manifest: Mapping[str, Any]) -> str:
