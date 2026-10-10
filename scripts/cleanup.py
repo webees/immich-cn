@@ -149,6 +149,14 @@ class Inventory:
         return f"观察到 Release {self.releases} 个、Actions 运行 {self.runs} 次、GHCR 版本 {packages}"
 
 
+def _require_release_inventory(releases: list[ReleaseRecord]) -> None:
+    if not releases:
+        raise CleanupError(
+            "Release 列表返回 0 个对象：无法区分「确实没有 Release」与「token 缺少权限 / "
+            "API 结构变化导致读到空列表」。拒绝在没有证据的情况下报告清理成功"
+        )
+
+
 def _parse_time(value: str) -> datetime:
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -472,6 +480,7 @@ def build_plan(
 ) -> CleanupPlan:
     settings.validate()
     releases = client.list_releases()
+    _require_release_inventory(releases)
     protected_shas = {
         client.commit_sha_for_tag(release.tag_name) for release in releases if STABLE_VERSION.match(release.tag_name)
     }
@@ -669,6 +678,7 @@ def _verify_release_assets(client: GitHubClient, args: argparse.Namespace) -> in
 def _prune_legacy_assets(client: GitHubClient, args: argparse.Namespace) -> int:
     """删除已有规范替代品的旧命名发布资产；缺少规范资产的发布只报告不删除。"""
     releases = client.list_releases()
+    _require_release_inventory(releases)
     observed = {release.tag_name: client.release_assets(release.tag_name) for release in releases}
     canonical_available = any(CANONICAL_ASSET.fullmatch(name) for assets in observed.values() for _, name in assets)
     mode = _mode(args.apply)
