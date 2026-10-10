@@ -16,12 +16,20 @@ from typing import Any
 def _sources(manifest: Mapping[str, Any]) -> list[dict[str, str]]:
     raw = manifest.get("sources")
     if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes)):
-        return []
+        raise ValueError("manifest.sources 必须是数组")
+    if not raw:
+        raise ValueError("manifest.sources 不能为空")
     entries: list[dict[str, str]] = []
-    for item in raw:
+    for index, item in enumerate(raw):
         if not isinstance(item, Mapping):
-            continue
-        entries.append({"name": str(item.get("name", "")), "sha256": str(item.get("sha256", ""))})
+            raise ValueError(f"manifest.sources[{index}] 必须是对象")
+        name = item.get("name")
+        sha256 = item.get("sha256")
+        if not isinstance(name, str) or not name:
+            raise ValueError(f"manifest.sources[{index}].name 必须是非空字符串")
+        if not isinstance(sha256, str) or not sha256:
+            raise ValueError(f"manifest.sources[{index}].sha256 必须是非空字符串")
+        entries.append({"name": name, "sha256": sha256})
     return sorted(entries, key=lambda entry: entry["name"])
 
 
