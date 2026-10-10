@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 495,
-  "consecutive_clean": 0,
+  "round": 496,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 292,
-    "clean_rounds": 192,
+    "clean_rounds": 193,
     "p0": 0,
     "p1": 35,
     "p2": 213,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M3 负向制品实验",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -5011,9 +5011,20 @@
       "severity": "P2",
       "evidence": "向 `admin1CodesASCII.txt` 注入重复的 `CN.00` 后，`_check_admin()` 原仍报告校验通过。新增重复代码计数后，任一重复行会明确失败；负向测试修复前为 PASS，修复后目标测试通过、`make check` 544 passed、覆盖率 89.42%，PR #327 四项必需检查全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/327"
+    },
+    {
+      "round": 496,
+      "timestamp": "2026-10-10T10:00:48+07:00",
+      "focus": "测试有效性（断言能否失败、覆盖是否真实）",
+      "method": "M1 变异探针",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "把重复行政区代码门禁从 `if duplicates` 变异为 `if duplicates > 1` 后，完整 `make check` 变红，`test_admin_duplicate_codes_are_rejected` 报校验仍通过；恢复后 `make check` 544 passed、覆盖率 89.42%。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 496 轮只证明单条重复会被测试杀死；多条重复、跨地区组合及 `_load_admin_codes()` 字典覆盖路径仍需轮换探针",
     "第 495 轮只检测行政表中的重复代码；`_load_admin_codes()` 仍以字典覆盖重复值，但发布命令直接消费 `_check_admin()` 的门禁结果",
     "第 494 轮限制了命令行小时阈值为有限正数；库级 `evaluate_freshness()` 仍只接受 `timedelta`，调用方需自行保证其可表示且为正",
     "第 493 轮把上游变量详细清单集中到集成文档；README 仍保留指向该文档的链接，若集成文档改名需同步更新",
