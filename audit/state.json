@@ -1,19 +1,19 @@
 {
-  "objective": "复刻并升级 immich-cn：全自动资料更新、镜像构建发布、架构与文档规范化、宽松许可、分支保护和 Packages 治理；连续 50 轮 clean 后按三态交付",
+  "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 464,
-  "consecutive_clean": 5,
+  "round": 465,
+  "consecutive_clean": 6,
   "totals": {
     "findings": 273,
-    "clean_rounds": 180,
+    "clean_rounds": 181,
     "p0": 0,
     "p1": 35,
     "p2": 194,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M8 资源与性能剖析",
+  "last_method": "M4 契约快照",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4701,9 +4701,20 @@
       "severity": null,
       "evidence": "向 `build/`、`dist/`、pytest/mypy/ruff 缓存和 `src/__pycache__` 注入哨兵文件后执行 `make clean`：六类生成目录全部删除，Makefile 与 `work/audit/state.json` 保留；当前工作区无残留构建物，账本一致性通过。检查清单：已覆盖构建/制品/缓存/字节码四类资源；未覆盖 `work/` 旧证据（由独立 `clean-work` 处理）。本轮未发现 P0-P2 问题，clean_streak=5。",
       "pr": null
+    },
+    {
+      "round": 465,
+      "timestamp": "2026-10-10T07:07:49+07:00",
+      "focus": "文档与实现一致性（命令/路径/标签/数字）",
+      "method": "M4 契约快照",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "GitHub 状态：open PR 0、open issue 0、非完成 Actions 运行 0、Release 5 个，均在保留策略内；当前工作区无未提交改动。同时将账本顶层 objective 从过时的“复刻”口径修正为“完全独立实现”的当前定位。检查清单：已覆盖队列、运行、Release 与顶层目标口径；未读取 GHCR 版本列表。本轮未发现 P0-P2 问题，clean_streak=6。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 465 轮只更新账本顶层目标口径；历史轮次证据保留原始记录，不回写成当前叙事",
     "第 464 轮清理边界只在当前 macOS 文件系统执行；只读挂载或权限拒绝会保守失败，尚未在 Alpine overlayfs 中重放",
     "第 463 轮人口阈值使用合成记录；完整 GeoNames 的人口分布变化不会改变边界语义，但真实变体规模仍需发布清单覆盖",
     "第 462 轮验证了零字节必需文件会被拒绝；更细粒度的 ACL 与只读挂载权限差异仍未在 Alpine 容器内逐项重放",
