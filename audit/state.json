@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 469,
-  "consecutive_clean": 10,
+  "round": 470,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 273,
+    "findings": 274,
     "clean_rounds": 185,
     "p0": 0,
     "p1": 35,
-    "p2": 194,
+    "p2": 195,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M2 阈值反演",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4751,9 +4751,20 @@
       "severity": null,
       "evidence": "运行中文覆盖率、行政层级、港澳台与严格模式阈值测试 11 项：恰好达到阈值通过，低于阈值失败，严格模式保持零容忍。检查清单：已覆盖国家名、admin 总体/地区、cities500、HK 与严格校验；未重新计算真实全量覆盖率。本轮未发现 P0-P2 问题，clean_streak=10。",
       "pr": null
+    },
+    {
+      "round": 470,
+      "timestamp": "2026-10-10T07:20:02+07:00",
+      "focus": "死代码与未使用配置（含只写不读的变量）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`Fetcher` 中 6 处重复的「删除分片及其元数据」分支收敛为 `_discard_part()`，重复清理块 6→1，文件行数 463→462；本地 `make check` 通过（510 passed，覆盖率 88.97%），PR #309 四项必需检查全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/309"
     }
   ],
   "residual_risks": [
+    "第 470 轮新增的 `_discard_part()` 只服务 `Fetcher` 内部；未来若新增分片清理路径，应继续复用该 helper，避免只删除分片而遗留 `.meta`",
     "第 469 轮阈值反演以合成记录为主，未重新对最新 Release 的 131 万条规范数据全量计算所有覆盖率",
     "第 468 轮文档护栏无法识别语义等价但措辞完全不同的过时描述，仍需专题变更时人工复核",
     "第 467 轮制品负向实验使用最小夹具，未逐一篡改最新 19 个 Release 资产并重放完整校验器",
