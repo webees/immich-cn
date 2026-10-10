@@ -2,11 +2,11 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 486,
-  "consecutive_clean": 0,
+  "round": 487,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 287,
-    "clean_rounds": 188,
+    "clean_rounds": 189,
     "p0": 0,
     "p1": 35,
     "p2": 208,
@@ -4921,9 +4921,20 @@
       "severity": "P2",
       "evidence": "`normalize_base()` 原先只检查 `http(s)://` 前缀，会接受明文 HTTP、带用户名密码、查询串或片段的 CDN 基址，与文档要求的 HTTPS 信任边界不一致。改用 `urlsplit()` 后只允许纯 HTTPS 基址；五项负向测试修复前均未抛错，修复后目标测试 8 passed、`make check` 539 passed、覆盖率 89.39%，PR #322 四项必需检查全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/322"
+    },
+    {
+      "round": 487,
+      "timestamp": "2026-10-10T09:13:22+07:00",
+      "focus": "容器与 shell 脚本（引用、权限、只读挂载、路径差异）",
+      "method": "M10 shell/容器安全审查",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "用导出的假 `docker`/`sleep` 函数执行 `docker-pull-retry.sh`：前两次失败、第三次成功时实拉 3 次并返回 0；持续失败时实拉 3 次、输出明确错误并返回 1。`make shellcheck` 通过（6 个脚本、6 个工作流），工作树干净。检查清单：已覆盖成功重试、重试耗尽和退出码；未连接真实 registry/daemon。本轮未发现 P0-P2 问题，clean_streak=1。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 487 轮的拉取重试使用假命令，不验证真实 Docker daemon、registry 鉴权或限流错误分类；当前实现会对所有 pull 失败统一重试 3 次",
     "第 486 轮只限制 URL 结构，不验证目标 CDN 的 DNS、证书或内容；这些仍由部署方在使用前实测",
     "第 485 轮已校验 `schemaVersion` 类型，但未校验其值等于当前支持的 schema；未来升版时必须明确旧指纹的兼容或失效策略",
     "第 482 轮只做国家代码归一化与去重，不校验代码是否属于 GeoNames 支持列表；不存在的代码仍会在下载阶段给出外部错误",
