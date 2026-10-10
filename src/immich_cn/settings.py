@@ -190,6 +190,8 @@ class BuildOptions:
     jobs: int = field(default_factory=lambda: max(1, min(8, (os.cpu_count() or 2))))
 
     def __post_init__(self) -> None:
+        if self.jobs < 0:
+            raise ConfigError("jobs 不能为负数")
         if self.min_population < 0:
             raise ConfigError("min_population 不能为负数")
         if not self.patterns:

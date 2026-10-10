@@ -71,6 +71,7 @@ def test_country_codes_env_normalizes_and_falls_back(monkeypatch: pytest.MonkeyP
     ("kwargs", "message"),
     [
         ({"min_population": -1}, "min_population"),
+        ({"jobs": -1}, "jobs"),
         ({"patterns": ()}, "至少需要"),
         ({"patterns": ("no-placeholder",)}, "需要包含"),
     ],
