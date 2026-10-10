@@ -37,12 +37,18 @@ def positive_int_env(name: str, default: int) -> int:
     return value
 
 
+def parse_country_codes(raw: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    """解析逗号分隔的国家或地区代码，统一大写、去除空白并保持首次出现顺序。"""
+    codes: list[str] = []
+    for item in raw.split(","):
+        code = item.strip().upper()
+        if code and code not in codes:
+            codes.append(code)
+    return tuple(codes) or default
+
+
 def country_codes_env(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
-    """读取逗号分隔的国家或地区代码，统一去空白并转大写。"""
-    raw = os.environ.get(name, "").strip()
-    if not raw:
-        return default
-    return tuple(item.strip().upper() for item in raw.split(",") if item.strip()) or default
+    return parse_country_codes(os.environ.get(name, ""), default)
 
 
 #: 默认需要附带国家全量 dump 的地区；`cities500` 只有人口 > 500 的记录，国内数据在人口维度并不可靠。
