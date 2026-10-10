@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 489,
-  "consecutive_clean": 1,
+  "round": 490,
+  "consecutive_clean": 2,
   "totals": {
     "findings": 288,
-    "clean_rounds": 190,
+    "clean_rounds": 191,
     "p0": 0,
     "p1": 35,
     "p2": 209,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M9 文档-实现逐条核对",
+  "last_method": "M1 变异探针",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4951,9 +4951,20 @@
       "severity": null,
       "evidence": "`make docs` 通过（15 个文档、58 个实现文件），`make workflows` 通过（6 个工作流），`make audit-dead-symbols` 无零引用定义；CLI `--help` 的六个子命令及公共参数与文档契约一致。检查清单：已覆盖本地文档/工作流/死符号/CLI 快照；未访问远端 Release 或 GHCR。本轮未发现 P0-P2 问题，clean_streak=1。",
       "pr": null
+    },
+    {
+      "round": 490,
+      "timestamp": "2026-10-10T09:27:48+07:00",
+      "focus": "测试有效性（断言能否失败、覆盖是否真实）",
+      "method": "M1 变异探针",
+      "verdict": "clean",
+      "severity": null,
+      "evidence": "把 `_MAX_RETRY_DELAY` 从 `120.0` 变异为 `121.0` 后，完整 `make check` 变红，`test_retry_delay_prefers_retry_after_header` 报 `121.0 == 120.0`；恢复后 `make check` 540 passed、覆盖率 89.39%。本轮未发现 P0-P2 问题，clean_streak=2。",
+      "pr": null
     }
   ],
   "residual_risks": [
+    "第 490 轮只证明 Retry-After 上限被测试捕获；下载重试的其它边界分支仍需轮换探针，不能据此推定整个客户端覆盖充分",
     "第 489 轮是本地契约快照，不访问远端 Release、Actions 队列或 GHCR 标签；外部状态仍可能独立漂移",
     "第 488 轮只验证顶层触发键兼容；若未来工作流触发结构不再是对象，`_triggers()` 会返回空对象并保持 fail-safe，但不会单独报告格式异常",
     "第 487 轮的拉取重试使用假命令，不验证真实 Docker daemon、registry 鉴权或限流错误分类；当前实现会对所有 pull 失败统一重试 3 次",
