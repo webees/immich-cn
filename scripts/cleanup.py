@@ -157,6 +157,16 @@ def _require_release_inventory(releases: list[ReleaseRecord]) -> None:
         )
 
 
+def _require_package_inventory(package: str, versions: list[PackageVersionRecord], allow_empty: bool) -> None:
+    if versions or allow_empty:
+        return
+    raise CleanupError(
+        f"GHCR 包 {package} 返回 0 个版本：无法区分「确实没有版本」与「token 缺少 "
+        "read:packages / API 结构变化导致读到空列表」。拒绝在没有证据的情况下报告清理成功；"
+        "确认该包尚未创建时显式加 --allow-empty-packages"
+    )
+
+
 def _parse_time(value: str) -> datetime:
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -491,12 +501,7 @@ def build_plan(
     observed: dict[str, list[PackageVersionRecord]] = {}
     for package in PACKAGE_NAMES:
         versions = client.list_package_versions(package)
-        if not versions and not allow_empty_packages:
-            raise CleanupError(
-                f"GHCR 包 {package} 返回 0 个版本：无法区分「确实没有版本」与「token 缺少 "
-                "read:packages / API 结构变化导致读到空列表」。拒绝在没有证据的情况下报告清理成功；"
-                "确认该包尚未创建时显式加 --allow-empty-packages"
-            )
+        _require_package_inventory(package, versions, allow_empty_packages)
         observed[package] = versions
     package_versions = {
         package: select_package_versions(
@@ -722,12 +727,7 @@ def _prune_superseded_versions(client: GitHubClient, args: argparse.Namespace) -
     failures: list[str] = []
     for package in PACKAGE_NAMES:
         versions = client.list_package_versions(package)
-        if not versions and not getattr(args, "allow_empty_packages", False):
-            raise CleanupError(
-                f"GHCR 包 {package} 返回 0 个版本：无法区分「确实没有版本」与「token 缺少 "
-                "read:packages / API 结构变化导致读到空列表」。拒绝在没有证据的情况下报告清理成功；"
-                "确认该包尚未创建时显式加 --allow-empty-packages"
-            )
+        _require_package_inventory(package, versions, getattr(args, "allow_empty_packages", False))
         deletable, manual = select_superseded_versions(versions)
         if not deletable and not manual:
             # 带三段式标签、但因为同时还带其它标签而被保留的版本要显式说明，
