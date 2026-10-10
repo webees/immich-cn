@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 485,
+  "round": 486,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 286,
+    "findings": 287,
     "clean_rounds": 188,
     "p0": 0,
     "p1": 35,
-    "p2": 207,
+    "p2": 208,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M10 shell/容器安全审查",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -4911,9 +4911,20 @@
       "severity": "P2",
       "evidence": "顶层 `schemaVersion` 缺失、为 0/负数、字符串、浮点数或布尔值时原会直接参与哈希，无法识别 manifest 版本元数据损坏。新增 `_schema_version()` 后要求正整数且拒绝布尔值；六项负向测试修复前均 `DID NOT RAISE`，修复后目标测试 25 passed、`make check` 534 passed、覆盖率 89.39%，PR #321 四项必需检查全绿。",
       "pr": "https://github.com/webees/immich-cn/pull/321"
+    },
+    {
+      "round": 486,
+      "timestamp": "2026-10-10T09:11:19+07:00",
+      "focus": "安全（zip slip、注入、密钥泄漏、供应链、权限）",
+      "method": "M10 shell/容器安全审查",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`normalize_base()` 原先只检查 `http(s)://` 前缀，会接受明文 HTTP、带用户名密码、查询串或片段的 CDN 基址，与文档要求的 HTTPS 信任边界不一致。改用 `urlsplit()` 后只允许纯 HTTPS 基址；五项负向测试修复前均未抛错，修复后目标测试 8 passed、`make check` 539 passed、覆盖率 89.39%，PR #322 四项必需检查全绿。",
+      "pr": "https://github.com/webees/immich-cn/pull/322"
     }
   ],
   "residual_risks": [
+    "第 486 轮只限制 URL 结构，不验证目标 CDN 的 DNS、证书或内容；这些仍由部署方在使用前实测",
     "第 485 轮已校验 `schemaVersion` 类型，但未校验其值等于当前支持的 schema；未来升版时必须明确旧指纹的兼容或失效策略",
     "第 482 轮只做国家代码归一化与去重，不校验代码是否属于 GeoNames 支持列表；不存在的代码仍会在下载阶段给出外部错误",
     "第 481 轮只重复验证了严格中文判定这一个变异点；其他关键模块仍需轮换探针，不能把单点存活/杀死结果外推为整体测试充分",
