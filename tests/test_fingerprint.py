@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from immich_cn.fingerprint import data_fingerprint, fingerprint_from_file
 
 
@@ -86,3 +88,9 @@ def test_fingerprint_from_file(tmp_path: Path) -> None:
     path = tmp_path / "immich-cn-manifest-json-v1.json"
     path.write_text(json.dumps(make_manifest()), encoding="utf-8")
     assert fingerprint_from_file(str(path)) == data_fingerprint(make_manifest())
+
+
+@pytest.mark.parametrize("sources", [[], [None], [{"name": "cities500"}], "bad"])
+def test_fingerprint_rejects_malformed_sources(sources: object) -> None:
+    with pytest.raises(ValueError, match=r"manifest\.sources"):
+        data_fingerprint(make_manifest(sources=sources))
