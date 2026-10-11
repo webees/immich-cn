@@ -207,6 +207,8 @@ def _check_country_info(path: Path) -> CheckResult:
     total = 0
     chinese = 0
     bad = 0
+    duplicates = 0
+    seen: set[str] = set()
     with path.open("r", encoding="utf-8") as handle:
         for line in handle:
             if not line.strip() or line.startswith("#"):
@@ -215,11 +217,17 @@ def _check_country_info(path: Path) -> CheckResult:
             if len(fields) < 5:
                 bad += 1
                 continue
+            code = fields[0]
+            if code in seen:
+                duplicates += 1
+            seen.add(code)
             total += 1
             if has_cjk(fields[4]):
                 chinese += 1
     if total == 0:
         return CheckResult("countryInfo", False, f"没有可解析记录，字段异常 {bad} 条")
+    if duplicates:
+        return CheckResult("countryInfo", False, f"{duplicates} 行国家/地区代码重复")
     ratio = chinese / total
     # 项目已通过 i18n 数据与人工覆盖保证所有当前国家/地区名称可用中文表达。
     return CheckResult(

@@ -431,6 +431,22 @@ def test_country_info_rejects_malformed_rows(tmp_path: Path) -> None:
     assert result.passed is False, result.detail
 
 
+def test_country_info_rejects_duplicate_codes(tmp_path: Path) -> None:
+    """重复 alpha2 代码会让 countries 表被后者覆盖，必须拦下。"""
+    path = tmp_path / "countryInfo-duplicate.txt"
+    write_lines(
+        path,
+        [
+            "CN\tCHN\t156\tCH\t中国\tBeijing\t9596961\t1330044000\tAS\t.cn\tCNY\tYuan\t86\t######\t\tzh\t1814991\t",
+            "US\tUSA\t840\tUS\t美国\tWashington\t9629091\t327167434\tNA\t.us\tUSD\tDollar\t1\t######\t\ten\t6252001\t",
+            "CN\tCHN\t156\tCH\t重复中国\tBeijing\t9596961\t1330044000\tAS\t.cn\tCNY\tYuan\t86\t######\t\tzh\t1814991\t",
+        ],
+    )
+    result = _check_country_info(path)
+    assert result.passed is False, result.detail
+    assert "重复" in result.detail
+
+
 def test_admin_country_ratio_threshold_boundary(tmp_path: Path) -> None:
     def build(chinese: int) -> Path:
         path = tmp_path / f"admin1-{chinese}.txt"
