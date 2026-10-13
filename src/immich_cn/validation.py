@@ -9,8 +9,10 @@ from datetime import datetime
 from pathlib import Path
 
 from immich_cn.errors import VerifyError
+from immich_cn.geonames import admin_code
 from immich_cn.localization import CHINESE_OUTPUT_REGIONS, has_cjk
 from immich_cn.logging_config import get_logger
+from immich_cn.settings import DEFAULT_MIN_POPULATION, FINE_GRAINED_ADMIN2
 
 logger = get_logger("verify")
 
@@ -47,6 +49,7 @@ def verify_geodata(
     min_cn_admin_ratio: float = 0.95,
     min_cn_admin2_code_ratio: float = 0.90,
     min_cn_admin2_resolved_ratio: float = 0.99,
+    full: bool | None = None,
 ) -> list[CheckResult]:
     """校验一个 geodata 目录。"""
     results: list[CheckResult] = []
@@ -55,6 +58,8 @@ def verify_geodata(
     if missing:
         return results
 
+    if full is None:
+        full = _is_full_variant(directory)
     results.append(_check_date(directory / "geodata-date.txt"))
     results.append(
         _check_admin(
@@ -88,9 +93,33 @@ def verify_geodata(
             min_cn_admin2_code_ratio=min_cn_admin2_code_ratio,
             min_cn_admin2_resolved_ratio=min_cn_admin2_resolved_ratio,
             admin2_codes=admin2_codes,
+            full=full,
         )
     )
     return results
+
+
+def _is_full_variant(directory: Path) -> bool:
+    """从 ``build-info.json`` 读取制品变体；缺失或不合法时按默认（非完整）处理。"""
+    try:
+        payload = json.loads((directory / "build-info.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    variant = payload.get("variant") if isinstance(payload, dict) else None
+    return isinstance(variant, dict) and variant.get("full") is True
+
+
+def _in_scope_population(population: int, country: str, admin1: str, admin2: str, *, full: bool) -> bool:
+    """返回该记录是否属于打包阶段的中文零容忍范围。
+
+    完整变体额外收录人口为 0 的边境山峰、冰川等自然要素，这些记录保留 GeoNames
+    原名（见 docs/architecture.md），因此与打包阶段一致地排除在严格检查之外。
+    """
+    if not full:
+        return True
+    if population >= DEFAULT_MIN_POPULATION:
+        return True
+    return admin_code(country, admin1, admin2) in FINE_GRAINED_ADMIN2
 
 
 def _load_admin_codes(path: Path) -> dict[str, str]:
@@ -294,6 +323,7 @@ def _check_cities500(
     min_cn_admin2_code_ratio: float,
     min_cn_admin2_resolved_ratio: float = 0.99,
     admin2_codes: set[str] | None = None,
+    full: bool = False,
 ) -> list[CheckResult]:
     total = 0
     bad = 0
@@ -349,18 +379,26 @@ def _check_cities500(
             if geoname_id in seen:
                 duplicates += 1
             seen.add(geoname_id)
-            if fields[8] in strict_regions:
+            try:
+                population = int(fields[14]) if fields[14] else 0
+            except ValueError:
+                population = 0
+            in_scope = _in_scope_population(
+                population, fields[8], fields[10], fields[11], full=full
+            )
+            if in_scope and fields[8] in strict_regions:
                 strict_regions[fields[8]][0] += 1
                 if has_cjk(fields[1]):
                     strict_regions[fields[8]][1] += 1
             if fields[8] == "CN":
-                cn_total += 1
-                if has_cjk(fields[1]):
-                    cn_chinese += 1
-                if fields[11]:
-                    cn_with_admin2 += 1
-                    if admin2_codes is None or f"CN.{fields[10]}.{fields[11]}" in admin2_codes:
-                        cn_admin2_resolved += 1
+                if in_scope:
+                    cn_total += 1
+                    if has_cjk(fields[1]):
+                        cn_chinese += 1
+                    if fields[11]:
+                        cn_with_admin2 += 1
+                        if admin2_codes is None or f"CN.{fields[10]}.{fields[11]}" in admin2_codes:
+                            cn_admin2_resolved += 1
             elif fields[8] == "HK":
                 hk_total += 1
                 if has_cjk(fields[1]):

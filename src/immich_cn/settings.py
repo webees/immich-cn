@@ -54,6 +54,9 @@ def country_codes_env(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
 #: 默认需要附带国家全量 dump 的地区；`cities500` 只有人口 > 500 的记录，国内数据在人口维度并不可靠。
 DEFAULT_EXTRA_COUNTRIES: tuple[str, ...] = ("CN", "HK", "TW", "MO", "JP")
 
+#: 默认收录人口下限；完整变体对低于该下限的记录保留 GeoNames 原名（见 docs/architecture.md）。
+DEFAULT_MIN_POPULATION = 100
+
 #: 需要"直辖市细化到区"的特殊二级行政代码，非 full 模式下也会保留。
 FINE_GRAINED_ADMIN2: frozenset[str] = frozenset(
     {
@@ -190,7 +193,7 @@ class BuildOptions:
     config_dir: Path = Path("config")
     extra_countries: tuple[str, ...] = DEFAULT_EXTRA_COUNTRIES
     patterns: tuple[str, ...] = DEFAULT_PATTERNS
-    min_population: int = 100
+    min_population: int = DEFAULT_MIN_POPULATION
     provider: ProviderName = "offline"
     chinese_variant: ChineseVariant = "hans"
     force_refresh: bool = False
