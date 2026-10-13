@@ -383,9 +383,7 @@ def _check_cities500(
                 population = int(fields[14]) if fields[14] else 0
             except ValueError:
                 population = 0
-            in_scope = _in_scope_population(
-                population, fields[8], fields[10], fields[11], full=full
-            )
+            in_scope = _in_scope_population(population, fields[8], fields[10], fields[11], full=full)
             if in_scope and fields[8] in strict_regions:
                 strict_regions[fields[8]][0] += 1
                 if has_cjk(fields[1]):

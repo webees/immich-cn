@@ -353,12 +353,15 @@ def test_full_variant_exempts_out_of_scope_records(tmp_path: Path) -> None:
     )
 
     def strict(full: bool) -> CheckResult:
-        return {result.name: result for result in _check_cities500(
-            path,
-            min_cn_cjk_ratio=0.99,
-            min_cn_admin2_code_ratio=0.9,
-            full=full,
-        )}["chinese-regions-cjk-strict"]
+        return {
+            result.name: result
+            for result in _check_cities500(
+                path,
+                min_cn_cjk_ratio=0.99,
+                min_cn_admin2_code_ratio=0.9,
+                full=full,
+            )
+        }["chinese-regions-cjk-strict"]
 
     assert strict(full=False).passed is False  # 默认变体保留原名必须失败
     assert strict(full=True).passed is True  # 完整变体越界记录豁免
@@ -376,9 +379,7 @@ def test_verify_geodata_detects_full_variant_from_build_info(build_options: Buil
     )
 
     assert "chinese-regions-cjk-strict" in _failures(result.geodata_dir)
-    (result.geodata_dir / "build-info.json").write_text(
-        json.dumps({"variant": {"full": True}}), encoding="utf-8"
-    )
+    (result.geodata_dir / "build-info.json").write_text(json.dumps({"variant": {"full": True}}), encoding="utf-8")
     assert _failures(result.geodata_dir) == {}
 
 
