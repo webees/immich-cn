@@ -14,6 +14,7 @@ from immich_cn.validation import (
     ADMIN1_CODE_MAX_CHARS,
     ADMIN2_CODE_MAX_CHARS,
     NAME_MAX_CHARS,
+    CheckResult,
     _check_admin,
     _check_cities500,
     _check_country_info,
@@ -338,6 +339,48 @@ def test_missing_file_is_rejected(build_options: BuildOptions) -> None:
     results = verify_geodata(result.geodata_dir)
     assert results[0].name == "required-files"
     assert results[0].passed is False
+
+
+def test_full_variant_exempts_out_of_scope_records(tmp_path: Path) -> None:
+    """完整变体额外收录的无中文别名自然要素保留原名，与打包阶段一致地豁免。"""
+    path = tmp_path / "cities-full.txt"
+    write_lines(
+        path,
+        [
+            geo_row(1, "北京市", country="CN", admin1="22", admin2="X", population=1000),
+            geo_row(2, "K2", country="CN", admin1="22", feature_class="T", feature_code="MT", population=0),
+        ],
+    )
+
+    def strict(full: bool) -> CheckResult:
+        return {
+            result.name: result
+            for result in _check_cities500(
+                path,
+                min_cn_cjk_ratio=0.99,
+                min_cn_admin2_code_ratio=0.9,
+                full=full,
+            )
+        }["chinese-regions-cjk-strict"]
+
+    assert strict(full=False).passed is False  # 默认变体保留原名必须失败
+    assert strict(full=True).passed is True  # 完整变体越界记录豁免
+
+
+def test_verify_geodata_detects_full_variant_from_build_info(build_options: BuildOptions) -> None:
+    """zip 解包目录带 variant.full 标记时，verify 不应把合法越界记录判为失败。"""
+    result = run_build(build_options)
+    cities = result.geodata_dir / "cities500.txt"
+    cities.write_text(
+        cities.read_text(encoding="utf-8")
+        + geo_row(99_000_001, "K2", country="CN", admin1="22", feature_class="T", feature_code="MT")
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert "chinese-regions-cjk-strict" in _failures(result.geodata_dir)
+    (result.geodata_dir / "build-info.json").write_text(json.dumps({"variant": {"full": True}}), encoding="utf-8")
+    assert _failures(result.geodata_dir) == {}
 
 
 def test_traditional_variant_translates_country_names(build_options: BuildOptions) -> None:
