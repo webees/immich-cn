@@ -102,7 +102,9 @@ INDEPENDENCE_SECTION_END = "## 数据模型"
 CHINA_LOCALIZATION_DOC = Path("docs/china.md")
 CHINA_LOCALIZATION_ANCHOR = "immich-cn 为 Immich 提供中国本地化的反向地理编码地理数据"
 CHINA_LOCALIZATION_AREAS = ("显示", "检索", "地图", "体验", "加速", "数据")
-CHINA_LOCALIZATION_PHASES = ("阶段 1", "阶段 2", "阶段 3", "阶段 4")
+#: 文档只记录当前状态：专题文档不得再出现 roadmap / 进展类表述。
+#: 不用「路线图」单字，因为正文需要说明"不能把路线图写成已完成事实"。
+CHINA_LOCALIZATION_ROADMAP_TOKENS = ("演进路线", "进行中", "待办")
 CHINA_TIMEZONE = "TZ: Asia/Shanghai"
 MAKE_CHECK_DESCRIPTION = "lint + typecheck + test + docs + workflows + shellcheck"
 CHINA_LOCALIZATION_OVERCLAIM = "完整行政区层级"
@@ -714,9 +716,9 @@ def check_china_localization_contract(errors: list[str]) -> None:
     for area in CHINA_LOCALIZATION_AREAS:
         if f"| {area} |" not in doc:
             errors.append(f"{CHINA_LOCALIZATION_DOC} 的 core/optional scope 表缺少「{area}」行")
-    for phase in CHINA_LOCALIZATION_PHASES:
-        if phase not in doc:
-            errors.append(f"{CHINA_LOCALIZATION_DOC} 缺少路线图阶段：{phase}")
+    for token in CHINA_LOCALIZATION_ROADMAP_TOKENS:
+        if token in doc:
+            errors.append(f"{CHINA_LOCALIZATION_DOC} 不应记录 roadmap / 进展类内容：{token}")
 
     if not PROJECT_SCOPE_DOC.exists():
         errors.append(f"缺失项目 scope 文档：{PROJECT_SCOPE_DOC}")

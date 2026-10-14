@@ -792,12 +792,21 @@ def test_check_docs_requires_china_localization_anchor(repo_copy: Path) -> None:
 
 
 def test_check_docs_requires_china_localization_areas(repo_copy: Path) -> None:
-    """core/optional scope 表被删掉一项时必须失败，避免路线图只剩宣传性描述。"""
+    """core/optional scope 表被删掉一项时必须失败，避免范围描述被弱化。"""
     localization = repo_copy / "docs" / "china.md"
     mutate(localization, "| 检索 |", "| 查询 |")
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "缺少「检索」行" in result.stdout
+
+
+def test_check_docs_rejects_china_localization_roadmap(repo_copy: Path) -> None:
+    """专题文档只记录当前状态；重新引入 roadmap / 进展类内容必须失败。"""
+    localization = repo_copy / "docs" / "china.md"
+    mutate(localization, "## 加速边界", "## 演进路线\n\n- **阶段 4（待办）**：行政区划补全。\n\n## 加速边界")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "roadmap" in result.stdout
 
 
 def test_check_docs_requires_project_scope_sections(repo_copy: Path) -> None:
