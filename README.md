@@ -242,13 +242,7 @@ Immich 上游变量、默认处理与本项目边界见 [Immich 集成契约](do
 
 ## 数据来源
 
-| 数据 | 用途 | 许可 |
-|:--|:--|:--|
-| [GeoNames](https://download.geonames.org/export/dump/) `cities500` / `admin*Codes` / `alternateNamesV2` / 国家数据转储 | 地点、行政区、中文别名 | CC BY 4.0 |
-| [Natural Earth](https://www.naturalearthdata.com/) `ne_10m_admin_0_countries` | 无城市点时回退到国家边界 | 公有领域 |
-| [i18n-iso-countries](https://github.com/michaelwittig/node-i18n-iso-countries) | 国家名称中文覆盖（Immich 3.2.x 及以下；3.3.0 起改用 `countryInfo.txt`） | MIT |
-| OpenStreetMap / Nominatim（可选） | 补充海外行政区 | ODbL 1.0 |
-| 高德地图（可选） | 补充中国大陆区县与乡镇 | 高德开放平台条款 |
+上游数据清单、版本与处理流程以 [数据来源](docs/data-sources.md) 为唯一出处；许可与署名以 [许可与署名](docs/licensing.md) 为准。
 
 > 代码采用 MIT，但**生成的地理数据制品不适用 MIT**，请阅读 [许可与署名](docs/licensing.md)。
 
