@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 507,
+  "round": 508,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 302,
+    "findings": 303,
     "clean_rounds": 194,
     "p0": 0,
     "p1": 36,
     "p2": 217,
-    "p3": 54
+    "p3": 55
   },
   "status": "active",
-  "last_method": "M9 文档-实现逐条核对",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -5131,10 +5131,20 @@
       "severity": "P3",
       "evidence": "独立实现声明在 README/licensing/conventions 三处两套措辞重复，README 致谢段再重复锚点；check_independence_guidance 仅覆盖 README 且有只写不读绑定与失效常量；声明正文收敛到 conventions，README 与 licensing 各保留锚点句并链接，门禁扩到两文件并拒绝重复锚点（README 272→270、licensing 47→45）",
       "pr": "https://github.com/webees/immich-cn/pull/337"
+    },
+    {
+      "round": 508,
+      "timestamp": "2026-10-14T22:50:34+07:00",
+      "focus": "垃圾文件与幽灵引用（未使用的忽略规则与白名单）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "findings",
+      "severity": "P3",
+      "evidence": "outputs/ 从未被跟踪、无代码写入，仅残留在 .gitignore 与 check_docs 的 RUNTIME_PATH_PREFIXES；git log --all -- outputs 为空、ls-tree 无该目录、无文档引用；删除两处引用与本地空目录后 check_docs 仍通过",
+      "pr": "https://github.com/webees/immich-cn/pull/338"
     }
   ],
   "residual_risks": [
-    "独立性声明的可核查细节仍只在 conventions 一处，若该段被删改需依赖门禁捕获；README 与 licensing 的锚点句措辞不同但同源"
+    "其它被 gitignore 的目录（build/dist/work/.cache）仍在使用，未清理；本轮只移除确认无引用的 outputs"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
