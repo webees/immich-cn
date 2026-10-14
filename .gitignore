@@ -10,7 +10,6 @@
 
 # 工作目录（本地临时数据）
 /work/
-/outputs/
 /.cache/
 
 # Python
