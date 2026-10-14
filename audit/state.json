@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 500,
+  "round": 501,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 295,
+    "findings": 296,
     "clean_rounds": 194,
     "p0": 0,
     "p1": 36,
-    "p2": 215,
+    "p2": 216,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M2 阈值反演",
+  "last_method": "M9 文档-实现逐条核对",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -5061,10 +5061,20 @@
       "severity": "P2",
       "evidence": "verify 越界判定硬编码默认人口下限 100，build-info.json 不记录 --min-population；负向实验 minPopulation=50 时人口 99 的无中文完整制品记录被误判越界豁免（修复前 strict/cn-cjk PASS，修复后 FAIL，与 packaging.py:174 一致）；反向 minPopulation=500 仍豁免；修复把 variant.minPopulation 写入 build-info.json 并由 verify 读取",
       "pr": "https://github.com/webees/immich-cn/pull/330"
+    },
+    {
+      "round": 501,
+      "timestamp": "2026-10-14T21:07:03+07:00",
+      "focus": "冗余与垃圾内容（文档单源、过期内容、重复描述）",
+      "method": "M9 文档-实现逐条核对",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "docs/china.md 演进路线把已交付的时区、CDN/Nginx、部署回滚标为进行中，且与同文件禁止把路线图写成事实的规则冲突；scripts/check_docs.py:105 反向要求四阶段存在，固化 roadmap；负向实验：重新插入演进路线后 check_docs 失败，移除后通过",
+      "pr": "https://github.com/webees/immich-cn/pull/331"
     }
   ],
   "residual_risks": [
-    "verify 仍依赖制品内 build-info.json 记录构建参数；若上游工具或旧制品缺该字段，回退默认 100，属可接受降级；未覆盖 chinese_variant 等其余构建参数在 verify 中的一致性"
+    "README 与 docs 仍存在跨文件重复描述（数据来源、更新频率、镜像源），尚未逐条收敛为单一事实源；日期化实测数字会随上游变化过期"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
