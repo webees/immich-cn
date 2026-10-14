@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 503,
+  "round": 504,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 298,
+    "findings": 299,
     "clean_rounds": 194,
     "p0": 0,
     "p1": 36,
     "p2": 216,
-    "p3": 51
+    "p3": 52
   },
   "status": "active",
-  "last_method": "M8 资源与性能剖析",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -5091,10 +5091,20 @@
       "severity": "P3",
       "evidence": "docs/development.md 维护两张 2026-10-06 日期化实测表（构建阶段开销、压缩级别），压缩取舍理由只在文档出现，改代码易漏改；取舍迁入 packaging.py 的 ZIP_COMPRESS_LEVEL 注释作为单一事实源，删除两张过期表（docs/development.md 168→147 行）",
       "pr": "https://github.com/webees/immich-cn/pull/333"
+    },
+    {
+      "round": 504,
+      "timestamp": "2026-10-14T21:40:47+07:00",
+      "focus": "冗余与垃圾内容（重复常量、重复逻辑、单一事实源）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "findings",
+      "severity": "P3",
+      "evidence": "归档压缩级别在 packaging.py(ZIP_COMPRESS_LEVEL)、dataset.py(_ZIP_COMPRESS_LEVEL) 与两处 gzip compresslevel=6 共 4 处重复；上移到 settings.ARCHIVE_COMPRESS_LEVEL 单一源码，packaging/dataset 改为引用，取值与制品行为不变",
+      "pr": "https://github.com/webees/immich-cn/pull/334"
     }
   ],
   "residual_risks": [
-    "docs/development.md 保留的 260 MiB/0.95 GiB 为粗略量级，仍会随上游数据增长偏移；README 与 packages.md 的镜像源表未合并，因检查门禁分别校验两处"
+    "仍按需扫描 src/ 内相似的私有助手是否存在可合并的重复实现；本轮未改动压缩取值，制品种类与体积不变"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
