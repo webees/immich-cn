@@ -30,7 +30,7 @@ make clean-work  # 清理 work/ 临时证据，保留 work/audit/state.json
 python scripts/cleanup.py --help  # 查看发布 / Actions / GHCR 清理参数（默认试运行）
 ```
 
-首次构建约下载 260 MiB 上游压缩包并解压出约 0.95 GiB 中间文件；结束后自动删除不再需要的原始文件。明文变体表 `immich-cn-patterns-v1.tsv` 默认不会生成，只有加 `--keep-raw` 时才会保留并需要自行清理。压缩级别取值的取舍见 `src/immich_cn/packaging.py` 的 `ZIP_COMPRESS_LEVEL` 注释。
+首次构建约下载 260 MiB 上游压缩包并解压出约 0.95 GiB 中间文件；结束后自动删除不再需要的原始文件。明文变体表 `immich-cn-patterns-v1.tsv` 默认不会生成，只有加 `--keep-raw` 时才会保留并需要自行清理。压缩级别取值的取舍见 `src/immich_cn/settings.py` 的 `ARCHIVE_COMPRESS_LEVEL` 注释。
 
 直接使用 CLI：
 

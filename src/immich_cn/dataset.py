@@ -20,6 +20,7 @@ from immich_cn.errors import ParseError
 from immich_cn.geonames import iter_places
 from immich_cn.logging_config import get_logger
 from immich_cn.pipeline import BuildResult, is_fine_grained
+from immich_cn.settings import ARCHIVE_COMPRESS_LEVEL
 
 logger = get_logger("canonical")
 
@@ -32,7 +33,6 @@ NOTICE_MEMBER = "NOTICE.txt"
 README_MEMBER = "README.txt"
 
 _ZIP_DATE = (1980, 1, 1, 0, 0, 0)
-_ZIP_COMPRESS_LEVEL = 6
 
 
 def write_canonical_dataset(
@@ -59,7 +59,7 @@ def write_canonical_dataset(
             target,
             "w",
             compression=zipfile.ZIP_DEFLATED,
-            compresslevel=_ZIP_COMPRESS_LEVEL,
+            compresslevel=ARCHIVE_COMPRESS_LEVEL,
         ) as archive:
             _write_file(archive, database, SQLITE_MEMBER)
             _write_bytes(archive, SCHEMA_MEMBER, _schema_payload())
