@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 509,
+  "round": 510,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 304,
+    "findings": 305,
     "clean_rounds": 194,
     "p0": 0,
     "p1": 36,
     "p2": 217,
-    "p3": 56
+    "p3": 57
   },
   "status": "active",
-  "last_method": "M4 契约快照",
+  "last_method": "M7 死代码与引用计数",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -5151,10 +5151,20 @@
       "severity": "P3",
       "evidence": ".github/auto_release_note.md 未纳入 check_docs 的 DOC_GLOBS（仅 4 个入口），可脱离全站口径：混用 mirror/origin 与重复的 ${VAR:-} 自引用命令；DOC_GLOBS 增加 .github/*.md（15→17 文档）、PROSE_ENGLISH_TERMS 增加 origin、发布说明中文化（mirror→镜像源、origin→回源、digest→摘要、Release→发布）",
       "pr": "https://github.com/webees/immich-cn/pull/339"
+    },
+    {
+      "round": 510,
+      "timestamp": "2026-10-14T23:20:33+07:00",
+      "focus": "垃圾内容（代码与工作流注释中的一次性历史细节）",
+      "method": "M7 死代码与引用计数",
+      "verdict": "findings",
+      "severity": "P3",
+      "evidence": "cleanup.py select_stale_assets 与 update-data.yml 清理步骤注释硬编码“v4 迁移后 21 个 pre-v4 资产”这一一次性迁移细节，会随仓库演进过期；改为描述 upload --clobber 只增不删的机制；全仓库搜索确认仅 tests/test_cleanup.py fixture 保留该语境",
+      "pr": "https://github.com/webees/immich-cn/pull/340"
     }
   ],
   "residual_risks": [
-    "发布说明仍与 README/deployment 的镜像源清单分别表述，未合并（Release 说明需独立可读）；.github/pull_request_template.md 现已纳入布局与术语护栏"
+    "代码注释不在文档门禁范围内，未来仍可能写入带具体数字的过程性说明；本轮只处理已发现的过期注释"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
