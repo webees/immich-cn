@@ -67,27 +67,13 @@
 
 ### 4. 构建审计机制
 
-每次构建会在 `immich-cn-manifest-json-v1.json` 中记录：
-
-- 每个上游文件的 URL、SHA256、大小、ETag、Last-Modified；
-- 各级行政表条目数、源记录数、输出记录数、中文覆盖率；
-- 规范数据集与 14 个兼容变体各自的 SHA256、格式版本与体积；
-- 使用的提供方列表；
-- 构建日期与 `geodata-date.txt` 使用北京时间 `+08:00`。
+每次构建把上游来源指纹、各级统计、规范数据集与兼容变体的摘要、提供方列表与构建时间写入 `immich-cn-manifest-json-v1.json`；字段定义与统计口径见 [数据格式](data-format.md)。构建日期与 `geodata-date.txt` 使用北京时间 `+08:00`。
 
 镜像发布还附带 BuildKit 来源证明与 SBOM；服务端覆盖镜像在构建前把 Immich 标签解析为基础镜像摘要，并用 `tag@digest` 固定本次构建。该摘要参与变更检测，Immich 基础镜像更新时会触发服务端镜像重建。推送后按最终摘要重新拉取并执行入口冒烟测试，再用 Trivy 扫描漏洞与许可证。在当次扫描数据库与扫描范围内，数据镜像阻断 `HIGH`/`CRITICAL`；Immich 覆盖镜像与同一基础镜像摘要做差集，只阻断新增漏洞并把继承项写成例外报告。最后通过 GitHub OIDC 使用 Cosign 做无密钥签名，并对两个最终摘要执行 `cosign verify`。
 
 ### 5. 发布校验机制
 
-`immich_cn.validation` 在发布前检查：
-
-- 必需文件是否齐全；
-- `geodata-date.txt` 是否为合法 ISO 时间；
-- `cities500.txt` 列数、GeoNames ID 唯一性；
-- 中国与香港记录的中文名称覆盖率是否达到阈值；
-- 默认变体中的中文地区（CN/HK/TW/MO）记录的中文名称是否**零缺失**（`chinese-regions-cjk-strict`，与打包阶段对默认范围及人口达标记录的判断一致；阈值检查允许少量缺失，严格检查不允许）；
-- `countryInfo.txt` 中文覆盖率；
-- `ne_10m_admin_0_countries.geojson` 是否为合法 FeatureCollection。
+发布前的检查项与阈值以 `immich_cn.validation` 为唯一事实源：覆盖必需文件、日期、`cities500.txt` 列宽与唯一性、行政表重复代码、中文覆盖率、admin2 引用完整性、国家表与 Natural Earth 结构。其中默认变体及人口达标记录的中文地区（CN/HK/TW/MO）名称**零缺失**，阈值检查允许少量缺失但严格检查不允许；完整变体会按打包范围豁免人口不达标且无中文别名的自然要素。
 
 任一已实现检查失败都会让 GitHub Actions 中断，阻止该次发布。该校验不等于对所有潜在数据错误的形式化证明。
 
