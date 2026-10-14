@@ -50,6 +50,7 @@ def verify_geodata(
     min_cn_admin2_code_ratio: float = 0.90,
     min_cn_admin2_resolved_ratio: float = 0.99,
     full: bool | None = None,
+    min_population: int | None = None,
 ) -> list[CheckResult]:
     """校验一个 geodata 目录。"""
     results: list[CheckResult] = []
@@ -58,8 +59,12 @@ def verify_geodata(
     if missing:
         return results
 
+    variant = _load_variant(directory)
     if full is None:
-        full = _is_full_variant(directory)
+        full = variant.get("full") is True
+    if min_population is None:
+        recorded = variant.get("minPopulation", DEFAULT_MIN_POPULATION)
+        min_population = recorded if isinstance(recorded, int) else DEFAULT_MIN_POPULATION
     results.append(_check_date(directory / "geodata-date.txt"))
     results.append(
         _check_admin(
@@ -94,22 +99,25 @@ def verify_geodata(
             min_cn_admin2_resolved_ratio=min_cn_admin2_resolved_ratio,
             admin2_codes=admin2_codes,
             full=full,
+            min_population=min_population,
         )
     )
     return results
 
 
-def _is_full_variant(directory: Path) -> bool:
-    """从 ``build-info.json`` 读取制品变体；缺失或不合法时按默认（非完整）处理。"""
+def _load_variant(directory: Path) -> dict[str, object]:
+    """从 ``build-info.json`` 读取制品变体；缺失或不合法时返回空映射（按默认处理）。"""
     try:
         payload = json.loads((directory / "build-info.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return False
+        return {}
     variant = payload.get("variant") if isinstance(payload, dict) else None
-    return isinstance(variant, dict) and variant.get("full") is True
+    return variant if isinstance(variant, dict) else {}
 
 
-def _in_scope_population(population: int, country: str, admin1: str, admin2: str, *, full: bool) -> bool:
+def _in_scope_population(
+    population: int, country: str, admin1: str, admin2: str, *, full: bool, min_population: int
+) -> bool:
     """返回该记录是否属于打包阶段的中文零容忍范围。
 
     完整变体额外收录人口为 0 的边境山峰、冰川等自然要素，这些记录保留 GeoNames
@@ -117,7 +125,7 @@ def _in_scope_population(population: int, country: str, admin1: str, admin2: str
     """
     if not full:
         return True
-    if population >= DEFAULT_MIN_POPULATION:
+    if population >= min_population:
         return True
     return admin_code(country, admin1, admin2) in FINE_GRAINED_ADMIN2
 
@@ -324,6 +332,7 @@ def _check_cities500(
     min_cn_admin2_resolved_ratio: float = 0.99,
     admin2_codes: set[str] | None = None,
     full: bool = False,
+    min_population: int = DEFAULT_MIN_POPULATION,
 ) -> list[CheckResult]:
     total = 0
     bad = 0
@@ -383,7 +392,9 @@ def _check_cities500(
                 population = int(fields[14]) if fields[14] else 0
             except ValueError:
                 population = 0
-            in_scope = _in_scope_population(population, fields[8], fields[10], fields[11], full=full)
+            in_scope = _in_scope_population(
+                population, fields[8], fields[10], fields[11], full=full, min_population=min_population
+            )
             if in_scope and fields[8] in strict_regions:
                 strict_regions[fields[8]][0] += 1
                 if has_cjk(fields[1]):
