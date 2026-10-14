@@ -94,9 +94,8 @@ PROCESS_OR_LEGAL_CLAIMS: dict[str, str] = {
 #: 文档只描述当前状态，不承载版本沿革、迁移过程或非现行名称。
 CURRENT_STATE_FORBIDDEN = ("旧", "历史", "此前", "曾经")
 
-#: README 独立性段落的锚点；正文改写时需同步更新本契约。
+#: 独立性声明的锚点；README 与 licensing 都只保留项目声明，核查细节以 conventions 为唯一事实源。
 INDEPENDENCE_ANCHOR = "本项目按独立实现组织"
-INDEPENDENCE_SECTION_END = "## 数据模型"
 
 #: 中国本地化是项目的主方向，README、专题文档、部署示例和时区默认值必须一致。
 CHINA_LOCALIZATION_DOC = Path("docs/china.md")
@@ -980,14 +979,23 @@ def check_current_state_docs(paths: list[Path], errors: list[str]) -> None:
 
 
 def check_independence_guidance(errors: list[str]) -> None:
-    """README 的独立性声明必须标注为项目声明，并指向核查范围与边界。"""
-    readme = _readme_text()
-    head, _, _ = readme.partition(INDEPENDENCE_SECTION_END)
-    paragraph = next((line for line in head.splitlines() if INDEPENDENCE_ANCHOR in line), "")
-    if not paragraph:
-        errors.append(f"README 独立性声明缺少锚点短语：{INDEPENDENCE_ANCHOR}")
-    elif "docs/conventions.md" not in paragraph:
-        errors.append("README 独立性声明必须链接 docs/conventions.md 的核查范围与边界")
+    """独立性声明必须标注为项目声明，并指向核查范围与边界。
+
+    声明正文只在 conventions 里写一次；README 与 licensing 保留锚点句并链接过去，
+    避免同一段独立性描述在三处重复维护。
+    """
+    for path, conventions_link in (
+        (Path("README.md"), "docs/conventions.md"),
+        (Path("docs/licensing.md"), "conventions.md"),
+    ):
+        paragraphs = [line for line in path.read_text(encoding="utf-8").splitlines() if INDEPENDENCE_ANCHOR in line]
+        paragraph = paragraphs[0] if paragraphs else ""
+        if not paragraph:
+            errors.append(f"{path} 独立性声明缺少锚点短语：{INDEPENDENCE_ANCHOR}")
+        elif len(paragraphs) > 1:
+            errors.append(f"{path} 独立性声明出现 {len(paragraphs)} 处，正文只应在 conventions 写一次")
+        elif conventions_link not in paragraph:
+            errors.append(f"{path} 独立性声明必须链接 {conventions_link} 的核查范围与边界")
 
 
 def check_sla_promises(paths: list[Path], errors: list[str]) -> None:

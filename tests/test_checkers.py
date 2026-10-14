@@ -419,7 +419,11 @@ def test_check_docs_requires_drop_split_documentation(repo_copy: Path) -> None:
 def test_check_docs_detects_cjk_soft_break(repo_copy: Path) -> None:
     """中文段落被折行后，Markdown 会在渲染时插入空格，必须被拦下。"""
     readme = repo_copy / "README.md"
-    mutate(readme, "本项目按独立实现组织：本仓库当前树中的代码", "本项目按独立实现组织：本仓库当前树中的\n代码")
+    mutate(
+        readme,
+        "本项目按独立实现组织：代码、配置、工作流与数据构建脚本由本项目维护",
+        "本项目按独立实现组织：代码、配置、工作流与数据构建脚本\n由本项目维护",
+    )
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "中文软换行" in result.stdout
@@ -1028,8 +1032,8 @@ def test_check_docs_requires_upstream_acknowledgement_at_bottom(repo_copy: Path)
     readme = repo_copy / "README.md"
     link = (
         "- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)："
-        "早期中文 Immich 地理数据思路提供了启发；本项目按独立实现组织，"
-        "当前树未引用或打包该项目的代码与人工整理数据（核查方式见 [规范与约定](docs/conventions.md)）。"
+        "早期中文 Immich 地理数据思路提供了启发；本项目独立实现，"
+        "当前树未引用或打包该项目的代码与人工整理数据。"
     )
     mutated = readme.read_text(encoding="utf-8").replace(link, "")
     mutated = mutated.replace("## 数据模型与使用方式", f"{link}\n\n## 数据模型与使用方式")
@@ -1037,6 +1041,19 @@ def test_check_docs_requires_upstream_acknowledgement_at_bottom(repo_copy: Path)
     result = run_checker(repo_copy, "check_docs.py")
     assert result.returncode == 1
     assert "底部致谢" in result.stdout
+
+
+def test_check_docs_rejects_duplicate_independence_anchor(repo_copy: Path) -> None:
+    """独立性声明重复出现时必须失败，正文只应在 conventions 写一次。"""
+    readme = repo_copy / "README.md"
+    mutate(
+        readme,
+        "\n\n## 自动更新",
+        "\n本项目按独立实现组织，另写一段重复声明。\n\n## 自动更新",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "独立性声明出现" in result.stdout
 
 
 def test_check_docs_rejects_absolute_claims(repo_copy: Path) -> None:
