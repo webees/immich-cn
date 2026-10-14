@@ -39,7 +39,7 @@ BUILD_ONLY = {
 }
 
 #: 参与契约检查的文档（含贡献指南与安全策略，它们同样会引用路径与命令）
-DOC_GLOBS = ("README.md", "docs/*.md", "CONTRIBUTING.md", "SECURITY.md")
+DOC_GLOBS = ("README.md", "docs/*.md", "CONTRIBUTING.md", "SECURITY.md", ".github/*.md")
 #: 同样会被渲染成 Markdown 的附加文件：Release 说明、Issue 模板、示例注释。
 RENDER_EXTRA_GLOBS = (
     ".github/*.md",
@@ -191,6 +191,7 @@ PROSE_ENGLISH_TERMS = (
     "profile",
     "scope",
     "mirror",
+    "origin",
     "rollback",
     "asset",
     "metadata",

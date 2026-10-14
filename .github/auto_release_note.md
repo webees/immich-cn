@@ -1,8 +1,8 @@
-本 Release 由 GitHub Actions **每天全自动更新**，代表**最新的数据集**。
+本发布由 GitHub Actions **每天全自动更新**，代表**最新的数据集**。
 
-更新机制：每天用 ETag/Last-Modified 条件校验 GeoNames、Natural Earth 与 i18n-iso-countries；检测到数据、构建配置或发布器修订变化后会自动重新翻译、打包、校验并推送新镜像。如果上游没有变化，本次运行会跳过发布，因此 Release 内容保持稳定。
+更新机制：每天用 ETag/Last-Modified 条件校验 GeoNames、Natural Earth 与 i18n-iso-countries；检测到数据、构建配置或发布器修订变化后会自动重新翻译、打包、校验并推送新镜像。如果上游没有变化，本次运行会跳过发布，因此发布内容保持稳定。
 
-Release 日期与数据时间统一使用北京时间（Asia/Shanghai，UTC+08:00）。
+发布日期与数据时间统一使用北京时间（Asia/Shanghai，UTC+08:00）。
 
 ## 选择文件
 
@@ -20,19 +20,19 @@ Release 日期与数据时间统一使用北京时间（Asia/Shanghai，UTC+08:0
 优先使用容器镜像，可一条命令完成挂载或直接替换 Immich 镜像：
 
 ```bash
-export IMMICH_CN_GHCR_MIRROR="${IMMICH_CN_GHCR_MIRROR:-ghcr.nju.edu.cn}"
+export IMMICH_CN_GHCR_MIRROR=ghcr.nju.edu.cn
 docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn:latest"
 docker pull "${IMMICH_CN_GHCR_MIRROR}/webees/immich-cn-server:latest"
 ```
 
-以上默认使用中国可达的 GHCR mirror。验证 digest 或需要回退时，把 `IMMICH_CN_GHCR_MIRROR` 设置为 `ghcr.io`；第三方 mirror 不是官方 origin。
+以上默认使用中国可达的 GHCR 镜像源。验证摘要或需要回退时，把 `IMMICH_CN_GHCR_MIRROR` 设置为 `ghcr.io`；第三方镜像源不是官方回源。
 
 详见 [部署指南](https://github.com/webees/immich-cn/blob/main/docs/deployment.md)。
 
 > [!IMPORTANT]
 > Immich 只在 `geodata-date.txt` 与上次导入时记录的值**不同**时才重新导入数据（相等就跳过）。如果替换数据后没有生效，请把该文件内容改为当前时间（或设置 `IMMICH_CN_FORCE_RELOAD=1`）。
 >
-> 同一 Release 内所有变体的时间戳相同，因此切换到同一 Release 的其他变体时需要手动调整该文件。
+> 同一发布内所有变体的时间戳相同，因此切换到同一发布的其他变体时需要手动调整该文件。
 
 > [!WARNING]
 > 反向地理编码取最近点，边界处存在原理性误差。可以尝试 `_full` 变体，或到 [GeoNames](https://www.geonames.org/) 补充缺失地点。

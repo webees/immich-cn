@@ -162,6 +162,15 @@ def test_check_docs_rejects_english_prose(repo_copy: Path) -> None:
     assert "散文使用了应中文化的英文词" in result.stdout
 
 
+def test_check_docs_covers_release_note_prose(repo_copy: Path) -> None:
+    """Release 说明同样会展示给用户，必须纳入散文中文化护栏。"""
+    note = repo_copy / ".github" / "auto_release_note.md"
+    mutate(note, "本发布由 GitHub Actions", "本 mirror 由 GitHub Actions")
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "散文使用了应中文化的英文词" in result.stdout
+
+
 def test_check_docs_rejects_non_current_state(repo_copy: Path) -> None:
     """文档出现版本沿革或非现行名称时必须被报出。"""
     readme = repo_copy / "README.md"
