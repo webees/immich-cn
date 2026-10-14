@@ -390,6 +390,8 @@ ENV_DEFAULT_COUNTRY_FILES = {
     "IMMICH_CN_AMAP_COUNTRIES": Path("src/immich_cn/providers/amap.py"),
     "IMMICH_CN_NOMINATIM_COUNTRIES": Path("src/immich_cn/providers/nominatim.py"),
 }
+#: 默认值按镜像角色不同的环境变量：服务端镜像直接指向 langs 目录，数据镜像指向其父目录。
+SCOPE_SPECIFIC_ENV_DEFAULTS = {"IMMICH_CN_LANGS_DIR"}
 
 
 def _implemented_env_defaults() -> dict[str, str]:
@@ -427,6 +429,28 @@ def check_env_defaults(errors: list[str]) -> None:
             errors.append(f"README.md 缺少 {name} 的默认值行（实现默认 {expected!r}）")
         elif documented[name] != expected:
             errors.append(f"README.md 记录 {name} 默认 {documented[name]!r}，实现为 {expected!r}")
+
+
+def check_env_rows_consistent(errors: list[str]) -> None:
+    """README 配置总览重复列出的同一环境变量，其默认值必须一致。
+
+    同一变量在「服务端镜像」「数据镜像」两张表各写一份，重复维护同一事实；
+    没有这道门禁时，改一处默认值就可能让两张表自相矛盾。
+
+    ``SCOPE_SPECIFIC_ENV_DEFAULTS`` 内的变量默认值按镜像角色不同，属有意差异。
+    """
+    path = Path("README.md")
+    seen: dict[str, str] = {}
+    for name, default in re.findall(
+        r"^\|\s*`(IMMICH_[A-Z0-9_]+)`\s*\|\s*`([^`]*)`\s*\|",
+        path.read_text(encoding="utf-8"),
+        re.MULTILINE,
+    ):
+        if name in SCOPE_SPECIFIC_ENV_DEFAULTS:
+            continue
+        if name in seen and seen[name] != default:
+            errors.append(f"README.md 的 {name} 默认值前后不一致：{seen[name]!r} 与 {default!r}")
+        seen.setdefault(name, default)
 
 
 def check_cli(doc_text: str, errors: list[str]) -> None:
@@ -1491,6 +1515,7 @@ def main(argv: list[str] | None = None) -> int:
     errors: list[str] = []
     check_env(doc_text, code_text, errors)
     check_env_defaults(errors)
+    check_env_rows_consistent(errors)
     check_cli(doc_text, errors)
     check_cli_coverage(doc_text, errors)
     check_make(doc_text, errors)

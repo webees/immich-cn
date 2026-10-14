@@ -197,6 +197,19 @@ def test_check_docs_detects_env_default_source_change(repo_copy: Path) -> None:
     assert "IMMICH_CN_AMAP_QPS" in result.stdout
 
 
+def test_check_docs_detects_duplicate_env_default_drift(repo_copy: Path) -> None:
+    """同一变量在两张配置表各写一份时，默认值不一致必须被报出。"""
+    readme = repo_copy / "README.md"
+    mutate(
+        readme,
+        "| `IMMICH_CN_PATTERN` | `{admin_2}` | 释放时的展示粒度",
+        "| `IMMICH_CN_PATTERN` | `{admin_3}` | 释放时的展示粒度",
+    )
+    result = run_checker(repo_copy, "check_docs.py")
+    assert result.returncode == 1
+    assert "默认值前后不一致" in result.stdout
+
+
 def test_check_docs_detects_cli_flag_drift(repo_copy: Path) -> None:
     readme = repo_copy / "README.md"
     mutate(readme, "## 快速开始", "`immich-cn all --definitely-not-a-flag`\n\n## 快速开始")
