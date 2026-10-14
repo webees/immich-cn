@@ -96,8 +96,8 @@ jobs:
               --notes-file .github/auto_release_note.md
           fi
 
-      # 滚动 Release 用 upload --clobber 只增不删；命名规范变更后旧资产会长期残留
-      # （v4 迁移后 auto-release 上留下 21 个 pre-v4 资产），这里按本次构建的 dist 清单回收。
+      # 滚动 Release 用 upload --clobber 只增不删；命名规范变更后旧资产会长期残留，
+      # 这里按本次构建的 dist 清单回收。
       - name: 清理滚动 Release 中超出本次构建的资产
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

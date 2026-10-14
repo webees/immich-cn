@@ -256,8 +256,8 @@ def select_runs(
 def select_stale_assets(assets: list[tuple[int, str]], keep: set[str]) -> list[tuple[int, str]]:
     """返回不在 keep 清单里的 Release 资产。
 
-    发布路径是 `gh release upload --clobber`：它只增不删，命名规范变更后旧资产会长期残留
-    （v4 迁移后 auto-release 上留下 21 个 pre-v4 资产）。这里按名单排序，便于复现与断言。
+    发布路径是 `gh release upload --clobber`：它只增不删，命名规范变更后旧资产会长期残留。
+    这里按名单排序，便于复现与断言。
     """
     return sorted(((asset_id, name) for asset_id, name in assets if name not in keep), key=lambda item: item[1])
 
