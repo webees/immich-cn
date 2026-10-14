@@ -30,28 +30,7 @@ make clean-work  # 清理 work/ 临时证据，保留 work/audit/state.json
 python scripts/cleanup.py --help  # 查看发布 / Actions / GHCR 清理参数（默认试运行）
 ```
 
-各阶段实测开销（2026-10-06，1318830 行输出）：
-
-| 阶段 | 实测开销 |
-|:--|:--|
-| 首次下载上游压缩包 | ≈260 MiB（alternateNamesV2 195 MiB 为主） |
-| 开启 `--revalidate` 后的日常下载 | 通常仅 cities500 ≈13 MiB；未变化的数据源返回 304 |
-| 解压后的中间文件 | ≈0.95 GiB（alternateNamesV2.txt 749 MiB、CN.txt 126 MiB） |
-| 解析 alternateNamesV2 建立中文名索引 | ≈10 s |
-| 打包 14 个变体（名称组合 + 压缩打包） | ≈1.5 min |
-| GitHub Actions 完整流程 | 约 8~25 min（含运行器缓存恢复与镜像推送） |
-
-构建结束后会自动删除不再需要的中间产物（解压出的上游原始文件等，合计约 1.1 GiB）。明文变体表 `immich-cn-patterns-v1.tsv` 默认不会生成，只有加 `--keep-raw` 时才会保留并需要自行清理。
-
-压缩级别实测（对 44.8 MiB 的 cities500 片段）：
-
-| 级别 | 耗时 | 体积 |
-|:--|:--|:--|
-| 1 | 0.27 s | 16.2 MiB（+16%） |
-| **6（当前）** | **0.83 s** | **14.0 MiB** |
-| 9 | 1.15 s | 13.8 MiB（−1.6%） |
-
-级别 1 只省约 8 秒 CPU，却让每个制品大约 16%，用户每天要多下载约 88 MB；级别 9 只小 1.6% 但慢 39%。因此维持级别 6。
+首次构建约下载 260 MiB 上游压缩包并解压出约 0.95 GiB 中间文件；结束后自动删除不再需要的原始文件。明文变体表 `immich-cn-patterns-v1.tsv` 默认不会生成，只有加 `--keep-raw` 时才会保留并需要自行清理。压缩级别取值的取舍见 `src/immich_cn/packaging.py` 的 `ZIP_COMPRESS_LEVEL` 注释。
 
 直接使用 CLI：
 
