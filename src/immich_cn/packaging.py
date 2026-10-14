@@ -35,13 +35,10 @@ from immich_cn.pipeline import (
     write_pattern_rows,
     write_patterns_table,
 )
-from immich_cn.settings import BuildOptions
+from immich_cn.settings import ARCHIVE_COMPRESS_LEVEL, BuildOptions
 
 logger = get_logger("package")
 
-#: 对 44.8 MiB 的 cities500 片段实测：级别 1 省约 8 s CPU 但制品大约 16%，用户每天
-#: 多下载约 88 MB；级别 9 只小 1.6% 却慢 39%。取 6 平衡 CPU 与日常下载体积。
-ZIP_COMPRESS_LEVEL = 6
 GEODATA_PREFIX = "geodata/"
 
 
@@ -153,7 +150,9 @@ def _write_variant(
     target = options.dist_dir / variant.filename
     logger.info("打包 %s", target.name)
     date_time = (1980, 1, 1, 0, 0, 0)
-    with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=ZIP_COMPRESS_LEVEL) as archive:
+    with zipfile.ZipFile(
+        target, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=ARCHIVE_COMPRESS_LEVEL
+    ) as archive:
         info = zipfile.ZipInfo(f"{GEODATA_PREFIX}cities500.txt", date_time=date_time)
         info.compress_type = zipfile.ZIP_DEFLATED
         info.external_attr = 0o644 << 16
@@ -249,7 +248,9 @@ def _write_i18n_archive(dist_dir: Path, result: BuildResult) -> Path:
         raise ParseError(f"缺少 {license_path}，拒绝生成不含版权声明的语言包")
     logger.info("打包 %s", target.name)
     date_time = (1980, 1, 1, 0, 0, 0)
-    with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=ZIP_COMPRESS_LEVEL) as archive:
+    with zipfile.ZipFile(
+        target, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=ARCHIVE_COMPRESS_LEVEL
+    ) as archive:
         _zip_file(archive, license_path, "LICENSE", date_time)
         for json_file in sorted(result.langs_dir.glob("*.json")):
             _zip_file(archive, json_file, f"langs/{json_file.name}", date_time)
@@ -328,7 +329,7 @@ def compressed_patterns_table(source: Path, destination: Path) -> Path:
     import gzip
 
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with source.open("rb") as src, gzip.open(destination, "wb", compresslevel=6) as dst:
+    with source.open("rb") as src, gzip.open(destination, "wb", compresslevel=ARCHIVE_COMPRESS_LEVEL) as dst:
         while chunk := src.read(1024 * 1024):
             dst.write(chunk)
     return destination
@@ -344,5 +345,5 @@ def write_compressed_patterns_table(
     import gzip
 
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with gzip.open(destination, "wt", encoding="utf-8", newline="\n", compresslevel=6) as sink:
+    with gzip.open(destination, "wt", encoding="utf-8", newline="\n", compresslevel=ARCHIVE_COMPRESS_LEVEL) as sink:
         return write_pattern_rows(sink, levels=levels, patterns=patterns)
