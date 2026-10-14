@@ -271,6 +271,9 @@ def test_package_produces_expected_artifacts(build_options: BuildOptions) -> Non
         assert "geodata/cities500.txt" in names
         assert "geodata/build-info.json" in names
         assert "geodata/NOTICE.txt" in names
+        build_info = json.loads(zf.read("geodata/build-info.json").decode("utf-8"))
+        assert build_info["variant"]["full"] is True
+        assert build_info["variant"]["minPopulation"] == build_options.min_population
         payload = zf.read("geodata/cities500.txt").decode("utf-8").splitlines()
     rows = {line.split("\t")[0]: line.split("\t") for line in payload}
     assert rows["9100"][1] == "苏州市 昆山市"

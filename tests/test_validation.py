@@ -367,6 +367,33 @@ def test_full_variant_exempts_out_of_scope_records(tmp_path: Path) -> None:
     assert strict(full=True).passed is True  # 完整变体越界记录豁免
 
 
+def test_full_variant_respects_artifact_min_population(tmp_path: Path) -> None:
+    """完整变体的越界判定必须使用制品记录的人口下限，而非默认值。"""
+    path = tmp_path / "cities-full-minpop.txt"
+    write_lines(
+        path,
+        [
+            geo_row(1, "北京市", country="CN", admin1="22", admin2="X", population=1000),
+            geo_row(2, "Daxinganling", country="CN", admin1="22", feature_class="T", feature_code="MT", population=99),
+        ],
+    )
+
+    def strict(min_population: int) -> CheckResult:
+        return {
+            result.name: result
+            for result in _check_cities500(
+                path,
+                min_cn_cjk_ratio=0.0,
+                min_cn_admin2_code_ratio=0.0,
+                full=True,
+                min_population=min_population,
+            )
+        }["chinese-regions-cjk-strict"]
+
+    assert strict(min_population=500).passed is True  # 低于 500 的人口 99 记录豁免
+    assert strict(min_population=50).passed is False  # 低于自定义下限时必须含中文
+
+
 def test_verify_geodata_detects_full_variant_from_build_info(build_options: BuildOptions) -> None:
     """zip 解包目录带 variant.full 标记时，verify 不应把合法越界记录判为失败。"""
     result = run_build(build_options)

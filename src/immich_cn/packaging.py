@@ -198,7 +198,11 @@ def _write_variant(
             f"{GEODATA_PREFIX}build-info.json",
             json.dumps(
                 {
-                    "variant": {"pattern": variant.pattern, "full": variant.full},
+                    "variant": {
+                        "pattern": variant.pattern,
+                        "full": variant.full,
+                        "minPopulation": options.min_population,
+                    },
                     "generatedAt": result.generated_at,
                     "stats": result.stats.as_dict(),
                 },
