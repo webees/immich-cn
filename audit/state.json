@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 499,
+  "round": 500,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 294,
+    "findings": 295,
     "clean_rounds": 194,
     "p0": 0,
     "p1": 36,
-    "p2": 214,
+    "p2": 215,
     "p3": 49
   },
   "status": "active",
-  "last_method": "M3 负向制品实验",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -5051,10 +5051,20 @@
       "verdict": "findings",
       "evidence": "官方完整变体 data-2026-10-12 执行 immich-cn verify 退出码 2（chinese-regions-cjk-strict CN 缺 5588、TW 缺 280；cities500-cn-admin2 88.1%），与 packaging.py:174 的 full 越界豁免及 docs/architecture.md 冲突；按打包规则统计 5868 条无中文记录全部越界、范围内 0 条；修复后 verify 从 build-info.json 读取 variant.full 并同规则豁免，完整制品 exit 0、默认制品仍 exit 0",
       "pr": "https://github.com/webees/immich-cn/pull/329"
+    },
+    {
+      "round": 500,
+      "timestamp": "2026-10-14T10:11:42+07:00",
+      "focus": "校验与阈值（恒真检查、阈值误判、边界翻转）",
+      "method": "M2 阈值反演",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "verify 越界判定硬编码默认人口下限 100，build-info.json 不记录 --min-population；负向实验 minPopulation=50 时人口 99 的无中文完整制品记录被误判越界豁免（修复前 strict/cn-cjk PASS，修复后 FAIL，与 packaging.py:174 一致）；反向 minPopulation=500 仍豁免；修复把 variant.minPopulation 写入 build-info.json 并由 verify 读取",
+      "pr": "https://github.com/webees/immich-cn/pull/330"
     }
   ],
   "residual_risks": [
-    "越界判定使用默认人口下限 100，未读取制品构建时的自定义 min_population；盘点提示若完整制品范围记录的定义再变化，verify 需同步 packaging 的 strict 条件"
+    "verify 仍依赖制品内 build-info.json 记录构建参数；若上游工具或旧制品缺该字段，回退默认 100，属可接受降级；未覆盖 chinese_variant 等其余构建参数在 verify 中的一致性"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
