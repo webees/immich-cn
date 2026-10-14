@@ -284,7 +284,6 @@ RUNTIME_PATH_PREFIXES = (
     "dist/",
     ".cache/",
     "work/",
-    "outputs/",
     "geodata/",
     "i18n-iso-countries/",
     "releases/",
