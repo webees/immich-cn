@@ -2,15 +2,15 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 505,
+  "round": 506,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 300,
+    "findings": 301,
     "clean_rounds": 194,
     "p0": 0,
     "p1": 36,
     "p2": 217,
-    "p3": 52
+    "p3": 53
   },
   "status": "active",
   "last_method": "M9 文档-实现逐条核对",
@@ -5111,10 +5111,20 @@
       "severity": "P2",
       "evidence": "docs/architecture.md 的发布校验清单只列 6 项，实际 verify 输出 15 项，漏 admin1/admin2 重复代码、cities500-immich-columns、cities500-modification-date、cities500-cn-admin2-resolvable、chinese-regions-cjk-strict 等；同段清单字段与 docs/data-format.md 重复；改为指向 validation 与 data-format 单一事实源（148→134 行）",
       "pr": "https://github.com/webees/immich-cn/pull/335"
+    },
+    {
+      "round": 506,
+      "timestamp": "2026-10-14T22:23:31+07:00",
+      "focus": "冗余与垃圾内容（重复描述、双事实源护栏）",
+      "method": "M9 文档-实现逐条核对",
+      "verdict": "findings",
+      "severity": "P3",
+      "evidence": "README 配置总览把 IMMICH_CN_PATTERN/GEODATA_DIR/PATTERNS_TABLE 在服务端与数据镜像两表各写一份默认值，改一处即可能自相矛盾且无护栏；新增 check_env_rows_consistent 校验同名变量默认值一致，IMMICH_CN_LANGS_DIR 按角色差异列入显式例外",
+      "pr": "https://github.com/webees/immich-cn/pull/336"
     }
   ],
   "residual_risks": [
-    "架构文档不再逐项列出校验，读者需查看 validation；后续若新增检查，需保证文档不重新逐条复制以再次漂移"
+    "护栏仅比对 README 表内自洽，未比对 docker 脚本/Dockerfile 实际默认值（脚本用 :- 回退，属运行时拼接）；README 仍保留两张按镜像分组的配置表，未合并为单表"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
