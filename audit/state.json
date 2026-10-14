@@ -2,15 +2,15 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 501,
+  "round": 502,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 296,
+    "findings": 297,
     "clean_rounds": 194,
     "p0": 0,
     "p1": 36,
     "p2": 216,
-    "p3": 49
+    "p3": 50
   },
   "status": "active",
   "last_method": "M9 文档-实现逐条核对",
@@ -5071,10 +5071,21 @@
       "severity": "P2",
       "evidence": "docs/china.md 演进路线把已交付的时区、CDN/Nginx、部署回滚标为进行中，且与同文件禁止把路线图写成事实的规则冲突；scripts/check_docs.py:105 反向要求四阶段存在，固化 roadmap；负向实验：重新插入演进路线后 check_docs 失败，移除后通过",
       "pr": "https://github.com/webees/immich-cn/pull/331"
+    },
+    {
+      "round": 502,
+      "timestamp": "2026-10-14T21:15:48+07:00",
+      "focus": "冗余与垃圾内容（文档单源、过期内容、重复描述）",
+      "method": "M9 文档-实现逐条核对",
+      "verdict": "findings",
+      "severity": "P3",
+      "evidence": "README 数据来源表与 docs/data-sources.md 上游数据源表重复维护来源/用途/许可（双事实源）；收敛为指向 docs/data-sources.md 与 docs/licensing.md 的单一出处，README 278→272 行；check_docs 仍要求清单覆盖实现全部来源并通过",
+      "pr": "https://github.com/webees/immich-cn/pull/332"
     }
   ],
   "residual_risks": [
-    "README 与 docs 仍存在跨文件重复描述（数据来源、更新频率、镜像源），尚未逐条收敛为单一事实源；日期化实测数字会随上游变化过期"
+    "README 与 docs 仍存在更新频率等主题相近的表述，但各自面向不同读者（机制/操作/排障），未判为重复",
+    "日期化实测数字（jsDelivr 端点、镜像标签）会随上游变化过期，需在变化时更新"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
