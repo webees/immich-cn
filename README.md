@@ -6,7 +6,7 @@
 
 完整范围、本地化现状与加速边界见 [中国本地化与加速](docs/china.md)；术语、命名与文档写法遵循 [规范与约定](docs/conventions.md)。
 
-本项目按独立实现组织：本仓库当前树中的代码、配置、工作流与数据构建脚本由本项目维护；在文末「致谢」所列同类项目范围内，仓库路径名与生产代码中未发现被引用或打包的代码文件与人工整理数据文件。核查范围、关键词与边界见 [规范与约定](docs/conventions.md)。对 Immich 文本格式的兼容属于消费端适配，不定义本项目的内部数据模型。以上均为当前仓库状态与项目声明。
+本项目按独立实现组织：代码、配置、工作流与数据构建脚本由本项目维护，对 Immich 文本格式的兼容属于消费端适配，不定义内部数据模型。核查范围、关键词与边界见 [规范与约定](docs/conventions.md)。
 
 设计重点不是复制某个数据格式或使用方式，而是建立自己的规范模型后再适配消费者：
 
@@ -267,6 +267,6 @@ Immich 上游变量、默认处理与本项目边界见 [Immich 集成契约](do
 
 ## 致谢说明
 
-- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)：早期中文 Immich 地理数据思路提供了启发；本项目按独立实现组织，当前树未引用或打包该项目的代码与人工整理数据（核查方式见 [规范与约定](docs/conventions.md)）。
+- [ZingLix/immich-geodata-cn](https://github.com/ZingLix/immich-geodata-cn)：早期中文 Immich 地理数据思路提供了启发；本项目独立实现，当前树未引用或打包该项目的代码与人工整理数据。
 - [Immich](https://github.com/immich-app/immich)：反向地理编码的实现与文档。
 - [GeoNames](https://www.geonames.org/)、[Natural Earth](https://www.naturalearthdata.com/)、[OpenStreetMap](https://www.openstreetmap.org/)：开放地理数据。
