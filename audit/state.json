@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 510,
+  "round": 511,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 305,
+    "findings": 306,
     "clean_rounds": 194,
     "p0": 0,
     "p1": 36,
-    "p2": 217,
+    "p2": 218,
     "p3": 57
   },
   "status": "active",
-  "last_method": "M7 死代码与引用计数",
+  "last_method": "M6 边界与异常输入",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -5161,10 +5161,21 @@
       "severity": "P3",
       "evidence": "cleanup.py select_stale_assets 与 update-data.yml 清理步骤注释硬编码“v4 迁移后 21 个 pre-v4 资产”这一一次性迁移细节，会随仓库演进过期；改为描述 upload --clobber 只增不删的机制；全仓库搜索确认仅 tests/test_cleanup.py fixture 保留该语境",
       "pr": "https://github.com/webees/immich-cn/pull/340"
+    },
+    {
+      "round": 511,
+      "timestamp": "2026-10-17T10:15:00+07:00",
+      "focus": "配置校验（config/overrides.toml 的 [rules] 段）",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "localization.py:217-229 的 [rules] 解析静默丢弃/强转坏条目：`[rules.strip_suffixes] JP = \"都\"`、值列表含非字符串、键小写（jp 永不匹配大写查找）都被接受为死条目；`[rules.hk_districts]` 非字符串值被 str() 强转。对照 `[countries] JP = 3` 抛 ConfigError，且 `countries = 5`/`rules = 5` 崩在 .items()（AttributeError）。修复：段类型、strip_suffixes 键（规范大写 alpha-2）与值（非空字符串列表，空列表仍表示关闭裁剪）、hk_districts 键值均严格校验并抛 ConfigError；自带 config/overrides.toml 加载结果不变。负向实验：4 条新测试在修复前全部 FAILED（DID NOT RAISE / KeyError: 'JP'），修复后通过。",
+      "pr": "https://github.com/webees/immich-cn/pull/341"
     }
   ],
   "residual_risks": [
-    "代码注释不在文档门禁范围内，未来仍可能写入带具体数字的过程性说明；本轮只处理已发现的过期注释"
+    "代码注释不在文档门禁范围内，未来仍可能写入带具体数字的过程性说明",
+    "第 511 轮只覆盖 NameOverrides.load 的 [rules] 解析；运行期 strip_suffix/hk_districts 的语义（繁简变体、前缀拼接）未重测；若严格化误拒用户既有的合法配置（例如值内含空格或使用空列表退出口径），即属过严假拒绝——已保留空列表语义并复测自带配置"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
