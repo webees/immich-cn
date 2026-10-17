@@ -182,6 +182,10 @@ class NameOverrides:
         rules_raw = payload.get("rules", {})
         if not isinstance(places_raw, dict) or not isinstance(admins_raw, dict):
             raise ConfigError("overrides.toml 的 [places] / [admins] 必须是表")
+        if not isinstance(countries_raw, dict):
+            raise ConfigError("overrides.toml 的 [countries] 必须是表")
+        if not isinstance(rules_raw, dict):
+            raise ConfigError("overrides.toml 的 [rules] 必须是表")
 
         places: dict[int, str] = {}
         for key, value in places_raw.items():
@@ -214,19 +218,31 @@ class NameOverrides:
                 raise ConfigError(f"[countries].{code} 必须是非空字符串")
             countries[code] = value.strip()
 
+        # [rules] 的键值同样要校验：写错会静默变成永远匹配不到的死条目，
+        # 后缀不裁剪 / 区域不归类都会以「数据看起来正常」的方式漏进发布产物。
         strip_suffixes: dict[str, tuple[str, ...]] = dict(DEFAULT_STRIP_SUFFIXES)
-        if isinstance(rules_raw, dict):
-            raw_suffixes = rules_raw.get("strip_suffixes", {})
-            if isinstance(raw_suffixes, dict):
-                for country, values in raw_suffixes.items():
-                    if isinstance(values, list) and all(isinstance(item, str) for item in values):
-                        strip_suffixes[str(country)] = tuple(values)
+        raw_suffixes = rules_raw.get("strip_suffixes", {})
+        if not isinstance(raw_suffixes, dict):
+            raise ConfigError("overrides.toml 的 [rules.strip_suffixes] 必须是表")
+        for country, values in raw_suffixes.items():
+            code = str(country).strip().upper()
+            if not COUNTRY_CODE_PATTERN.match(code):
+                raise ConfigError(f"[rules.strip_suffixes] 的键必须是 ISO 3166-1 alpha-2：{country!r}")
+            if not isinstance(values, list) or not all(isinstance(item, str) and item.strip() for item in values):
+                raise ConfigError(f"[rules.strip_suffixes].{code} 必须是非空字符串列表")
+            strip_suffixes[code] = tuple(values)
 
         hk_districts = dict(DEFAULT_HK_DISTRICTS)
-        if isinstance(rules_raw, dict):
-            raw_districts = rules_raw.get("hk_districts", {})
-            if isinstance(raw_districts, dict):
-                hk_districts.update({str(key): str(value) for key, value in raw_districts.items()})
+        raw_districts = rules_raw.get("hk_districts", {})
+        if not isinstance(raw_districts, dict):
+            raise ConfigError("overrides.toml 的 [rules.hk_districts] 必须是表")
+        for key, value in raw_districts.items():
+            name = str(key).strip()
+            if not name:
+                raise ConfigError("[rules.hk_districts] 的键必须是非空字符串")
+            if not isinstance(value, str) or not value.strip():
+                raise ConfigError(f"[rules.hk_districts].{name} 必须是非空字符串")
+            hk_districts[name] = value.strip()
 
         return cls(
             places=places,
