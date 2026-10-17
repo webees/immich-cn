@@ -43,6 +43,41 @@ def test_overrides_rejects_malformed_country_code(tmp_path: Path) -> None:
         NameOverrides.load(path)
 
 
+def test_overrides_rejects_non_table_section(tmp_path: Path) -> None:
+    """段写成标量时加载会崩在 .items()，必须报出可处理的配置错误。"""
+    path = tmp_path / "overrides.toml"
+    path.write_text("countries = 5\n", encoding="utf-8")
+
+    with pytest.raises(ConfigError, match=r"\[countries\] 必须是表"):
+        NameOverrides.load(path)
+
+
+def test_overrides_rejects_malformed_strip_suffixes(tmp_path: Path) -> None:
+    """[rules.strip_suffixes] 值写错会静默不裁剪后缀，必须在加载时报错。"""
+    path = tmp_path / "overrides.toml"
+    path.write_text('[rules.strip_suffixes]\nJP = "都"\n', encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="非空字符串列表"):
+        NameOverrides.load(path)
+
+
+def test_overrides_normalizes_strip_suffix_keys(tmp_path: Path) -> None:
+    """小写国家码按 [countries] 的口径规范为大写，否则是永远匹配不到的死条目。"""
+    path = tmp_path / "overrides.toml"
+    path.write_text('[rules.strip_suffixes]\njp = ["都"]\n', encoding="utf-8")
+
+    assert NameOverrides.load(path).strip_suffixes["JP"] == ("都",)
+
+
+def test_overrides_rejects_malformed_hk_district(tmp_path: Path) -> None:
+    """[rules.hk_districts] 值不是字符串时会写出错乱的第三级区域名。"""
+    path = tmp_path / "overrides.toml"
+    path.write_text('[rules.hk_districts]\n"中西区" = 3\n', encoding="utf-8")
+
+    with pytest.raises(ConfigError, match=r"\[rules\.hk_districts\].中西区 必须是非空字符串"):
+        NameOverrides.load(path)
+
+
 def test_shipped_overrides_pass_validation() -> None:
     """仓库自带的覆盖表必须通过新校验，且新补的条目确实生效。"""
     shipped = Path(__file__).resolve().parent.parent / "config" / "overrides.toml"
