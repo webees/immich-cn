@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 511,
-  "consecutive_clean": 0,
+  "round": 512,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 306,
-    "clean_rounds": 194,
+    "clean_rounds": 195,
     "p0": 0,
     "p1": 36,
     "p2": 218,
     "p3": 57
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M5 真实数据抽样",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -5171,11 +5171,21 @@
       "severity": "P2",
       "evidence": "localization.py:217-229 的 [rules] 解析静默丢弃/强转坏条目：`[rules.strip_suffixes] JP = \"都\"`、值列表含非字符串、键小写（jp 永不匹配大写查找）都被接受为死条目；`[rules.hk_districts]` 非字符串值被 str() 强转。对照 `[countries] JP = 3` 抛 ConfigError，且 `countries = 5`/`rules = 5` 崩在 .items()（AttributeError）。修复：段类型、strip_suffixes 键（规范大写 alpha-2）与值（非空字符串列表，空列表仍表示关闭裁剪）、hk_districts 键值均严格校验并抛 ConfigError；自带 config/overrides.toml 加载结果不变。负向实验：4 条新测试在修复前全部 FAILED（DID NOT RAISE / KeyError: 'JP'），修复后通过。",
       "pr": "https://github.com/webees/immich-cn/pull/341"
+    },
+    {
+      "round": 512,
+      "timestamp": "2026-10-18T10:20:00+07:00",
+      "focus": "发布制品与人工覆盖表真实性（跨制品核对）",
+      "method": "M5 真实数据抽样",
+      "verdict": "clean",
+      "evidence": "对最新发布 data-2026-10-17 做独立跨制品核对（下载 dataset/admin2-default/admin2-full/manifest/checksums，非复跑 CI）：① 清单 17 个 assets 的大小与 sha256 与 Release 实际文件、checksums 文件（18 条，含清单）全部一致；② 自带 config/overrides.toml 全部生效——28 个 [places] ID、125 个 [admins] 代码、2 个 [countries] 代码在制品中零缺失，26 处 HK/MO 一级名差异正是文档写明的适配器例外（HK 18 + MO 8）；③ 数据集不变量零违例（重复 ID、孤立 place_names、空国家名、越界坐标、负人口、有代码无名称的 admin 均为 0）；④ 跨制品等价：dataset places=1319144=full 变体行数=build-info.outputPlaces，dataset in_default=256935=default 变体行数；countryInfo.txt 252 国名称与 countries 表逐条相同；CN/HK/TW/MO 发布名 0 条非中文；HK admin1CodesASCII=香港特别行政区。未发现 P0-P2。",
+      "pr": null
     }
   ],
   "residual_risks": [
     "代码注释不在文档门禁范围内，未来仍可能写入带具体数字的过程性说明",
-    "第 511 轮只覆盖 NameOverrides.load 的 [rules] 解析；运行期 strip_suffix/hk_districts 的语义（繁简变体、前缀拼接）未重测；若严格化误拒用户既有的合法配置（例如值内含空格或使用空列表退出口径），即属过严假拒绝——已保留空列表语义并复测自带配置"
+    "第 512 轮只按清单/checksums/API 尺寸比对大二进制，未重算 600 MB 资产的 sha256：若出现「同尺寸但内容被替换」的上传损坏，本轮检查看不到",
+    "第 512 轮只抽样 admin2 的 default/full 两个变体行数，未逐包核对全部 14 个地理数据包的每一行；非 admin2 粒度若整包异常（例如打包时串用其它变体）只能靠包内 build-info 与清单发现"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
