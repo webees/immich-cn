@@ -275,7 +275,9 @@ class ChineseNameIndex:
         if not value:
             return
         current = self._ranks.get(geoname_id)
-        # 越小的 (rank, 0/1) 越优先：先看语言，再看 isPreferredName。
+        # 越小的 (rank, 0/1) 越优先：先看语言，再看 isPreferredName；
+        # 同分（同语言同 preferred）时保留先出现的名称：上游按 alternateNameId 排序，
+        # 先出现者更权威，后来的同分名称不得覆盖已选结果。
         score = (rank, 0 if preferred else 1)
         if current is None or score < current:
             self.names[geoname_id] = value

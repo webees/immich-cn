@@ -6,6 +6,7 @@ import pytest
 
 from immich_cn.errors import ConfigError
 from immich_cn.localization import (
+    LANGUAGE_PRIORITY,
     ChineseNameIndex,
     NameOverrides,
     build_name_index,
@@ -140,6 +141,25 @@ def test_build_name_index_prefers_preferred_name_within_language() -> None:
     )
     index = build_name_index(records, overrides=NameOverrides())
     assert index.names[1] == "北京市"
+
+
+def test_build_name_index_keeps_first_name_when_score_ties() -> None:
+    """同语言同 preferred 时按上游行序取先者；后来的同分名称不得覆盖已选结果。"""
+    records = iter(
+        [
+            (1, "zh", "北京市", False, False),
+            (1, "zh", "北京", False, False),
+        ]
+    )
+    index = build_name_index(records, overrides=NameOverrides())
+    assert index.names[1] == "北京市"
+
+
+def test_language_rank_treats_unknown_zh_prefix_as_lowest_priority() -> None:
+    """`zho` 这类带 zh 前缀但不属于白名单的标签仍是候选，但排在所有白名单标签之后。"""
+    assert language_rank("zho") == len(LANGUAGE_PRIORITY)
+    assert language_rank("zh-yue") == LANGUAGE_PRIORITY.index("zh")
+    assert language_rank("yue") is None
 
 
 def test_build_name_index_ignores_historic_names() -> None:
