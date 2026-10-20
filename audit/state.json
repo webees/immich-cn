@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 513,
-  "consecutive_clean": 0,
+  "round": 514,
+  "consecutive_clean": 1,
   "totals": {
     "findings": 307,
-    "clean_rounds": 195,
+    "clean_rounds": 196,
     "p0": 0,
     "p1": 36,
     "p2": 219,
     "p3": 57
   },
   "status": "active",
-  "last_method": "M1 变异探针",
+  "last_method": "M2 阈值反演",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -5190,13 +5190,24 @@
       "severity": "P2",
       "evidence": "对 localization.py 做两处语义微改并跑全量测试，均未变红（556 passed）：① add_candidate 同分裁决 `score < current` → `score <= current`（同语言同 preferred 时改为后来者胜）；② language_rank 兜底 `return len(LANGUAGE_PRIORITY)` → `return 0`（zho 这类 zh* 标签升为最高优先级）。即核心取名逻辑的这两条分支零覆盖，改错会静默改变发布的中文名。修复：新增 test_build_name_index_keeps_first_name_when_score_ties 与 test_language_rank_treats_unknown_zh_prefix_as_lowest_priority，并在 add_candidate 注释里写清同分裁决。负向实验：注入两处变异后新测试分别 FAILED（assert '北京' == '北京市'、assert 0 == 9），恢复后 558 passed。",
       "pr": "https://github.com/webees/immich-cn/pull/342"
+    },
+    {
+      "round": 514,
+      "timestamp": "2026-10-20T10:15:00+07:00",
+      "focus": "数据正确性（默认变体人口阈值边界）",
+      "method": "M2 阈值反演",
+      "verdict": "clean",
+      "evidence": "对最新发布 data-2026-10-19 的 dataset（1,319,220 行）反演打包阈值：按 `source='cities500' OR population>=100 OR 四个直辖市/县细化代码` 预测 in_default，与制品实际 in_default 逐行比较 0 处不符；negative 半边成立（extra 中 population<100 有 1,062,210 行全部 in_default=0，另 18,024 行人口 0 的直辖市细化记录按文档例外保留）。可失败性：把规则改成 >100 立即出现 4 处不符（4 行人口恰为 100 的 extra 记录），说明边界确实被真实数据钉住。未发现 P0-P2。",
+      "pr": null
     }
   ],
   "residual_risks": [
     "代码注释不在文档门禁范围内，未来仍可能写入带具体数字的过程性说明",
-    "第 512 轮只按清单/checksums/API 尺寸比对大二进制，未重算 600 MB 资产的 sha256：若出现「同尺寸但内容被替换」的上传损坏，本轮检查看不到",
+    "第 512 轮只按清单/checksums/API 尺寸比对大二进制，未重算 600 MB 资产的 sha256：若出现「同尺寸但内容被替换」的上传损坏，该轮检查看不到",
     "第 513 轮只探针了 localization 的取名与语言分级两支；pipeline/hierarchy/validation 中仍有未覆盖分支（例如 geonames_sources 的 optional 标记、settings 的源清单构造），后续轮次可用同一手法继续验证",
-    "language_rank 对 zho 这类非白名单 zh* 标签的兜底语义已用测试固定，但未确认上游 alternateNamesV2 是否真的出现过这类标签；若上游改用 zha（壮语）之类前缀，当前 startswith('zh') 判断仍会把非中文名称当作候选"
+    "language_rank 对 zho 这类非白名单 zh* 标签的兜底语义已用测试固定，但未确认上游 alternateNamesV2 是否真的出现过这类标签；若上游改用 zha（壮语）之类前缀，当前 startswith('zh') 判断仍会把非中文名称当作候选",
+    "第 514 轮的真实数据没有 population=101 的 extra 记录，因此 >=100 与 >=101 在当前数据上不可区分；只钉住了 100 这一侧，若上游以后出现 101 且阈值被改坏，本方法需重跑才能发现",
+    "第 514 轮只核对 in_default 布尔与打包规则，没有重新打包比对 default 包内行序/内容；若打包阶段另有一套过滤（与 in_default 不同），真实数据层面的行集一致性仍未被覆盖"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
