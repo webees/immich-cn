@@ -333,6 +333,8 @@ def check_data_base_mirror_fallback(path: Path, workflow: dict[str, Any], errors
 
     prepull = scripts.get("预拉取 Docker 基础镜像", "")
     build = scripts.get("构建数据镜像", "")
+    if 'printf -v "$variable" \'%s\' "$image"' not in prepull:
+        errors.append(f"{path} 的镜像源回退未把实际镜像写回当前 Shell 变量")
     for label, primary, mirror, pull in (
         (
             "alpine:3.24",

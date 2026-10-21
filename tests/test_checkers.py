@@ -1272,6 +1272,15 @@ def test_check_workflows_requires_ci_data_base_fallback(repo_copy: Path) -> None
     assert "镜像源回退" in result.stdout
 
 
+def test_check_workflows_requires_fallback_variable_in_same_step(repo_copy: Path) -> None:
+    """只写 GITHUB_ENV 不会让同一预拉取步骤中的后续变量立即可用。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    mutate(workflow, '            printf -v "$variable" \'%s\' "$image"\n', "")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "当前 Shell 变量" in result.stdout
+
+
 def test_check_workflows_requires_ci_server_base_fallback(repo_copy: Path) -> None:
     """Docker 冒烟构建的 alpine:3.21 也必须支持同摘要镜像回退。"""
     workflow = repo_copy / ".github" / "workflows" / "ci.yml"

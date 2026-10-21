@@ -107,6 +107,7 @@ jobs:
               bash scripts/docker-pull-retry.sh "$mirror"
               image="$mirror"
             fi
+            printf -v "$variable" '%s' "$image"
             echo "${variable}=${image}" >> "$GITHUB_ENV"
           }
 
