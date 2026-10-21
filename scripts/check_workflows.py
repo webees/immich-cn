@@ -59,6 +59,12 @@ CANONICAL_OWN_SUFFIXES = ("", "-server")
 #: 写死 owner/name 的自有引用（含拼错的 owner 或包名）。
 HARDCODED_OWN_REFERENCE = re.compile(r"ghcr\.io/([A-Za-z0-9._-]+)/(immich-cn[A-Za-z0-9._-]*)")
 CANONICAL_OWN_REPOSITORIES = {("webees", "immich-cn"), ("webees", "immich-cn-server")}
+DATA_BASE_PRIMARY = (
+    "public.ecr.aws/docker/library/alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6"
+)
+DATA_BASE_MIRROR = (
+    "mirror.gcr.io/library/alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6"
+)
 
 
 def load(path: Path) -> dict[str, Any] | None:
@@ -297,6 +303,27 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
         errors.append(f"{path} OCI version 未使用项目版本，或缺少独立的数据日期标签")
     if "org.opencontainers.image.licenses=AGPL-3.0-only AND MIT" not in text:
         errors.append(f"{path} server 组合镜像未声明 AGPL-3.0-only AND MIT")
+
+
+def check_data_base_mirror_fallback(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """数据镜像必须能在 Public ECR 限流时切换到同摘要镜像源。"""
+    if path.name not in {"_build-data.yml", "ci.yml"}:
+        return
+    scripts = {str(step.get("name")): script for _, _, step, script in _iter_run_steps(workflow) if step.get("name")}
+    if path.name == "_build-data.yml":
+        script = scripts.get("推送数据镜像", "")
+        if DATA_BASE_PRIMARY not in script or DATA_BASE_MIRROR not in script:
+            errors.append(f"{path} 的数据镜像推送缺少同摘要镜像源回退")
+        if '--build-arg "BASE_IMAGE=${base_image}"' not in script:
+            errors.append(f"{path} 的数据镜像构建未把 BASE_IMAGE 传给 Dockerfile")
+        return
+
+    prepull = scripts.get("预拉取 Docker 基础镜像", "")
+    build = scripts.get("构建数据镜像", "")
+    if DATA_BASE_PRIMARY not in prepull or DATA_BASE_MIRROR not in prepull:
+        errors.append(f"{path} 的数据基础镜像缺少同摘要镜像源回退")
+    if '--build-arg "BASE_IMAGE=${DATA_BASE_IMAGE}"' not in build:
+        errors.append(f"{path} 的 Docker 冒烟构建未把实际 BASE_IMAGE 传给 Dockerfile")
 
 
 def check_version_release(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
@@ -803,6 +830,7 @@ def main() -> int:
         check_release_asset_reconciliation(path, workflow, errors)
         check_snapshot_immutability(path, workflow, errors)
         check_image_supply_chain(path, workflow, errors)
+        check_data_base_mirror_fallback(path, workflow, errors)
         check_ghcr_package_names(path, workflow, errors)
         check_version_release(path, workflow, errors)
         check_cleanup_workflow(path, workflow, errors)

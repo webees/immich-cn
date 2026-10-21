@@ -3,17 +3,30 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-DIGEST_PIN = re.compile(r"^FROM \S+@sha256:[0-9a-f]{64}(?:\s+AS\s+\S+)?$", re.IGNORECASE)
+DATA_BASE = re.compile(
+    r"^ARG BASE_IMAGE=(?P<image>[^@\s]+@sha256:(?P<digest>[0-9a-f]{64}))$",
+    re.IGNORECASE,
+)
+FROM_BASE = re.compile(r"^FROM \$\{BASE_IMAGE\}(?:\s+AS\s+\S+)?$", re.IGNORECASE)
+DATA_BASE_REGISTRIES = {
+    "public.ecr.aws/docker/library/alpine:3.24",
+    "mirror.gcr.io/library/alpine:3.24",
+}
 
 
 def test_data_image_base_is_digest_pinned() -> None:
-    """数据镜像使用 Public ECR 的同一 Alpine 摘要，避开 Docker Hub 限流。"""
+    """数据镜像允许切换镜像源，但所有来源必须共享固定摘要。"""
     path = Path(__file__).resolve().parent.parent / "docker" / "geodata.Dockerfile"
-    from_lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.startswith("FROM ")]
-    assert from_lines
-    assert all(DIGEST_PIN.fullmatch(line) for line in from_lines), from_lines
-    assert from_lines[0].startswith("FROM public.ecr.aws/docker/library/alpine:")
-    assert not any(line.startswith("FROM alpine:") for line in from_lines)
+    lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines()]
+    bases = [match for line in lines if (match := DATA_BASE.fullmatch(line))]
+    from_lines = [line for line in lines if line.startswith("FROM ")]
+    assert len(bases) == 1
+    assert from_lines == ["FROM ${BASE_IMAGE}"]
+    assert FROM_BASE.fullmatch(from_lines[0])
+    image = bases[0].group("image")
+    registry = image.split("@", 1)[0]
+    assert registry in DATA_BASE_REGISTRIES
+    assert bases[0].group("digest") == "294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6"
 
 
 def test_server_image_declares_combined_license() -> None:

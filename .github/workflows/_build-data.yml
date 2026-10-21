@@ -303,8 +303,14 @@ jobs:
           image="ghcr.io/${GITHUB_REPOSITORY}"
           metadata="$(mktemp)"
           for attempt in 1 2 3; do
+            case "$attempt" in
+              1) base_image="public.ecr.aws/docker/library/alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6" ;;
+              *) base_image="mirror.gcr.io/library/alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6" ;;
+            esac
+            echo "数据镜像基础源：${base_image}"
             if docker buildx build \
               --file docker/geodata.Dockerfile \
+              --build-arg "BASE_IMAGE=${base_image}" \
               --platform "$DATA_PLATFORMS" \
               --provenance=true \
               --sbom=true \

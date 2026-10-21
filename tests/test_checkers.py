@@ -1234,6 +1234,44 @@ def test_check_workflows_requires_server_base_digest(repo_copy: Path) -> None:
     assert "base digest" in result.stdout
 
 
+def test_check_workflows_requires_data_base_mirror_fallback(repo_copy: Path) -> None:
+    """Public ECR 持续限流时，数据镜像构建必须能切换到同摘要镜像源。"""
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(
+        workflow,
+        '              *) base_image="mirror.gcr.io/library/alpine:3.24@sha256:'
+        '294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6" ;;\n',
+        '              *) base_image="public.ecr.aws/docker/library/alpine:3.24@sha256:'
+        '294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6" ;;\n',
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "镜像源回退" in result.stdout
+
+
+def test_check_workflows_requires_data_base_build_arg(repo_copy: Path) -> None:
+    """只预拉镜像源而不把实际来源传给 Dockerfile 仍会回退访问 Public ECR。"""
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(workflow, '              --build-arg "BASE_IMAGE=${base_image}" \\\n', "")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "BASE_IMAGE" in result.stdout
+
+
+def test_check_workflows_requires_ci_data_base_fallback(repo_copy: Path) -> None:
+    """Docker 冒烟构建也必须使用同一套镜像源回退，不能只修改发布工作流。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    mutate(
+        workflow,
+        '          data_mirror="mirror.gcr.io/library/alpine:3.24@sha256:'
+        '294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6"\n',
+        '          data_mirror="$data_base"\n',
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "镜像源回退" in result.stdout
+
+
 def test_check_workflows_requires_base_digest_in_change_detection(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
     text = workflow.read_text(encoding="utf-8")
