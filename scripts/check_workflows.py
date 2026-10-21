@@ -65,6 +65,19 @@ DATA_BASE_PRIMARY = (
 DATA_BASE_MIRROR = (
     "mirror.gcr.io/library/alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6"
 )
+SERVER_BASE_PRIMARY = (
+    "public.ecr.aws/docker/library/alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507"
+)
+SERVER_BASE_MIRROR = (
+    "mirror.gcr.io/library/alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507"
+)
+NGINX_IMAGE_PRIMARY = (
+    "public.ecr.aws/docker/library/nginx:1.29-alpine@sha256:"
+    "5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de"
+)
+NGINX_IMAGE_MIRROR = (
+    "mirror.gcr.io/library/nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de"
+)
 
 
 def load(path: Path) -> dict[str, Any] | None:
@@ -320,10 +333,38 @@ def check_data_base_mirror_fallback(path: Path, workflow: dict[str, Any], errors
 
     prepull = scripts.get("预拉取 Docker 基础镜像", "")
     build = scripts.get("构建数据镜像", "")
-    if DATA_BASE_PRIMARY not in prepull or DATA_BASE_MIRROR not in prepull:
-        errors.append(f"{path} 的数据基础镜像缺少同摘要镜像源回退")
+    for label, primary, mirror, pull in (
+        (
+            "alpine:3.24",
+            DATA_BASE_PRIMARY,
+            DATA_BASE_MIRROR,
+            'pull_with_fallback DATA_BASE_IMAGE "$data_base" "$data_mirror"',
+        ),
+        (
+            "alpine:3.21",
+            SERVER_BASE_PRIMARY,
+            SERVER_BASE_MIRROR,
+            'pull_with_fallback SERVER_ALPINE_IMAGE "$server_base" "$server_mirror"',
+        ),
+        (
+            "nginx:1.29-alpine",
+            NGINX_IMAGE_PRIMARY,
+            NGINX_IMAGE_MIRROR,
+            'pull_with_fallback NGINX_IMAGE "$nginx_base" "$nginx_mirror"',
+        ),
+    ):
+        if primary not in prepull or mirror not in prepull or pull not in prepull:
+            errors.append(f"{path} 的 {label} 镜像缺少同摘要镜像源回退")
     if '--build-arg "BASE_IMAGE=${DATA_BASE_IMAGE}"' not in build:
         errors.append(f"{path} 的 Docker 冒烟构建未把实际 BASE_IMAGE 传给 Dockerfile")
+    nginx_check = scripts.get("校验 Nginx 加速源站配置", "")
+    if '"$NGINX_IMAGE"' not in nginx_check:
+        errors.append(f"{path} 的 Nginx 校验未使用实际可用的 NGINX_IMAGE")
+    server_build = scripts.get("构建 Immich 覆盖镜像（占位基础镜像，仅验证构建步骤）", "")
+    if '--build-arg "IMMICH_BASE=${SERVER_BASE_IMAGE}"' not in server_build:
+        errors.append(f"{path} 的 Immich 冒烟构建未使用实际可用的 SERVER_BASE_IMAGE")
+    if '--build-arg "IMMICH_BASE_DIGEST=${SERVER_BASE_DIGEST}"' not in server_build:
+        errors.append(f"{path} 的 Immich 冒烟构建未固定实际基础镜像摘要")
 
 
 def check_version_release(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:

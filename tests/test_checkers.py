@@ -1272,6 +1272,69 @@ def test_check_workflows_requires_ci_data_base_fallback(repo_copy: Path) -> None
     assert "镜像源回退" in result.stdout
 
 
+def test_check_workflows_requires_ci_server_base_fallback(repo_copy: Path) -> None:
+    """Docker 冒烟构建的 alpine:3.21 也必须支持同摘要镜像回退。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    mutate(
+        workflow,
+        '          server_mirror="mirror.gcr.io/library/alpine:3.21@sha256:'
+        'ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507"\n',
+        '          server_mirror="$server_base"\n',
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "alpine:3.21" in result.stdout
+
+
+def test_check_workflows_requires_ci_nginx_fallback(repo_copy: Path) -> None:
+    """Nginx 配置校验镜像也必须支持同摘要镜像回退。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    mutate(
+        workflow,
+        '          nginx_mirror="mirror.gcr.io/library/nginx:1.29-alpine@sha256:'
+        '5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de"\n',
+        '          nginx_mirror="$nginx_base"\n',
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "nginx:1.29-alpine" in result.stdout
+
+
+def test_check_workflows_requires_nginx_runtime_image(repo_copy: Path) -> None:
+    """预拉取回退镜像后，Nginx 校验不能继续绕过实际可用的 NGINX_IMAGE。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    mutate(workflow, '            "$NGINX_IMAGE" \\\n', "            nginx:1.29-alpine \\\n")
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "NGINX_IMAGE" in result.stdout
+
+
+def test_check_workflows_requires_ci_server_build_image(repo_copy: Path) -> None:
+    """server 冒烟构建不能绕过实际可用的基础镜像和固定摘要。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    mutate(
+        workflow,
+        '            --build-arg "IMMICH_BASE=${SERVER_BASE_IMAGE}" \\\n',
+        "            --build-arg IMMICH_BASE=public.ecr.aws/docker/library/alpine \\\n",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "SERVER_BASE_IMAGE" in result.stdout
+
+
+def test_check_workflows_requires_ci_server_build_digest(repo_copy: Path) -> None:
+    """server 冒烟构建必须使用回退镜像对应的摘要。"""
+    workflow = repo_copy / ".github" / "workflows" / "ci.yml"
+    mutate(
+        workflow,
+        '            --build-arg "IMMICH_BASE_DIGEST=${SERVER_BASE_DIGEST}" \\\n',
+        "",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "固定实际基础镜像摘要" in result.stdout
+
+
 def test_check_workflows_requires_base_digest_in_change_detection(repo_copy: Path) -> None:
     workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
     text = workflow.read_text(encoding="utf-8")
