@@ -13,8 +13,9 @@ from types import SimpleNamespace
 import pytest
 
 import immich_cn.packaging as packaging
+import immich_cn.pipeline as pipeline
 from immich_cn import __version__
-from immich_cn.domain import AdminEntry, Place, iter_admin_areas
+from immich_cn.domain import AdminEntry, Place, SourceRecord, iter_admin_areas
 from immich_cn.errors import ParseError
 from immich_cn.packaging import build_variants, package_all
 from immich_cn.pipeline import (
@@ -188,6 +189,27 @@ def test_country_dump_validation_rejects_binary_and_missing(tmp_path: Path) -> N
 
     with pytest.raises(ParseError, match="缺少国家 dump"):
         _validate_country_dumps((tmp_path / "MO.txt",))
+
+
+def test_build_skips_optional_country_dump_missing_after_fetch(
+    build_options: BuildOptions,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """可选国家 dump 下载失败时不得在校验阶段把整次构建判失败。"""
+    build_options.skip_fetch = False
+    build_options.extra_countries = ("CN", "HK")
+    fetched = SourceRecord(
+        name="country_dump_CN",
+        url="https://example.com/CN.zip",
+        sha256="a" * 64,
+        size_bytes=1,
+    )
+    monkeypatch.setattr(pipeline, "fetch_sources", lambda _options: [fetched])
+
+    result = run_build(build_options)
+
+    assert result.sources == [fetched]
+    assert result.stats.admin3_entries > 0
 
 
 def test_alternate_stream_keeps_chinese_and_japanese_languages(tmp_path: Path) -> None:
