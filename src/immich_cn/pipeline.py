@@ -175,9 +175,7 @@ def run_build(options: BuildOptions) -> BuildResult:
     records = [] if options.skip_fetch else fetch_sources(options)
     paths = _source_paths(options)
     country_dumps = (
-        paths.country_dumps
-        if options.skip_fetch
-        else tuple(path for path in paths.country_dumps if path.exists())
+        paths.country_dumps if options.skip_fetch else tuple(path for path in paths.country_dumps if path.exists())
     )
     _validate_country_dumps(country_dumps)
     overrides = NameOverrides.load(options.config_dir / "overrides.toml")
