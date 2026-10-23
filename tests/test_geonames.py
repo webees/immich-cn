@@ -142,6 +142,24 @@ def test_extract_archive_member_missing(tmp_path: Path) -> None:
         extract_archive_member(archive, "hello.txt", tmp_path / "out.txt")
 
 
+def test_extract_archive_member_preserves_target_on_crc_error(tmp_path: Path) -> None:
+    archive = tmp_path / "data.zip"
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as zf:
+        zf.writestr("hello.txt", "new")
+    payload = bytearray(archive.read_bytes())
+    offset = payload.find(b"new")
+    assert offset >= 0
+    payload[offset] ^= 1
+    archive.write_bytes(payload)
+
+    target = tmp_path / "out.txt"
+    target.write_text("old", encoding="utf-8")
+
+    with pytest.raises(zipfile.BadZipFile):
+        extract_archive_member(archive, "hello.txt", target)
+    assert target.read_text(encoding="utf-8") == "old"
+
+
 def test_safe_join_allows_nested_path(tmp_path: Path) -> None:
     assert safe_join(tmp_path, "langs/zh.json") == (tmp_path / "langs" / "zh.json").resolve()
 
