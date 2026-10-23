@@ -223,9 +223,15 @@ def extract_archive_member(archive: Path, member: str, destination: Path) -> Pat
                 raise ParseError(f"{archive.name} 中未找到 {member}，实际包含：{names[:5]}")
             target_member = candidates[0]
         destination.parent.mkdir(parents=True, exist_ok=True)
-        with zf.open(target_member) as source, destination.open("wb") as sink:
-            while chunk := source.read(1024 * 1024):
-                sink.write(chunk)
+        temporary = destination.with_name(f".{destination.name}.part")
+        try:
+            with zf.open(target_member) as source, temporary.open("wb") as sink:
+                while chunk := source.read(1024 * 1024):
+                    sink.write(chunk)
+            temporary.replace(destination)
+        except Exception:
+            temporary.unlink(missing_ok=True)
+            raise
     return destination
 
 
