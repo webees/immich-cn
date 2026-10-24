@@ -212,6 +212,43 @@ def test_build_skips_optional_country_dump_missing_after_fetch(
     assert result.stats.admin3_entries > 0
 
 
+def test_build_ignores_stale_optional_country_dump_when_fetch_skips_it(
+    build_options: BuildOptions,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """可选国家 dump 下载失败时，不得把上次残留的文件混入本次构建。"""
+    build_options.skip_fetch = False
+    build_options.extra_countries = ("CN", "HK")
+    stale_id = 990001
+    write_lines(
+        build_options.sources_dir / "HK.txt",
+        [
+            geo_row(
+                stale_id,
+                "StaleHongKong",
+                feature_class="A",
+                feature_code="ADM3",
+                country="HK",
+                admin1="NYL",
+                admin2="YL",
+                admin3="STALE",
+                population=100,
+            )
+        ],
+    )
+    fetched = SourceRecord(
+        name="country_dump_CN",
+        url="https://example.com/CN.zip",
+        sha256="a" * 64,
+        size_bytes=1,
+    )
+    monkeypatch.setattr(pipeline, "fetch_sources", lambda _options: [fetched])
+
+    result = run_build(build_options)
+
+    assert str(stale_id) not in result.extra_file.read_text(encoding="utf-8")
+
+
 def test_alternate_stream_keeps_chinese_and_japanese_languages(tmp_path: Path) -> None:
     path = tmp_path / "alternateNamesV2.txt"
     write_lines(
