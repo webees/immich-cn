@@ -174,8 +174,13 @@ def run_build(options: BuildOptions) -> BuildResult:
 
     records = [] if options.skip_fetch else fetch_sources(options)
     paths = _source_paths(options)
+    fetched_countries = {
+        record.name.removeprefix("country_dump_") for record in records if record.name.startswith("country_dump_")
+    }
     country_dumps = (
-        paths.country_dumps if options.skip_fetch else tuple(path for path in paths.country_dumps if path.exists())
+        paths.country_dumps
+        if options.skip_fetch
+        else tuple(path for path in paths.country_dumps if path.stem in fetched_countries)
     )
     _validate_country_dumps(country_dumps)
     overrides = NameOverrides.load(options.config_dir / "overrides.toml")
@@ -185,7 +190,7 @@ def run_build(options: BuildOptions) -> BuildResult:
     admin2_raw = read_admin_codes(paths.admin2)
     country_rows = read_country_info(paths.country_info)
 
-    admin_units = build_admin_units(paths.country_dumps)
+    admin_units = build_admin_units(country_dumps)
     stats.admin3_entries = len(admin_units[3])
     stats.admin4_entries = len(admin_units[4])
 
@@ -198,7 +203,7 @@ def run_build(options: BuildOptions) -> BuildResult:
 
     extra_file = options.work_dir / "extra_all.txt"
     extra_ids, dropped_extra = _select_extra_places(
-        paths.country_dumps,
+        country_dumps,
         extra_file,
         admin1_raw=admin1_raw,
         existing_ids=existing_ids,
