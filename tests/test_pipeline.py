@@ -16,7 +16,7 @@ import immich_cn.packaging as packaging
 import immich_cn.pipeline as pipeline
 from immich_cn import __version__
 from immich_cn.domain import AdminEntry, Place, SourceRecord, iter_admin_areas
-from immich_cn.errors import ParseError
+from immich_cn.errors import ParseError, SourceError
 from immich_cn.packaging import build_variants, package_all
 from immich_cn.pipeline import (
     _alternate_stream,
@@ -191,11 +191,11 @@ def test_country_dump_validation_rejects_binary_and_missing(tmp_path: Path) -> N
         _validate_country_dumps((tmp_path / "MO.txt",))
 
 
-def test_build_skips_optional_country_dump_missing_after_fetch(
+def test_build_rejects_configured_country_dump_missing_after_fetch(
     build_options: BuildOptions,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """可选国家 dump 下载失败时不得在校验阶段把整次构建判失败。"""
+    """配置的国家 dump 未获取时不得发布缺少该地区的数据。"""
     build_options.skip_fetch = False
     build_options.extra_countries = ("CN", "HK")
     fetched = SourceRecord(
@@ -206,17 +206,15 @@ def test_build_skips_optional_country_dump_missing_after_fetch(
     )
     monkeypatch.setattr(pipeline, "fetch_sources", lambda _options: [fetched])
 
-    result = run_build(build_options)
-
-    assert result.sources == [fetched]
-    assert result.stats.admin3_entries > 0
+    with pytest.raises(SourceError, match="HK"):
+        run_build(build_options)
 
 
-def test_build_ignores_stale_optional_country_dump_when_fetch_skips_it(
+def test_build_rejects_stale_country_dump_when_fetch_skips_it(
     build_options: BuildOptions,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """可选国家 dump 下载失败时，不得把上次残留的文件混入本次构建。"""
+    """上次残留的国家 dump 不能掩盖本次获取失败。"""
     build_options.skip_fetch = False
     build_options.extra_countries = ("CN", "HK")
     stale_id = 990001
@@ -244,9 +242,8 @@ def test_build_ignores_stale_optional_country_dump_when_fetch_skips_it(
     )
     monkeypatch.setattr(pipeline, "fetch_sources", lambda _options: [fetched])
 
-    result = run_build(build_options)
-
-    assert str(stale_id) not in result.extra_file.read_text(encoding="utf-8")
+    with pytest.raises(SourceError, match="HK"):
+        run_build(build_options)
 
 
 def test_alternate_stream_keeps_chinese_and_japanese_languages(tmp_path: Path) -> None:
