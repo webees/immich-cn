@@ -25,7 +25,7 @@ from typing import TextIO
 from immich_cn import SCHEMA_VERSION, __version__
 from immich_cn.display import compose, validate_pattern
 from immich_cn.domain import AdminEntry, BuildStats, Place, SourceRecord, iter_admin_areas
-from immich_cn.errors import ImmichCnError, ParseError
+from immich_cn.errors import ImmichCnError, ParseError, SourceError
 from immich_cn.fetching import FetchedSource, Fetcher
 from immich_cn.geonames import (
     AdminUnit,
@@ -177,6 +177,11 @@ def run_build(options: BuildOptions) -> BuildResult:
     fetched_countries = {
         record.name.removeprefix("country_dump_") for record in records if record.name.startswith("country_dump_")
     }
+    # `optional` 只允许独立的 fetch 命令在瞬时失败后继续；完整构建不能发布缺少配置地区的数据。
+    if not options.skip_fetch:
+        missing = set(options.extra_countries) - fetched_countries
+        if missing:
+            raise SourceError(f"本次构建缺少国家 dump：{','.join(sorted(missing))}")
     country_dumps = (
         paths.country_dumps
         if options.skip_fetch
