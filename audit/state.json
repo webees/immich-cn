@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 514,
-  "consecutive_clean": 1,
+  "round": 520,
+  "consecutive_clean": 0,
   "totals": {
-    "findings": 307,
+    "findings": 313,
     "clean_rounds": 196,
     "p0": 0,
-    "p1": 36,
-    "p2": 219,
+    "p1": 37,
+    "p2": 224,
     "p3": 57
   },
   "status": "active",
-  "last_method": "M2 阈值反演",
+  "last_method": "M6 边界与异常输入",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -5199,6 +5199,66 @@
       "verdict": "clean",
       "evidence": "对最新发布 data-2026-10-19 的 dataset（1,319,220 行）反演打包阈值：按 `source='cities500' OR population>=100 OR 四个直辖市/县细化代码` 预测 in_default，与制品实际 in_default 逐行比较 0 处不符；negative 半边成立（extra 中 population<100 有 1,062,210 行全部 in_default=0，另 18,024 行人口 0 的直辖市细化记录按文档例外保留）。可失败性：把规则改成 >100 立即出现 4 处不符（4 行人口恰为 100 的 extra 记录），说明边界确实被真实数据钉住。未发现 P0-P2。",
       "pr": null
+    },
+    {
+      "round": 515,
+      "timestamp": "2026-10-21T10:49:31+07:00",
+      "focus": "容器与 shell 脚本（基础镜像回退变量传递）",
+      "method": "M10 shell/容器安全审查",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "Docker 冒烟构建原回退仅覆盖 alpine:3.24；Public ECR 返回 429 后 alpine:3.21 仍失败（run 39538596747）。补齐三类镜像回退后，预拉取函数只写 `$GITHUB_ENV`，未更新当前 Shell 变量，server 构建在预拉取同步骤触发 `SERVER_ALPINE_IMAGE: unbound variable`（run 39539914030）。修复为 Public ECR → GCR 同摘要回退并在当前步骤执行 `printf -v`；新增负向护栏在删除该赋值时失败，恢复后通过。PR #345 的 4 项必需检查全绿（run 39540378430），squash 合并为 51a931a。",
+      "pr": "https://github.com/webees/immich-cn/pull/345"
+    },
+    {
+      "round": 516,
+      "timestamp": "2026-10-22T10:08:50+07:00",
+      "focus": "自动化可靠性（可选国家 dump 下载失败）",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`fetch_sources` 将全部国家 dump 标记为 optional，下载失败会跳过；但 `run_build` 随后用 `_source_paths` 构造全部配置路径并由 `_validate_country_dumps` 强制全部存在，导致 CK/HK/TW/MO/JP 任一瞬时失败仍使整次构建报错。负向测试将 CN/HK 配置为可选源、模拟只获取 CN，修复前在 `pipeline.py:158` 报 `ParseError: 缺少国家 dump ... HK.txt`；修复后仅非 skip-fetch 路径校验实际落盘文件，skip-fetch 仍要求全部配置文件，测试通过。PR #346 的 4 项必需检查全绿（run 39714896357），squash 合并为 0237f2f。",
+      "pr": "https://github.com/webees/immich-cn/pull/346"
+    },
+    {
+      "round": 517,
+      "timestamp": "2026-10-23T10:08:00+07:00",
+      "focus": "制品解压可靠性（zip CRC 失败时旧文件完整性）",
+      "method": "M3 负向制品实验",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`extract_archive_member` 直接截断目标文件后写入；对 ZIP_STORED 成员翻转 1 字节制造 CRC 失败，修复前抛出 `BadZipFile` 但目标由 `old` 变成空字符串，随后可能被下游当作已存在 dump 使用。修复为同目录 `.part` 完整写入后原子替换，失败时删除临时文件并保留旧文件；新测试修复前 `assert '' == 'old'` 失败，修复后通过。PR #347 的 4 项必需检查全绿（run 39893775601），squash 合并为 033fbe1。",
+      "pr": "https://github.com/webees/immich-cn/pull/347"
+    },
+    {
+      "round": 518,
+      "timestamp": "2026-10-23T10:12:00+07:00",
+      "focus": "工作流供应链固定提交（setup-python v7 漂移）",
+      "method": "M10 shell/容器安全审查",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`actions/setup-python` 的 `v7` tag 已指向 `6d4fd22b2046`，仓库 5 处仍固定旧提交 `5fda3b95a4ea`；`check_action_pins` 在 Python 3.11/3.12/3.13 三项必需检查中均失败（run 39893248518）。将 5 处固定提交统一更新后，本地 `check_action_pins` 显示 24 个引用全部一致；PR #348 的 4 项必需检查全绿（run 39893586546），squash 合并为 16b1bd2。",
+      "pr": "https://github.com/webees/immich-cn/pull/348"
+    },
+    {
+      "round": 519,
+      "timestamp": "2026-10-24T10:21:47+07:00",
+      "focus": "可选国家 dump 失败后的残留数据隔离",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`#346` 新增的 optional dump 跳过只过滤了校验，`run_build` 仍把 `sources/HK.txt` 的旧残留文件送入 `build_admin_units` 与 `_select_extra_places`；负向测试预置 `990001 StaleHongKong` 并模拟本次仅获取 CN，修复前该 ID 进入 `extra_all.txt`，修复后消失。修复改为只使用本次 `SourceRecord` 记录的国家 dump，`--skip-fetch` 仍按契约使用现有文件。验证期间 CI 又发现 `docker/login-action@v4` 已从 `dbcb8138` 移到 `81c6f93d`，审查 66 个提交主题后同步固定引用。本地 ruff/format/mypy/pytest/docs/workflows/check_action_pins 全绿；最终 run 40057734732 的四项必需检查全绿；PR #349 squash 合并为 a0e44bf。",
+      "pr": "https://github.com/webees/immich-cn/pull/349"
+    },
+    {
+      "round": 520,
+      "timestamp": "2026-10-25T10:24:00+07:00",
+      "focus": "国家 dump 获取失败后的数据完整性",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P1",
+      "evidence": "`pipeline.py:180` 只按本次成功获取的 dump 过滤后继续构建：配置 CN/HK、模拟仅获取 CN，期望 `SourceError`，实际 `run_build` 成功（复现：`pytest -q tests/test_pipeline.py::test_build_rejects_configured_country_dump_missing_after_fetch`，修复前 `DID NOT RAISE SourceError`）。全部 dump 失败会把最新 1,320,409 行数据降为约 236,315 行，CN 单独缺失约少 95 万行。修复为完整构建校验 `--extra-countries` 全部出现在本次 `SourceRecord`；`fetch` 仍可对瞬时失败告警并继续，`--skip-fetch` 契约不变。修复后目标测试通过，全量 pytest 89.46% coverage，ruff/format/mypy/文档/工作流/Shell/死代码/Action pin 全绿；PR #350 四项必需检查全绿，squash 合并为 d829db3。",
+      "pr": "https://github.com/webees/immich-cn/pull/350"
     }
   ],
   "residual_risks": [
@@ -5207,7 +5267,14 @@
     "第 513 轮只探针了 localization 的取名与语言分级两支；pipeline/hierarchy/validation 中仍有未覆盖分支（例如 geonames_sources 的 optional 标记、settings 的源清单构造），后续轮次可用同一手法继续验证",
     "language_rank 对 zho 这类非白名单 zh* 标签的兜底语义已用测试固定，但未确认上游 alternateNamesV2 是否真的出现过这类标签；若上游改用 zha（壮语）之类前缀，当前 startswith('zh') 判断仍会把非中文名称当作候选",
     "第 514 轮的真实数据没有 population=101 的 extra 记录，因此 >=100 与 >=101 在当前数据上不可区分；只钉住了 100 这一侧，若上游以后出现 101 且阈值被改坏，本方法需重跑才能发现",
-    "第 514 轮只核对 in_default 布尔与打包规则，没有重新打包比对 default 包内行序/内容；若打包阶段另有一套过滤（与 in_default 不同），真实数据层面的行集一致性仍未被覆盖"
+    "第 514 轮只核对 in_default 布尔与打包规则，没有重新打包比对 default 包内行序/内容；若打包阶段另有一套过滤（与 in_default 不同），真实数据层面的行集一致性仍未被覆盖",
+    "第 515 轮只验证 Public ECR → GCR 当前标签与摘要路径；若两个镜像源同时限流，或 GCR 摘要漂移，Docker 冒烟构建仍会失败，缺少第三源或代理",
+    "第 516 轮用 monkeypatch 模拟 fetch 少返回一个可选 dump，未覆盖 `_materialize` 在部分文件已写入后中途失败留下的半完成状态；重跑时可能复用旧文件而非完整重取",
+    "第 517 轮只验证单个归档成员 CRC 失败；多成员归档在写入后续成员时失败，仍可能留下同一批次中前几个成员的新旧混合状态",
+    "第 518 轮依赖上游 tag 指向的提交本身可信；完整 SHA 只保证可复现，不证明新提交没有恶意改动，仍需人工审查 Action 差异",
+    "第 519 轮只验证可选国家 dump 的残留文件会因本次无 SourceRecord 而被排除；`--skip-fetch` 仍按设计信任现有文件，未额外校验新鲜度",
+    "第 519 轮只按提交主题审查 docker/login-action v4 的 66 个提交差异，未逐行审计其 dist 产物",
+    "第 520 轮用 monkeypatch 模拟 `fetch_sources` 少返回国家记录，未在真实 GeoNames 瞬时故障下执行完整下载；判定依据是流程控制与 SourceRecord 完整性，不是一次真实上游事故复盘"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
