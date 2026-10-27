@@ -2,14 +2,14 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 520,
+  "round": 521,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 313,
+    "findings": 314,
     "clean_rounds": 196,
     "p0": 0,
     "p1": 37,
-    "p2": 224,
+    "p2": 225,
     "p3": 57
   },
   "status": "active",
@@ -5259,6 +5259,16 @@
       "severity": "P1",
       "evidence": "`pipeline.py:180` 只按本次成功获取的 dump 过滤后继续构建：配置 CN/HK、模拟仅获取 CN，期望 `SourceError`，实际 `run_build` 成功（复现：`pytest -q tests/test_pipeline.py::test_build_rejects_configured_country_dump_missing_after_fetch`，修复前 `DID NOT RAISE SourceError`）。全部 dump 失败会把最新 1,320,409 行数据降为约 236,315 行，CN 单独缺失约少 95 万行。修复为完整构建校验 `--extra-countries` 全部出现在本次 `SourceRecord`；`fetch` 仍可对瞬时失败告警并继续，`--skip-fetch` 契约不变。修复后目标测试通过，全量 pytest 89.46% coverage，ruff/format/mypy/文档/工作流/Shell/死代码/Action pin 全绿；PR #350 四项必需检查全绿，squash 合并为 d829db3。",
       "pr": "https://github.com/webees/immich-cn/pull/350"
+    },
+    {
+      "round": 521,
+      "timestamp": "2026-10-27T10:13:40+07:00",
+      "focus": "数据源落盘完整性与残留污染",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`pipeline.py:376` 的旧解压标记只保存上游摘要：归档未变时，`sources/cities500.txt` 或直接写入的 `countryInfo.txt` 即使被截断/篡改也继续复用，坏数据可静默进入构建。负向实验先把手写测试期望改为恢复原内容，修复前复现 `AssertionError: assert 'tampered\\n' == 'v1\\n'`。修复为标记同时记录上游摘要和目标文件 SHA256，任一不符就重新解压/复制并更新标记；archive 与 direct source 两条路径均通过。`make check` 570 passed、89.52% coverage，死代码扫描通过；PR #351 四项必需检查全绿，squash 合并为 8c20bf2。",
+      "pr": "https://github.com/webees/immich-cn/pull/351"
     }
   ],
   "residual_risks": [
@@ -5274,7 +5284,9 @@
     "第 518 轮依赖上游 tag 指向的提交本身可信；完整 SHA 只保证可复现，不证明新提交没有恶意改动，仍需人工审查 Action 差异",
     "第 519 轮只验证可选国家 dump 的残留文件会因本次无 SourceRecord 而被排除；`--skip-fetch` 仍按设计信任现有文件，未额外校验新鲜度",
     "第 519 轮只按提交主题审查 docker/login-action v4 的 66 个提交差异，未逐行审计其 dist 产物",
-    "第 520 轮用 monkeypatch 模拟 `fetch_sources` 少返回国家记录，未在真实 GeoNames 瞬时故障下执行完整下载；判定依据是流程控制与 SourceRecord 完整性，不是一次真实上游事故复盘"
+    "第 520 轮用 monkeypatch 模拟 `fetch_sources` 少返回国家记录，未在真实 GeoNames 瞬时故障下执行完整下载；判定依据是流程控制与 SourceRecord 完整性，不是一次真实上游事故复盘",
+    "第 521 轮对每个已解压数据源增加了 SHA256 校验，但未在完整真实数据源集合上量化新增 I/O 开销；若大文件哈希成为日常更新瓶颈，可再引入受控的 size/mtime 快检并保留摘要兜底",
+    "第 521 轮只验证普通归档成员和直接文件的落盘篡改；i18n tar 仍每次重新解压，单文件写入不是原子替换，失败会使本次构建退出，但半完成目录仍留给后续重试覆盖"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
