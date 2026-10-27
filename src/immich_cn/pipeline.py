@@ -26,7 +26,7 @@ from immich_cn import SCHEMA_VERSION, __version__
 from immich_cn.display import compose, validate_pattern
 from immich_cn.domain import AdminEntry, BuildStats, Place, SourceRecord, iter_admin_areas
 from immich_cn.errors import ImmichCnError, ParseError, SourceError
-from immich_cn.fetching import FetchedSource, Fetcher
+from immich_cn.fetching import FetchedSource, Fetcher, sha256_file
 from immich_cn.geonames import (
     AdminUnit,
     CountryInfoRow,
@@ -348,31 +348,47 @@ def _materialize(fetched: list[FetchedSource], options: BuildOptions) -> None:
             shutil.copyfile(result.path, destination)
             extracted = True
         if extracted or spec.is_archive:
-            _write_stamp(spec, result, options)
+            for destination in _materialized_paths(spec, options):
+                _write_stamp(spec, destination, result, options)
 
 
-def _write_stamp(spec: SourceSpec, result: FetchedSource, options: BuildOptions) -> None:
-    stamp_dir = options.sources_dir / ".stamps"
-    stamp_dir.mkdir(parents=True, exist_ok=True)
-    (stamp_dir / f"{spec.name}.sha256").write_text(result.record.sha256 + "\n", encoding="utf-8")
+def _materialized_paths(spec: SourceSpec, options: BuildOptions) -> tuple[Path, ...]:
+    if not spec.is_archive:
+        return (options.sources_dir / spec.filename,)
+    return tuple(options.sources_dir / member for member in spec.members if member.endswith(".txt"))
 
 
-def _is_current(
-    spec: SourceSpec,
-    destination: Path,
-    result: FetchedSource,
-    options: BuildOptions,
-) -> bool:
-    """用上游文件的 SHA256 作为解压标记，避免 mtime 带来的误判。"""
+def _stamp_path(spec: SourceSpec, destination: Path, options: BuildOptions) -> Path:
+    return options.sources_dir / ".stamps" / f"{spec.name}.{destination.name}.sha256"
+
+
+def _write_stamp(spec: SourceSpec, destination: Path, result: FetchedSource, options: BuildOptions) -> None:
+    stamp = _stamp_path(spec, destination, options)
+    stamp.parent.mkdir(parents=True, exist_ok=True)
+    stamp.write_text(
+        json.dumps({"source": result.record.sha256, "target": sha256_file(destination)}) + "\n",
+        encoding="utf-8",
+    )
+    # 迁移旧版只记录归档摘要、无法发现解压文件损坏的标记。
+    (options.sources_dir / ".stamps" / f"{spec.name}.sha256").unlink(missing_ok=True)
+
+
+def _is_current(spec: SourceSpec, destination: Path, result: FetchedSource, options: BuildOptions) -> bool:
+    """目标文件摘要与上次成功解压一致时才复用，避免篡改或损坏内容进入构建。"""
     if not destination.exists():
         return False
-    stamp = options.sources_dir / ".stamps" / f"{spec.name}.sha256"
+    stamp = _stamp_path(spec, destination, options)
     if not stamp.exists():
         return False
-    if stamp.read_text(encoding="utf-8").strip() != result.record.sha256:
+    try:
+        payload = json.loads(stamp.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
         return False
-    stamp.touch()
-    return True
+    return (
+        isinstance(payload, dict)
+        and payload.get("source") == result.record.sha256
+        and payload.get("target") == sha256_file(destination)
+    )
 
 
 def _extract_i18n(archive: Path, options: BuildOptions) -> None:
