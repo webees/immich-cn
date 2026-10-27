@@ -798,7 +798,7 @@ class _StubFetched:
         self.record = SourceRecord(name=spec.name, url=spec.url, sha256=digest, size_bytes=path.stat().st_size)
 
 
-def test_materialize_reextracts_only_when_digest_changes(tmp_path: Path) -> None:
+def test_materialize_repairs_tampering_and_tracks_source_digest(tmp_path: Path) -> None:
     archive = tmp_path / "cities500.zip"
     with zipfile.ZipFile(archive, "w") as zf:
         zf.writestr("cities500.txt", "v1\n")
@@ -816,10 +816,10 @@ def test_materialize_reextracts_only_when_digest_changes(tmp_path: Path) -> None
     _materialize([fetched], options)  # type: ignore[list-item]
     assert destination.read_text(encoding="utf-8") == "v1\n"
 
-    # 同摘要不会覆盖本地内容
+    # 同摘要但目标文件被篡改时必须恢复，不能把损坏文本送进构建
     destination.write_text("tampered\n", encoding="utf-8")
     _materialize([fetched], options)  # type: ignore[list-item]
-    assert destination.read_text(encoding="utf-8") == "tampered\n"
+    assert destination.read_text(encoding="utf-8") == "v1\n"
 
     # 摘要变化会重新解压
     with zipfile.ZipFile(archive, "w") as zf:
@@ -827,3 +827,16 @@ def test_materialize_reextracts_only_when_digest_changes(tmp_path: Path) -> None
     fetched.record = SourceRecord(name=spec.name, url=spec.url, sha256="digest-2", size_bytes=archive.stat().st_size)
     _materialize([fetched], options)  # type: ignore[list-item]
     assert destination.read_text(encoding="utf-8") == "v2\n"
+
+    plain = tmp_path / "countryInfo.txt"
+    plain.write_text("original\n", encoding="utf-8")
+    plain_spec = SourceSpec(
+        name="countryInfo",
+        url="https://example.com/countryInfo.txt",
+        filename="countryInfo.txt",
+    )
+    plain_fetched = _StubFetched(plain_spec, plain, "digest-1")
+    _materialize([plain_fetched], options)  # type: ignore[list-item]
+    (options.sources_dir / "countryInfo.txt").write_text("tampered\n", encoding="utf-8")
+    _materialize([plain_fetched], options)  # type: ignore[list-item]
+    assert (options.sources_dir / "countryInfo.txt").read_text(encoding="utf-8") == "original\n"
