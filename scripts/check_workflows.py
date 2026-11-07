@@ -60,10 +60,10 @@ CANONICAL_OWN_SUFFIXES = ("", "-server")
 HARDCODED_OWN_REFERENCE = re.compile(r"ghcr\.io/([A-Za-z0-9._-]+)/(immich-cn[A-Za-z0-9._-]*)")
 CANONICAL_OWN_REPOSITORIES = {("webees", "immich-cn"), ("webees", "immich-cn-server")}
 DATA_BASE_PRIMARY = (
-    "public.ecr.aws/docker/library/alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6"
+    "public.ecr.aws/docker/library/alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a"
 )
 DATA_BASE_MIRROR = (
-    "mirror.gcr.io/library/alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6"
+    "mirror.gcr.io/library/alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a"
 )
 SERVER_BASE_PRIMARY = (
     "public.ecr.aws/docker/library/alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507"

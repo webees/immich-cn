@@ -26,7 +26,7 @@ def test_data_image_base_is_digest_pinned() -> None:
     image = bases[0].group("image")
     registry = image.split("@", 1)[0]
     assert registry in DATA_BASE_REGISTRIES
-    assert bases[0].group("digest") == "294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6"
+    assert bases[0].group("digest") == "3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a"
 
 
 def test_server_image_declares_combined_license() -> None:

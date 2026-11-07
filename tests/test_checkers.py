@@ -1240,9 +1240,9 @@ def test_check_workflows_requires_data_base_mirror_fallback(repo_copy: Path) -> 
     mutate(
         workflow,
         '              *) base_image="mirror.gcr.io/library/alpine:3.24@sha256:'
-        '294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6" ;;\n',
+        '3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a" ;;\n',
         '              *) base_image="public.ecr.aws/docker/library/alpine:3.24@sha256:'
-        '294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6" ;;\n',
+        '3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a" ;;\n',
     )
     result = run_checker(repo_copy, "check_workflows.py")
     assert result.returncode == 1
@@ -1264,7 +1264,7 @@ def test_check_workflows_requires_ci_data_base_fallback(repo_copy: Path) -> None
     mutate(
         workflow,
         '          data_mirror="mirror.gcr.io/library/alpine:3.24@sha256:'
-        '294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6"\n',
+        '3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a"\n',
         '          data_mirror="$data_base"\n',
     )
     result = run_checker(repo_copy, "check_workflows.py")

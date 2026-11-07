@@ -1,7 +1,7 @@
 # 纯数据镜像：把构建产物打成可以直接释放到宿主机的镜像。
 # 构建：docker build -f docker/geodata.Dockerfile -t ghcr.io/webees/immich-cn:local .
 # 默认使用 AWS Public ECR；CI 可在持续限流时切换到同摘要镜像源。
-ARG BASE_IMAGE=public.ecr.aws/docker/library/alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+ARG BASE_IMAGE=public.ecr.aws/docker/library/alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a
 FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.title="immich-cn geodata" \
