@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 522,
+  "round": 523,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 315,
+    "findings": 316,
     "clean_rounds": 196,
     "p0": 0,
     "p1": 37,
-    "p2": 226,
+    "p2": 227,
     "p3": 57
   },
   "status": "active",
-  "last_method": "M10 shell/容器安全审查",
+  "last_method": "M6 边界与异常输入",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -5279,6 +5279,16 @@
       "severity": "P2",
       "evidence": "`docker/geodata.Dockerfile:4` 固定的 Alpine 3.24 摘要包含 `zlib 1.3.2-r0`；失败运行 #42222637847 的 Trivy 制品发现 `CVE-2026-85091 zlib 1.3.2-r0 → 1.3.2-r1`（HIGH），自动更新在漏洞门禁退出。复现：`gh run view 42222637847 --repo webees/immich-cn --log-failed` 并检查 `trivy-data-vuln.tsv`；修复前期望 HIGH/CRITICAL=0，实际 data image 有 1 条 HIGH。将 `.github/workflows/_build-data.yml:307`、`.github/workflows/ci.yml:114`、`docker/geodata.Dockerfile:4`、`scripts/check_workflows.py:63` 与两组测试统一到多架构摘要 `3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a`，并解包 amd64/arm64 确认均含 `zlib 1.3.2-r1`；随后 CI 又暴露 `docker/login-action@v4` 的 tag 漂移，`.github/workflows/_build-data.yml:287` 同步固定到 `8aa5831fb8d48d8f76594c7ddde61ae58019f550`。本地 `make check` 570 passed、89.52% coverage；PR #354 四项必需检查全绿，squash 合并为 bf26707。修复后 Auto Data Update #42363683236 全链路成功，新 `trivy-data-vuln.tsv` 0 行、data image HIGH/CRITICAL=0，server 新增漏洞 0；#352 与 #353 已关闭。",
       "pr": "https://github.com/webees/immich-cn/pull/354"
+    },
+    {
+      "round": 523,
+      "timestamp": "2026-11-10T18:37:55+07:00",
+      "focus": "国家代码参数与数据目录路径边界",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`src/immich_cn/settings.py:40` 与 `src/immich_cn/pipeline.py:428` 原样接受 `--extra-countries`，`../escape` 会进入 GeoNames 源名、缓存文件名及 `sources/../escape.txt`。复现（main bf26707）：`PYTHONPATH=<main archive>/src .venv/bin/python` 调用 `_source_paths(BuildOptions(extra_countries=('../escape',)))`；期望 `ConfigError`，实际 `DID NOT RAISE ConfigError` 并得到 `.../sources/../escape.txt`。修复新增 `normalize_country_codes`，只接受两个 ASCII 字母并在 `parse_country_codes`、`BuildOptions`、`geonames_sources`、`_source_paths` 四处校验；`ß` 等 Unicode 大小写扩展也被拒绝。修复前新增断言均失败，修复后目标测试通过；`make check` 580 passed、89.62% coverage，死代码与 24 个 Action pin 校验通过。PR #358 四项必需检查全绿，squash 合并为 624300f。",
+      "pr": "https://github.com/webees/immich-cn/pull/358"
     }
   ],
   "residual_risks": [
