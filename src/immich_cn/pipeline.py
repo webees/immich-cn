@@ -68,6 +68,7 @@ from immich_cn.settings import (
     geonames_sources,
     i18n_sources,
     natural_earth_source,
+    normalize_country_codes,
 )
 
 logger = get_logger("build")
@@ -425,7 +426,7 @@ def _source_paths(options: BuildOptions) -> SourcePaths:
         country_info=_require(sources / "countryInfo.txt"),
         alternate_names=_require(sources / "alternateNamesV2.txt"),
         geojson=_require(sources / "ne_10m_admin_0_countries.geojson"),
-        country_dumps=tuple(sources / f"{code}.txt" for code in options.extra_countries),
+        country_dumps=tuple(sources / f"{code}.txt" for code in normalize_country_codes(options.extra_countries)),
         langs_dir=options.work_dir / "i18n-iso-countries" / "langs",
     )
     if not paths.langs_dir.exists():

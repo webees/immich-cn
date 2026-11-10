@@ -16,7 +16,7 @@ import immich_cn.packaging as packaging
 import immich_cn.pipeline as pipeline
 from immich_cn import __version__
 from immich_cn.domain import AdminEntry, Place, SourceRecord, iter_admin_areas
-from immich_cn.errors import ParseError, SourceError
+from immich_cn.errors import ConfigError, ParseError, SourceError
 from immich_cn.packaging import build_variants, package_all
 from immich_cn.pipeline import (
     _alternate_stream,
@@ -189,6 +189,16 @@ def test_country_dump_validation_rejects_binary_and_missing(tmp_path: Path) -> N
 
     with pytest.raises(ParseError, match="缺少国家 dump"):
         _validate_country_dumps((tmp_path / "MO.txt",))
+
+
+def test_source_paths_reject_mutated_path_like_country(build_options: BuildOptions) -> None:
+    """构造后修改 extra_countries 也不能让国家 dump 逃出 sources 目录。"""
+    from immich_cn.pipeline import _source_paths
+
+    build_options.extra_countries = ("../escape",)
+
+    with pytest.raises(ConfigError, match="两个 ASCII 字母"):
+        _source_paths(build_options)
 
 
 def test_build_rejects_configured_country_dump_missing_after_fetch(
