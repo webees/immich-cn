@@ -20,6 +20,8 @@ from immich_cn.settings import (
     DEFAULT_PATTERNS,
     BuildOptions,
     country_codes_env,
+    geonames_sources,
+    parse_country_codes,
     positive_int_env,
 )
 from immich_cn.validation import verify_geodata
@@ -70,6 +72,22 @@ def test_country_codes_env_normalizes_and_falls_back(monkeypatch: pytest.MonkeyP
 
     monkeypatch.setenv("IMMICH_CN_TEST_COUNTRIES", " , ")
     assert country_codes_env("IMMICH_CN_TEST_COUNTRIES", ("TW",)) == ("TW",)
+
+
+@pytest.mark.parametrize("value", ["/escape", "../escape", "C", "CHN", "CN.US", "中国", "ß"])
+def test_country_codes_reject_non_iso_values(value: str) -> None:
+    with pytest.raises(ConfigError, match="两个 ASCII 字母"):
+        parse_country_codes(f"CN,{value}", ("CN",))
+
+
+def test_build_options_rejects_path_like_extra_countries(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError, match="两个 ASCII 字母"):
+        BuildOptions(extra_countries=("CN", "../escape"), work_dir=tmp_path)
+
+
+def test_source_inventory_rejects_mutated_path_like_countries() -> None:
+    with pytest.raises(ConfigError, match="两个 ASCII 字母"):
+        geonames_sources(("../escape",))
 
 
 def test_cli_extra_countries_are_deduplicated() -> None:

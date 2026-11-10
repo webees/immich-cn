@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, get_args
@@ -23,6 +25,7 @@ I18N_ISO_COUNTRIES_URL = (
 )
 
 USER_AGENT = f"immich-cn/{__version__} (+https://github.com/webees/immich-cn)"
+COUNTRY_CODE_PATTERN = re.compile(r"[A-Z]{2}")
 
 
 def positive_int_env(name: str, default: int) -> int:
@@ -37,14 +40,24 @@ def positive_int_env(name: str, default: int) -> int:
     return value
 
 
+def normalize_country_codes(raw_codes: Iterable[str]) -> tuple[str, ...]:
+    """校验 ISO 3166-1 alpha-2 风格代码，统一大写并保持首次出现顺序。"""
+    codes: list[str] = []
+    for item in raw_codes:
+        stripped = item.strip()
+        code = stripped.upper()
+        if not code:
+            continue
+        if not stripped.isascii() or COUNTRY_CODE_PATTERN.fullmatch(code) is None:
+            raise ConfigError(f"国家或地区代码必须是两个 ASCII 字母：{item!r}")
+        if code not in codes:
+            codes.append(code)
+    return tuple(codes)
+
+
 def parse_country_codes(raw: str, default: tuple[str, ...]) -> tuple[str, ...]:
     """解析逗号分隔的国家或地区代码，统一大写、去除空白并保持首次出现顺序。"""
-    codes: list[str] = []
-    for item in raw.split(","):
-        code = item.strip().upper()
-        if code and code not in codes:
-            codes.append(code)
-    return tuple(codes) or default
+    return normalize_country_codes(raw.split(",")) or normalize_country_codes(default)
 
 
 def country_codes_env(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
@@ -150,7 +163,7 @@ def geonames_sources(extra_countries: tuple[str, ...] = DEFAULT_EXTRA_COUNTRIES)
             members=("alternateNamesV2.txt",),
         ),
     ]
-    for country in extra_countries:
+    for country in normalize_country_codes(extra_countries):
         sources.append(
             SourceSpec(
                 name=f"country_dump_{country}",
@@ -217,6 +230,7 @@ class BuildOptions:
             self.jobs = _default_jobs()
         if self.min_population < 0:
             raise ConfigError("min_population 不能为负数")
+        self.extra_countries = normalize_country_codes(self.extra_countries)
         if not self.patterns:
             raise ConfigError("至少需要一个展示粒度变体")
         for pattern in self.patterns:
