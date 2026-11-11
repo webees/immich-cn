@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import urllib.error
@@ -634,8 +635,10 @@ def test_verify_release_assets_requires_exact_match(tmp_path: Path, capsys: pyte
         def __init__(self, names: list[str]) -> None:
             self.names = names
 
-        def release_assets(self, tag: str) -> list[tuple[int, str]]:
-            return [(index, name) for index, name in enumerate(self.names, start=1)]
+        def release_asset_digests(self, tag: str) -> dict[str, str]:
+            expected = "sha256:" + hashlib.sha256(b"x").hexdigest()
+            placeholder = "sha256:" + "0" * 64
+            return {name: expected if name == "expected.zip" else placeholder for name in self.names}
 
     args = SimpleNamespace(dist_dir=tmp_path, verify_release_assets="auto-release")
     assert _verify_release_assets(_Client(["expected.zip"]), args) == 0
@@ -647,3 +650,41 @@ def test_verify_release_assets_requires_exact_match(tmp_path: Path, capsys: pyte
     error = capsys.readouterr().err
     assert "missing: expected.zip" in error
     assert "extra: other.zip" in error
+
+
+def test_verify_release_assets_rejects_same_name_content_mismatch(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """同名资产仍须校验内容摘要，避免损坏或陈旧文件被当成本次发布。"""
+    (tmp_path / "expected.zip").write_bytes(b"this build")
+
+    class _Client:
+        def release_asset_digests(self, tag: str) -> dict[str, str]:
+            return {"expected.zip": "sha256:" + "0" * 64}
+
+    args = SimpleNamespace(dist_dir=tmp_path, verify_release_assets="auto-release")
+
+    assert _verify_release_assets(_Client(), args) == 1
+    error = capsys.readouterr().err
+    assert "摘要不一致" in error
+    assert "expected.zip" in error
+
+
+def test_verify_release_assets_rejects_missing_or_malformed_digest(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """远端缺少合法 SHA-256 摘要时必须失败，不能退化为只比对文件名。"""
+    (tmp_path / "expected.zip").write_bytes(b"x")
+
+    class _Client:
+        def __init__(self, digest: str) -> None:
+            self.digest = digest
+
+        def release_asset_digests(self, tag: str) -> dict[str, str]:
+            return {"expected.zip": self.digest}
+
+    args = SimpleNamespace(dist_dir=tmp_path, verify_release_assets="auto-release")
+
+    for digest in ("", "sha256:abc"):
+        assert _verify_release_assets(_Client(digest), args) == 1
+        assert "摘要缺失或格式无效" in capsys.readouterr().err

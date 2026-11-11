@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -437,18 +438,30 @@ class GitHubClient:
         payload = self._request("GET", f"/repos/{self.repository}/commits/{encoded}")
         return str(payload.get("sha", "")) if isinstance(payload, dict) else ""
 
-    def release_assets(self, tag: str) -> list[tuple[int, str]]:
-        """返回 `<asset_id, name>` 列表；用于按当前 dist 清单回收滚动 Release 的旧资产。"""
+    def _release_asset_payloads(self, tag: str) -> list[dict[str, Any]]:
         encoded = urllib.parse.quote(tag, safe="")
         payload = self._request("GET", f"/repos/{self.repository}/releases/tags/{encoded}")
         if not isinstance(payload, dict) or "id" not in payload:
             raise CleanupError(f"无法解析 Release {tag} 的元数据")
-        assets = self._list(f"/repos/{self.repository}/releases/{payload['id']}/assets")
+        return self._list(f"/repos/{self.repository}/releases/{payload['id']}/assets")
+
+    def release_assets(self, tag: str) -> list[tuple[int, str]]:
+        """返回 `<asset_id, name>` 列表；用于按当前 dist 清单回收滚动 Release 的旧资产。"""
+        assets = self._release_asset_payloads(tag)
         return sorted(
             (int(item["id"]), str(item["name"]))
             for item in assets
             if isinstance(item.get("id"), int) and item.get("name")
         )
+
+    def release_asset_digests(self, tag: str) -> dict[str, str]:
+        """返回 Release 资产名到 GitHub 内容摘要的映射；缺失摘要用空字符串表示。"""
+        assets = self._release_asset_payloads(tag)
+        return {
+            str(item["name"]): item["digest"] if isinstance(item.get("digest"), str) else ""
+            for item in assets
+            if item.get("name")
+        }
 
     def delete_release_asset(self, asset_id: int) -> None:
         self._request(
@@ -636,6 +649,15 @@ def _release_manifest(dist_dir: Path) -> set[str]:
     return files
 
 
+def _sha256_file(path: Path) -> str:
+    """流式计算文件 SHA-256，避免大型发布制品一次性载入内存。"""
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return f"sha256:{digest.hexdigest()}"
+
+
 def _prune_release_assets(client: GitHubClient, args: argparse.Namespace) -> int:
     """按本地 dist 清单回收 Release 中不再发布的资产。"""
     keep = _release_manifest(args.dist_dir)
@@ -660,24 +682,42 @@ def _prune_release_assets(client: GitHubClient, args: argparse.Namespace) -> int
 
 
 def _verify_release_assets(client: GitHubClient, args: argparse.Namespace) -> int:
-    """验证 Release 资产集合与本地 dist 完全一致。"""
+    """验证 Release 资产集合及内容摘要与本地 dist 完全一致。"""
     expected = _release_manifest(args.dist_dir)
-    assets = client.release_assets(args.verify_release_assets)
-    actual = {name for _, name in assets}
+    remote_digests = client.release_asset_digests(args.verify_release_assets)
+    actual = set(remote_digests)
     missing = sorted(expected - actual)
     extra = sorted(actual - expected)
-    if not missing and not extra:
-        print(f"[OK] Release {args.verify_release_assets}：{len(actual)} 个资产与 dist 完全一致")
-        return 0
-    print(
-        f"[!!] Release {args.verify_release_assets} 与 dist 不一致：缺少 {len(missing)} 个，多出 {len(extra)} 个",
-        file=sys.stderr,
-    )
-    for name in missing:
-        print(f"  missing: {name}", file=sys.stderr)
-    for name in extra:
-        print(f"  extra: {name}", file=sys.stderr)
-    return 1
+    if missing or extra:
+        print(
+            f"[!!] Release {args.verify_release_assets} 与 dist 不一致：缺少 {len(missing)} 个，多出 {len(extra)} 个",
+            file=sys.stderr,
+        )
+        for name in missing:
+            print(f"  missing: {name}", file=sys.stderr)
+        for name in extra:
+            print(f"  extra: {name}", file=sys.stderr)
+        return 1
+
+    digest_errors: list[str] = []
+    for name in sorted(expected):
+        local_digest = _sha256_file(args.dist_dir / name)
+        remote_digest = remote_digests[name].strip().lower()
+        if re.fullmatch(r"sha256:[0-9a-f]{64}", remote_digest) is None:
+            digest_errors.append(f"{name}: 摘要缺失或格式无效（{remote_digests[name]!r}）")
+        elif local_digest != remote_digest:
+            digest_errors.append(f"{name}: 摘要不一致（本地 {local_digest}，远端 {remote_digest}）")
+    if digest_errors:
+        print(
+            f"[!!] Release {args.verify_release_assets} 资产摘要校验失败：{len(digest_errors)} 个",
+            file=sys.stderr,
+        )
+        for error in digest_errors:
+            print(f"  {error}", file=sys.stderr)
+        return 1
+
+    print(f"[OK] Release {args.verify_release_assets}：{len(actual)} 个资产的文件名与摘要均与 dist 一致")
+    return 0
 
 
 def _prune_legacy_assets(client: GitHubClient, args: argparse.Namespace) -> int:
