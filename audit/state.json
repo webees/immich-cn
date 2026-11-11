@@ -2,18 +2,18 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 523,
+  "round": 524,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 316,
+    "findings": 317,
     "clean_rounds": 196,
     "p0": 0,
     "p1": 37,
-    "p2": 227,
+    "p2": 228,
     "p3": 57
   },
   "status": "active",
-  "last_method": "M6 边界与异常输入",
+  "last_method": "M3 负向制品实验",
   "focus_rotation": [
     "测试有效性（断言能否失败、覆盖是否真实）",
     "校验与阈值（恒真检查、阈值误判、边界翻转）",
@@ -5289,6 +5289,16 @@
       "severity": "P2",
       "evidence": "`src/immich_cn/settings.py:40` 与 `src/immich_cn/pipeline.py:428` 原样接受 `--extra-countries`，`../escape` 会进入 GeoNames 源名、缓存文件名及 `sources/../escape.txt`。复现（main bf26707）：`PYTHONPATH=<main archive>/src .venv/bin/python` 调用 `_source_paths(BuildOptions(extra_countries=('../escape',)))`；期望 `ConfigError`，实际 `DID NOT RAISE ConfigError` 并得到 `.../sources/../escape.txt`。修复新增 `normalize_country_codes`，只接受两个 ASCII 字母并在 `parse_country_codes`、`BuildOptions`、`geonames_sources`、`_source_paths` 四处校验；`ß` 等 Unicode 大小写扩展也被拒绝。修复前新增断言均失败，修复后目标测试通过；`make check` 580 passed、89.62% coverage，死代码与 24 个 Action pin 校验通过。PR #358 四项必需检查全绿，squash 合并为 624300f。",
       "pr": "https://github.com/webees/immich-cn/pull/358"
+    },
+    {
+      "round": 524,
+      "timestamp": "2026-11-11T10:31:51+07:00",
+      "focus": "滚动 Release 发布制品完整性与自动化门禁",
+      "method": "M3 负向制品实验",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`scripts/cleanup.py:684` 的 `_verify_release_assets` 原先只比较 Release 资产文件名，同名但损坏、陈旧或被替换的内容仍输出 `[OK] Release auto-release：1 个资产与 dist 完全一致`。负向测试 `tests/test_cleanup.py:655` 对同名不同内容断言失败：期望返回 1 并报告摘要不一致，实际 `assert 0 == 1`。GitHub API 实测 `auto-release` 的 19 个资产均返回 `sha256:` 摘要；修复改为流式计算本地 SHA-256 并与远端 `digest` 逐项比较，摘要缺失、格式错误或不一致均失败。`make check` 582 passed、89.62% coverage；PR #359 四项必需检查全绿，squash 合并为 849860b。",
+      "pr": "https://github.com/webees/immich-cn/pull/359"
     }
   ],
   "residual_risks": [
