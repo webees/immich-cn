@@ -16,6 +16,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -454,14 +455,14 @@ class GitHubClient:
             if isinstance(item.get("id"), int) and item.get("name")
         )
 
-    def release_asset_digests(self, tag: str) -> dict[str, str]:
-        """返回 Release 资产名到 GitHub 内容摘要的映射；缺失摘要用空字符串表示。"""
+    def release_asset_digests(self, tag: str) -> list[tuple[str, str]]:
+        """返回 Release 资产名与 GitHub 内容摘要；缺失摘要用空字符串表示。"""
         assets = self._release_asset_payloads(tag)
-        return {
-            str(item["name"]): item["digest"] if isinstance(item.get("digest"), str) else ""
+        return [
+            (str(item["name"]), item["digest"] if isinstance(item.get("digest"), str) else "")
             for item in assets
             if item.get("name")
-        }
+        ]
 
     def delete_release_asset(self, asset_id: int) -> None:
         self._request(
@@ -684,21 +685,27 @@ def _prune_release_assets(client: GitHubClient, args: argparse.Namespace) -> int
 def _verify_release_assets(client: GitHubClient, args: argparse.Namespace) -> int:
     """验证 Release 资产集合及内容摘要与本地 dist 完全一致。"""
     expected = _release_manifest(args.dist_dir)
-    remote_digests = client.release_asset_digests(args.verify_release_assets)
-    actual = set(remote_digests)
+    remote_assets = client.release_asset_digests(args.verify_release_assets)
+    actual = {name for name, _ in remote_assets}
     missing = sorted(expected - actual)
     extra = sorted(actual - expected)
-    if missing or extra:
+    names = Counter(name for name, _ in remote_assets)
+    duplicates = sorted((name, count) for name, count in names.items() if count > 1)
+    if missing or extra or duplicates:
         print(
-            f"[!!] Release {args.verify_release_assets} 与 dist 不一致：缺少 {len(missing)} 个，多出 {len(extra)} 个",
+            f"[!!] Release {args.verify_release_assets} 与 dist 不一致："
+            f"缺少 {len(missing)} 个，多出 {len(extra)} 个，同名 {len(duplicates)} 个",
             file=sys.stderr,
         )
         for name in missing:
             print(f"  missing: {name}", file=sys.stderr)
         for name in extra:
             print(f"  extra: {name}", file=sys.stderr)
+        for name, count in duplicates:
+            print(f"  duplicate: {name}（远端 {count} 个）", file=sys.stderr)
         return 1
 
+    remote_digests = dict(remote_assets)
     digest_errors: list[str] = []
     for name in sorted(expected):
         local_digest = _sha256_file(args.dist_dir / name)
