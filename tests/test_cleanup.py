@@ -627,6 +627,18 @@ def test_prune_release_assets_continues_after_individual_failure(tmp_path: Path)
     assert deleted == [3]
 
 
+def test_release_asset_digests_preserves_duplicate_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    """API payload 中的同名资产必须全部保留，不能被映射折叠。"""
+    client = GitHubClient("webees/immich-cn", "token")
+    monkeypatch.setattr(
+        client,
+        "_release_asset_payloads",
+        lambda _tag: [{"name": "same.zip", "digest": "sha256:first"}, {"name": "same.zip"}],
+    )
+
+    assert client.release_asset_digests("auto-release") == [("same.zip", "sha256:first"), ("same.zip", "")]
+
+
 def test_verify_release_assets_requires_exact_match(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """发布后 reconciliation 必须同时拒绝缺失和多余资产。"""
     (tmp_path / "expected.zip").write_bytes(b"x")
@@ -635,10 +647,10 @@ def test_verify_release_assets_requires_exact_match(tmp_path: Path, capsys: pyte
         def __init__(self, names: list[str]) -> None:
             self.names = names
 
-        def release_asset_digests(self, tag: str) -> dict[str, str]:
+        def release_asset_digests(self, tag: str) -> list[tuple[str, str]]:
             expected = "sha256:" + hashlib.sha256(b"x").hexdigest()
             placeholder = "sha256:" + "0" * 64
-            return {name: expected if name == "expected.zip" else placeholder for name in self.names}
+            return [(name, expected if name == "expected.zip" else placeholder) for name in self.names]
 
     args = SimpleNamespace(dist_dir=tmp_path, verify_release_assets="auto-release")
     assert _verify_release_assets(_Client(["expected.zip"]), args) == 0
@@ -659,8 +671,8 @@ def test_verify_release_assets_rejects_same_name_content_mismatch(
     (tmp_path / "expected.zip").write_bytes(b"this build")
 
     class _Client:
-        def release_asset_digests(self, tag: str) -> dict[str, str]:
-            return {"expected.zip": "sha256:" + "0" * 64}
+        def release_asset_digests(self, tag: str) -> list[tuple[str, str]]:
+            return [("expected.zip", "sha256:" + "0" * 64)]
 
     args = SimpleNamespace(dist_dir=tmp_path, verify_release_assets="auto-release")
 
@@ -680,11 +692,31 @@ def test_verify_release_assets_rejects_missing_or_malformed_digest(
         def __init__(self, digest: str) -> None:
             self.digest = digest
 
-        def release_asset_digests(self, tag: str) -> dict[str, str]:
-            return {"expected.zip": self.digest}
+        def release_asset_digests(self, tag: str) -> list[tuple[str, str]]:
+            return [("expected.zip", self.digest)]
 
     args = SimpleNamespace(dist_dir=tmp_path, verify_release_assets="auto-release")
 
     for digest in ("", "sha256:abc"):
         assert _verify_release_assets(_Client(digest), args) == 1
         assert "摘要缺失或格式无效" in capsys.readouterr().err
+
+
+def test_verify_release_assets_rejects_duplicate_remote_names(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """同名远端资产必须保留全部条目，避免字典折叠后掩盖重复上传。"""
+    content = b"x"
+    (tmp_path / "expected.zip").write_bytes(content)
+    digest = "sha256:" + hashlib.sha256(content).hexdigest()
+
+    class _Client:
+        def release_asset_digests(self, tag: str) -> list[tuple[str, str]]:
+            return [("expected.zip", "sha256:" + "0" * 64), ("expected.zip", digest)]
+
+    args = SimpleNamespace(dist_dir=tmp_path, verify_release_assets="auto-release")
+
+    assert _verify_release_assets(_Client(), args) == 1
+    error = capsys.readouterr().err
+    assert "duplicate" in error
+    assert "expected.zip（远端 2 个）" in error
