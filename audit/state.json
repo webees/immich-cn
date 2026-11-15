@@ -2,14 +2,14 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 524,
+  "round": 525,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 317,
+    "findings": 318,
     "clean_rounds": 196,
     "p0": 0,
     "p1": 37,
-    "p2": 228,
+    "p2": 229,
     "p3": 57
   },
   "status": "active",
@@ -5299,6 +5299,16 @@
       "severity": "P2",
       "evidence": "`scripts/cleanup.py:684` 的 `_verify_release_assets` 原先只比较 Release 资产文件名，同名但损坏、陈旧或被替换的内容仍输出 `[OK] Release auto-release：1 个资产与 dist 完全一致`。负向测试 `tests/test_cleanup.py:655` 对同名不同内容断言失败：期望返回 1 并报告摘要不一致，实际 `assert 0 == 1`。GitHub API 实测 `auto-release` 的 19 个资产均返回 `sha256:` 摘要；修复改为流式计算本地 SHA-256 并与远端 `digest` 逐项比较，摘要缺失、格式错误或不一致均失败。`make check` 582 passed、89.62% coverage；PR #359 四项必需检查全绿，squash 合并为 849860b。",
       "pr": "https://github.com/webees/immich-cn/pull/359"
+    },
+    {
+      "round": 525,
+      "timestamp": "2026-11-15T14:52:34+08:00",
+      "focus": "滚动 Release 同名资产与摘要歧义",
+      "method": "M6 边界与异常输入",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`scripts/cleanup.py:458` 原先把 API 资产列表折叠为名字到摘要的字典，同名资产只保留最后一项；若远端同名项中最后一项恰好匹配，验证仍会输出成功并掩盖集合不唯一。负向测试 `tests/test_cleanup.py:698` 构造两个 `expected.zip`（前坏后好），修复前期望返回 1、实际 `assert 0 == 1`。真实 `auto-release` API 当前 19 个资产均带 `sha256:` 摘要，重复上传现有文件名会被 `gh release upload` 以 same name 拒绝。修复改为保留 `(name, digest)` 列表并统计重复名称，在摘要比较前逐项报告远端数量；API payload 保留重复项与验证器拒绝重复各有回归测试。`make check` 582 passed、89.62% coverage；PR #360 四项必需检查全绿，squash 合并为 4e43592。",
+      "pr": "https://github.com/webees/immich-cn/pull/360"
     }
   ],
   "residual_risks": [
@@ -5318,7 +5328,8 @@
     "第 521 轮对每个已解压数据源增加了 SHA256 校验，但未在完整真实数据源集合上量化新增 I/O 开销；若大文件哈希成为日常更新瓶颈，可再引入受控的 size/mtime 快检并保留摘要兜底",
     "第 521 轮只验证普通归档成员和直接文件的落盘篡改；i18n tar 仍每次重新解压，单文件写入不是原子替换，失败会使本次构建退出，但半完成目录仍留给后续重试覆盖",
     "第 522 轮修复了当前 Alpine 3.24 多架构摘要中的 zlib CVE，但漏洞库后续更新仍可能让同一摘要重新变红；当前依赖每次构建实时扫描，尚无自动创建基础镜像升级 PR 的机制",
-    "第 522 轮成功制品的 server 覆盖镜像仍有 43 条继承自上游 Immich 镜像的漏洞、新增漏洞为 0；现有门禁只阻断覆盖层新增项，上游继承项的修复仍依赖 Immich 官方镜像更新"
+    "第 522 轮成功制品的 server 覆盖镜像仍有 43 条继承自上游 Immich 镜像的漏洞、新增漏洞为 0；现有门禁只阻断覆盖层新增项，上游继承项的修复仍依赖 Immich 官方镜像更新",
+    "第 525 轮用合成 API 响应验证同名资产；真实 `auto-release` 当前没有重复项，平台实际产生重复数据时仍需确认真实 API 顺序与分页返回形态"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
