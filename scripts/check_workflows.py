@@ -318,6 +318,21 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
         errors.append(f"{path} server 组合镜像未声明 AGPL-3.0-only AND MIT")
 
 
+def check_imagetools_inspect_retry(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
+    """GHCR manifest/digest 查询必须经过瞬时限流重试。"""
+    del workflow
+    text = path.read_text(encoding="utf-8")
+    inspect_count = text.count("docker buildx imagetools inspect")
+    retry_count = text.count("bash scripts/docker-imagetools-inspect-retry.sh")
+    if retry_count == 0 and inspect_count == 0:
+        return
+    if retry_count == 0 or inspect_count > 0:
+        errors.append(
+            f"{path} 的 base digest 查询未使用瞬时限流重试"
+            f"（imagetools inspect {inspect_count} 次，重试包装 {retry_count} 次）"
+        )
+
+
 def check_data_base_mirror_fallback(path: Path, workflow: dict[str, Any], errors: list[str]) -> None:
     """数据镜像必须能在 Public ECR 限流时切换到同摘要镜像源。"""
     if path.name not in {"_build-data.yml", "ci.yml"}:
@@ -873,6 +888,7 @@ def main() -> int:
         check_release_asset_reconciliation(path, workflow, errors)
         check_snapshot_immutability(path, workflow, errors)
         check_image_supply_chain(path, workflow, errors)
+        check_imagetools_inspect_retry(path, workflow, errors)
         check_data_base_mirror_fallback(path, workflow, errors)
         check_ghcr_package_names(path, workflow, errors)
         check_version_release(path, workflow, errors)
