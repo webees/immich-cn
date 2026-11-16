@@ -1094,6 +1094,52 @@ def test_check_docs_rejects_unregistered_asset_names(repo_copy: Path) -> None:
 # --------------------------------------------------------------------------
 
 
+def test_inspect_retry_recovers_from_transient_429(tmp_path: Path) -> None:
+    """GHCR 一次瞬时限流不应让完整数据构建在变化判断阶段终止。"""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    calls = tmp_path / "calls"
+    docker = bin_dir / "docker"
+    docker.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+count=0
+if [ -f "$DOCKER_CALLS" ]; then
+  count="$(wc -c < "$DOCKER_CALLS")"
+fi
+printf x >> "$DOCKER_CALLS"
+if [ "$count" -lt 2 ]; then
+  echo "unexpected status from GET: 429 Too Many Requests" >&2
+  exit 1
+fi
+printf '{"digest":"sha256:ok"}\\n'
+""",
+        encoding="utf-8",
+    )
+    docker.chmod(0o755)
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(REPO_ROOT / "scripts" / "docker-imagetools-inspect-retry.sh"),
+            "ghcr.io/example/image:tag",
+            "{{json .Manifest}}",
+        ],
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "DOCKER_CALLS": str(calls),
+            "DOCKER_RETRY_BASE_DELAY_SECONDS": "0",
+            "PATH": f"{bin_dir}:{os.environ['PATH']}",
+        },
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert calls.read_text(encoding="utf-8") == "xxx"
+    assert result.stdout == '{"digest":"sha256:ok"}\n'
+
+
 def test_check_workflows_detects_missing_concurrency_for_legacy_on_key() -> None:
     workflow = {True: {"schedule": [{"cron": "5 23 * * *"}]}}
     errors: list[str] = []
@@ -1232,6 +1278,19 @@ def test_check_workflows_requires_server_base_digest(repo_copy: Path) -> None:
     result = run_checker(repo_copy, "check_workflows.py")
     assert result.returncode == 1
     assert "base digest" in result.stdout
+
+
+def test_check_workflows_requires_ghcr_inspect_retry(repo_copy: Path) -> None:
+    """base digest 查询绕过重试包装时，一次 GHCR 429 仍会中断数据构建。"""
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(
+        workflow,
+        "            bash scripts/docker-imagetools-inspect-retry.sh \"$base_image\" '{{json .Manifest}}' \\\n",
+        "            docker buildx imagetools inspect \"$base_image\" --format '{{json .Manifest}}' \\\n",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "base digest 查询未使用瞬时限流重试" in result.stdout
 
 
 def test_check_workflows_requires_data_base_mirror_fallback(repo_copy: Path) -> None:
