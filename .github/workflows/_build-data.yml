@@ -187,7 +187,11 @@ jobs:
               --json assets --jq '.assets[].name' 2>/dev/null | sort)"
             local_assets="$(find dist -maxdepth 1 -type f -printf '%f\n' | sort)"
             if [ "$remote_assets" = "$local_assets" ]; then
-              release_assets_ok=true
+              if python scripts/cleanup.py --verify-release-assets auto-release --dist-dir dist; then
+                release_assets_ok=true
+              else
+                echo "auto-release 同名资产内容摘要不一致，强制发布并修复损坏资产"
+              fi
             else
               echo "auto-release 资产与本次 dist 不一致，强制发布并回收多余/缺失资产"
             fi

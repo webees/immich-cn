@@ -308,6 +308,9 @@ def check_image_supply_chain(path: Path, workflow: dict[str, Any], errors: list[
         errors.append(f"{path} change detection 未把 data image 存在性纳入重建判断")
     if "release_assets_ok" not in text or '[ "$release_assets_ok" = true ]' not in raw_text:
         errors.append(f"{path} change detection 未把 Release asset 集合纳入重建判断")
+    release_gate = raw_text.partition("release_assets_ok=false")[2].partition("snapshot_ok=false")[0]
+    if "python scripts/cleanup.py --verify-release-assets auto-release --dist-dir dist" not in release_gate:
+        errors.append(f"{path} change detection 未校验 Release asset 内容摘要")
     if "snapshot_ok" not in text or '[ "$snapshot_ok" = true ]' not in raw_text:
         errors.append(f"{path} change detection 未把最新 data-* 不可变快照纳入重建判断")
     if text.count("imagetools create") < 1 or text.count("${IMAGE_VERSION}") < 2:
