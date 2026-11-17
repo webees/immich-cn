@@ -1435,6 +1435,19 @@ def test_check_workflows_requires_release_assets_in_change_detection(repo_copy: 
     assert "Release asset 集合" in result.stdout
 
 
+def test_check_workflows_requires_release_asset_digests_in_change_detection(repo_copy: Path) -> None:
+    """Release 资产同名但内容损坏时不能因 fingerprint 未变而跳过发布。"""
+    workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
+    mutate(
+        workflow,
+        "python scripts/cleanup.py --verify-release-assets auto-release --dist-dir dist",
+        "true",
+    )
+    result = run_checker(repo_copy, "check_workflows.py")
+    assert result.returncode == 1
+    assert "Release asset 内容摘要" in result.stdout
+
+
 def test_check_workflows_requires_snapshot_in_change_detection(repo_copy: Path) -> None:
     """最新 data-* 快照缺失或 fingerprint 不一致时不能跳过发布。"""
     workflow = repo_copy / ".github" / "workflows" / "_build-data.yml"
