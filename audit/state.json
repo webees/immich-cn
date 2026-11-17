@@ -2,14 +2,14 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 526,
+  "round": 527,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 319,
+    "findings": 320,
     "clean_rounds": 196,
     "p0": 0,
     "p1": 37,
-    "p2": 230,
+    "p2": 231,
     "p3": 57
   },
   "status": "active",
@@ -5319,6 +5319,16 @@
       "severity": "P2",
       "evidence": "`.github/workflows/_build-data.yml:142-146` 的 base digest 查询直接执行 `docker buildx imagetools inspect`，真实 run 43716003583 在「判断发布内容是否有变化」遇到一次 GHCR 429 即失败，期望重试后继续、实际立即终止。负向测试 `tests/test_checkers.py:1105` 用假 docker 让前两次 429、第三次成功；修复前脚本不存在并退出 127，修复后三次调用后成功，工作流契约测试也在检查器实现前返回 0。新增重试脚本对 429/5xx、超时、连接重置等瞬态错误最多重试 3 次并指数退避，数据构建和发布共 5 处 digest 查询统一接入，契约检查禁止裸 imagetools inspect 回退。`make check` 586 passed、89.62% coverage；PR #363 四项必需检查全绿，squash 合并为 8b1b9b6。",
       "pr": "https://github.com/webees/immich-cn/pull/363"
+    },
+    {
+      "round": 527,
+      "timestamp": "2026-11-17T10:11:35+08:00",
+      "focus": "发布变更检测的 Release 同内容完整性",
+      "method": "M3 负向制品实验",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`.github/workflows/_build-data.yml:184-198` 原先仅比较 Release 与 dist 的文件名；manifest 指纹、base/data 镜像和快照均未变时，同名但内容损坏的资产仍会得到 `release_assets_ok=true` 并输出 `changed=false`，后续清理摘要校验不会运行。真实负向实验用当前 `dist` 对比远端 `auto-release`：19 个同名资产摘要全部不同，`cleanup.py --verify-release-assets` 返回 1；期望触发重新发布、旧门禁实际仍按同名判为无变化。新增 `tests/test_checkers.py:1438` 契约测试在接入命令前失败，修复后通过。变更检测现于文件名一致时调用流式 SHA256 校验，不一致则重新发布；契约检查限定该调用必须位于 Release 门禁内。`make check` 通过，PR #364 四项必需检查全绿，squash 合并为 5953181。",
+      "pr": "https://github.com/webees/immich-cn/pull/364"
     }
   ],
   "residual_risks": [
@@ -5340,7 +5350,8 @@
     "第 522 轮修复了当前 Alpine 3.24 多架构摘要中的 zlib CVE，但漏洞库后续更新仍可能让同一摘要重新变红；当前依赖每次构建实时扫描，尚无自动创建基础镜像升级 PR 的机制",
     "第 522 轮成功制品的 server 覆盖镜像仍有 43 条继承自上游 Immich 镜像的漏洞、新增漏洞为 0；现有门禁只阻断覆盖层新增项，上游继承项的修复仍依赖 Immich 官方镜像更新",
     "第 525 轮用合成 API 响应验证同名资产；真实 `auto-release` 当前没有重复项，平台实际产生重复数据时仍需确认真实 API 顺序与分页返回形态",
-    "第 526 轮用假 docker 验证 429 重试，尚未在真实 GHCR 限流窗口复跑；最多 3 次、5/10 秒退避对持续限流可能仍不足，CLI 错误也未提供 Retry-After 适配"
+    "第 526 轮用假 docker 验证 429 重试，尚未在真实 GHCR 限流窗口复跑；最多 3 次、5/10 秒退避对持续限流可能仍不足，CLI 错误也未提供 Retry-After 适配",
+    "第 527 轮用真实远端资产与陈旧本地 dist 验证摘要不一致，但尚未从一次真实自动更新运行观察 `changed` 由 false 翻到 true；工作流内执行分支仍由契约测试而非端到端 shell 假服务覆盖"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
