@@ -66,6 +66,79 @@ def test_write_admin_file_includes_place_referenced_codes(tmp_path: Path) -> Non
     assert not any(line.startswith("DE.02.091\t不应覆盖") for line in lines)
 
 
+def test_place_admin1_mismatch_recovers_unique_admin2_suffix(
+    build_options: BuildOptions,
+) -> None:
+    """行政一级代码错配时，仍应按国内唯一 admin2 后缀恢复正常名称。"""
+    sources = build_options.work_dir / "sources"
+    cn_path = sources / "CN.txt"
+    admin2_path = sources / "admin2Codes.txt"
+    alternate_path = sources / "alternateNamesV2.txt"
+    write_lines(
+        admin2_path,
+        [
+            *admin2_path.read_text(encoding="utf-8").splitlines(),
+            "CN.99.XYZ\tSuffix City\tSuffix City\t9900",
+        ],
+    )
+    write_lines(
+        cn_path,
+        [
+            *cn_path.read_text(encoding="utf-8").splitlines(),
+            geo_row(
+                9301,
+                "Cun Alpha",
+                alternates="甲村,Alpha",
+                latitude="31.50",
+                longitude="120.90",
+                admin1="04",
+                admin2="XYZ",
+                population=500,
+            ),
+            geo_row(
+                9302,
+                "Cun Beta",
+                alternates="乙村,Beta",
+                latitude="31.51",
+                longitude="120.91",
+                admin1="04",
+                admin2="XYZ",
+                population=500,
+            ),
+        ],
+    )
+    write_lines(
+        alternate_path,
+        [
+            *alternate_path.read_text(encoding="utf-8").splitlines(),
+            alternate_row(101, 9301, "zh", "甲村", preferred=True),
+            alternate_row(102, 9302, "zh", "乙村", preferred=True),
+            alternate_row(103, 9900, "zh", "后缀市", preferred=True),
+        ],
+    )
+
+    result = run_build(build_options)
+
+    lines = (result.geodata_dir / "admin2Codes.txt").read_text(encoding="utf-8").splitlines()
+    assert "CN.04.XYZ\t后缀市\t后缀市\t" in lines
+    assert not any(name in line for line in lines for name in ("甲村", "乙村"))
+
+    package_all(build_options, result)
+    with zipfile.ZipFile(build_options.dist_dir / "immich-cn-dataset-sqlite-v1.zip") as archive:
+        database = build_options.work_dir / "ambiguous-admin2.sqlite"
+        database.write_bytes(archive.read("immich-cn-dataset-v1.sqlite"))
+    connection = sqlite3.connect(database)
+    try:
+        assert connection.execute(
+            "SELECT DISTINCT admin2 FROM place_names WHERE geoname_id IN (9301, 9302)"
+        ).fetchall() == [("后缀市",)]
+        assert connection.execute("SELECT name FROM admin_areas WHERE level = 2 AND code = 'CN.04.XYZ'").fetchone() == (
+            "后缀市",
+        )
+    finally:
+        connection.close()
+
+
 def test_end_to_end_build(build_options: BuildOptions) -> None:
     result = run_build(build_options)
 
