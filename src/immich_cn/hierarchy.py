@@ -31,10 +31,30 @@ class Hierarchy:
     admin2: dict[str, str] = field(default_factory=dict)
     admin3: dict[str, str] = field(default_factory=dict)
     admin4: dict[str, str] = field(default_factory=dict)
+    admin2_suffixes: dict[tuple[str, str], str | None] = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        suffix_names: dict[tuple[str, str], set[str]] = {}
+        for code, name in self.admin2.items():
+            parts = code.split(".")
+            if len(parts) != 3:
+                continue
+            suffix_names.setdefault((parts[0], parts[2]), set()).add(name)
+        self.admin2_suffixes = {
+            key: next(iter(names)) if len(names) == 1 else None for key, names in suffix_names.items()
+        }
 
     def lookup(self, level: int, code: str) -> str:
         table = {1: self.admin1, 2: self.admin2, 3: self.admin3, 4: self.admin4}[level]
-        return table.get(code, "")
+        value = table.get(code, "")
+        if value or level != 2:
+            return value
+        parts = code.split(".")
+        if len(parts) != 3:
+            return ""
+        # GeoNames 个别地点的 admin1 代码与 admin2 表不一致；仅在省内
+        # admin2 后缀只对应一个名称时恢复，避免跨省碰撞或任选村名。
+        return self.admin2_suffixes.get((parts[0], parts[2])) or ""
 
     def as_stats(self) -> dict[str, int]:
         return {

@@ -35,6 +35,29 @@ def test_resolve_place_names_uses_hierarchy() -> None:
     assert names.admin_4 == "周市镇"
 
 
+def test_resolve_place_names_recovers_unique_admin2_suffix() -> None:
+    hierarchy = Hierarchy(admin2={"CN.25.3714": "德州市"})
+    place = make_place(admin1="10", admin2="3714")
+
+    names = resolve_place_names(place, hierarchy, ChineseNameIndex())
+
+    assert names.admin_2 == "德州市"
+
+
+def test_resolve_place_names_rejects_ambiguous_admin2_suffix() -> None:
+    hierarchy = Hierarchy(
+        admin2={
+            "CN.25.3714": "德州市",
+            "CN.37.3714": "另一个市",
+        }
+    )
+    place = make_place(admin1="10", admin2="3714")
+
+    names = resolve_place_names(place, hierarchy, ChineseNameIndex())
+
+    assert names.admin_2 == ""
+
+
 def test_finalize_fills_gaps() -> None:
     index = ChineseNameIndex()
     place = make_place(admin1="04", admin2="SZ")
