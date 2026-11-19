@@ -2,14 +2,14 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 527,
+  "round": 528,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 320,
+    "findings": 321,
     "clean_rounds": 196,
     "p0": 0,
     "p1": 37,
-    "p2": 231,
+    "p2": 232,
     "p3": 57
   },
   "status": "active",
@@ -5329,6 +5329,16 @@
       "severity": "P2",
       "evidence": "`.github/workflows/_build-data.yml:184-198` 原先仅比较 Release 与 dist 的文件名；manifest 指纹、base/data 镜像和快照均未变时，同名但内容损坏的资产仍会得到 `release_assets_ok=true` 并输出 `changed=false`，后续清理摘要校验不会运行。真实负向实验用当前 `dist` 对比远端 `auto-release`：19 个同名资产摘要全部不同，`cleanup.py --verify-release-assets` 返回 1；期望触发重新发布、旧门禁实际仍按同名判为无变化。新增 `tests/test_checkers.py:1438` 契约测试在接入命令前失败，修复后通过。变更检测现于文件名一致时调用流式 SHA256 校验，不一致则重新发布；契约检查限定该调用必须位于 Release 门禁内。`make check` 通过，PR #364 四项必需检查全绿，squash 合并为 5953181。",
       "pr": "https://github.com/webees/immich-cn/pull/364"
+    },
+    {
+      "round": 528,
+      "timestamp": "2026-11-18T17:21:00+08:00",
+      "focus": "GeoNames 行政一级代码错配导致 admin2 村名折叠",
+      "method": "M5 真实数据抽样",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`src/immich_cn/hierarchy.py` 的 `Hierarchy.lookup()` 原只按完整 `CC.admin1.admin2` 键查表；真实 `data-2026-11-17` 中 103 个 admin2 代码被同一地点行回退成多个非空村名，其中 `CN.10.3714` 有 138 个不同名称并被 `admin_areas` 折叠为“雷家营盘村”，而上游唯一有效对应项是 `CN.25.3714=德州市`。合成负向测试 `tests/test_pipeline.py::test_place_admin1_mismatch_recovers_unique_admin2_suffix` 在修复前期望“德州市”、实际落成“甲村/乙村”；修复仅在同省内 admin2 后缀唯一对应一个名称时恢复，避免跨省碰撞，规范数据集与 Immich 适配器同步通过，跨省歧义保持未解析。`make check` 587 passed、89.62% coverage；PR #365 四项必需检查全绿，squash 合并为 a2906ec。",
+      "pr": "https://github.com/webees/immich-cn/pull/365"
     }
   ],
   "residual_risks": [
@@ -5351,7 +5361,8 @@
     "第 522 轮成功制品的 server 覆盖镜像仍有 43 条继承自上游 Immich 镜像的漏洞、新增漏洞为 0；现有门禁只阻断覆盖层新增项，上游继承项的修复仍依赖 Immich 官方镜像更新",
     "第 525 轮用合成 API 响应验证同名资产；真实 `auto-release` 当前没有重复项，平台实际产生重复数据时仍需确认真实 API 顺序与分页返回形态",
     "第 526 轮用假 docker 验证 429 重试，尚未在真实 GHCR 限流窗口复跑；最多 3 次、5/10 秒退避对持续限流可能仍不足，CLI 错误也未提供 Retry-After 适配",
-    "第 527 轮用真实远端资产与陈旧本地 dist 验证摘要不一致，但尚未从一次真实自动更新运行观察 `changed` 由 false 翻到 true；工作流内执行分支仍由契约测试而非端到端 shell 假服务覆盖"
+    "第 527 轮用真实远端资产与陈旧本地 dist 验证摘要不一致，但尚未从一次真实自动更新运行观察 `changed` 由 false 翻到 true；工作流内执行分支仍由契约测试而非端到端 shell 假服务覆盖",
+    "第 528 轮用真实数据确认同省内 admin2 后缀唯一可恢复 34 个冲突代码，但仍有 5 个无可匹配后缀、以及跨省同名后缀保持未解析；这些地点继续使用地点名回退，需上游修正 admin1 映射才能自动恢复"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
