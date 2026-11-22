@@ -2122,6 +2122,7 @@ def _admin_dist(
     dataset_rows: list[tuple[int, str, str]],
     admin1_rows: list[tuple[str, str]],
     admin2_rows: list[tuple[str, str]] | None = None,
+    place_name_overrides: dict[tuple[int, str], str] | None = None,
 ) -> Path:
     """构造只含 admin 表的 dataset + geodata 制品，用于一致性护栏的负向控制。"""
     dist = root / "dist"
@@ -2140,7 +2141,44 @@ def _admin_dist(
     connection = sqlite3.connect(database)
     try:
         connection.execute("CREATE TABLE admin_areas (level INTEGER, code TEXT, name TEXT, PRIMARY KEY (level, code))")
+        connection.execute(
+            """
+            CREATE TABLE places (
+                geoname_id INTEGER PRIMARY KEY,
+                country_code TEXT,
+                admin1_code TEXT,
+                admin2_code TEXT,
+                admin3_code TEXT,
+                admin4_code TEXT
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE place_names (
+                geoname_id INTEGER PRIMARY KEY,
+                admin1 TEXT,
+                admin2 TEXT,
+                admin3 TEXT,
+                admin4 TEXT
+            )
+            """
+        )
         connection.executemany("INSERT INTO admin_areas(level, code, name) VALUES (?, ?, ?)", dataset_rows)
+        for geoname_id, (level, code, name) in enumerate(dataset_rows):
+            parts = code.split(".")
+            parts += [""] * (5 - len(parts))
+            codes = (parts[1], parts[2], parts[3], parts[4])
+            names = ["", "", "", ""]
+            names[level - 1] = (place_name_overrides or {}).get((level, code), name)
+            connection.execute(
+                "INSERT INTO places VALUES (?, ?, ?, ?, ?, ?)",
+                (geoname_id, parts[0], *codes),
+            )
+            connection.execute(
+                "INSERT INTO place_names VALUES (?, ?, ?, ?, ?)",
+                (geoname_id, *names),
+            )
         connection.commit()
     finally:
         connection.close()
@@ -2198,6 +2236,20 @@ def test_check_artifacts_admin_area_consistency_detects_undocumented_drift(tmp_p
     assert any("未记录差异" in error for error in errors), errors
 
 
+def test_check_artifacts_admin_area_consistency_detects_admin2_suffix_drift(tmp_path: Path) -> None:
+    """规范表与适配器同步丢掉 admin2 后缀时，也必须识别为名称漂移。"""
+    dist = _admin_dist(
+        tmp_path,
+        dataset_rows=[(1, "CN.04", "江苏省"), (2, "CN.25.3714", "德州")],
+        admin1_rows=[("CN.04", "江苏省")],
+        admin2_rows=[("CN.25.3714", "德州")],
+        place_name_overrides={(2, "CN.25.3714"): "德州市"},
+    )
+    errors: list[str] = []
+    check_artifacts.check_admin_area_consistency(dist, errors)
+    assert any("CN.25.3714: name='德州' places=['德州市']" in error for error in errors), errors
+
+
 def test_check_artifacts_admin_area_consistency_flags_empty_inventory(tmp_path: Path) -> None:
     """两侧都没有可比数据时不能算通过，否则护栏会变成恒真。"""
     dist = _admin_dist(tmp_path, dataset_rows=[], admin1_rows=[])
@@ -2241,16 +2293,29 @@ def _make_dist(root: Path) -> Path:
             CREATE TABLE sources (name TEXT PRIMARY KEY, url TEXT, sha256 TEXT, size_bytes INTEGER);
             CREATE TABLE countries (code TEXT PRIMARY KEY, name TEXT, iso3 TEXT, iso_numeric TEXT, geoname_id INTEGER);
             CREATE TABLE admin_areas (level INTEGER, code TEXT, name TEXT, PRIMARY KEY (level, code));
-            CREATE TABLE places (geoname_id INTEGER PRIMARY KEY);
-            CREATE TABLE place_names (geoname_id INTEGER PRIMARY KEY REFERENCES places(geoname_id));
+            CREATE TABLE places (
+                geoname_id INTEGER PRIMARY KEY,
+                country_code TEXT,
+                admin1_code TEXT,
+                admin2_code TEXT,
+                admin3_code TEXT,
+                admin4_code TEXT
+            );
+            CREATE TABLE place_names (
+                geoname_id INTEGER PRIMARY KEY REFERENCES places(geoname_id),
+                admin1 TEXT,
+                admin2 TEXT,
+                admin3 TEXT,
+                admin4 TEXT
+            );
             INSERT INTO dataset_meta(key, value) VALUES
                 ('format', 'immich-cn.dataset/1'),
                 ('schemaVersion', '1');
             INSERT INTO sources(name, url, sha256, size_bytes) VALUES
                 ('cities500', 'https://example.com/cities500.zip', 'abc', 1);
             INSERT INTO countries(code, name) VALUES ('CN', '中国');
-            INSERT INTO places(geoname_id) VALUES (1);
-            INSERT INTO place_names(geoname_id) VALUES (1);
+            INSERT INTO places VALUES (1, 'CN', '22', '11876380', '', '');
+            INSERT INTO place_names VALUES (1, '北京市', '北京市', '', '');
             INSERT INTO admin_areas(level, code, name) VALUES
                 (1, 'CN.22', '北京市'),
                 (2, 'CN.22.11876380', '北京市');

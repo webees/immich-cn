@@ -23,7 +23,7 @@ from immich_cn.artifact_spec import (
     validate_artifact_id,
     validate_canonical_filename,
 )
-from immich_cn.localization import SPECIAL_ADMIN_TOP_LEVEL
+from immich_cn.localization import DEFAULT_STRIP_SUFFIXES, SPECIAL_ADMIN_TOP_LEVEL
 
 GEO_COLUMNS = 19
 MAX_ARCHIVE_UNCOMPRESSED_BYTES = 2 * 1024**3
@@ -297,6 +297,37 @@ def _dataset_admin_areas(dataset: Path) -> dict[tuple[int, str], str]:
             connection.close()
 
 
+def _dataset_place_admin_names(dataset: Path) -> dict[tuple[int, str], set[str]]:
+    """读出地点记录实际引用代码时使用的层级名称，供规范表反向校验。"""
+    names: dict[tuple[int, str], set[str]] = {}
+    with zipfile.ZipFile(dataset) as archive, tempfile.TemporaryDirectory(prefix="immich-cn-admin-") as temporary:
+        sqlite_path = Path(temporary) / DATASET_MEMBER
+        with archive.open(DATASET_MEMBER) as source, sqlite_path.open("wb") as target:
+            shutil.copyfileobj(source, target)
+        connection = sqlite3.connect(f"file:{sqlite_path}?mode=ro", uri=True)
+        try:
+            rows = connection.execute(
+                """
+                SELECT p.country_code, p.admin1_code, p.admin2_code, p.admin3_code,
+                       p.admin4_code, n.admin1, n.admin2, n.admin3, n.admin4
+                FROM places AS p JOIN place_names AS n USING (geoname_id)
+                """
+            )
+            for country, a1, a2, a3, a4, n1, n2, n3, n4 in rows:
+                for level, codes, name in (
+                    (1, (a1,), n1),
+                    (2, (a1, a2), n2),
+                    (3, (a1, a2, a3), n3),
+                    (4, (a1, a2, a3, a4), n4),
+                ):
+                    if all(codes) and name:
+                        code = ".".join((country, *codes))
+                        names.setdefault((level, code), set()).add(str(name))
+        finally:
+            connection.close()
+    return names
+
+
 def _adapter_admin_names(geodata: Path) -> dict[tuple[int, str], str]:
     """读出 Immich 适配器里 admin1/admin2 表的 ``(level, code) -> name``。"""
     names: dict[tuple[int, str], str] = {}
@@ -324,6 +355,7 @@ def check_admin_area_consistency(dist: Path, errors: list[str]) -> None:
     geodata = candidates[0]
     try:
         dataset_admin = _dataset_admin_areas(dataset)
+        place_admin = _dataset_place_admin_names(dataset)
         adapter_admin = _adapter_admin_names(geodata)
     except (zipfile.BadZipFile, OSError, sqlite3.Error, UnicodeDecodeError, KeyError) as error:
         errors.append(f"无法比对 admin 层级一致性（{geodata.name} vs {DATASET_FILE}）：{error}")
@@ -331,6 +363,23 @@ def check_admin_area_consistency(dist: Path, errors: list[str]) -> None:
     if not dataset_admin or not adapter_admin:
         errors.append("admin 层级一致性检查没有可比较的数据，护栏可能已失效")
         return
+
+    invalid: list[str] = []
+    for (level, code), name in sorted(dataset_admin.items()):
+        observed = place_admin.get((level, code), set())
+        suffixes = DEFAULT_STRIP_SUFFIXES.get(code.split(".")[0], ())
+        if observed and not any(
+            candidate == name
+            or any(
+                candidate.endswith(suffix) and candidate[: -len(suffix)] == name
+                for suffix in suffixes
+                if candidate != suffix
+            )
+            for candidate in observed
+        ):
+            invalid.append(f"{code}: name={name!r} places={sorted(observed)[:2]}")
+    if invalid:
+        errors.append(f"规范数据集 admin_areas 有 {len(invalid)} 个名称无法由地点记录推导：" + "；".join(invalid[:5]))
 
     mismatches: list[str] = []
     for (level, code), adapter_name in sorted(adapter_admin.items()):
