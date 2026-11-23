@@ -2,14 +2,14 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 529,
+  "round": 530,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 322,
+    "findings": 323,
     "clean_rounds": 196,
     "p0": 0,
     "p1": 37,
-    "p2": 233,
+    "p2": 234,
     "p3": 57
   },
   "status": "active",
@@ -5349,6 +5349,16 @@
       "severity": "P2",
       "evidence": "负向制品让规范 `admin_areas` 与 Immich `admin2Codes` 同为“德州”，但 `place_names.admin2` 为“德州市”；旧门禁只比较前两张最终表，检查返回 0，修复后报告名称无法由地点记录推导。新检查允许配置化行政区后缀裁剪，`make check` 591 passed、89.63% coverage；最新 `data-2026-11-21` 制品通过新门禁，PR #366 四项必需检查全绿，squash 合并为 d435bc4。",
       "pr": "https://github.com/webees/immich-cn/pull/366"
+    },
+    {
+      "round": 530,
+      "timestamp": "2026-11-23T11:00:29+08:00",
+      "focus": "发布元数据统计口径一致性",
+      "method": "M3 负向制品实验",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "负向制品让 manifest 的 `stats.outputPlaces=2`、geodata 的 `build-info.json.stats.outputPlaces=1`；旧检查返回 0，新交叉检查修复前断言失败、修复后返回 1。真实 `data-2026-11-22` 三件套摘要与 API `digest` 一致，manifest、default 与 full 均为 `outputPlaces=1321163`；`make check` 592 passed、89.63% coverage，PR #367 四项必需检查全绿，squash 合并为 908c7bb。",
+      "pr": "https://github.com/webees/immich-cn/pull/367"
     }
   ],
   "residual_risks": [
