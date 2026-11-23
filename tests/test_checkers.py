@@ -2462,6 +2462,27 @@ def test_check_artifacts_manifest_assets_cover_artifacts(tmp_path: Path) -> None
     assert any("artifacts 未出现在 assets" in error for error in errors), errors
 
 
+def test_check_artifacts_manifest_stats_must_match_geodata(tmp_path: Path) -> None:
+    """manifest 与 geodata/build-info.json 的统计口径不一致时必须失败。"""
+    dist = _make_dist(tmp_path)
+    manifest_path = dist / "immich-cn-manifest-json-v1.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["stats"] = {"outputPlaces": 2, "perCountry": {"CN": 2}}
+    geodata = dist / "immich-cn-geodata-admin2-default-v1.zip"
+    with zipfile.ZipFile(geodata, "a") as archive:
+        archive.writestr(
+            "geodata/build-info.json",
+            json.dumps({"stats": {"outputPlaces": 1, "perCountry": {"CN": 1}}}),
+        )
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    errors: list[str] = []
+    check_artifacts.check_manifest(dist, errors)
+    assert not any("outputPlaces" in error for error in errors), errors
+    check_artifacts.check_published_stats(dist, errors)
+    assert any("outputPlaces" in error for error in errors), errors
+
+
 def test_check_artifacts_checksums_layer(tmp_path: Path) -> None:
     """直接验证 immich-cn-checksums-sha256-v1.txt 层：把它削弱后本用例必须失败。"""
     dist = _make_dist(tmp_path)
