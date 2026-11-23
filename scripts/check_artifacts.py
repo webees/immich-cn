@@ -124,6 +124,48 @@ def check_manifest(dist: Path, errors: list[str]) -> None:
         errors.append(f"{MANIFEST_FILE} 的 dataset.file 不是 {DATASET_FILE}")
 
 
+def check_published_stats(dist: Path, errors: list[str]) -> None:
+    """要求 manifest 与每个 geodata 变体声明的统计口径完全一致。"""
+    manifest_path = dist / MANIFEST_FILE
+    if not manifest_path.is_file():
+        return
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        expected = manifest["stats"]
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError):
+        return
+    if not isinstance(expected, dict):
+        return
+    for asset in manifest.get("assets", []):
+        if not isinstance(asset, dict) or asset.get("kind") != "geodata":
+            continue
+        name = asset.get("file")
+        if not isinstance(name, str):
+            continue
+        try:
+            with zipfile.ZipFile(dist / name) as archive:
+                build_info = json.loads(archive.read("geodata/build-info.json"))
+            actual = build_info["stats"]
+        except (
+            OSError,
+            KeyError,
+            TypeError,
+            ValueError,
+            zipfile.BadZipFile,
+            UnicodeDecodeError,
+            json.JSONDecodeError,
+        ) as error:
+            errors.append(f"{name} 无法读取 build-info.json 统计数据：{error}")
+            continue
+        if not isinstance(actual, dict):
+            errors.append(f"{name} 的 build-info.json stats 不是对象")
+            continue
+        if actual != expected:
+            differing = sorted(key for key in set(expected) | set(actual) if expected.get(key) != actual.get(key))
+            detail = ", ".join(differing[:5]) if differing else "未知字段"
+            errors.append(f"{name} 的 build-info.json stats 与 manifest 不一致：{detail}")
+
+
 def _check_file_entry(dist: Path, entry: dict[str, object], errors: list[str]) -> None:
     name = str(entry.get("file", ""))
     path = dist / name
@@ -586,6 +628,7 @@ def main(argv: list[str] | None = None) -> int:
     errors: list[str] = []
     check_required_files(args.dist, errors)
     check_manifest(args.dist, errors)
+    check_published_stats(args.dist, errors)
     check_dist_entries(args.dist, errors)
     zips = check_zips(args.dist, errors)
     check_dataset(args.dist, errors)
