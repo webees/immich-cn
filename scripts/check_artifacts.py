@@ -131,10 +131,15 @@ def check_published_stats(dist: Path, errors: list[str]) -> None:
         return
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        expected = manifest["stats"]
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError):
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        errors.append(f"{MANIFEST_FILE} 无法读取发布统计：{error}")
         return
+    if not isinstance(manifest, dict):
+        errors.append(f"{MANIFEST_FILE} 不是对象，无法校验发布统计")
+        return
+    expected = manifest.get("stats")
     if not isinstance(expected, dict):
+        errors.append(f"{MANIFEST_FILE} 缺少对象类型的 stats")
         return
     for asset in manifest.get("assets", []):
         if not isinstance(asset, dict) or asset.get("kind") != "geodata":

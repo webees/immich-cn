@@ -2273,6 +2273,7 @@ def _make_dist(root: Path) -> Path:
     for name in (geodata_default.name, geodata_full.name):
         with zipfile.ZipFile(dist / name, "w") as archive:
             archive.writestr("geodata/cities500.txt", lines)
+            archive.writestr("geodata/build-info.json", json.dumps({"stats": {}}))
             archive.writestr("geodata/NOTICE.txt", "GeoNames CC BY 4.0\n")
             archive.writestr("geodata/admin1CodesASCII.txt", "CN.22\t北京市\t北京市\t1816670\n")
             archive.writestr("geodata/admin2Codes.txt", "CN.22.11876380\t北京市\t北京市\t11876380\n")
@@ -2379,6 +2380,7 @@ def _make_dist(root: Path) -> Path:
                 "assets": assets,
                 "patternsTable": patterns.name,
                 "dataset": {"file": dataset.name},
+                "stats": {},
             },
             ensure_ascii=False,
         ),
@@ -2469,7 +2471,8 @@ def test_check_artifacts_manifest_stats_must_match_geodata(tmp_path: Path) -> No
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["stats"] = {"outputPlaces": 2, "perCountry": {"CN": 2}}
     geodata = dist / "immich-cn-geodata-admin2-default-v1.zip"
-    with zipfile.ZipFile(geodata, "a") as archive:
+    with zipfile.ZipFile(geodata, "a") as archive, warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
         archive.writestr(
             "geodata/build-info.json",
             json.dumps({"stats": {"outputPlaces": 1, "perCountry": {"CN": 1}}}),
@@ -2481,6 +2484,16 @@ def test_check_artifacts_manifest_stats_must_match_geodata(tmp_path: Path) -> No
     assert not any("outputPlaces" in error for error in errors), errors
     check_artifacts.check_published_stats(dist, errors)
     assert any("outputPlaces" in error for error in errors), errors
+
+
+def test_check_artifacts_rejects_missing_manifest_stats(tmp_path: Path) -> None:
+    """stats 是发布契约字段，缺失时不能因为无法读取 build-info 而静默通过。"""
+    manifest = tmp_path / check_artifacts.MANIFEST_FILE
+    manifest.write_text(json.dumps({"assets": []}), encoding="utf-8")
+
+    errors: list[str] = []
+    check_artifacts.check_published_stats(tmp_path, errors)
+    assert any("stats" in error for error in errors), errors
 
 
 def test_check_artifacts_checksums_layer(tmp_path: Path) -> None:
