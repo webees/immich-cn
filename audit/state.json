@@ -2,14 +2,14 @@
   "objective": "把完全独立实现的 immich-cn 推进为 Immich 中国本地化最高标准：中文地名与检索、行政层级、港澳台及海外边界、全自动数据更新发布、可追溯回滚、GHCR 签名清理，以及极简代码和文档；连续 50 轮 clean 后按三态交付",
   "schema": 2,
   "clean_rounds_required": 50,
-  "round": 530,
+  "round": 531,
   "consecutive_clean": 0,
   "totals": {
-    "findings": 323,
+    "findings": 324,
     "clean_rounds": 196,
     "p0": 0,
     "p1": 37,
-    "p2": 234,
+    "p2": 235,
     "p3": 57
   },
   "status": "active",
@@ -5359,6 +5359,16 @@
       "severity": "P2",
       "evidence": "负向制品让 manifest 的 `stats.outputPlaces=2`、geodata 的 `build-info.json.stats.outputPlaces=1`；旧检查返回 0，新交叉检查修复前断言失败、修复后返回 1。真实 `data-2026-11-22` 三件套摘要与 API `digest` 一致，manifest、default 与 full 均为 `outputPlaces=1321163`；`make check` 592 passed、89.63% coverage，PR #367 四项必需检查全绿，squash 合并为 908c7bb。",
       "pr": "https://github.com/webees/immich-cn/pull/367"
+    },
+    {
+      "round": 531,
+      "timestamp": "2026-11-24T10:27:12+08:00",
+      "focus": "发布统计字段缺失时的一致性门禁",
+      "method": "M3 负向制品实验",
+      "verdict": "findings",
+      "severity": "P2",
+      "evidence": "`check_published_stats` 在 manifest 缺少 `stats` 时静默返回，负向测试只构造 `{\"assets\": []}` 即复现 `assert False`（预期报错、实际 0 项错误），说明发布统计门禁可被删字段绕过。修复为对缺失、非对象及不可解析 manifest 明确报错，并补齐最小发布夹具的契约字段；新增用例修复前失败、修复后通过。全量 `make check` 593 passed、89.63% coverage；真实下载的 `auto-release` 全部制品通过校验（15 个压缩包、18 项校验和），PR #368 四项必需检查全绿，squash 合并为 472b160。",
+      "pr": "https://github.com/webees/immich-cn/pull/368"
     }
   ],
   "residual_risks": [
@@ -5383,7 +5393,8 @@
     "第 526 轮用假 docker 验证 429 重试，尚未在真实 GHCR 限流窗口复跑；最多 3 次、5/10 秒退避对持续限流可能仍不足，CLI 错误也未提供 Retry-After 适配",
     "第 527 轮用真实远端资产与陈旧本地 dist 验证摘要不一致，但尚未从一次真实自动更新运行观察 `changed` 由 false 翻到 true；工作流内执行分支仍由契约测试而非端到端 shell 假服务覆盖",
     "第 528 轮用真实数据确认同省内 admin2 后缀唯一可恢复 34 个冲突代码，但仍有 5 个无可匹配后缀、以及跨省同名后缀保持未解析；这些地点继续使用地点名回退，需上游修正 admin1 映射才能自动恢复",
-    "第 529 轮新增的派生一致性检查基于规范数据库的地点名称集合；若上游提供多个合法别名，仍需后续决定规范化规则，当前以允许的后缀裁剪和精确名称匹配为准"
+    "第 529 轮新增的派生一致性检查基于规范数据库的地点名称集合；若上游提供多个合法别名，仍需后续决定规范化规则，当前以允许的后缀裁剪和精确名称匹配为准",
+    "第 531 轮只验证了 manifest.stats 缺失/非对象/JSON 损坏，未将 stats 各字段的值与规范 SQLite 的 dataset_meta 或表计数逐项交叉核对"
   ],
   "totalsSuperseded": {
     "asOf": "2026-10-07",
